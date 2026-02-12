@@ -1,0 +1,94 @@
+export const metadata = { title: "Sessions" }
+
+# Sessions
+
+Run multiple isolated browser instances:
+
+```bash
+# Different sessions
+agent-browser --session agent1 open site-a.com
+agent-browser --session agent2 open site-b.com
+
+# Or via environment variable
+AGENT_BROWSER_SESSION=agent1 agent-browser click "#btn"
+
+# List active sessions
+agent-browser session list
+# Output:
+# Active sessions:
+# -> default
+#    agent1
+
+# Show current session
+agent-browser session
+```
+
+## Session isolation
+
+Each session has its own:
+
+- Browser instance
+- Cookies and storage
+- Navigation history
+- Authentication state
+
+## Persistent profiles
+
+By default, browser state is lost when the browser closes. Use `--profile` to persist state across restarts:
+
+```bash
+# Use a persistent profile directory
+agent-browser --profile ~/.myapp-profile open myapp.com
+
+# Login once, then reuse the authenticated session
+agent-browser --profile ~/.myapp-profile open myapp.com/dashboard
+
+# Or via environment variable
+AGENT_BROWSER_PROFILE=~/.myapp-profile agent-browser open myapp.com
+```
+
+The profile directory stores:
+
+- Cookies and localStorage
+- IndexedDB data
+- Service workers
+- Browser cache
+- Login sessions
+
+## Authenticated sessions
+
+Use `--headers` to set HTTP headers for a specific origin:
+
+```bash
+# Headers scoped to api.example.com only
+agent-browser open api.example.com --headers '{"Authorization": "Bearer <token>"}'
+
+# Requests to api.example.com include the auth header
+agent-browser snapshot -i --json
+agent-browser click @e2
+
+# Navigate to another domain - headers NOT sent
+agent-browser open other-site.com
+```
+
+Useful for:
+
+- **Skipping login flows** - Authenticate via headers
+- **Switching users** - Different auth tokens per session
+- **API testing** - Access protected endpoints
+- **Security** - Headers scoped to origin, not leaked
+
+## Multiple origins
+
+```bash
+agent-browser open api.example.com --headers '{"Authorization": "Bearer token1"}'
+agent-browser open api.acme.com --headers '{"Authorization": "Bearer token2"}'
+```
+
+## Global headers
+
+For headers on all domains:
+
+```bash
+agent-browser set headers '{"X-Custom-Header": "value"}'
+```

@@ -132,6 +132,33 @@ describe('BrowserManager', () => {
         expect(result.remaining).toBe(1);
       }
     });
+
+    it('should auto-switch to externally opened tab (window.open)', async () => {
+      // Ensure we start on tab 0
+      const initialIndex = browser.getActiveIndex();
+      expect(initialIndex).toBe(0);
+
+      const page = browser.getPage();
+
+      // Use window.open to create a new tab externally (as a user/script would)
+      await page.evaluate(() => {
+        window.open('about:blank', '_blank');
+      });
+
+      // Wait for the new page event to be processed
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // Active tab should now be the newly opened tab
+      const newIndex = browser.getActiveIndex();
+      expect(newIndex).toBe(1);
+
+      const tabs = await browser.listTabs();
+      expect(tabs.length).toBe(2);
+      expect(tabs[1].active).toBe(true);
+
+      // Clean up: close the new tab
+      await browser.closeTab(1);
+    });
   });
 
   describe('context operations', () => {
@@ -304,6 +331,86 @@ describe('BrowserManager', () => {
       // Compact should be equal or shorter
       expect(compactSnapshot.length).toBeLessThanOrEqual(fullSnapshot.length);
     });
+
+    it('should not capture cursor-interactive elements without cursor flag', async () => {
+      const page = browser.getPage();
+      await page.setContent(`
+        <html>
+          <body>
+            <button id="standard-btn">Standard Button</button>
+            <div id="clickable-div" style="cursor: pointer;" onclick="void(0)">Clickable Div</div>
+          </body>
+        </html>
+      `);
+
+      const { tree, refs } = await browser.getSnapshot({ interactive: true });
+
+      // Standard button should be captured via ARIA
+      expect(tree).toContain('button "Standard Button"');
+
+      // Cursor-interactive elements should NOT be captured without cursor flag
+      expect(tree).not.toContain('Cursor-interactive elements');
+      expect(tree).not.toContain('clickable "Clickable Div"');
+
+      // Should only have refs for ARIA interactive elements
+      const refValues = Object.values(refs);
+      expect(refValues.some((r) => r.role === 'button')).toBe(true);
+      expect(refValues.some((r) => r.role === 'clickable')).toBe(false);
+    });
+
+    it('should capture cursor-interactive elements with cursor flag', async () => {
+      const page = browser.getPage();
+      await page.setContent(`
+        <html>
+          <body>
+            <button id="standard-btn">Standard Button</button>
+            <div id="clickable-div" style="cursor: pointer;" onclick="void(0)">Clickable Div</div>
+            <span onclick="void(0)">Onclick Span</span>
+          </body>
+        </html>
+      `);
+
+      const { tree, refs } = await browser.getSnapshot({ interactive: true, cursor: true });
+
+      // Standard button should be captured via ARIA
+      expect(tree).toContain('button "Standard Button"');
+
+      // Cursor-interactive elements should be captured with cursor flag
+      expect(tree).toContain('Cursor-interactive elements');
+      expect(tree).toContain('clickable "Clickable Div"');
+      expect(tree).toContain('clickable "Onclick Span"');
+
+      // Should have refs for all interactive elements
+      const refValues = Object.values(refs);
+      expect(refValues.some((r) => r.role === 'button')).toBe(true);
+      expect(refValues.some((r) => r.role === 'clickable')).toBe(true);
+    });
+
+    it('should click cursor-interactive elements via refs', async () => {
+      const page = browser.getPage();
+      await page.setContent(`
+        <html>
+          <body>
+            <div id="clickable" style="cursor: pointer;" onclick="document.getElementById('result').textContent = 'clicked'">Click Me</div>
+            <div id="result">not clicked</div>
+          </body>
+        </html>
+      `);
+
+      const { refs } = await browser.getSnapshot({ cursor: true });
+
+      // Find the ref for the clickable element
+      const clickableRef = Object.keys(refs).find((k) => refs[k].name === 'Click Me');
+      expect(clickableRef).toBeDefined();
+
+      // Click using the ref
+      const locator = browser.getLocator(`@${clickableRef}`);
+      await locator.click();
+
+      // Verify click worked
+      const result = await page.locator('#result').textContent();
+      expect(result).toBe('clicked');
+    });
   });
 
   describe('locator resolution', () => {
@@ -402,6 +509,7 @@ describe('BrowserManager', () => {
               { url: () => 'http://anothersite.com', on: vi.fn() },
             ],
             on: vi.fn(),
+            setDefaultTimeout: vi.fn(),
           },
         ],
         close: vi.fn(),

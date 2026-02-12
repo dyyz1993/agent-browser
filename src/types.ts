@@ -29,6 +29,7 @@ export interface LaunchCommand extends BaseCommand {
   userAgent?: string;
   provider?: string;
   ignoreHTTPSErrors?: boolean;
+  allowFileAccess?: boolean; // Enable file:// URL access and cross-origin file requests
 }
 
 export interface NavigateCommand extends BaseCommand {
@@ -107,6 +108,7 @@ export interface GetByRoleCommand extends BaseCommand {
   action: 'getbyrole';
   role: string;
   name?: string;
+  exact?: boolean;
   subaction: 'click' | 'fill' | 'check' | 'hover';
   value?: string;
 }
@@ -121,6 +123,7 @@ export interface GetByTextCommand extends BaseCommand {
 export interface GetByLabelCommand extends BaseCommand {
   action: 'getbylabel';
   label: string;
+  exact?: boolean;
   subaction: 'click' | 'fill' | 'check';
   value?: string;
 }
@@ -128,6 +131,7 @@ export interface GetByLabelCommand extends BaseCommand {
 export interface GetByPlaceholderCommand extends BaseCommand {
   action: 'getbyplaceholder';
   placeholder: string;
+  exact?: boolean;
   subaction: 'click' | 'fill';
   value?: string;
 }
@@ -519,6 +523,17 @@ export interface InputTouchCommand extends BaseCommand {
   type: 'touchStart' | 'touchEnd' | 'touchMove' | 'touchCancel';
   touchPoints: Array<{ x: number; y: number; id?: number }>;
   modifiers?: number;
+}
+
+// iOS-specific commands
+export interface SwipeCommand extends BaseCommand {
+  action: 'swipe';
+  direction: 'up' | 'down' | 'left' | 'right';
+  distance?: number;
+}
+
+export interface DeviceListCommand extends BaseCommand {
+  action: 'device_list';
 }
 
 // Video recording (Playwright native - requires launch-time setup)
@@ -931,7 +946,9 @@ export type Command =
   | ScreencastStopCommand
   | InputMouseCommand
   | InputKeyboardCommand
-  | InputTouchCommand;
+  | InputTouchCommand
+  | SwipeCommand
+  | DeviceListCommand;
 
 // Response types
 export interface SuccessResponse<T = unknown> {

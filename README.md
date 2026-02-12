@@ -11,6 +11,13 @@ npm install -g agent-browser
 agent-browser install  # Download Chromium
 ```
 
+### Homebrew (macOS)
+
+```bash
+brew install agent-browser
+agent-browser install  # Download Chromium
+```
+
 ### From Source
 
 ```bash
@@ -74,10 +81,10 @@ agent-browser scroll <dir> [px]       # Scroll (up/down/left/right)
 agent-browser scrollintoview <sel>    # Scroll element into view (alias: scrollinto)
 agent-browser drag <src> <tgt>        # Drag and drop
 agent-browser upload <sel> <files>    # Upload files
-agent-browser screenshot [path]       # Take screenshot (--full for full page, base64 png to stdout if no path)
+agent-browser screenshot [path]       # Take screenshot (--full for full page, saves to a temporary directory if no path)
 agent-browser pdf <path>              # Save as PDF
 agent-browser snapshot                # Accessibility tree with refs (best for AI)
-agent-browser eval <js>               # Run JavaScript
+agent-browser eval <js>               # Run JavaScript (-b for base64, --stdin for piped input)
 agent-browser connect <port>          # Connect to browser via CDP
 agent-browser close                   # Close browser (aliases: quit, exit)
 ```
@@ -302,6 +309,7 @@ The `snapshot` command supports filtering to reduce output size:
 ```bash
 agent-browser snapshot                    # Full accessibility tree
 agent-browser snapshot -i                 # Interactive elements only (buttons, inputs, links)
+agent-browser snapshot -i -C              # Include cursor-interactive elements (divs with onclick, etc.)
 agent-browser snapshot -c                 # Compact (remove empty structural elements)
 agent-browser snapshot -d 3               # Limit depth to 3 levels
 agent-browser snapshot -s "#main"         # Scope to CSS selector
@@ -311,9 +319,12 @@ agent-browser snapshot -i -c -d 5         # Combine options
 | Option | Description |
 |--------|-------------|
 | `-i, --interactive` | Only show interactive elements (buttons, links, inputs) |
+| `-C, --cursor` | Include cursor-interactive elements (cursor:pointer, onclick, tabindex) |
 | `-c, --compact` | Remove empty structural elements |
 | `-d, --depth <n>` | Limit tree depth |
 | `-s, --selector <sel>` | Scope to CSS selector |
+
+The `-C` flag is useful for modern web apps that use custom clickable elements (divs, spans) instead of standard buttons/links.
 
 ## Options
 
@@ -335,6 +346,7 @@ agent-browser snapshot -i -c -d 5         # Combine options
 | `--headed` | Show browser window (not headless) |
 | `--cdp <port>` | Connect via Chrome DevTools Protocol |
 | `--ignore-https-errors` | Ignore HTTPS certificate errors (useful for self-signed certs) |
+| `--allow-file-access` | Allow file:// URLs to access local files (Chromium only) |
 | `--debug` | Debug output |
 
 ## Selectors
@@ -491,6 +503,27 @@ export async function handler() {
   // ... use browser
 }
 ```
+
+## Local Files
+
+Open and interact with local files (PDFs, HTML, etc.) using `file://` URLs:
+
+```bash
+# Enable file access (required for JavaScript to access local files)
+agent-browser --allow-file-access open file:///path/to/document.pdf
+agent-browser --allow-file-access open file:///path/to/page.html
+
+# Take screenshot of a local PDF
+agent-browser --allow-file-access open file:///Users/me/report.pdf
+agent-browser screenshot report.png
+```
+
+The `--allow-file-access` flag adds Chromium flags (`--allow-file-access-from-files`, `--allow-file-access`) that allow `file://` URLs to:
+- Load and render local files
+- Access other local files via JavaScript (XHR, fetch)
+- Load local resources (images, scripts, stylesheets)
+
+**Note:** This flag only works with Chromium. For security, it's disabled by default.
 
 ## CDP Mode
 
@@ -691,6 +724,98 @@ Core workflow:
 
 ## Integrations
 
+### iOS Simulator
+
+Control real Mobile Safari in the iOS Simulator for authentic mobile web testing. Requires macOS with Xcode.
+
+**Setup:**
+
+```bash
+# Install Appium and XCUITest driver
+npm install -g appium
+appium driver install xcuitest
+```
+
+**Usage:**
+
+```bash
+# List available iOS simulators
+agent-browser device list
+
+# Launch Safari on a specific device
+agent-browser -p ios --device "iPhone 16 Pro" open https://example.com
+
+# Same commands as desktop
+agent-browser -p ios snapshot -i
+agent-browser -p ios tap @e1
+agent-browser -p ios fill @e2 "text"
+agent-browser -p ios screenshot mobile.png
+
+# Mobile-specific commands
+agent-browser -p ios swipe up
+agent-browser -p ios swipe down 500
+
+# Close session
+agent-browser -p ios close
+```
+
+Or use environment variables:
+
+```bash
+export AGENT_BROWSER_PROVIDER=ios
+export AGENT_BROWSER_IOS_DEVICE="iPhone 16 Pro"
+agent-browser open https://example.com
+```
+
+| Variable | Description |
+|----------|-------------|
+| `AGENT_BROWSER_PROVIDER` | Set to `ios` to enable iOS mode |
+| `AGENT_BROWSER_IOS_DEVICE` | Device name (e.g., "iPhone 16 Pro", "iPad Pro") |
+| `AGENT_BROWSER_IOS_UDID` | Device UDID (alternative to device name) |
+
+**Supported devices:** All iOS Simulators available in Xcode (iPhones, iPads), plus real iOS devices.
+
+**Note:** The iOS provider boots the simulator, starts Appium, and controls Safari. First launch takes ~30-60 seconds; subsequent commands are fast.
+
+#### Real Device Support
+
+Appium also supports real iOS devices connected via USB. This requires additional one-time setup:
+
+**1. Get your device UDID:**
+```bash
+xcrun xctrace list devices
+# or
+system_profiler SPUSBDataType | grep -A 5 "iPhone\|iPad"
+```
+
+**2. Sign WebDriverAgent (one-time):**
+```bash
+# Open the WebDriverAgent Xcode project
+cd ~/.appium/node_modules/appium-xcuitest-driver/node_modules/appium-webdriveragent
+open WebDriverAgent.xcodeproj
+```
+
+In Xcode:
+- Select the `WebDriverAgentRunner` target
+- Go to Signing & Capabilities
+- Select your Team (requires Apple Developer account, free tier works)
+- Let Xcode manage signing automatically
+
+**3. Use with agent-browser:**
+```bash
+# Connect device via USB, then:
+agent-browser -p ios --device "<DEVICE_UDID>" open https://example.com
+
+# Or use the device name if unique
+agent-browser -p ios --device "John's iPhone" open https://example.com
+```
+
+**Real device notes:**
+- First run installs WebDriverAgent to the device (may require Trust prompt)
+- Device must be unlocked and connected via USB
+- Slightly slower initial connection than simulator
+- Tests against real Safari performance and behavior
+
 ### Browserbase
 
 [Browserbase](https://browserbase.com) provides remote browser infrastructure to make deployment of agentic browsing agents easy. Use it when running the agent-browser CLI in an environment where a local browser isn't feasible.
@@ -738,6 +863,40 @@ agent-browser open https://example.com
 When enabled, agent-browser connects to a Browser Use cloud session instead of launching a local browser. All commands work identically.
 
 Get your API key from the [Browser Use Cloud Dashboard](https://cloud.browser-use.com/settings?tab=api-keys). Free credits are available to get started, with pay-as-you-go pricing after.
+
+### Kernel
+
+[Kernel](https://www.kernel.sh) provides cloud browser infrastructure for AI agents with features like stealth mode and persistent profiles.
+
+To enable Kernel, use the `-p` flag:
+
+```bash
+export KERNEL_API_KEY="your-api-key"
+agent-browser -p kernel open https://example.com
+```
+
+Or use environment variables for CI/scripts:
+
+```bash
+export AGENT_BROWSER_PROVIDER=kernel
+export KERNEL_API_KEY="your-api-key"
+agent-browser open https://example.com
+```
+
+Optional configuration via environment variables:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `KERNEL_HEADLESS` | Run browser in headless mode (`true`/`false`) | `false` |
+| `KERNEL_STEALTH` | Enable stealth mode to avoid bot detection (`true`/`false`) | `true` |
+| `KERNEL_TIMEOUT_SECONDS` | Session timeout in seconds | `300` |
+| `KERNEL_PROFILE_NAME` | Browser profile name for persistent cookies/logins (created if it doesn't exist) | (none) |
+
+When enabled, agent-browser connects to a Kernel cloud session instead of launching a local browser. All commands work identically.
+
+**Profile Persistence:** When `KERNEL_PROFILE_NAME` is set, the profile will be created if it doesn't already exist. Cookies, logins, and session data are automatically saved back to the profile when the browser session ends, making them available for future sessions.
+
+Get your API key from the [Kernel Dashboard](https://dashboard.onkernel.com).
 
 ## License
 

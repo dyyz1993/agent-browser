@@ -1,5 +1,8 @@
 import type { Page, Frame } from 'playwright-core';
+import { mkdirSync } from 'node:fs';
+import path from 'node:path';
 import type { BrowserManager, ScreencastFrame } from './browser.js';
+import { getAppDir } from './daemon.js';
 import type {
   Command,
   Response,
@@ -204,6 +207,14 @@ export function toAIFriendlyError(error: unknown, selector: string): Error {
     return new Error(
       `Element "${selector}" is not visible. ` +
         `Try scrolling it into view or check if it's hidden.`
+    );
+  }
+
+  // Handle general timeout (element exists but action couldn't complete)
+  if (message.includes('Timeout') && message.includes('exceeded')) {
+    return new Error(
+      `Action on "${selector}" timed out. The element may be blocked, still loading, or not interactable. ` +
+        `Run 'snapshot' to check the current page state.`
     );
   }
 
@@ -586,13 +597,19 @@ async function handleScreenshot(
   }
 
   try {
-    if (command.path) {
-      await target.screenshot({ ...options, path: command.path });
-      return successResponse(command.id, { path: command.path });
-    } else {
-      const buffer = await target.screenshot(options);
-      return successResponse(command.id, { base64: buffer.toString('base64') });
+    let savePath = command.path;
+    if (!savePath) {
+      const ext = command.format === 'jpeg' ? 'jpg' : 'png';
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const random = Math.random().toString(36).substring(2, 8);
+      const filename = `screenshot-${timestamp}-${random}.${ext}`;
+      const screenshotDir = path.join(getAppDir(), 'tmp', 'screenshots');
+      mkdirSync(screenshotDir, { recursive: true });
+      savePath = path.join(screenshotDir, filename);
     }
+
+    await target.screenshot({ ...options, path: savePath });
+    return successResponse(command.id, { path: savePath });
   } catch (error) {
     if (command.selector) {
       throw toAIFriendlyError(error, command.selector);
@@ -605,6 +622,7 @@ async function handleSnapshot(
   command: Command & {
     action: 'snapshot';
     interactive?: boolean;
+    cursor?: boolean;
     maxDepth?: number;
     compact?: boolean;
     selector?: string;
@@ -614,6 +632,7 @@ async function handleSnapshot(
   // Use enhanced snapshot with refs and optional filtering
   const { tree, refs } = await browser.getSnapshot({
     interactive: command.interactive,
+    cursor: command.cursor,
     maxDepth: command.maxDepth,
     compact: command.compact,
     selector: command.selector,
@@ -903,7 +922,7 @@ async function handleGetByRole(
   browser: BrowserManager
 ): Promise<Response> {
   const page = browser.getPage();
-  const locator = page.getByRole(command.role as any, { name: command.name });
+  const locator = page.getByRole(command.role as any, { name: command.name, exact: command.exact });
 
   switch (command.subaction) {
     case 'click':
@@ -943,7 +962,7 @@ async function handleGetByLabel(
   browser: BrowserManager
 ): Promise<Response> {
   const page = browser.getPage();
-  const locator = page.getByLabel(command.label);
+  const locator = page.getByLabel(command.label, { exact: command.exact });
 
   switch (command.subaction) {
     case 'click':
@@ -963,7 +982,7 @@ async function handleGetByPlaceholder(
   browser: BrowserManager
 ): Promise<Response> {
   const page = browser.getPage();
-  const locator = page.getByPlaceholder(command.placeholder);
+  const locator = page.getByPlaceholder(command.placeholder, { exact: command.exact });
 
   switch (command.subaction) {
     case 'click':
