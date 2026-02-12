@@ -135,6 +135,36 @@ export function setScreencastFrameCallback(
   screencastFrameCallback = callback;
 }
 
+/**
+ * Browser event callbacks for real-time broadcasting
+ * Used by StreamServer to push browser events to WebSocket clients
+ */
+export interface BrowserEventCallbacks {
+  onTabCreated?: (event: { index: number; url: string; title: string }) => void;
+  onTabClosed?: (event: { index: number; remainingTabs: number }) => void;
+  onTabSwitched?: (event: { fromIndex: number; toIndex: number }) => void;
+  onNavigation?: (event: { url: string; title: string }) => void;
+}
+
+// Event callbacks registered by StreamServer or other listeners
+let eventCallbacks: BrowserEventCallbacks = {};
+
+/**
+ * Set browser event callbacks for real-time broadcasting
+ * This is called by StreamServer to register event listeners
+ */
+export function setEventCallbacks(callbacks: BrowserEventCallbacks): void {
+  eventCallbacks = { ...eventCallbacks, ...callbacks };
+}
+
+/**
+ * Get the current event callbacks
+ * This is called by BrowserManager to trigger events
+ */
+export function getEventCallbacks(): BrowserEventCallbacks {
+  return eventCallbacks;
+}
+
 // Snapshot response type
 interface SnapshotData {
   snapshot: string;
@@ -461,7 +491,10 @@ async function handleLaunch(
   browser: BrowserManager
 ): Promise<Response> {
   await browser.launch(command);
-  return successResponse(command.id, { launched: true });
+  return successResponse(command.id, {
+    launched: true,
+    session_id: command.id,
+  });
 }
 
 async function handleNavigate(
@@ -638,7 +671,9 @@ async function handleScroll(command: ScrollCommand, browser: BrowserManager): Pr
     if (command.x !== undefined || command.y !== undefined) {
       await element.evaluate(
         (el, { x, y }) => {
-          el.scrollBy(x ?? 0, y ?? 0);
+          if ('scrollBy' in el) {
+            (el as HTMLElement).scrollBy(x ?? 0, y ?? 0);
+          }
         },
         { x: command.x, y: command.y }
       );

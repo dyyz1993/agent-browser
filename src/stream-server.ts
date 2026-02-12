@@ -1,6 +1,9 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import type { BrowserManager, ScreencastFrame } from './browser.js';
-import { setScreencastFrameCallback } from './actions.js';
+import { setScreencastFrameCallback, setEventCallbacks } from './actions.js';
+import type { Command, Response } from './types.js';
+import { executeCommand } from './actions.js';
+import { errorResponse, serializeResponse } from './protocol.js';
 
 // Message types for WebSocket communication
 export interface FrameMessage {
@@ -58,13 +61,45 @@ export interface ErrorMessage {
   message: string;
 }
 
+export interface TabCreatedMessage {
+  type: 'tab_created';
+  data: { index: number; url: string; title: string };
+}
+
+export interface TabClosedMessage {
+  type: 'tab_closed';
+  data: { index: number; remainingTabs: number };
+}
+
+export interface TabSwitchedMessage {
+  type: 'tab_switched';
+  data: { fromIndex: number; toIndex: number };
+}
+
+export interface NavigationMessage {
+  type: 'navigation';
+  data: { url: string; title: string };
+}
+
 export type StreamMessage =
   | FrameMessage
   | InputMouseMessage
   | InputKeyboardMessage
   | InputTouchMessage
   | StatusMessage
-  | ErrorMessage;
+  | ErrorMessage
+  | TabCreatedMessage
+  | TabClosedMessage
+  | TabSwitchedMessage
+  | NavigationMessage
+  | Command; // Support all existing commands for passthrough
+
+/**
+ * Type guard to check if a message is a Command
+ */
+function isCommandMessage(msg: StreamMessage): msg is Command {
+  return 'id' in msg && 'action' in msg && !('type' in msg);
+}
 
 /**
  * WebSocket server for streaming browser viewport and receiving input
@@ -106,6 +141,24 @@ export class StreamServer {
             this.broadcastFrame(frame);
           });
 
+          // Register event callbacks for real-time broadcasting
+          setEventCallbacks({
+            onTabCreated: (event) => {
+              this.broadcastEvent({ type: 'tab_created', data: event });
+            },
+            onTabClosed: (event) => {
+              this.broadcastEvent({ type: 'tab_closed', data: event });
+            },
+            onTabSwitched: (event) => {
+              // 只广播事件，不自动重启screencast
+              // 避免干扰初始启动逻辑
+              this.broadcastEvent({ type: 'tab_switched', data: event });
+            },
+            onNavigation: (event) => {
+              this.broadcastEvent({ type: 'navigation', data: event });
+            },
+          });
+
           resolve();
         });
       } catch (error) {
@@ -123,8 +176,9 @@ export class StreamServer {
       await this.stopScreencast();
     }
 
-    // Clear the callback
+    // Clear the callbacks
     setScreencastFrameCallback(null);
+    setEventCallbacks({});
 
     // Close all clients
     for (const client of this.clients) {
@@ -194,6 +248,19 @@ export class StreamServer {
    * Handle incoming messages from clients
    */
   private async handleMessage(message: StreamMessage, ws: WebSocket): Promise<void> {
+    // Handle Command messages (passthrough to executeCommand)
+    if (isCommandMessage(message)) {
+      try {
+        const response = await executeCommand(message, this.browser);
+        ws.send(serializeResponse(response));
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        ws.send(serializeResponse(errorResponse(message.id, errorMessage)));
+      }
+      return;
+    }
+
+    // Handle existing stream-specific messages
     try {
       switch (message.type) {
         case 'input_mouse':
@@ -248,6 +315,21 @@ export class StreamServer {
       metadata: frame.metadata,
     };
 
+    const payload = JSON.stringify(message);
+
+    for (const client of this.clients) {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(payload);
+      }
+    }
+  }
+
+  /**
+   * Broadcast an event message to all connected clients
+   */
+  private broadcastEvent(
+    message: TabCreatedMessage | TabClosedMessage | TabSwitchedMessage | NavigationMessage
+  ): void {
     const payload = JSON.stringify(message);
 
     for (const client of this.clients) {

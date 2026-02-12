@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/usr/local/bin/npm init:*)",
+      "Bash(/usr/local/bin/npm install:*)",
+      "Bash(/usr/local/bin/npm list:*)",
+      "Bash(/usr/local/bin/npm run build)",
+      "Bash(./node_modules/.bin/tsc:*)",
+      "Bash(timeout 5 ./node_modules/.bin/vite:*)",
+      "Bash(cargo check:*)",
+      "Bash(/Users/xuyingzhou/.cargo/bin/cargo check)",
+      "Bash(CARGO_HOME=/Users/xuyingzhou/.cargo PATH=/Users/xuyingzhou/.cargo/bin:$PATH cargo check:*)",
+      "Bash(cargo install:*)",
+      "Bash(curl:*)",
+      "Bash(lsof:*)",
+      "Bash(cargo tauri:*)",
+      "Bash(xargs:*)",
+      "Bash(osascript:*)",
+      "Bash(pgrep:*)",
+      "Bash(export AGENT_BROWSER_EXECUTABLE_PATH=\"/Applications/Chromium.app/Contents/MacOS/Chromium\")",
+      "Bash(export AGENT_BROWSER_HEADED=\"1\")",
+      "Bash(export AGENT_BROWSER_STREAM_PORT=\"9223\")",
+      "Bash(export PATH=\"/Users/xuyingzhou/.nvm/versions/node/v25.2.1/bin:$PATH\")",
+      "Bash(timeout 10 npx tsx:*)",
+      "Bash(cd /Users/xuyingzhou/Project/temporary/agent-browser npm run build)",
+      "Bash(cd:*)",
+      "Bash(__NEW_LINE__ echo \"\")",
+      "Bash(python3:*)",
+      "Bash(rustc:*)",
+      "Bash(agent-browser:*)",
+      "Bash(bin/agent-browser-darwin-arm64 --version)"
+    ]
+  }
+}

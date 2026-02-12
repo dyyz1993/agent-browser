@@ -19,6 +19,7 @@ import os from 'node:os';
 import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import type { LaunchCommand } from './types.js';
 import { type RefMap, type EnhancedSnapshot, getEnhancedSnapshot, parseRef } from './snapshot.js';
+import { getEventCallbacks } from './actions.js';
 
 // Screencast frame data from CDP
 export interface ScreencastFrame {
@@ -763,6 +764,7 @@ export class BrowserManager {
       this.pages.push(page);
       this.activePageIndex = 0;
       this.setupPageTracking(page);
+      this.setupContextTracking(context);
     } catch (error) {
       await this.closeBrowserbaseSession(session.id, browserbaseApiKey).catch((sessionError) => {
         console.error('Failed to close Browserbase session during cleanup:', sessionError);
@@ -966,6 +968,9 @@ export class BrowserManager {
     context.setDefaultTimeout(60000);
     this.contexts.push(context);
 
+    // Set up context tracking to catch window.open() popups
+    this.setupContextTracking(context);
+
     const page = context.pages()[0] ?? (await context.newPage());
     this.pages.push(page);
     this.activePageIndex = 0;
@@ -1065,13 +1070,30 @@ export class BrowserManager {
       });
     });
 
+    page.on('load', async () => {
+      // Trigger navigation event callback
+      const callbacks = getEventCallbacks();
+      callbacks.onNavigation?.({
+        url: page.url(),
+        title: await page.title().catch(() => ''),
+      });
+    });
+
     page.on('close', () => {
       const index = this.pages.indexOf(page);
       if (index !== -1) {
+        const url = page.url();
         this.pages.splice(index, 1);
         if (this.activePageIndex >= this.pages.length) {
           this.activePageIndex = Math.max(0, this.pages.length - 1);
         }
+
+        // Trigger tab closed event callback
+        const callbacks = getEventCallbacks();
+        callbacks.onTabClosed?.({
+          index,
+          remainingTabs: this.pages.length,
+        });
       }
     });
   }
@@ -1080,9 +1102,20 @@ export class BrowserManager {
    * Set up tracking for new pages in a context (for CDP connections)
    */
   private setupContextTracking(context: BrowserContext): void {
-    context.on('page', (page) => {
+    context.on('page', async (page) => {
       this.pages.push(page);
       this.setupPageTracking(page);
+
+      // Trigger tab created event callback
+      const callbacks = getEventCallbacks();
+      if (callbacks.onTabCreated) {
+        const index = this.pages.length - 1;
+        callbacks.onTabCreated({
+          index,
+          url: page.url(),
+          title: await page.title().catch(() => ''),
+        });
+      }
     });
   }
 
@@ -1104,6 +1137,17 @@ export class BrowserManager {
 
     // Set up tracking for the new page
     this.setupPageTracking(page);
+
+    // Trigger tab created event callback
+    const callbacks = getEventCallbacks();
+    if (callbacks.onTabCreated) {
+      const index = this.pages.length - 1;
+      callbacks.onTabCreated({
+        index,
+        url: page.url(),
+        title: await page.title().catch(() => ''),
+      });
+    }
 
     return { index: this.activePageIndex, total: this.pages.length };
   }
@@ -1131,6 +1175,17 @@ export class BrowserManager {
 
     // Set up tracking for the new page
     this.setupPageTracking(page);
+
+    // Trigger tab created event callback
+    const callbacks = getEventCallbacks();
+    if (callbacks.onTabCreated) {
+      const index = this.pages.length - 1;
+      callbacks.onTabCreated({
+        index,
+        url: page.url(),
+        title: await page.title().catch(() => ''),
+      });
+    }
 
     return { index: this.activePageIndex, total: this.pages.length };
   }
@@ -1165,8 +1220,16 @@ export class BrowserManager {
       await this.invalidateCDPSession();
     }
 
+    const previousIndex = this.activePageIndex;
     this.activePageIndex = index;
     const page = this.pages[index];
+
+    // Trigger tab switched event callback
+    const callbacks = getEventCallbacks();
+    callbacks.onTabSwitched?.({
+      fromIndex: previousIndex,
+      toIndex: index,
+    });
 
     return {
       index: this.activePageIndex,

@@ -2,6 +2,7 @@ import * as net from 'net';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import * as http from 'http';
 import { BrowserManager } from './browser.js';
 import { parseCommand, serializeResponse, errorResponse } from './protocol.js';
 import { executeCommand } from './actions.js';
@@ -162,6 +163,94 @@ export function getStreamPortFile(session?: string): string {
 }
 
 /**
+ * Start HTTP server for receiving commands
+ */
+function startHttpServer(browser: BrowserManager, port: number): void {
+  const httpServer = http.createServer(async (req, res) => {
+    // Enable CORS
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+      res.writeHead(200);
+      res.end();
+      return;
+    }
+
+    // Health check endpoint
+    if (req.url === '/health' && req.method === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ status: 'ok', running: browser.isLaunched() }));
+      return;
+    }
+
+    // Stream port endpoint
+    if (req.url === '/stream_port' && req.method === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
+      res.end(port.toString());
+      return;
+    }
+
+    // Command endpoint
+    if (req.url === '/command' && req.method === 'POST') {
+      let body = '';
+      req.on('data', (chunk) => {
+        body += chunk;
+      });
+      req.on('end', async () => {
+        try {
+          const parseResult = parseCommand(body);
+
+          if (!parseResult.success) {
+            const resp = errorResponse(parseResult.id ?? 'unknown', parseResult.error);
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(serializeResponse(resp));
+            return;
+          }
+
+          // Auto-launch browser if not already launched
+          if (
+            !browser.isLaunched() &&
+            parseResult.command.action !== 'launch' &&
+            parseResult.command.action !== 'close'
+          ) {
+            await browser.launch({
+              id: 'auto',
+              action: 'launch' as const,
+              headless: process.env.AGENT_BROWSER_HEADED !== '1',
+            });
+          }
+
+          const response = await executeCommand(parseResult.command, browser);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(serializeResponse(response));
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          const resp = errorResponse('error', message);
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(serializeResponse(resp));
+        }
+      });
+      return;
+    }
+
+    // 404
+    res.writeHead(404, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Not found' }));
+  });
+
+  // Listen on the same port as WebSocket (but different protocol)
+  try {
+    httpServer.listen(port + 1, '127.0.0.1', () => {
+      console.log(`[HttpServer] Listening on port ${port + 1}`);
+    });
+  } catch (err) {
+    console.error(`[HttpServer] Failed to start on port ${port + 1}:`, err);
+  }
+}
+
+/**
  * Start the daemon server
  * @param options.streamPort Port for WebSocket stream server (0 to disable)
  */
@@ -192,6 +281,9 @@ export async function startDaemon(options?: { streamPort?: number }): Promise<vo
     // Write stream port to file for clients to discover
     const streamPortFile = getStreamPortFile();
     fs.writeFileSync(streamPortFile, streamPort.toString());
+
+    // Also start HTTP server on the same port for commands
+    startHttpServer(browser, streamPort);
   }
 
   const server = net.createServer((socket) => {
@@ -253,7 +345,9 @@ export async function startDaemon(options?: { streamPort?: number }): Promise<vo
               id: 'auto',
               action: 'launch' as const,
               headless: process.env.AGENT_BROWSER_HEADED !== '1',
-              executablePath: process.env.AGENT_BROWSER_EXECUTABLE_PATH,
+              executablePath:
+                process.env.AGENT_BROWSER_EXECUTABLE_PATH ||
+                '/Applications/Chromium.app/Contents/MacOS/Chromium',
               extensions: extensions,
               profile: process.env.AGENT_BROWSER_PROFILE,
               storageState: process.env.AGENT_BROWSER_STATE,

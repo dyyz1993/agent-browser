@@ -11,7 +11,7 @@
     "skills"
   ],
   "bin": {
-    "agent-browser": "./bin/agent-browser"
+    "agent-browser": "bin/agent-browser"
   },
   "scripts": {
     "prepare": "husky",
@@ -73,5 +73,10 @@
   },
   "lint-staged": {
     "src/**/*.ts": "prettier --write"
-  }
+  },
+  "directories": {
+    "doc": "docs",
+    "test": "test"
+  },
+  "author": "xuyingzhou"
 }
