@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+
+<head>
+  <title>Diff Special Characters Test</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    input, textarea { width: 300px; padding: 8px; }
+    button { padding: 10px 20px; cursor: pointer; }
+    .result { margin-top: 10px; padding: 10px; background: #f0f0f0; }
+  </style>
+</head>
+<body>
+  <h1>Diff Special Characters Test</h1>
+  
+  <h2>Unicode Characters</h2>
+  <input type="text" id="unicode-input" placeholder="输入中文或 emoji">
+  <button id="unicode-btn">Set Unicode</button>
+  <p id="unicode-output">中文测试 🎉</p>
+  
+  <h2>HTML Entities</h2>
+  <input type="text" id="html-input" placeholder="Enter HTML">
+  <button id="html-btn">Set HTML</button>
+  <p id="html-output">&lt;script&gt;alert('xss')&lt;/script&gt;</p>
+  
+  <h2>Special Characters</h2>
+  <input type="text" id="special-input" placeholder="Special chars: \n \t etc">
+  <button id="special-btn">Set Special</button>
+  <p id="special-output">Line1\nLine2\tTabbed</p>
+  
+  <h2>Quotes</h2>
+  <input type="text" id="quotes-input" placeholder='Quotes: " ' `'>
+  <button id="quotes-btn">Set Quotes</button>
+  <p id="quotes-output">He said "Hello" and 'Goodbye'</p>
+  
+  <script>
+    document.getElementById('unicode-btn').addEventListener('click', function() {
+      const value = document.getElementById('unicode-input').value;
+      document.getElementById('unicode-output').textContent = value || '中文测试 🎉';
+    });
+    
+    document.getElementById('html-btn').addEventListener('click', function() {
+      const value = document.getElementById('html-input').value;
+      document.getElementById('html-output').textContent = value || `<script>alert("xss")</script>`;
+    });
+    
+    document.getElementById('special-btn').addEventListener('click', function() {
+      const value = document.getElementById('special-input').value;
+      document.getElementById('special-output').textContent = value || 'Line1\\nLine2\\tTabbed';
+    });
+    
+    document.getElementById('quotes-btn').addEventListener('click', function() {
+      const value = document.getElementById('quotes-input').value;
+      document.getElementById('quotes-output').textContent = value || 'He said "Hello" and \\'Goodbye\\'';
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Diff Toggle Test</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    .hidden { display: none; }
+    .visible { display: block; }
+    #container { margin-top: 20px; }
+    .item { padding: 10px; margin: 5px 0; background: #f0f0f0; }
+  </style>
+</head>
+<body>
+  <h1>Diff Toggle Test</h1>
+  <div>
+    <button id="toggle">Toggle Secret</button>
+    <button id="add">Add Item</button>
+    <button id="remove">Remove Item</button>
+  </div>
+  <p id="secret" class="hidden">This is a secret message!</p>
+  <div id="container"></div>
+  <p id="count">Items: 0</p>
+  <script>
+    let itemCount = 0;
+    
+    document.getElementById('toggle').addEventListener('click', function() {
+      const secret = document.getElementById('secret');
+      if (secret.classList.contains('hidden')) {
+        secret.classList.remove('hidden');
+        secret.classList.add('visible');
+      } else {
+        secret.classList.remove('visible');
+        secret.classList.add('hidden');
+      }
+    });
+    
+    document.getElementById('add').addEventListener('click', function() {
+      itemCount++;
+      const container = document.getElementById('container');
+      const item = document.createElement('div');
+      item.className = 'item';
+      item.id = 'item-' + itemCount;
+      item.textContent = 'Item ' + itemCount;
+      container.appendChild(item);
+      document.getElementById('count').textContent = 'Items: ' + itemCount;
+    });
+    
+    document.getElementById('remove').addEventListener('click', function() {
+      const container = document.getElementById('container');
+      if (container.lastChild) {
+        container.removeChild(container.lastChild);
+        itemCount--;
+        document.getElementById('count').textContent = 'Items: ' + itemCount;
+      }
+    });
+  </script>
+</body>
+</html>

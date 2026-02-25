@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Visibility Toggle Test</title>
+  <style>
+    .container { padding: 20px; }
+    .hidden { display: none; }
+    .visible { display: block; }
+    .fade-in { animation: fadeIn 0.3s; }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    #target-element {
+      padding: 20px;
+      background: #e8f4f8;
+      border: 1px solid #3498db;
+      border-radius: 4px;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Visibility Toggle Test</h1>
+  
+  <div class="container">
+    <button id="toggle-btn" onclick="toggleVisibility()">Toggle Visibility</button>
+    <button id="show-btn" onclick="showElement()">Show</button>
+    <button id="hide-btn" onclick="hideElement()">Hide</button>
+    
+    <div id="target-element" class="hidden">
+      <p>This is the target element that can be shown/hidden.</p>
+      <input type="text" id="target-input" placeholder="Input inside hidden element">
+      <button id="target-btn">Button inside hidden element</button>
+    </div>
+    
+    <div id="status">Element is: <span id="visibility-status">hidden</span></div>
+    
+    <div id="click-counter">Clicks: <span id="click-count">0</span></div>
+  </div>
+  
+  <script>
+    let clickCount = 0;
+    
+    function toggleVisibility() {
+      const element = document.getElementById('target-element');
+      const status = document.getElementById('visibility-status');
+      
+      if (element.classList.contains('hidden')) {
+        element.classList.remove('hidden');
+        element.classList.add('visible', 'fade-in');
+        status.textContent = 'visible';
+      } else {
+        element.classList.remove('visible', 'fade-in');
+        element.classList.add('hidden');
+        status.textContent = 'hidden';
+      }
+      
+      clickCount++;
+      document.getElementById('click-count').textContent = clickCount;
+    }
+    
+    function showElement() {
+      const element = document.getElementById('target-element');
+      const status = document.getElementById('visibility-status');
+      
+      element.classList.remove('hidden');
+      element.classList.add('visible', 'fade-in');
+      status.textContent = 'visible';
+    }
+    
+    function hideElement() {
+      const element = document.getElementById('target-element');
+      const status = document.getElementById('visibility-status');
+      
+      element.classList.remove('visible', 'fade-in');
+      element.classList.add('hidden');
+      status.textContent = 'hidden';
+    }
+    
+    document.getElementById('target-btn').addEventListener('click', () => {
+      document.getElementById('target-btn').textContent = 'Clicked!';
+    });
+  </script>
+</body>
+</html>

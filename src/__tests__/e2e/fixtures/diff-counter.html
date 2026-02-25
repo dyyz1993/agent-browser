@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Diff Counter Test</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; text-align: center; }
+    #counter { font-size: 48px; margin: 20px 0; }
+    button { font-size: 24px; padding: 10px 20px; margin: 5px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>Diff Counter Test</h1>
+  <p id="counter">Counter: 0</p>
+  <div>
+    <button id="increment">+</button>
+    <button id="decrement">-</button>
+    <button id="reset">Reset</button>
+  </div>
+  <p id="message"></p>
+  <script>
+    let count = 0;
+    const counterEl = document.getElementById('counter');
+    const messageEl = document.getElementById('message');
+    
+    document.getElementById('increment').addEventListener('click', function() {
+      count++;
+      counterEl.textContent = 'Counter: ' + count;
+      messageEl.textContent = 'Incremented to ' + count;
+    });
+    
+    document.getElementById('decrement').addEventListener('click', function() {
+      count--;
+      counterEl.textContent = 'Counter: ' + count;
+      messageEl.textContent = 'Decremented to ' + count;
+    });
+    
+    document.getElementById('reset').addEventListener('click', function() {
+      count = 0;
+      counterEl.textContent = 'Counter: ' + count;
+      messageEl.textContent = 'Reset to ' + count;
+    });
+  </script>
+</body>
+</html>

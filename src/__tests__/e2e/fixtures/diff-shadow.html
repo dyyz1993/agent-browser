@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Diff Shadow DOM Test</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    button { padding: 10px 20px; cursor: pointer; }
+    custom-counter, custom-form, custom-toggle { 
+      display: block; 
+      margin: 15px 0; 
+      border: 1px dashed #999; 
+      padding: 5px;
+    }
+    #outside-text { font-size: 18px; }
+  </style>
+</head>
+<body>
+  <h1>Shadow DOM Test</h1>
+  
+  <custom-counter id="shadow-counter"></custom-counter>
+  
+  <custom-form id="shadow-form"></custom-form>
+  
+  <custom-toggle id="shadow-toggle"></custom-toggle>
+  
+  <hr>
+  
+  <h2>Outside Shadow DOM</h2>
+  <p id="outside-text">Outside Shadow DOM: 0</p>
+  <button id="outside-btn">Increment Outside</button>
+  <button id="outside-toggle">Toggle Outside Secret</button>
+  <p id="outside-secret" style="display:none">Outside Secret!</p>
+  
+  <script>
+    // Custom Counter Component with Shadow DOM
+    class CustomCounter extends HTMLElement {
+      constructor() {
+        super();
+        this.attachShadow({ mode: 'open' });
+        this.count = 0;
+        this.render();
+      }
+      
+      render() {
+        this.shadowRoot.innerHTML = `
+          <style>
+            .counter { padding: 15px; background: #f0f0f0; border-radius: 4px; }
+            button { margin: 5px; padding: 8px 16px; cursor: pointer; }
+            #count { font-size: 18px; font-weight: bold; }
+          </style>
+          <div class="counter">
+            <p id="count">Shadow Counter: ${this.count}</p>
+            <button id="inc-btn">Increment</button>
+            <button id="dec-btn">Decrement</button>
+            <button id="reset-btn">Reset</button>
+          </div>
+        `;
+        this.shadowRoot.getElementById('inc-btn').addEventListener('click', () => {
+          this.count++;
+          this.shadowRoot.getElementById('count').textContent = 'Shadow Counter: ' + this.count;
+        });
+        this.shadowRoot.getElementById('dec-btn').addEventListener('click', () => {
+          this.count--;
+          this.shadowRoot.getElementById('count').textContent = 'Shadow Counter: ' + this.count;
+        });
+        this.shadowRoot.getElementById('reset-btn').addEventListener('click', () => {
+          this.count = 0;
+          this.shadowRoot.getElementById('count').textContent = 'Shadow Counter: 0';
+        });
+      }
+    }
+    
+    // Custom Form Component with Shadow DOM
+    class CustomForm extends HTMLElement {
+      constructor() {
+        super();
+        this.attachShadow({ mode: 'open' });
+        this.render();
+      }
+      
+      render() {
+        this.shadowRoot.innerHTML = `
+          <style>
+            .form { padding: 15px; border: 1px solid #ccc; border-radius: 4px; background: #fafafa; }
+            input { margin: 5px 0; padding: 8px; width: 200px; display: block; }
+            button { margin: 10px 5px 0 0; padding: 8px 16px; cursor: pointer; }
+            #shadow-status { margin-top: 10px; color: #666; }
+          </style>
+          <div class="form">
+            <input type="text" id="shadow-input" placeholder="Shadow input">
+            <input type="email" id="shadow-email" placeholder="Shadow email">
+            <button id="shadow-submit">Shadow Submit</button>
+            <button id="shadow-clear">Clear Form</button>
+            <p id="shadow-status"></p>
+          </div>
+        `;
+        this.shadowRoot.getElementById('shadow-submit').addEventListener('click', () => {
+          const input = this.shadowRoot.getElementById('shadow-input').value;
+          const email = this.shadowRoot.getElementById('shadow-email').value;
+          this.shadowRoot.getElementById('shadow-status').textContent = 
+            'Submitted: ' + input + ' (' + email + ')';
+        });
+        this.shadowRoot.getElementById('shadow-clear').addEventListener('click', () => {
+          this.shadowRoot.getElementById('shadow-input').value = '';
+          this.shadowRoot.getElementById('shadow-email').value = '';
+          this.shadowRoot.getElementById('shadow-status').textContent = 'Form cleared';
+        });
+      }
+    }
+    
+    // Custom Toggle Component with Shadow DOM
+    class CustomToggle extends HTMLElement {
+      constructor() {
+        super();
+        this.attachShadow({ mode: 'open' });
+        this.visible = false;
+        this.render();
+      }
+      
+      render() {
+        this.shadowRoot.innerHTML = `
+          <style>
+            .container { padding: 15px; background: #e8f5e9; border-radius: 4px; }
+            button { padding: 8px 16px; cursor: pointer; }
+            .secret { 
+              display: ${this.visible ? 'block' : 'none'}; 
+              background: #ffeb3b; 
+              padding: 10px; 
+              margin-top: 10px;
+              border-radius: 4px;
+            }
+          </style>
+          <div class="container">
+            <button id="toggle-btn">Toggle Shadow Secret</button>
+            <p class="secret" id="secret-text">This is a shadow secret!</p>
+          </div>
+        `;
+        this.shadowRoot.getElementById('toggle-btn').addEventListener('click', () => {
+          this.visible = !this.visible;
+          const secret = this.shadowRoot.getElementById('secret-text');
+          secret.style.display = this.visible ? 'block' : 'none';
+        });
+      }
+    }
+    
+    customElements.define('custom-counter', CustomCounter);
+    customElements.define('custom-form', CustomForm);
+    customElements.define('custom-toggle', CustomToggle);
+    
+    // Outside Shadow DOM functionality
+    let outsideCount = 0;
+    
+    document.getElementById('outside-btn').addEventListener('click', function() {
+      outsideCount++;
+      document.getElementById('outside-text').textContent = 'Outside Shadow DOM: ' + outsideCount;
+    });
+    
+    document.getElementById('outside-toggle').addEventListener('click', function() {
+      const secret = document.getElementById('outside-secret');
+      secret.style.display = secret.style.display === 'none' ? 'block' : 'none';
+    });
+  </script>
+</body>
+</html>

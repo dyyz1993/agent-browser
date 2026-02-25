@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Diff Fragment Test</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    nav { margin-bottom: 20px; padding: 10px; background: #f0f0f0; }
+    nav a { margin-right: 15px; text-decoration: none; color: #0066cc; }
+    nav a:hover { text-decoration: underline; }
+    section { padding: 20px; margin: 10px 0; border: 1px solid #ddd; min-height: 100px; }
+    section:target { background: #fffde7; border-color: #ffc107; }
+    button { padding: 10px 20px; cursor: pointer; }
+    input { padding: 8px; width: 200px; }
+    #fragment-display { font-weight: bold; color: #666; }
+  </style>
+</head>
+<body>
+  <h1>Fragment Test</h1>
+  
+  <nav>
+    <a href="#section1">Section 1</a>
+    <a href="#section2">Section 2</a>
+    <a href="#section3">Section 3</a>
+    <a href="#">Clear Fragment</a>
+  </nav>
+  
+  <p id="fragment-display">Current fragment: (none)</p>
+  
+  <section id="section1">
+    <h2>Section 1</h2>
+    <p id="s1-counter">Section 1 Counter: 0</p>
+    <button id="s1-btn">Increment Section 1</button>
+    <button id="s1-reset">Reset Section 1</button>
+  </section>
+  
+  <section id="section2">
+    <h2>Section 2</h2>
+    <input type="text" id="s2-input" placeholder="Section 2 input">
+    <button id="s2-btn">Fill Section 2</button>
+    <button id="s2-clear">Clear Section 2</button>
+    <p id="s2-status">Status: empty</p>
+  </section>
+  
+  <section id="section3">
+    <h2>Section 3</h2>
+    <p id="s3-status">Status: idle</p>
+    <button id="s3-btn">Change Status</button>
+    <button id="s3-toggle">Toggle Secret</button>
+    <p id="s3-secret" style="display:none">Section 3 Secret!</p>
+  </section>
+  
+  <script>
+    window.addEventListener('hashchange', function() {
+      document.getElementById('fragment-display').textContent = 
+        'Current fragment: ' + (location.hash || '(none)');
+    });
+    
+    let s1Count = 0;
+    
+    document.getElementById('s1-btn').addEventListener('click', function() {
+      s1Count++;
+      document.getElementById('s1-counter').textContent = 'Section 1 Counter: ' + s1Count;
+    });
+    
+    document.getElementById('s1-reset').addEventListener('click', function() {
+      s1Count = 0;
+      document.getElementById('s1-counter').textContent = 'Section 1 Counter: 0';
+    });
+    
+    document.getElementById('s2-btn').addEventListener('click', function() {
+      const input = document.getElementById('s2-input');
+      input.value = 'Filled from button';
+      document.getElementById('s2-status').textContent = 'Status: filled';
+    });
+    
+    document.getElementById('s2-clear').addEventListener('click', function() {
+      document.getElementById('s2-input').value = '';
+      document.getElementById('s2-status').textContent = 'Status: empty';
+    });
+    
+    document.getElementById('s3-btn').addEventListener('click', function() {
+      const el = document.getElementById('s3-status');
+      el.textContent = el.textContent.includes('idle') ? 
+        'Status: active' : 'Status: idle';
+    });
+    
+    document.getElementById('s3-toggle').addEventListener('click', function() {
+      const secret = document.getElementById('s3-secret');
+      secret.style.display = secret.style.display === 'none' ? 'block' : 'none';
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Diff iframe Level 2</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; background: #e0e0e0; }
+    button { padding: 8px 16px; cursor: pointer; margin: 5px; }
+    input, select { padding: 8px; margin: 5px; }
+    .form-group { margin: 10px 0; }
+  </style>
+</head>
+<body>
+  <h3>Level 2 iframe</h3>
+  <p id="level2-counter">Level2 Counter: 0</p>
+  
+  <div class="form-group">
+    <input type="email" id="level2-email" placeholder="Email in iframe">
+  </div>
+  
+  <div class="form-group">
+    <input type="text" id="level2-text" placeholder="Text in iframe">
+  </div>
+  
+  <div class="form-group">
+    <select id="level2-select">
+      <option value="">Select...</option>
+      <option value="a">Option A</option>
+      <option value="b">Option B</option>
+      <option value="c">Option C</option>
+    </select>
+  </div>
+  
+  <div class="form-group">
+    <input type="checkbox" id="level2-checkbox">
+    <label for="level2-checkbox">Agree in Level 2</label>
+  </div>
+  
+  <button id="level2-btn" onclick="incrementLevel2()">Level 2 Button</button>
+  <button id="level2-toggle" onclick="toggleLevel2Secret()">Toggle Secret</button>
+  <button id="level2-reset" onclick="resetLevel2()">Reset Form</button>
+  
+  <p id="level2-secret" style="display:none">Secret in Level 2!</p>
+  <p id="level2-status">Status: idle</p>
+  
+  <script>
+    let level2Count = 0;
+    
+    function incrementLevel2() {
+      level2Count++;
+      document.getElementById('level2-counter').textContent = 'Level2 Counter: ' + level2Count;
+    }
+    
+    function toggleLevel2Secret() {
+      const secret = document.getElementById('level2-secret');
+      secret.style.display = secret.style.display === 'none' ? 'block' : 'none';
+    }
+    
+    function resetLevel2() {
+      document.getElementById('level2-email').value = '';
+      document.getElementById('level2-text').value = '';
+      document.getElementById('level2-select').value = '';
+      document.getElementById('level2-checkbox').checked = false;
+      document.getElementById('level2-status').textContent = 'Status: reset';
+    }
+  </script>
+</body>
+</html>

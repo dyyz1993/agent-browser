@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Complex Form Test</title>
+  <style>
+    .form-group { margin-bottom: 15px; }
+    label { display: block; margin-bottom: 5px; }
+    input, select, textarea { width: 200px; padding: 5px; }
+    .error { color: red; display: none; }
+    .success { color: green; display: none; }
+  </style>
+</head>
+<body>
+  <h1>Complex Form Test</h1>
+  
+  <form id="test-form">
+    <div class="form-group">
+      <label for="username">Username</label>
+      <input type="text" id="username" name="username" placeholder="Enter username">
+      <span class="error" id="username-error">Username is required</span>
+    </div>
+    
+    <div class="form-group">
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" placeholder="Enter email">
+    </div>
+    
+    <div class="form-group">
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" placeholder="Enter password">
+    </div>
+    
+    <div class="form-group">
+      <label for="country">Country</label>
+      <select id="country" name="country">
+        <option value="">Select country</option>
+        <option value="us">United States</option>
+        <option value="cn">China</option>
+        <option value="uk">United Kingdom</option>
+        <option value="jp">Japan</option>
+      </select>
+    </div>
+    
+    <div class="form-group">
+      <label for="skills">Skills (multi-select)</label>
+      <select id="skills" name="skills" multiple>
+        <option value="js">JavaScript</option>
+        <option value="ts">TypeScript</option>
+        <option value="python">Python</option>
+        <option value="go">Go</option>
+      </select>
+    </div>
+    
+    <div class="form-group">
+      <label>
+        <input type="checkbox" id="agree" name="agree">
+        I agree to the terms
+      </label>
+    </div>
+    
+    <div class="form-group">
+      <label>Gender</label>
+      <label>
+        <input type="radio" name="gender" value="male" id="gender-male">
+        Male
+      </label>
+      <label>
+        <input type="radio" name="gender" value="female" id="gender-female">
+        Female
+      </label>
+      <label>
+        <input type="radio" name="gender" value="other" id="gender-other">
+        Other
+      </label>
+    </div>
+    
+    <div class="form-group">
+      <label for="bio">Bio</label>
+      <textarea id="bio" name="bio" rows="4" placeholder="Enter your bio"></textarea>
+    </div>
+    
+    <div class="form-group">
+      <label for="birthdate">Birthdate</label>
+      <input type="date" id="birthdate" name="birthdate">
+    </div>
+    
+    <div class="form-group">
+      <label for="age">Age</label>
+      <input type="number" id="age" name="age" min="0" max="150">
+    </div>
+    
+    <button type="button" id="submit-btn" onclick="submitForm()">Submit</button>
+    <button type="button" id="reset-btn" onclick="resetForm()">Reset</button>
+    <button type="button" id="validate-btn" onclick="validateForm()">Validate</button>
+    
+    <div id="form-result" class="success">Form submitted successfully!</div>
+  </form>
+  
+  <div id="output"></div>
+  
+  <script>
+    function submitForm() {
+      const form = document.getElementById('test-form');
+      const formData = new FormData(form);
+      const output = document.getElementById('output');
+      const result = {};
+      
+      for (let [key, value] of formData.entries()) {
+        if (result[key]) {
+          if (!Array.isArray(result[key])) {
+            result[key] = [result[key]];
+          }
+          result[key].push(value);
+        } else {
+          result[key] = value;
+        }
+      }
+      
+      output.innerHTML = '<pre>' + JSON.stringify(result, null, 2) + '</pre>';
+      document.getElementById('form-result').style.display = 'block';
+      
+      // Change button text to show it was clicked
+      document.getElementById('submit-btn').textContent = 'Submitted!';
+    }
+    
+    function resetForm() {
+      document.getElementById('test-form').reset();
+      document.getElementById('output').innerHTML = '';
+      document.getElementById('form-result').style.display = 'none';
+      document.getElementById('submit-btn').textContent = 'Submit';
+    }
+    
+    function validateForm() {
+      const username = document.getElementById('username');
+      const usernameError = document.getElementById('username-error');
+      
+      if (!username.value.trim()) {
+        usernameError.style.display = 'inline';
+        username.style.borderColor = 'red';
+      } else {
+        usernameError.style.display = 'none';
+        username.style.borderColor = 'green';
+      }
+    }
+  </script>
+</body>
+</html>

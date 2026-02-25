@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dynamic Content Test</title>
+  <style>
+    .container { padding: 20px; }
+    .item {
+      padding: 10px;
+      margin: 5px 0;
+      background: #f0f0f0;
+      border-radius: 4px;
+    }
+    .loading { color: #666; }
+    .error { color: red; }
+    .success { color: green; }
+    #spinner {
+      display: none;
+      width: 30px;
+      height: 30px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #3498db;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <h1>Dynamic Content Test</h1>
+  
+  <div class="container">
+    <button id="add-btn" onclick="addItem()">Add Item</button>
+    <button id="remove-btn" onclick="removeItem()">Remove Last Item</button>
+    <button id="clear-btn" onclick="clearItems()">Clear All</button>
+    <button id="load-btn" onclick="loadAsync()">Load Async</button>
+    
+    <div id="spinner"></div>
+    
+    <div id="item-container"></div>
+    
+    <div id="async-content"></div>
+    
+    <div id="counter">Items: <span id="count">0</span></div>
+  </div>
+  
+  <script>
+    let itemCount = 0;
+    
+    function addItem() {
+      const container = document.getElementById('item-container');
+      const item = document.createElement('div');
+      item.className = 'item dynamic-item';
+      item.id = 'item-' + itemCount;
+      item.textContent = 'Item ' + itemCount;
+      container.appendChild(item);
+      itemCount++;
+      updateCounter();
+    }
+    
+    function removeItem() {
+      const container = document.getElementById('item-container');
+      const items = container.querySelectorAll('.dynamic-item');
+      if (items.length > 0) {
+        items[items.length - 1].remove();
+        itemCount--;
+        updateCounter();
+      }
+    }
+    
+    function clearItems() {
+      const container = document.getElementById('item-container');
+      container.innerHTML = '';
+      itemCount = 0;
+      updateCounter();
+    }
+    
+    function updateCounter() {
+      document.getElementById('count').textContent = 
+        document.querySelectorAll('.dynamic-item').length;
+    }
+    
+    async function loadAsync() {
+      const spinner = document.getElementById('spinner');
+      const content = document.getElementById('async-content');
+      const btn = document.getElementById('load-btn');
+      
+      spinner.style.display = 'block';
+      btn.disabled = true;
+      btn.textContent = 'Loading...';
+      content.innerHTML = '<p class="loading">Loading async content...</p>';
+      
+      // Simulate async operation
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      spinner.style.display = 'none';
+      btn.disabled = false;
+      btn.textContent = 'Load Async';
+      
+      content.innerHTML = '<p class="success">Async content loaded!</p>' +
+        '<div class="item async-item" id="async-item-1">Async Item 1</div>' +
+        '<div class="item async-item" id="async-item-2">Async Item 2</div>';
+    }
+  </script>
+</body>
+</html>

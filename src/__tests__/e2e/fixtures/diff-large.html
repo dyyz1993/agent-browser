@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Diff Large Page Test</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    #container { display: flex; flex-wrap: wrap; gap: 5px; margin: 20px 0; }
+    .item { padding: 10px; background: #e0e0e0; border-radius: 4px; }
+    #stats { margin: 20px 0; padding: 10px; background: #f5f5f5; }
+  </style>
+</head>
+<body>
+  <h1>Diff Large Page Test</h1>
+  <div>
+    <button id="init">Initialize 100 Items</button>
+    <button id="add-50">Add 50 More</button>
+    <button id="remove-half">Remove Half</button>
+    <button id="clear">Clear All</button>
+  </div>
+  <div id="stats">Items: 0</div>
+  <div id="container"></div>
+  <script>
+    let count = 0;
+    const container = document.getElementById('container');
+    const stats = document.getElementById('stats');
+    
+    function updateStats() {
+      stats.textContent = 'Items: ' + count;
+    }
+    
+    function addItem() {
+      count++;
+      const item = document.createElement('div');
+      item.className = 'item';
+      item.id = 'item-' + count;
+      item.textContent = 'Item ' + count;
+      container.appendChild(item);
+      updateStats();
+    }
+    
+    document.getElementById('init').addEventListener('click', function() {
+      container.innerHTML = '';
+      count = 0;
+      for (let i = 0; i < 100; i++) {
+        addItem();
+      }
+    });
+    
+    document.getElementById('add-50').addEventListener('click', function() {
+      for (let i = 0; i < 50; i++) {
+        addItem();
+      }
+    });
+    
+    document.getElementById('remove-half').addEventListener('click', function() {
+      const items = container.children;
+      const removeCount = Math.floor(items.length / 2);
+      for (let i = 0; i < removeCount; i++) {
+        if (container.lastChild) {
+          container.removeChild(container.lastChild);
+          count--;
+        }
+      }
+      updateStats();
+    });
+    
+    document.getElementById('clear').addEventListener('click', function() {
+      container.innerHTML = '';
+      count = 0;
+      updateStats();
+    });
+  </script>
+</body>
+</html>

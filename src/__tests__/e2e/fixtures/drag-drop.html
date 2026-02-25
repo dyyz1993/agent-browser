@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Drag and Drop Test</title>
+  <style>
+    .draggable {
+      width: 100px;
+      height: 50px;
+      background: #3498db;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 10px;
+      cursor: move;
+      border-radius: 4px;
+    }
+    .dropzone {
+      width: 200px;
+      height: 200px;
+      border: 2px dashed #ccc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 20px;
+      border-radius: 8px;
+    }
+    .dropzone.active {
+      border-color: #3498db;
+      background: #ecf0f1;
+    }
+    .dropzone.dropped {
+      border-color: #27ae60;
+      background: #d4edda;
+    }
+    .container {
+      display: flex;
+      gap: 20px;
+    }
+    #status {
+      margin-top: 20px;
+      padding: 10px;
+      background: #f8f9fa;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Drag and Drop Test</h1>
+  
+  <div class="container">
+    <div>
+      <h3>Draggable Items</h3>
+      <div id="source1" class="draggable" draggable="true">Item 1</div>
+      <div id="source2" class="draggable" draggable="true">Item 2</div>
+      <div id="source3" class="draggable" draggable="true">Item 3</div>
+    </div>
+    
+    <div>
+      <h3>Drop Zones</h3>
+      <div id="target1" class="dropzone">Drop Zone 1</div>
+      <div id="target2" class="dropzone">Drop Zone 2</div>
+    </div>
+  </div>
+  
+  <div id="status">Status: Waiting for drag...</div>
+  
+  <script>
+    const draggables = document.querySelectorAll('.draggable');
+    const dropzones = document.querySelectorAll('.dropzone');
+    const status = document.getElementById('status');
+    
+    draggables.forEach(draggable => {
+      draggable.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', e.target.id);
+        draggable.style.opacity = '0.5';
+        status.textContent = 'Status: Dragging ' + draggable.id;
+      });
+      
+      draggable.addEventListener('dragend', (e) => {
+        draggable.style.opacity = '1';
+      });
+    });
+    
+    dropzones.forEach(dropzone => {
+      dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('active');
+      });
+      
+      dropzone.addEventListener('dragleave', (e) => {
+        dropzone.classList.remove('active');
+      });
+      
+      dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const id = e.dataTransfer.getData('text/plain');
+        const dragged = document.getElementById(id);
+        
+        dropzone.classList.remove('active');
+        dropzone.classList.add('dropped');
+        dropzone.textContent = 'Dropped: ' + id;
+        dropzone.appendChild(dragged);
+        
+        status.textContent = 'Status: Dropped ' + id + ' into ' + dropzone.id;
+      });
+    });
+  </script>
+</body>
+</html>
