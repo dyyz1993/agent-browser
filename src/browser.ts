@@ -13,10 +13,14 @@ import {
   type Locator,
   type CDPSession,
   type Video,
+  type FrameLocator,
 } from 'playwright-core';
 import path from 'node:path';
 import os from 'node:os';
-import { existsSync, mkdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import type { LaunchCommand } from './types.js';
 import { type RefMap, type EnhancedSnapshot, getEnhancedSnapshot, parseRef } from './snapshot.js';
 import { getEventCallbacks } from './actions.js';
@@ -80,7 +84,6 @@ export class BrowserManager {
   private contexts: BrowserContext[] = [];
   private pages: Page[] = [];
   private activePageIndex: number = 0;
-  private activeFrame: Frame | null = null;
   private dialogHandler: ((dialog: Dialog) => Promise<void>) | null = null;
   private trackedRequests: TrackedRequest[] = [];
   private routes: Map<string, (route: Route) => Promise<void>> = new Map();
@@ -94,15 +97,29 @@ export class BrowserManager {
   // CDP session for screencast and input injection
   private cdpSession: CDPSession | null = null;
   private screencastActive: boolean = false;
+  private screencastShouldBeActive: boolean = false;
   private screencastSessionId: number = 0;
   private frameCallback: ((frame: ScreencastFrame) => void) | null = null;
   private screencastFrameHandler: ((params: any) => void) | null = null;
+  private lastScreencastOptions: ScreencastOptions | null = null;
 
   // Video recording (Playwright native)
   private recordingContext: BrowserContext | null = null;
   private recordingPage: Page | null = null;
   private recordingOutputPath: string = '';
   private recordingTempDir: string = '';
+
+  // User interaction recorder
+  private recorderSessionId: string | null = null;
+  private recorderStartTime: number = 0;
+  private recorderSteps: any[] = [];
+  private recorderPages: any[] = [];
+  private recorderPageHandler: ((newPage: Page) => Promise<void>) | null = null;
+  private navigationHistory: string[] = [];
+  private navigationHistoryIndex: number = -1;
+  private lastNavigationUrl: string = '';
+  private lastNavigationTime: number = 0;
+  private recorderNavigatedHandler: ((frame: Frame) => Promise<void>) | null = null;
 
   /**
    * Check if browser is launched
@@ -120,9 +137,12 @@ export class BrowserManager {
     maxDepth?: number;
     compact?: boolean;
     selector?: string;
+    framePath?: string;
+    path?: boolean;
+    attrs?: boolean;
   }): Promise<EnhancedSnapshot> {
-    const page = this.getPage();
-    const snapshot = await getEnhancedSnapshot(page, options);
+    const frame = options?.framePath ? this.getFrame(options.framePath) : this.getFrame();
+    const snapshot = await getEnhancedSnapshot(frame as any, options);
     this.refMap = snapshot.refs;
     this.lastSnapshot = snapshot.tree;
     return snapshot;
@@ -138,32 +158,29 @@ export class BrowserManager {
   /**
    * Get a locator from a ref (e.g., "e1", "@e1", "ref=e1")
    * Returns null if ref doesn't exist or is invalid
+   * @param refArg - The ref string (e.g., "e1", "@e1", "ref=e1")
+   * @param framePath - Optional path to iframe where the ref was captured
    */
-  getLocatorFromRef(refArg: string): Locator | null {
+  getLocatorFromRef(refArg: string, framePath?: string): Locator | null {
     const ref = parseRef(refArg);
     if (!ref) return null;
 
     const refData = this.refMap[ref];
     if (!refData) return null;
 
-    const page = this.getPage();
+    const frame = this.getFrame(framePath);
 
-    // Check if this is a cursor-interactive element (uses CSS selector, not ARIA role)
-    // These have pseudo-roles 'clickable' or 'focusable' and a CSS selector
     if (refData.role === 'clickable' || refData.role === 'focusable') {
-      // The selector is a CSS selector, use it directly
-      return page.locator(refData.selector);
+      return frame.locator(refData.selector);
     }
 
-    // Build locator with exact: true to avoid substring matches
     let locator: Locator;
     if (refData.name) {
-      locator = page.getByRole(refData.role as any, { name: refData.name, exact: true });
+      locator = frame.getByRole(refData.role as any, { name: refData.name, exact: true });
     } else {
-      locator = page.getByRole(refData.role as any);
+      locator = frame.getByRole(refData.role as any);
     }
 
-    // If an nth index is stored (for disambiguation), use it
     if (refData.nth !== undefined) {
       locator = locator.nth(refData.nth);
     }
@@ -181,14 +198,12 @@ export class BrowserManager {
   /**
    * Get locator - supports both refs and regular selectors
    */
-  getLocator(selectorOrRef: string): Locator {
-    // Check if it's a ref first
-    const locator = this.getLocatorFromRef(selectorOrRef);
+  getLocator(selectorOrRef: string, framePath?: string): Locator {
+    const locator = this.getLocatorFromRef(selectorOrRef, framePath);
     if (locator) return locator;
 
-    // Otherwise treat as regular selector
-    const page = this.getPage();
-    return page.locator(selectorOrRef);
+    const frame = framePath ? this.getFrame(framePath) : this.getFrame();
+    return frame.locator(selectorOrRef);
   }
 
   /**
@@ -202,51 +217,103 @@ export class BrowserManager {
   }
 
   /**
-   * Get the current frame (or page's main frame if no frame is selected)
+   * Get frame by optional path
+   * @param framePath - Optional path to iframe (e.g., "#frame1/#frame2/#frame3")
+   *   - If not provided, returns the main frame of current page
+   *   - Path is absolute from main frame, using "/" as separator
+   *   - Supports multiple matching strategies:
+   *     - Index: "0", "1", "2" - match by position
+   *     - Name/ID: "#my-frame", "my-frame" - match by name or id attribute
+   *     - URL: partial URL match like "httpbin.org"
+   * @returns Frame for the target iframe
    */
-  getFrame(): Frame {
-    if (this.activeFrame) {
-      return this.activeFrame;
+  getFrame(framePath?: string): Frame {
+    if (!framePath) {
+      return this.getPage().mainFrame();
     }
-    return this.getPage().mainFrame();
+    return this.getFrameByPath(framePath);
   }
 
   /**
-   * Switch to a frame by selector, name, or URL
+   * Internal method to get frame by path
+   * Path is absolute from main frame, using "/" as separator
    */
-  async switchToFrame(options: { selector?: string; name?: string; url?: string }): Promise<void> {
+  private getFrameByPath(framePath: string): Frame {
     const page = this.getPage();
 
-    if (options.selector) {
-      const frameElement = await page.$(options.selector);
-      if (!frameElement) {
-        throw new Error(`Frame not found: ${options.selector}`);
-      }
-      const frame = await frameElement.contentFrame();
-      if (!frame) {
-        throw new Error(`Element is not a frame: ${options.selector}`);
-      }
-      this.activeFrame = frame;
-    } else if (options.name) {
-      const frame = page.frame({ name: options.name });
-      if (!frame) {
-        throw new Error(`Frame not found with name: ${options.name}`);
-      }
-      this.activeFrame = frame;
-    } else if (options.url) {
-      const frame = page.frame({ url: options.url });
-      if (!frame) {
-        throw new Error(`Frame not found with URL: ${options.url}`);
-      }
-      this.activeFrame = frame;
+    const selectors = framePath
+      .split('/')
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    if (selectors.length === 0) {
+      return page.mainFrame();
     }
+
+    let current: Frame = page.mainFrame();
+
+    for (let i = 0; i < selectors.length; i++) {
+      const selector = selectors[i];
+      const childFrames = current.childFrames();
+
+      if (childFrames.length === 0) {
+        throw new Error(
+          `No child frames found for selector "${selector}" at path position ${i + 1}. ` +
+            `Path: "${framePath}". ` +
+            `Current frame has no child frames.`
+        );
+      }
+
+      const matchedFrame = this.findMatchingFrame(childFrames, selector);
+
+      if (!matchedFrame) {
+        const availableInfo = childFrames.map((f, idx) => ({
+          index: idx,
+          name: f.name(),
+          url: f.url(),
+        }));
+        throw new Error(
+          `Frame not found for selector "${selector}" at path position ${i + 1}. ` +
+            `Path: "${framePath}". ` +
+            `Available child frames: ${JSON.stringify(availableInfo, null, 2)}`
+        );
+      }
+
+      current = matchedFrame;
+    }
+
+    return current;
   }
 
   /**
-   * Switch back to main frame
+   * Find a matching frame from a list of child frames
+   * Supports matching by:
+   * - Index: "0", "1", "2"
+   * - Name/ID: "#my-frame", "my-frame"
+   * - URL: partial URL match
    */
-  switchToMainFrame(): void {
-    this.activeFrame = null;
+  private findMatchingFrame(frames: Frame[], selector: string): Frame | undefined {
+    // 1. Try index matching (e.g., "0", "1", "2")
+    const indexMatch = selector.match(/^(\d+)$/);
+    if (indexMatch) {
+      const index = parseInt(indexMatch[1], 10);
+      return frames[index];
+    }
+
+    // 2. Try name/ID matching
+    const cleanSelector = selector.replace('#', '');
+    const nameMatch = frames.find((f) => f.name() === selector || f.name() === cleanSelector);
+    if (nameMatch) return nameMatch;
+
+    // 3. Try URL path matching (e.g., "outer-iframe" matches URL containing "/outer-iframe")
+    const urlPathMatch = frames.find((f) => {
+      const url = f.url();
+      // Match by path segment in URL (e.g., "outer-iframe" matches "/.../outer-iframe")
+      return url.includes(`/${cleanSelector}`) || url.endsWith(`/${cleanSelector}`);
+    });
+    if (urlPathMatch) return urlPathMatch;
+
+    return undefined;
   }
 
   /**
@@ -671,12 +738,22 @@ export class BrowserManager {
    * by verifying we can access browser contexts and that at least one has pages
    */
   private isCdpConnectionAlive(): boolean {
+    console.log('[DEBUG isCdpConnectionAlive] browser exists:', !!this.browser);
     if (!this.browser) return false;
     try {
       const contexts = this.browser.contexts();
-      if (contexts.length === 0) return false;
-      return contexts.some((context) => context.pages().length > 0);
-    } catch {
+      console.log('[DEBUG isCdpConnectionAlive] contexts count:', contexts.length);
+      if (contexts.length === 0) {
+        console.log('[DEBUG isCdpConnectionAlive] returning false: no contexts');
+        return false;
+      }
+      const pagesPerContext = contexts.map((context) => context.pages().length);
+      console.log('[DEBUG isCdpConnectionAlive] pages per context:', pagesPerContext);
+      const hasPages = contexts.some((context) => context.pages().length > 0);
+      console.log('[DEBUG isCdpConnectionAlive] hasPages:', hasPages);
+      return hasPages;
+    } catch (e) {
+      console.log('[DEBUG isCdpConnectionAlive] exception:', e);
       return false;
     }
   }
@@ -685,9 +762,33 @@ export class BrowserManager {
    * Check if CDP connection needs to be re-established
    */
   private needsCdpReconnect(cdpEndpoint: string): boolean {
-    if (!this.browser?.isConnected()) return true;
-    if (this.cdpEndpoint !== cdpEndpoint) return true;
-    if (!this.isCdpConnectionAlive()) return true;
+    const isConnected = this.browser?.isConnected();
+    const endpointMatch = this.cdpEndpoint === cdpEndpoint;
+    const isAlive = this.isCdpConnectionAlive();
+    console.log('[DEBUG needsCdpReconnect] isConnected:', isConnected);
+    console.log(
+      '[DEBUG needsCdpReconnect] endpointMatch:',
+      endpointMatch,
+      '(this:',
+      this.cdpEndpoint,
+      'vs param:',
+      cdpEndpoint,
+      ')'
+    );
+    console.log('[DEBUG needsCdpReconnect] isCdpConnectionAlive:', isAlive);
+    if (!isConnected) {
+      console.log('[DEBUG needsCdpReconnect] returning true: not connected');
+      return true;
+    }
+    if (!endpointMatch) {
+      console.log('[DEBUG needsCdpReconnect] returning true: endpoint mismatch');
+      return true;
+    }
+    if (!isAlive) {
+      console.log('[DEBUG needsCdpReconnect] returning true: not alive');
+      return true;
+    }
+    console.log('[DEBUG needsCdpReconnect] returning false: all checks passed');
     return false;
   }
 
@@ -1046,7 +1147,11 @@ export class BrowserManager {
     }
 
     if (this.isLaunched()) {
+      // Check if the browser is actually alive
+      const isActuallyAlive = this.browser?.isConnected() ?? false;
+
       const needsRelaunch =
+        !isActuallyAlive ||
         (!cdpEndpoint && this.cdpEndpoint !== null) ||
         (!!cdpEndpoint && this.needsCdpReconnect(cdpEndpoint));
       if (needsRelaunch) {
@@ -1099,11 +1204,23 @@ export class BrowserManager {
     const fileAccessArgs = options.allowFileAccess
       ? ['--allow-file-access-from-files', '--allow-file-access']
       : [];
+
+    // Add anti-detection args
+    const antiDetectionArgs = [
+      '--disable-blink-features=AutomationControlled',
+      '--disable-dev-shm-usage',
+      '--no-sandbox',
+      '--disable-gpu',
+      '--disable-software-rasterizer',
+      '--enable-features=WebGL',
+      '--ignore-gpu-blacklist',
+      '--use-gl=desktop',
+      '--enable-gpu-compositing',
+    ];
+
     const baseArgs = options.args
-      ? [...fileAccessArgs, ...options.args]
-      : fileAccessArgs.length > 0
-        ? fileAccessArgs
-        : undefined;
+      ? [...fileAccessArgs, ...antiDetectionArgs, ...options.args]
+      : [...fileAccessArgs, ...antiDetectionArgs];
 
     let context: BrowserContext;
     if (hasExtensions) {
@@ -1222,10 +1339,12 @@ export class BrowserManager {
       }
 
       // Filter out pages with empty URLs, which can cause Playwright to hang
-      const allPages = contexts.flatMap((context) => context.pages()).filter((page) => page.url());
+      let allPages = contexts.flatMap((context) => context.pages()).filter((page) => page.url());
 
+      // If no pages exist, create one in the first context
       if (allPages.length === 0) {
-        throw new Error('No page found. Make sure the app has loaded content.');
+        const newPage = await contexts[0].newPage();
+        allPages = [newPage];
       }
 
       // All validation passed - commit state
@@ -1417,15 +1536,25 @@ export class BrowserManager {
    * This ensures screencast and input injection work correctly after tab switch
    */
   private async invalidateCDPSession(): Promise<void> {
-    // Stop screencast if active (it's tied to the current page's CDP session)
+    const shouldRestart = this.screencastShouldBeActive;
+    const savedCallback = this.frameCallback;
+    const savedOptions = this.lastScreencastOptions;
+
     if (this.screencastActive) {
-      await this.stopScreencast();
+      await this.stopScreencastInternal();
     }
 
-    // Detach and clear the CDP session
     if (this.cdpSession) {
       await this.cdpSession.detach().catch(() => {});
       this.cdpSession = null;
+    }
+
+    if (shouldRestart && savedCallback) {
+      try {
+        await this.startScreencast(savedCallback, savedOptions ?? undefined);
+      } catch {
+        // Ignore errors when restarting screencast on new page
+      }
     }
   }
 
@@ -1445,6 +1574,16 @@ export class BrowserManager {
     const previousIndex = this.activePageIndex;
     this.activePageIndex = index;
     const page = this.pages[index];
+
+    // Record tab_switch if recording
+    if (this.recorderSessionId && previousIndex !== index) {
+      this.recorderSteps.push({
+        id: `step-${Date.now()}`,
+        timestamp: Date.now(),
+        action: 'tab_switch',
+        index: index,
+      });
+    }
 
     // Trigger tab switched event callback
     const callbacks = getEventCallbacks();
@@ -1472,6 +1611,16 @@ export class BrowserManager {
 
     if (this.pages.length === 1) {
       throw new Error('Cannot close the last tab. Use "close" to close the browser.');
+    }
+
+    // Record tab_close if recording
+    if (this.recorderSessionId) {
+      this.recorderSteps.push({
+        id: `step-${Date.now()}`,
+        timestamp: Date.now(),
+        action: 'tab_close',
+        index: targetIndex,
+      });
     }
 
     // If closing the active tab, invalidate CDP session first
@@ -1548,8 +1697,9 @@ export class BrowserManager {
     const cdp = await this.getCDPSession();
     this.frameCallback = callback;
     this.screencastActive = true;
+    this.screencastShouldBeActive = true;
+    this.lastScreencastOptions = options ?? null;
 
-    // Create and store the frame handler so we can remove it later
     this.screencastFrameHandler = async (params: any) => {
       const frame: ScreencastFrame = {
         data: params.data,
@@ -1557,19 +1707,15 @@ export class BrowserManager {
         sessionId: params.sessionId,
       };
 
-      // Acknowledge the frame to receive the next one
       await cdp.send('Page.screencastFrameAck', { sessionId: params.sessionId });
 
-      // Call the callback with the frame
       if (this.frameCallback) {
         this.frameCallback(frame);
       }
     };
 
-    // Listen for screencast frames
     cdp.on('Page.screencastFrame', this.screencastFrameHandler);
 
-    // Start the screencast
     await cdp.send('Page.startScreencast', {
       format: options?.format ?? 'jpeg',
       quality: options?.quality ?? 80,
@@ -1580,9 +1726,17 @@ export class BrowserManager {
   }
 
   /**
-   * Stop screencast
+   * Stop screencast (user initiated - will not auto-restart)
    */
   async stopScreencast(): Promise<void> {
+    this.screencastShouldBeActive = false;
+    await this.stopScreencastInternal();
+  }
+
+  /**
+   * Internal method to stop screencast without changing the shouldBeActive flag
+   */
+  private async stopScreencastInternal(): Promise<void> {
     if (!this.screencastActive) {
       return;
     }
@@ -1591,7 +1745,6 @@ export class BrowserManager {
       const cdp = await this.getCDPSession();
       await cdp.send('Page.stopScreencast');
 
-      // Remove the event listener to prevent accumulation
       if (this.screencastFrameHandler) {
         cdp.off('Page.screencastFrame', this.screencastFrameHandler);
       }
@@ -1644,7 +1797,7 @@ export class BrowserManager {
    * Inject a keyboard event via CDP
    */
   async injectKeyboardEvent(params: {
-    type: 'keyDown' | 'keyUp' | 'char';
+    type: 'keyDown' | 'keyUp' | 'rawKeyDown' | 'char';
     key?: string;
     code?: string;
     text?: string;
@@ -1683,10 +1836,52 @@ export class BrowserManager {
   }
 
   /**
+   * Insert text directly via CDP (for IME input, paste, etc.)
+   */
+  async insertText(text: string): Promise<void> {
+    const cdp = await this.getCDPSession();
+    await cdp.send('Input.insertText', { text });
+  }
+
+  /**
    * Check if video recording is currently active
    */
   isRecording(): boolean {
     return this.recordingContext !== null;
+  }
+
+  isRecordingSession(): boolean {
+    return this.recorderSessionId !== null;
+  }
+
+  recordStep(step: {
+    action: string;
+    index?: number;
+    key?: string;
+    code?: string;
+    ctrlKey?: boolean;
+    metaKey?: boolean;
+    altKey?: boolean;
+    shiftKey?: boolean;
+    selector?: string;
+    value?: string;
+  }): void {
+    if (this.recorderSessionId) {
+      this.recorderSteps.push({
+        id: `step-${Date.now()}`,
+        timestamp: Date.now(),
+        action: step.action as any,
+        index: step.index,
+        key: step.key,
+        code: step.code,
+        ctrlKey: step.ctrlKey,
+        metaKey: step.metaKey,
+        altKey: step.altKey,
+        shiftKey: step.shiftKey,
+        selector: step.selector,
+        value: step.value,
+      });
+    }
   }
 
   /**
@@ -1903,6 +2098,298 @@ export class BrowserManager {
     return { previousPath, stopped };
   }
 
+  // ========== User Interaction Recorder ==========
+
+  private getPageIndex(page: Page): number {
+    return this.pages.indexOf(page);
+  }
+
+  private getRecorderInjectScript(): string {
+    const injectScriptPath = path.join(__dirname, 'recorder', 'inject.js');
+    return readFileSync(injectScriptPath, 'utf-8');
+  }
+
+  async startRecorder(url?: string): Promise<{ started: boolean; sessionId: string }> {
+    const page = this.getPage();
+    if (!page) {
+      throw new Error('No page available. Launch browser first.');
+    }
+
+    this.recorderSessionId = 'recorder-' + Date.now();
+    this.recorderStartTime = Date.now();
+    this.recorderSteps = [];
+    this.recorderPages = [];
+    this.navigationHistory = [];
+    this.navigationHistoryIndex = -1;
+    this.lastNavigationUrl = '';
+    this.lastNavigationTime = 0;
+
+    const context = page.context();
+    const injectScript = this.getRecorderInjectScript();
+
+    // 使用 Playwright 的 exposeBinding，自动处理所有导航和新标签页
+    await context.exposeBinding('__recorderSync', async (source, payload: string) => {
+      if (!payload) return;
+
+      const targetPage = source.page;
+
+      try {
+        const step = JSON.parse(payload);
+        if (step && step.action) {
+          if (step.action === '__poll__') {
+            await targetPage
+              ?.evaluate((steps) => {
+                (window as any).__recorderSteps = steps;
+                window.dispatchEvent(new CustomEvent('recorder:steps', { detail: steps }));
+              }, this.recorderSteps)
+              .catch(() => {});
+          } else if (step.action === '__clear__') {
+            this.recorderSteps = [];
+          } else if (step.action !== '__update_step__') {
+            this.recorderSteps.push(step);
+            await targetPage
+              ?.evaluate((steps) => {
+                (window as any).__recorderSteps = steps;
+                window.dispatchEvent(new CustomEvent('recorder:steps', { detail: steps }));
+              }, this.recorderSteps)
+              .catch(() => {});
+          }
+        }
+      } catch (e) {}
+    });
+
+    // 使用 addInitScript 自动注入到所有页面
+    await context.addInitScript(injectScript);
+
+    // 处理导航事件（用于记录 back/forward）
+    this.recorderNavigatedHandler = async (frame: Frame) => {
+      if (!this.recorderSessionId) return;
+      if (frame !== page.mainFrame()) return;
+
+      const currentUrl = frame.url();
+      const now = Date.now();
+
+      if (currentUrl === this.lastNavigationUrl) return;
+
+      const timeSinceLastNav = now - this.lastNavigationTime;
+
+      if (timeSinceLastNav < 300 && currentUrl === this.lastNavigationUrl) {
+        this.recorderSteps.push({
+          id: `step-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          timestamp: now,
+          action: 'reload',
+        });
+        return;
+      }
+
+      const existingIndex = this.navigationHistory.indexOf(currentUrl);
+
+      if (existingIndex !== -1 && existingIndex < this.navigationHistoryIndex) {
+        this.recorderSteps.push({
+          id: `step-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          timestamp: now,
+          action: 'back',
+          from: this.navigationHistory[this.navigationHistoryIndex],
+          to: currentUrl,
+        });
+        this.navigationHistoryIndex = existingIndex;
+      } else if (existingIndex !== -1 && existingIndex > this.navigationHistoryIndex) {
+        this.recorderSteps.push({
+          id: `step-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          timestamp: now,
+          action: 'forward',
+          from: this.navigationHistory[this.navigationHistoryIndex],
+          to: currentUrl,
+        });
+        this.navigationHistoryIndex = existingIndex;
+      } else {
+        if (
+          this.navigationHistoryIndex >= 0 &&
+          this.navigationHistoryIndex < this.navigationHistory.length - 1
+        ) {
+          this.navigationHistory = this.navigationHistory.slice(0, this.navigationHistoryIndex + 1);
+        }
+        this.navigationHistory.push(currentUrl);
+        this.navigationHistoryIndex = this.navigationHistory.length - 1;
+      }
+
+      this.lastNavigationUrl = currentUrl;
+      this.lastNavigationTime = now;
+    };
+    page.on('framenavigated', this.recorderNavigatedHandler);
+
+    // 处理新标签页
+    this.recorderPageHandler = async (newPage: Page) => {
+      if (this.recorderSessionId) {
+        const previousActiveIndex = this.activePageIndex;
+
+        const pageIndex = this.getPageIndex(newPage);
+        const newTabIndex = pageIndex >= 0 ? pageIndex : this.pages.length;
+        this.recorderSteps.push({
+          id: this.recorderSteps.length + 1,
+          timestamp: Date.now(),
+          action: 'tab_new',
+          url: newPage.url(),
+          index: newTabIndex,
+        });
+
+        setTimeout(() => {
+          if (this.recorderSessionId && this.activePageIndex !== previousActiveIndex) {
+            this.recorderSteps.push({
+              id: this.recorderSteps.length + 1,
+              timestamp: Date.now(),
+              action: 'tab_switch',
+              index: this.activePageIndex,
+            });
+          }
+        }, 100);
+
+        newPage.on('close', () => {
+          if (this.recorderSessionId) {
+            const closeIndex = this.getPageIndex(newPage);
+            this.recorderSteps.push({
+              id: this.recorderSteps.length + 1,
+              timestamp: Date.now(),
+              action: 'tab_close',
+              index: closeIndex >= 0 ? closeIndex : -1,
+            });
+          }
+        });
+
+        await newPage.waitForLoadState('domcontentloaded').catch(() => {});
+
+        await newPage
+          .evaluate((steps) => {
+            (window as any).__recorderSteps = steps;
+            window.dispatchEvent(new CustomEvent('recorder:steps', { detail: steps }));
+          }, this.recorderSteps)
+          .catch(() => {});
+
+        this.recorderPages.push({
+          url: newPage.url(),
+          title: await newPage.title().catch(() => ''),
+          firstVisitTime: Date.now(),
+        });
+      }
+    };
+    context.on('page', this.recorderPageHandler);
+
+    if (url) {
+      await page.goto(url, { waitUntil: 'load' });
+    }
+
+    this.recorderPages.push({
+      url: page.url(),
+      title: await page.title(),
+      firstVisitTime: Date.now(),
+    });
+
+    return { started: true, sessionId: this.recorderSessionId };
+  }
+
+  async stopRecorder(): Promise<{ yaml: string; steps: number }> {
+    const yaml = this.generateRecorderYaml();
+    const steps = this.recorderSteps.length;
+
+    const page = this.getPage();
+
+    if (page) {
+      try {
+        await page.evaluate(() => {
+          const win = window as any;
+          if (typeof win.__recorderClosePanel === 'function') {
+            win.__recorderClosePanel();
+          }
+        });
+      } catch (e) {}
+
+      if (this.recorderNavigatedHandler) {
+        page.off('framenavigated', this.recorderNavigatedHandler);
+        this.recorderNavigatedHandler = null;
+      }
+      if (this.recorderPageHandler) {
+        page.context().off('page', this.recorderPageHandler);
+        this.recorderPageHandler = null;
+      }
+    }
+
+    this.recorderSessionId = null;
+    this.recorderSteps = [];
+    this.navigationHistory = [];
+    this.navigationHistoryIndex = -1;
+    this.lastNavigationUrl = '';
+    this.lastNavigationTime = 0;
+
+    return { yaml, steps };
+  }
+
+  getRecorderStatus(): { isRecording: boolean; sessionId?: string; steps: number } {
+    return {
+      isRecording: this.recorderSessionId !== null,
+      sessionId: this.recorderSessionId || undefined,
+      steps: this.recorderSteps.length,
+    };
+  }
+
+  private generateRecorderYaml(): string {
+    const lines: string[] = [];
+
+    lines.push('session:');
+    lines.push(`  id: ${this.recorderSessionId || 'unknown'}`);
+    lines.push(`  startTime: ${new Date(this.recorderStartTime).toISOString()}`);
+    lines.push(`  endTime: ${new Date().toISOString()}`);
+    lines.push(`  steps: ${this.recorderSteps.length}`);
+    lines.push('');
+
+    if (this.recorderPages.length > 0) {
+      lines.push('pages:');
+      for (const page of this.recorderPages) {
+        lines.push(`  - url: ${page.url}`);
+        lines.push(`    title: ${page.title || 'N/A'}`);
+        lines.push(`    firstVisitTime: ${new Date(page.firstVisitTime).toISOString()}`);
+      }
+      lines.push('');
+    }
+
+    lines.push('steps:');
+    for (const step of this.recorderSteps) {
+      lines.push(`  - id: ${step.id}`);
+      lines.push(`    timestamp: ${new Date(step.timestamp).toISOString()}`);
+      lines.push(`    action: ${step.action}`);
+      if (step.selector) lines.push(`    selector: "${step.selector}"`);
+      if (step.xpath) lines.push(`    xpath: "${step.xpath}"`);
+      if (step.value) lines.push(`    value: "${step.value}"`);
+      if (step.points) lines.push(`    points: ${JSON.stringify(step.points)}`);
+      if (step.x !== undefined) lines.push(`    x: ${step.x}`);
+      if (step.y !== undefined) lines.push(`    y: ${step.y}`);
+      if (step.from && typeof step.from === 'string') {
+        lines.push(`    from: "${step.from}"`);
+      } else if (step.from) {
+        lines.push(`    from: { width: ${step.from.width}, height: ${step.from.height} }`);
+      }
+      if (step.to && typeof step.to === 'string') {
+        lines.push(`    to: "${step.to}"`);
+      } else if (step.to) {
+        lines.push(`    to: { width: ${step.to.width}, height: ${step.to.height} }`);
+      }
+      if (step.annotation)
+        lines.push(
+          `    annotation: { type: ${step.annotation.type}, label: "${step.annotation.label}" }`
+        );
+      if (step.url !== undefined) lines.push(`    url: "${step.url}"`);
+      if (step.index !== undefined) lines.push(`    index: ${step.index}`);
+      if (step.key) lines.push(`    key: "${step.key}"`);
+      if (step.code) lines.push(`    code: "${step.code}"`);
+      if (step.ctrlKey) lines.push(`    ctrlKey: true`);
+      if (step.metaKey) lines.push(`    metaKey: true`);
+      if (step.altKey) lines.push(`    altKey: true`);
+      if (step.shiftKey) lines.push(`    shiftKey: true`);
+      lines.push('');
+    }
+
+    return lines.join('\n');
+  }
+
   /**
    * Close the browser and clean up
    */
@@ -1917,11 +2404,45 @@ export class BrowserManager {
       await this.stopScreencast();
     }
 
+    // Remove recorder event listeners
+    const page = this.getPage();
+    if (page) {
+      if (this.recorderNavigatedHandler) {
+        page.off('framenavigated', this.recorderNavigatedHandler);
+        this.recorderNavigatedHandler = null;
+      }
+      if (this.recorderPageHandler) {
+        page.context().off('page', this.recorderPageHandler);
+        this.recorderPageHandler = null;
+      }
+    }
+
+    // Clean up navigation state
+    this.navigationHistory = [];
+    this.navigationHistoryIndex = -1;
+    this.lastNavigationUrl = '';
+    this.lastNavigationTime = 0;
+
     // Clean up CDP session
     if (this.cdpSession) {
       await this.cdpSession.detach().catch(() => {});
       this.cdpSession = null;
     }
+
+    // Helper function to close pages
+    const closePages = async () => {
+      for (const page of this.pages) {
+        await page.close().catch(() => {});
+      }
+    };
+
+    // Helper function to close browser
+    const closeBrowser = async () => {
+      if (this.browser) {
+        await this.browser.close().catch(() => {});
+        this.browser = null;
+      }
+    };
 
     if (this.browserbaseSessionId && this.browserbaseApiKey) {
       await this.closeBrowserbaseSession(this.browserbaseSessionId, this.browserbaseApiKey).catch(
@@ -1943,25 +2464,32 @@ export class BrowserManager {
       });
       this.browser = null;
     } else if (this.cdpEndpoint !== null) {
-      // CDP: only disconnect, don't close external app's pages
+      console.log('[DEBUG close] CDP endpoint detected:', this.cdpEndpoint);
+      console.log('[DEBUG close] browser exists:', !!this.browser);
       if (this.browser) {
-        await this.browser.close().catch(() => {});
-        this.browser = null;
+        try {
+          // CDP 连接：只关闭我们打开的页面，然后断开连接
+          // 注意：browser.close() 对于 CDP 连接只会断开连接，不会关闭远程浏览器
+          console.log('[DEBUG close] CDP connection - closing pages and disconnecting');
+          await closePages();
+          await this.browser.close();
+          console.log('[DEBUG close] CDP connection closed');
+        } catch (e) {
+          console.log('[DEBUG close] CDP disconnect failed:', e);
+        } finally {
+          this.browser = null;
+        }
       }
     } else {
       // Regular browser: close everything
-      for (const page of this.pages) {
-        await page.close().catch(() => {});
-      }
+      await closePages();
       for (const context of this.contexts) {
         await context.close().catch(() => {});
       }
-      if (this.browser) {
-        await this.browser.close().catch(() => {});
-        this.browser = null;
-      }
+      await closeBrowser();
     }
 
+    // Clean up all references
     this.pages = [];
     this.contexts = [];
     this.cdpEndpoint = null;

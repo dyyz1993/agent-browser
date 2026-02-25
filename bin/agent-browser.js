@@ -3,107 +3,118 @@
 /**
  * Cross-platform CLI wrapper for agent-browser
  * 
- * This wrapper enables npx support on Windows where shell scripts don't work.
- * For global installs, postinstall.js patches the shims to invoke the native
- * binary directly (zero overhead).
+ * This wrapper automatically selects the best CLI implementation:
+ * 1. Native Rust CLI (if available) - faster, more robust
+ * 2. TypeScript CLI (fallback) - full feature parity
+ * 
+ * You can force a specific CLI using:
+ * - AGENT_BROWSER_CLI=native - Force native Rust CLI
+ * - AGENT_BROWSER_CLI=typescript - Force TypeScript CLI
  */
 
 import { spawn } from 'child_process';
-import { existsSync, accessSync, chmodSync, constants } from 'fs';
+import { existsSync } from 'fs';
 import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
 import { platform, arch } from 'os';
+import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const projectRoot = join(__dirname, '..');
 
-// Map Node.js platform/arch to binary naming convention
-function getBinaryName() {
-  const os = platform();
-  const cpuArch = arch();
-
-  let osKey;
-  switch (os) {
-    case 'darwin':
-      osKey = 'darwin';
-      break;
-    case 'linux':
-      osKey = 'linux';
-      break;
-    case 'win32':
-      osKey = 'win32';
-      break;
-    default:
-      return null;
+function getNativeBinaryPath() {
+  const platformKey = platform() + '-' + arch();
+  const ext = platform() === 'win32' ? '.exe' : '';
+  
+  const candidates = [
+    join(projectRoot, 'bin', 'agent-browser-' + platformKey + ext),
+    join(projectRoot, 'bin', 'agent-browser' + ext),
+  ];
+  
+  for (let i = 0; i < candidates.length; i++) {
+    if (existsSync(candidates[i])) {
+      return candidates[i];
+    }
   }
+  
+  return null;
+}
 
-  let archKey;
-  switch (cpuArch) {
-    case 'x64':
-    case 'x86_64':
-      archKey = 'x64';
-      break;
-    case 'arm64':
-    case 'aarch64':
-      archKey = 'arm64';
-      break;
-    default:
-      return null;
+function getTypeScriptCliPath() {
+  return join(projectRoot, 'dist', 'cli.js');
+}
+
+function runCli(cliPath, isNative) {
+  const args = process.argv.slice(2);
+  
+  if (isNative) {
+    const child = spawn(cliPath, args, {
+      stdio: 'inherit',
+      windowsHide: false,
+    });
+
+    child.on('error', function(err) {
+      console.error('Error executing native CLI: ' + err.message);
+      console.error('Falling back to TypeScript CLI...');
+      runCli(getTypeScriptCliPath(), false);
+    });
+
+    child.on('close', function(code) {
+      process.exit(code || 0);
+    });
+  } else {
+    const child = spawn('node', [cliPath].concat(args), {
+      stdio: 'inherit',
+      windowsHide: false,
+    });
+
+    child.on('error', function(err) {
+      console.error('Error executing CLI: ' + err.message);
+      process.exit(1);
+    });
+
+    child.on('close', function(code) {
+      process.exit(code || 0);
+    });
   }
-
-  const ext = os === 'win32' ? '.exe' : '';
-  return `agent-browser-${osKey}-${archKey}${ext}`;
 }
 
 function main() {
-  const binaryName = getBinaryName();
+  const cliPreference = (process.env.AGENT_BROWSER_CLI || '').toLowerCase();
+  const nativePath = getNativeBinaryPath();
+  const tsPath = getTypeScriptCliPath();
 
-  if (!binaryName) {
-    console.error(`Error: Unsupported platform: ${platform()}-${arch()}`);
-    process.exit(1);
-  }
-
-  const binaryPath = join(__dirname, binaryName);
-
-  if (!existsSync(binaryPath)) {
-    console.error(`Error: No binary found for ${platform()}-${arch()}`);
-    console.error(`Expected: ${binaryPath}`);
-    console.error('');
-    console.error('Run "npm run build:native" to build for your platform,');
-    console.error('or reinstall the package to trigger the postinstall download.');
-    process.exit(1);
-  }
-
-  // Ensure binary is executable (fixes EACCES on macOS/Linux when postinstall didn't run,
-  // e.g., when using bun which blocks lifecycle scripts by default)
-  if (platform() !== 'win32') {
-    try {
-      accessSync(binaryPath, constants.X_OK);
-    } catch {
-      // Binary exists but isn't executable - fix it
-      try {
-        chmodSync(binaryPath, 0o755);
-      } catch (chmodErr) {
-        console.error(`Error: Cannot make binary executable: ${chmodErr.message}`);
-        console.error('Try running: chmod +x ' + binaryPath);
-        process.exit(1);
-      }
+  if (cliPreference === 'typescript' || cliPreference === 'ts') {
+    if (!existsSync(tsPath)) {
+      console.error('Error: TypeScript CLI not found. Run "npm run build" first.');
+      process.exit(1);
     }
+    runCli(tsPath, false);
+    return;
   }
 
-  // Spawn the native binary with inherited stdio
-  const child = spawn(binaryPath, process.argv.slice(2), {
-    stdio: 'inherit',
-    windowsHide: false,
-  });
+  if (cliPreference === 'native' || cliPreference === 'rust') {
+    if (!nativePath) {
+      console.error('Error: Native CLI not found. Run "npm run build:native" first.');
+      process.exit(1);
+    }
+    runCli(nativePath, true);
+    return;
+  }
 
-  child.on('error', (err) => {
-    console.error(`Error executing binary: ${err.message}`);
+  if (nativePath) {
+    runCli(nativePath, true);
+    return;
+  }
+
+  if (!existsSync(tsPath)) {
+    console.error('Error: No CLI found.');
+    console.error('');
+    console.error('To use TypeScript CLI: Run "npm run build"');
+    console.error('To use Native CLI: Run "npm run build:native"');
     process.exit(1);
-  });
+  }
 
-  child.on('close', (code) => {
-    process.exit(code ?? 0);
-  });
+  runCli(tsPath, false);
 }
 
 main();

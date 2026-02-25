@@ -9,7 +9,7 @@ describe('parseCommand', () => {
     it('should parse navigate command', () => {
       const result = parseCommand(cmd({ id: '1', action: 'navigate', url: 'https://example.com' }));
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.command.action === 'navigate') {
         expect(result.command.action).toBe('navigate');
         expect(result.command.url).toBe('https://example.com');
       }
@@ -25,7 +25,7 @@ describe('parseCommand', () => {
         })
       );
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.command.action === 'navigate') {
         expect(result.command.action).toBe('navigate');
         expect(result.command.headers).toEqual({ Authorization: 'Bearer token' });
       }
@@ -56,7 +56,7 @@ describe('parseCommand', () => {
     it('should parse click command', () => {
       const result = parseCommand(cmd({ id: '1', action: 'click', selector: '#btn' }));
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.command.action === 'click') {
         expect(result.command.action).toBe('click');
         expect(result.command.selector).toBe('#btn');
       }
@@ -74,7 +74,7 @@ describe('parseCommand', () => {
         cmd({ id: '1', action: 'type', selector: '#input', text: 'hello' })
       );
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.command.action === 'type') {
         expect(result.command.action).toBe('type');
         expect(result.command.selector).toBe('#input');
         expect(result.command.text).toBe('hello');
@@ -88,7 +88,7 @@ describe('parseCommand', () => {
         cmd({ id: '1', action: 'fill', selector: '#input', value: 'hello' })
       );
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.command.action === 'fill') {
         expect(result.command.action).toBe('fill');
         expect(result.command.value).toBe('hello');
       }
@@ -135,7 +135,7 @@ describe('parseCommand', () => {
     it('should parse cookies_get', () => {
       const result = parseCommand(cmd({ id: '1', action: 'cookies_get' }));
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.command.action === 'cookies_get') {
         expect(result.command.action).toBe('cookies_get');
       }
     });
@@ -145,7 +145,7 @@ describe('parseCommand', () => {
         cmd({ id: '1', action: 'cookies_get', urls: ['https://example.com'] })
       );
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.command.action === 'cookies_get') {
         expect(result.command.urls).toEqual(['https://example.com']);
       }
     });
@@ -159,7 +159,7 @@ describe('parseCommand', () => {
         })
       );
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.command.action === 'cookies_set') {
         expect(result.command.action).toBe('cookies_set');
         expect(result.command.cookies).toHaveLength(1);
         expect(result.command.cookies[0].name).toBe('session');
@@ -187,7 +187,7 @@ describe('parseCommand', () => {
         })
       );
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.command.action === 'cookies_set') {
         expect(result.command.cookies[0].httpOnly).toBe(true);
         expect(result.command.cookies[0].secure).toBe(true);
         expect(result.command.cookies[0].sameSite).toBe('Strict');
@@ -206,7 +206,7 @@ describe('parseCommand', () => {
         })
       );
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.command.action === 'cookies_set') {
         expect(result.command.cookies).toHaveLength(2);
       }
     });
@@ -260,7 +260,7 @@ describe('parseCommand', () => {
     it('should parse storage_get for localStorage', () => {
       const result = parseCommand(cmd({ id: '1', action: 'storage_get', type: 'local' }));
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.command.action === 'storage_get') {
         expect(result.command.action).toBe('storage_get');
         expect(result.command.type).toBe('local');
       }
@@ -269,7 +269,7 @@ describe('parseCommand', () => {
     it('should parse storage_get for sessionStorage', () => {
       const result = parseCommand(cmd({ id: '1', action: 'storage_get', type: 'session' }));
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.command.action === 'storage_get') {
         expect(result.command.type).toBe('session');
       }
     });
@@ -279,7 +279,7 @@ describe('parseCommand', () => {
         cmd({ id: '1', action: 'storage_get', type: 'local', key: 'mykey' })
       );
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.command.action === 'storage_get') {
         expect(result.command.key).toBe('mykey');
       }
     });
@@ -295,7 +295,7 @@ describe('parseCommand', () => {
         })
       );
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.command.action === 'storage_set') {
         expect(result.command.action).toBe('storage_set');
         expect(result.command.key).toBe('test');
         expect(result.command.value).toBe('value');
@@ -329,7 +329,7 @@ describe('parseCommand', () => {
     it('should parse storage_clear for localStorage', () => {
       const result = parseCommand(cmd({ id: '1', action: 'storage_clear', type: 'local' }));
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.command.action === 'storage_clear') {
         expect(result.command.action).toBe('storage_clear');
         expect(result.command.type).toBe('local');
       }
@@ -376,7 +376,7 @@ describe('parseCommand', () => {
         })
       );
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.command.action === 'getbyrole') {
         expect(result.command.exact).toBe(true);
       }
     });
@@ -418,7 +418,7 @@ describe('parseCommand', () => {
         })
       );
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.command.action === 'getbylabel') {
         expect(result.command.exact).toBe(true);
       }
     });
@@ -435,7 +435,7 @@ describe('parseCommand', () => {
         })
       );
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.command.action === 'getbyplaceholder') {
         expect(result.command.exact).toBe(true);
       }
     });
@@ -450,8 +450,8 @@ describe('parseCommand', () => {
     it('should parse tab_new with url', () => {
       const result = parseCommand(cmd({ id: '1', action: 'tab_new', url: 'https://example.com' }));
       expect(result.success).toBe(true);
-      if (result.success) {
-        expect((result.command as { url?: string }).url).toBe('https://example.com');
+      if (result.success && result.command.action === 'tab_new') {
+        expect(result.command.url).toBe('https://example.com');
       }
     });
 
@@ -480,7 +480,7 @@ describe('parseCommand', () => {
     it('should parse snapshot with interactive filter', () => {
       const result = parseCommand(cmd({ id: '1', action: 'snapshot', interactive: true }));
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.command.action === 'snapshot') {
         expect(result.command.interactive).toBe(true);
       }
     });
@@ -488,7 +488,7 @@ describe('parseCommand', () => {
     it('should parse snapshot with compact filter', () => {
       const result = parseCommand(cmd({ id: '1', action: 'snapshot', compact: true }));
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.command.action === 'snapshot') {
         expect(result.command.compact).toBe(true);
       }
     });
@@ -496,7 +496,7 @@ describe('parseCommand', () => {
     it('should parse snapshot with maxDepth', () => {
       const result = parseCommand(cmd({ id: '1', action: 'snapshot', maxDepth: 3 }));
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.command.action === 'snapshot') {
         expect(result.command.maxDepth).toBe(3);
       }
     });
@@ -504,7 +504,7 @@ describe('parseCommand', () => {
     it('should parse snapshot with selector scope', () => {
       const result = parseCommand(cmd({ id: '1', action: 'snapshot', selector: '#main' }));
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.command.action === 'snapshot') {
         expect(result.command.selector).toBe('#main');
       }
     });
@@ -521,7 +521,7 @@ describe('parseCommand', () => {
         })
       );
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.command.action === 'snapshot') {
         expect(result.command.interactive).toBe(true);
         expect(result.command.compact).toBe(true);
         expect(result.command.maxDepth).toBe(5);
@@ -539,7 +539,7 @@ describe('parseCommand', () => {
     it('should parse launch with headless false', () => {
       const result = parseCommand(cmd({ id: '1', action: 'launch', headless: false }));
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.command.action === 'launch') {
         expect(result.command.headless).toBe(false);
       }
     });
@@ -547,7 +547,7 @@ describe('parseCommand', () => {
     it('should parse launch with cdpPort', () => {
       const result = parseCommand(cmd({ id: '1', action: 'launch', cdpPort: 9222 }));
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.command.action === 'launch') {
         expect(result.command.cdpPort).toBe(9222);
       }
     });
@@ -565,7 +565,7 @@ describe('parseCommand', () => {
     it('should parse launch with ignoreHTTPSErrors true', () => {
       const result = parseCommand(cmd({ id: '1', action: 'launch', ignoreHTTPSErrors: true }));
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.command.action === 'launch') {
         expect(result.command.ignoreHTTPSErrors).toBe(true);
       }
     });
@@ -573,7 +573,7 @@ describe('parseCommand', () => {
     it('should parse launch with ignoreHTTPSErrors false', () => {
       const result = parseCommand(cmd({ id: '1', action: 'launch', ignoreHTTPSErrors: false }));
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.command.action === 'launch') {
         expect(result.command.ignoreHTTPSErrors).toBe(false);
       }
     });
@@ -588,7 +588,7 @@ describe('parseCommand', () => {
     it('should parse mousemove', () => {
       const result = parseCommand(cmd({ id: '1', action: 'mousemove', x: 100, y: 200 }));
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.command.action === 'mousemove') {
         expect(result.command.x).toBe(100);
         expect(result.command.y).toBe(200);
       }
@@ -705,7 +705,7 @@ describe('parseCommand', () => {
         cmd({ id: '1', action: 'dialog', response: 'accept', promptText: 'hello' })
       );
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.command.action === 'dialog') {
         expect(result.command.promptText).toBe('hello');
       }
     });
@@ -745,7 +745,7 @@ describe('parseCommand', () => {
         })
       );
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.command.action === 'screencast_start') {
         expect(result.command.format).toBe('png');
         expect(result.command.quality).toBe(90);
         expect(result.command.maxWidth).toBe(1920);
@@ -792,7 +792,7 @@ describe('parseCommand', () => {
           })
         );
         expect(result.success).toBe(true);
-        if (result.success) {
+        if (result.success && result.command.action === 'input_mouse') {
           expect(result.command.action).toBe('input_mouse');
           expect(result.command.type).toBe('mousePressed');
           expect(result.command.x).toBe(100);
@@ -840,7 +840,7 @@ describe('parseCommand', () => {
           })
         );
         expect(result.success).toBe(true);
-        if (result.success) {
+        if (result.success && result.command.action === 'input_mouse') {
           expect(result.command.deltaX).toBe(0);
           expect(result.command.deltaY).toBe(100);
         }
@@ -858,7 +858,7 @@ describe('parseCommand', () => {
           })
         );
         expect(result.success).toBe(true);
-        if (result.success) {
+        if (result.success && result.command.action === 'input_mouse') {
           expect(result.command.modifiers).toBe(6);
         }
       });
@@ -875,7 +875,7 @@ describe('parseCommand', () => {
           })
         );
         expect(result.success).toBe(true);
-        if (result.success) {
+        if (result.success && result.command.action === 'input_mouse') {
           expect(result.command.clickCount).toBe(2);
         }
       });
@@ -930,7 +930,7 @@ describe('parseCommand', () => {
           })
         );
         expect(result.success).toBe(true);
-        if (result.success) {
+        if (result.success && result.command.action === 'input_keyboard') {
           expect(result.command.action).toBe('input_keyboard');
           expect(result.command.type).toBe('keyDown');
           expect(result.command.key).toBe('Enter');
@@ -960,7 +960,7 @@ describe('parseCommand', () => {
           })
         );
         expect(result.success).toBe(true);
-        if (result.success) {
+        if (result.success && result.command.action === 'input_keyboard') {
           expect(result.command.text).toBe('hello');
         }
       });
@@ -976,7 +976,7 @@ describe('parseCommand', () => {
           })
         );
         expect(result.success).toBe(true);
-        if (result.success) {
+        if (result.success && result.command.action === 'input_keyboard') {
           expect(result.command.modifiers).toBe(2);
         }
       });
@@ -1004,7 +1004,7 @@ describe('parseCommand', () => {
           })
         );
         expect(result.success).toBe(true);
-        if (result.success) {
+        if (result.success && result.command.action === 'input_touch') {
           expect(result.command.action).toBe('input_touch');
           expect(result.command.type).toBe('touchStart');
           expect(result.command.touchPoints).toHaveLength(1);
@@ -1062,7 +1062,7 @@ describe('parseCommand', () => {
           })
         );
         expect(result.success).toBe(true);
-        if (result.success) {
+        if (result.success && result.command.action === 'input_touch') {
           expect(result.command.touchPoints).toHaveLength(2);
         }
       });
@@ -1078,7 +1078,7 @@ describe('parseCommand', () => {
           })
         );
         expect(result.success).toBe(true);
-        if (result.success) {
+        if (result.success && result.command.action === 'input_touch') {
           expect(result.command.modifiers).toBe(8);
         }
       });

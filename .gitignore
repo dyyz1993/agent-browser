@@ -51,3 +51,10 @@ docs/package-lock.json
 
 # pnpm
 .pnpm-store/
+acne-products-detail/
+*.sh
+*.csv
+scripts/
+output/
+export/
+export_data/*

@@ -3,7 +3,10 @@ import { Flags } from './flags.js';
 import { parseHumanFlag } from '../human-mouse.js';
 
 export class CliError extends Error {
-  constructor(message: string, public usage?: string) {
+  constructor(
+    message: string,
+    public usage?: string
+  ) {
     super(message);
     this.name = 'CliError';
   }
@@ -110,7 +113,11 @@ export function parseCommand(args: string[], flags: Flags): Command {
       const { diffScope, remaining: r2 } = parseDiff(r1);
       const { config: human, remaining } = parseHumanFlag(r2);
       const selector = remaining[0];
-      if (!selector) error('Missing selector', 'agent-browser click <selector> [--diff [scope]] [--in-frame <path>] [--human [bezier|arc|random|linear]]');
+      if (!selector)
+        error(
+          'Missing selector',
+          'agent-browser click <selector> [--diff [scope]] [--in-frame <path>] [--human [bezier|arc|random|linear]]'
+        );
       const cmd: Command = { id, action: 'click', selector, inFrame, diffScope };
       if (human.enabled) cmd.human = human;
       return cmd;
@@ -120,7 +127,11 @@ export function parseCommand(args: string[], flags: Flags): Command {
       const { diffScope, remaining: r2 } = parseDiff(r1);
       const { config: human, remaining } = parseHumanFlag(r2);
       const selector = remaining[0];
-      if (!selector) error('Missing selector', 'agent-browser dblclick <selector> [--diff [scope]] [--in-frame <path>] [--human [bezier|arc|random|linear]]');
+      if (!selector)
+        error(
+          'Missing selector',
+          'agent-browser dblclick <selector> [--diff [scope]] [--in-frame <path>] [--human [bezier|arc|random|linear]]'
+        );
       const cmd: Command = { id, action: 'dblclick', selector, inFrame, diffScope };
       if (human.enabled) cmd.human = human;
       return cmd;
@@ -131,7 +142,11 @@ export function parseCommand(args: string[], flags: Flags): Command {
       const { config: human, remaining } = parseHumanFlag(r2);
       const selector = remaining[0];
       const value = remaining.slice(1).join(' ');
-      if (!selector || !value) error('Missing selector or value', 'agent-browser fill <selector> <text> [--diff [scope]] [--in-frame <path>] [--human [bezier|arc|random|linear]]');
+      if (!selector || !value)
+        error(
+          'Missing selector or value',
+          'agent-browser fill <selector> <text> [--diff [scope]] [--in-frame <path>] [--human [bezier|arc|random|linear]]'
+        );
       const cmd: Command = { id, action: 'fill', selector, value, inFrame, diffScope };
       if (human.enabled) cmd.human = human;
       return cmd;
@@ -142,7 +157,11 @@ export function parseCommand(args: string[], flags: Flags): Command {
       const { config: human, remaining } = parseHumanFlag(r2);
       const selector = remaining[0];
       const text = remaining.slice(1).join(' ');
-      if (!selector || !text) error('Missing selector or text', 'agent-browser type <selector> <text> [--diff [scope]] [--in-frame <path>] [--human [bezier|arc|random|linear]]');
+      if (!selector || !text)
+        error(
+          'Missing selector or text',
+          'agent-browser type <selector> <text> [--diff [scope]] [--in-frame <path>] [--human [bezier|arc|random|linear]]'
+        );
       const cmd: Command = { id, action: 'type', selector, text, inFrame, diffScope };
       if (human.enabled) cmd.human = human;
       return cmd;
@@ -152,7 +171,11 @@ export function parseCommand(args: string[], flags: Flags): Command {
       const { diffScope, remaining: r2 } = parseDiff(r1);
       const { config: human, remaining } = parseHumanFlag(r2);
       const selector = remaining[0];
-      if (!selector) error('Missing selector', 'agent-browser hover <selector> [--diff [scope]] [--in-frame <path>] [--human [bezier|arc|random|linear]]');
+      if (!selector)
+        error(
+          'Missing selector',
+          'agent-browser hover <selector> [--diff [scope]] [--in-frame <path>] [--human [bezier|arc|random|linear]]'
+        );
       const cmd: Command = { id, action: 'hover', selector, inFrame, diffScope };
       if (human.enabled) cmd.human = human;
       return cmd;
@@ -161,21 +184,33 @@ export function parseCommand(args: string[], flags: Flags): Command {
       const { inFrame, remaining: r1 } = parseInFrame(rest);
       const { diffScope, remaining } = parseDiff(r1);
       const selector = remaining[0];
-      if (!selector) error('Missing selector', 'agent-browser focus <selector> [--diff [scope]] [--in-frame <path>]');
+      if (!selector)
+        error(
+          'Missing selector',
+          'agent-browser focus <selector> [--diff [scope]] [--in-frame <path>]'
+        );
       return { id, action: 'focus', selector, inFrame, diffScope };
     }
     case 'check': {
       const { inFrame, remaining: r1 } = parseInFrame(rest);
       const { diffScope, remaining } = parseDiff(r1);
       const selector = remaining[0];
-      if (!selector) error('Missing selector', 'agent-browser check <selector> [--diff [scope]] [--in-frame <path>]');
+      if (!selector)
+        error(
+          'Missing selector',
+          'agent-browser check <selector> [--diff [scope]] [--in-frame <path>]'
+        );
       return { id, action: 'check', selector, inFrame, diffScope };
     }
     case 'uncheck': {
       const { inFrame, remaining: r1 } = parseInFrame(rest);
       const { diffScope, remaining } = parseDiff(r1);
       const selector = remaining[0];
-      if (!selector) error('Missing selector', 'agent-browser uncheck <selector> [--diff [scope]] [--in-frame <path>]');
+      if (!selector)
+        error(
+          'Missing selector',
+          'agent-browser uncheck <selector> [--diff [scope]] [--in-frame <path>]'
+        );
       return { id, action: 'uncheck', selector, inFrame, diffScope };
     }
     case 'select': {
@@ -183,25 +218,39 @@ export function parseCommand(args: string[], flags: Flags): Command {
       const { diffScope, remaining } = parseDiff(r1);
       const selector = remaining[0];
       const values = remaining.slice(1);
-      if (!selector || values.length === 0) error('Missing selector or values', 'agent-browser select <selector> <value...> [--diff [scope]] [--in-frame <path>]');
-      return { id, action: 'select', selector, values: values.length === 1 ? values[0] : values, inFrame, diffScope };
+      if (!selector || values.length === 0)
+        error(
+          'Missing selector or values',
+          'agent-browser select <selector> <value...> [--diff [scope]] [--in-frame <path>]'
+        );
+      return {
+        id,
+        action: 'select',
+        selector,
+        values: values.length === 1 ? values[0] : values,
+        inFrame,
+        diffScope,
+      };
     }
     case 'drag': {
       const source = rest[0];
       const target = rest[1];
-      if (!source || !target) error('Missing source or target', 'agent-browser drag <source> <target>');
+      if (!source || !target)
+        error('Missing source or target', 'agent-browser drag <source> <target>');
       return { id, action: 'drag', source, target };
     }
     case 'upload': {
       const selector = rest[0];
       const files = rest.slice(1);
-      if (!selector || files.length === 0) error('Missing selector or files', 'agent-browser upload <selector> <files...>');
+      if (!selector || files.length === 0)
+        error('Missing selector or files', 'agent-browser upload <selector> <files...>');
       return { id, action: 'upload', selector, files };
     }
     case 'download': {
       const selector = rest[0];
       const path = rest[1];
-      if (!selector || !path) error('Missing selector or path', 'agent-browser download <selector> <path>');
+      if (!selector || !path)
+        error('Missing selector or path', 'agent-browser download <selector> <path>');
       return { id, action: 'download', selector, path };
     }
 
@@ -265,7 +314,8 @@ export function parseCommand(args: string[], flags: Flags): Command {
         const dlIdx = rest.includes('--download') ? rest.indexOf('--download') : rest.indexOf('-d');
         if (rest[dlIdx + 1] && !rest[dlIdx + 1].startsWith('--')) cmd.path = rest[dlIdx + 1];
         const timeoutIdx = rest.indexOf('--timeout');
-        if (timeoutIdx !== -1 && rest[timeoutIdx + 1]) cmd.timeout = parseInt(rest[timeoutIdx + 1], 10);
+        if (timeoutIdx !== -1 && rest[timeoutIdx + 1])
+          cmd.timeout = parseInt(rest[timeoutIdx + 1], 10);
         return cmd;
       }
       if (rest.includes('--request') || rest.includes('-r')) {
@@ -274,7 +324,8 @@ export function parseCommand(args: string[], flags: Flags): Command {
         if (!url) error('Missing URL pattern', 'agent-browser wait --request <pattern>');
         const cmd: Command = { id, action: 'responsebody', url };
         const timeoutIdx = rest.indexOf('--timeout');
-        if (timeoutIdx !== -1 && rest[timeoutIdx + 1]) cmd.timeout = parseInt(rest[timeoutIdx + 1], 10);
+        if (timeoutIdx !== -1 && rest[timeoutIdx + 1])
+          cmd.timeout = parseInt(rest[timeoutIdx + 1], 10);
         return cmd;
       }
       if (rest[0]) {
@@ -282,7 +333,10 @@ export function parseCommand(args: string[], flags: Flags): Command {
         if (!isNaN(timeout)) return { id, action: 'wait', timeout };
         return { id, action: 'wait', selector: rest[0] };
       }
-      error('Missing arguments', 'agent-browser wait <selector|ms|--url|--load|--fn|--text|--download|--request>');
+      error(
+        'Missing arguments',
+        'agent-browser wait <selector|ms|--url|--load|--fn|--text|--download|--request>'
+      );
     }
 
     case 'screenshot': {
@@ -295,7 +349,12 @@ export function parseCommand(args: string[], flags: Flags): Command {
         path = filtered[1];
       } else if (filtered.length === 1) {
         const arg = filtered[0];
-        const isPath = arg.includes('/') || arg.endsWith('.png') || arg.endsWith('.jpg') || arg.endsWith('.jpeg') || arg.endsWith('.webp');
+        const isPath =
+          arg.includes('/') ||
+          arg.endsWith('.png') ||
+          arg.endsWith('.jpg') ||
+          arg.endsWith('.jpeg') ||
+          arg.endsWith('.webp');
         if (isPath) path = arg;
         else selector = arg;
       }
@@ -344,6 +403,12 @@ export function parseCommand(args: string[], flags: Flags): Command {
               i++;
             }
             break;
+          case '--path':
+            command.path = true;
+            break;
+          case '--attrs':
+            command.attrs = true;
+            break;
         }
       }
       return command;
@@ -385,7 +450,11 @@ export function parseCommand(args: string[], flags: Flags): Command {
 
     case 'get': {
       const subcmd = rest[0];
-      if (!subcmd) error('Missing subcommand', 'agent-browser get <text|html|value|attr|url|title|count|box|styles> [args...]');
+      if (!subcmd)
+        error(
+          'Missing subcommand',
+          'agent-browser get <text|html|value|attr|url|title|count|box|styles> [args...]'
+        );
       switch (subcmd) {
         case 'text': {
           const selector = rest[1];
@@ -405,7 +474,8 @@ export function parseCommand(args: string[], flags: Flags): Command {
         case 'attr': {
           const selector = rest[1];
           const attribute = rest[2];
-          if (!selector || !attribute) error('Missing selector or attribute', 'agent-browser get attr <selector> <attribute>');
+          if (!selector || !attribute)
+            error('Missing selector or attribute', 'agent-browser get attr <selector> <attribute>');
           return { id, action: 'getattribute', selector, attribute };
         }
         case 'url':
@@ -428,13 +498,17 @@ export function parseCommand(args: string[], flags: Flags): Command {
           return { id, action: 'styles', selector };
         }
         default:
-          error(`Unknown get subcommand: ${subcmd}`, 'agent-browser get <text|html|value|attr|url|title|count|box|styles> [args...]');
+          error(
+            `Unknown get subcommand: ${subcmd}`,
+            'agent-browser get <text|html|value|attr|url|title|count|box|styles> [args...]'
+          );
       }
     }
 
     case 'is': {
       const subcmd = rest[0];
-      if (!subcmd) error('Missing subcommand', 'agent-browser is <visible|enabled|checked> <selector>');
+      if (!subcmd)
+        error('Missing subcommand', 'agent-browser is <visible|enabled|checked> <selector>');
       const selector = rest[1];
       if (!selector) error('Missing selector', `agent-browser is ${subcmd} <selector>`);
       switch (subcmd) {
@@ -445,23 +519,37 @@ export function parseCommand(args: string[], flags: Flags): Command {
         case 'checked':
           return { id, action: 'ischecked', selector };
         default:
-          error(`Unknown is subcommand: ${subcmd}`, 'agent-browser is <visible|enabled|checked> <selector>');
+          error(
+            `Unknown is subcommand: ${subcmd}`,
+            'agent-browser is <visible|enabled|checked> <selector>'
+          );
       }
     }
 
     case 'find': {
       const { inFrame, remaining: findRest } = parseInFrame(rest);
       const locator = findRest[0];
-      if (!locator) error('Missing locator type', 'agent-browser find <locator> <value> [action] [text] [--in-frame <path>]');
+      if (!locator)
+        error(
+          'Missing locator type',
+          'agent-browser find <locator> <value> [action] [text] [--in-frame <path>]'
+        );
       const nameIdx = findRest.indexOf('--name');
       const name = nameIdx !== -1 ? findRest[nameIdx + 1] : undefined;
       const exact = findRest.includes('--exact');
       switch (locator) {
         case 'role': {
           const role = findRest[1];
-          if (!role) error('Missing role', 'agent-browser find role <role> [action] [--name <name>] [--exact] [--in-frame <path>]');
+          if (!role)
+            error(
+              'Missing role',
+              'agent-browser find role <role> [action] [--name <name>] [--exact] [--in-frame <path>]'
+            );
           const subaction = findRest[2] || 'click';
-          const value = findRest.slice(3).filter((a) => !a.startsWith('--')).join(' ');
+          const value = findRest
+            .slice(3)
+            .filter((a) => !a.startsWith('--'))
+            .join(' ');
           const cmd: Command = { id, action: 'getbyrole', role, subaction, name, exact };
           if (value) cmd.value = value;
           if (inFrame) cmd.inFrame = inFrame;
@@ -469,7 +557,11 @@ export function parseCommand(args: string[], flags: Flags): Command {
         }
         case 'text': {
           const text = findRest[1];
-          if (!text) error('Missing text', 'agent-browser find text <text> [action] [--exact] [--in-frame <path>]');
+          if (!text)
+            error(
+              'Missing text',
+              'agent-browser find text <text> [action] [--exact] [--in-frame <path>]'
+            );
           const subaction = findRest[2] || 'click';
           const cmd: Command = { id, action: 'getbytext', text, subaction, exact };
           if (inFrame) cmd.inFrame = inFrame;
@@ -477,9 +569,16 @@ export function parseCommand(args: string[], flags: Flags): Command {
         }
         case 'label': {
           const label = findRest[1];
-          if (!label) error('Missing label', 'agent-browser find label <label> [action] [text] [--exact] [--in-frame <path>]');
+          if (!label)
+            error(
+              'Missing label',
+              'agent-browser find label <label> [action] [text] [--exact] [--in-frame <path>]'
+            );
           const subaction = findRest[2] || 'click';
-          const value = findRest.slice(3).filter((a) => !a.startsWith('--')).join(' ');
+          const value = findRest
+            .slice(3)
+            .filter((a) => !a.startsWith('--'))
+            .join(' ');
           const cmd: Command = { id, action: 'getbylabel', label, subaction, exact };
           if (value) cmd.value = value;
           if (inFrame) cmd.inFrame = inFrame;
@@ -487,9 +586,16 @@ export function parseCommand(args: string[], flags: Flags): Command {
         }
         case 'placeholder': {
           const placeholder = findRest[1];
-          if (!placeholder) error('Missing placeholder', 'agent-browser find placeholder <text> [action] [text] [--exact] [--in-frame <path>]');
+          if (!placeholder)
+            error(
+              'Missing placeholder',
+              'agent-browser find placeholder <text> [action] [text] [--exact] [--in-frame <path>]'
+            );
           const subaction = findRest[2] || 'click';
-          const value = findRest.slice(3).filter((a) => !a.startsWith('--')).join(' ');
+          const value = findRest
+            .slice(3)
+            .filter((a) => !a.startsWith('--'))
+            .join(' ');
           const cmd: Command = { id, action: 'getbyplaceholder', placeholder, subaction, exact };
           if (value) cmd.value = value;
           if (inFrame) cmd.inFrame = inFrame;
@@ -497,7 +603,11 @@ export function parseCommand(args: string[], flags: Flags): Command {
         }
         case 'alt': {
           const text = findRest[1];
-          if (!text) error('Missing alt text', 'agent-browser find alt <text> [action] [--exact] [--in-frame <path>]');
+          if (!text)
+            error(
+              'Missing alt text',
+              'agent-browser find alt <text> [action] [--exact] [--in-frame <path>]'
+            );
           const subaction = findRest[2] || 'click';
           const cmd: Command = { id, action: 'getbyalttext', text, subaction, exact };
           if (inFrame) cmd.inFrame = inFrame;
@@ -505,7 +615,11 @@ export function parseCommand(args: string[], flags: Flags): Command {
         }
         case 'title': {
           const text = findRest[1];
-          if (!text) error('Missing title text', 'agent-browser find title <text> [action] [--exact] [--in-frame <path>]');
+          if (!text)
+            error(
+              'Missing title text',
+              'agent-browser find title <text> [action] [--exact] [--in-frame <path>]'
+            );
           const subaction = findRest[2] || 'click';
           const cmd: Command = { id, action: 'getbytitle', text, subaction, exact };
           if (inFrame) cmd.inFrame = inFrame;
@@ -513,7 +627,11 @@ export function parseCommand(args: string[], flags: Flags): Command {
         }
         case 'testid': {
           const testId = findRest[1];
-          if (!testId) error('Missing testid', 'agent-browser find testid <id> [action] [text] [--in-frame <path>]');
+          if (!testId)
+            error(
+              'Missing testid',
+              'agent-browser find testid <id> [action] [text] [--in-frame <path>]'
+            );
           const subaction = findRest[2] || 'click';
           const value = findRest.slice(3).join(' ');
           const cmd: Command = { id, action: 'getbytestid', testId, subaction };
@@ -523,7 +641,11 @@ export function parseCommand(args: string[], flags: Flags): Command {
         }
         case 'first': {
           const selector = findRest[1];
-          if (!selector) error('Missing selector', 'agent-browser find first <selector> [action] [text] [--in-frame <path>]');
+          if (!selector)
+            error(
+              'Missing selector',
+              'agent-browser find first <selector> [action] [text] [--in-frame <path>]'
+            );
           const subaction = findRest[2] || 'click';
           const value = findRest.slice(3).join(' ');
           const cmd: Command = { id, action: 'nth', selector, index: 0, subaction };
@@ -533,7 +655,11 @@ export function parseCommand(args: string[], flags: Flags): Command {
         }
         case 'last': {
           const selector = findRest[1];
-          if (!selector) error('Missing selector', 'agent-browser find last <selector> [action] [text] [--in-frame <path>]');
+          if (!selector)
+            error(
+              'Missing selector',
+              'agent-browser find last <selector> [action] [text] [--in-frame <path>]'
+            );
           const subaction = findRest[2] || 'click';
           const value = findRest.slice(3).join(' ');
           const cmd: Command = { id, action: 'nth', selector, index: -1, subaction };
@@ -543,11 +669,23 @@ export function parseCommand(args: string[], flags: Flags): Command {
         }
         case 'nth': {
           const idxStr = findRest[1];
-          if (!idxStr) error('Missing index', 'agent-browser find nth <index> <selector> [action] [text] [--in-frame <path>]');
+          if (!idxStr)
+            error(
+              'Missing index',
+              'agent-browser find nth <index> <selector> [action] [text] [--in-frame <path>]'
+            );
           const idx = parseInt(idxStr, 10);
-          if (isNaN(idx)) error('Invalid index', 'agent-browser find nth <index> <selector> [action] [text] [--in-frame <path>]');
+          if (isNaN(idx))
+            error(
+              'Invalid index',
+              'agent-browser find nth <index> <selector> [action] [text] [--in-frame <path>]'
+            );
           const selector = findRest[2];
-          if (!selector) error('Missing selector', 'agent-browser find nth <index> <selector> [action] [text] [--in-frame <path>]');
+          if (!selector)
+            error(
+              'Missing selector',
+              'agent-browser find nth <index> <selector> [action] [text] [--in-frame <path>]'
+            );
           const subaction = findRest[3] || 'click';
           const value = findRest.slice(4).join(' ');
           const cmd: Command = { id, action: 'nth', selector, index: idx, subaction };
@@ -556,18 +694,23 @@ export function parseCommand(args: string[], flags: Flags): Command {
           return cmd;
         }
         default:
-          error(`Unknown find locator: ${locator}`, 'agent-browser find <role|text|label|placeholder|alt|title|testid|first|last|nth> ...');
+          error(
+            `Unknown find locator: ${locator}`,
+            'agent-browser find <role|text|label|placeholder|alt|title|testid|first|last|nth> ...'
+          );
       }
     }
 
     case 'mouse': {
       const subcmd = rest[0];
-      if (!subcmd) error('Missing subcommand', 'agent-browser mouse <move|down|up|wheel|wander> [args...]');
+      if (!subcmd)
+        error('Missing subcommand', 'agent-browser mouse <move|down|up|wheel|wander> [args...]');
       switch (subcmd) {
         case 'move': {
           const x = rest[1] ? parseInt(rest[1], 10) : NaN;
           const y = rest[2] ? parseInt(rest[2], 10) : NaN;
-          if (isNaN(x) || isNaN(y)) error('Missing or invalid coordinates', 'agent-browser mouse move <x> <y>');
+          if (isNaN(x) || isNaN(y))
+            error('Missing or invalid coordinates', 'agent-browser mouse move <x> <y>');
           return { id, action: 'mousemove', x, y };
         }
         case 'down':
@@ -587,18 +730,26 @@ export function parseCommand(args: string[], flags: Flags): Command {
           return cmd;
         }
         default:
-          error(`Unknown mouse subcommand: ${subcmd}`, 'agent-browser mouse <move|down|up|wheel|wander> [args...]');
+          error(
+            `Unknown mouse subcommand: ${subcmd}`,
+            'agent-browser mouse <move|down|up|wheel|wander> [args...]'
+          );
       }
     }
 
     case 'set': {
       const subcmd = rest[0];
-      if (!subcmd) error('Missing subcommand', 'agent-browser set <viewport|device|geo|offline|headers|credentials|media> ...');
+      if (!subcmd)
+        error(
+          'Missing subcommand',
+          'agent-browser set <viewport|device|geo|offline|headers|credentials|media> ...'
+        );
       switch (subcmd) {
         case 'viewport': {
           const width = rest[1] ? parseInt(rest[1], 10) : NaN;
           const height = rest[2] ? parseInt(rest[2], 10) : NaN;
-          if (isNaN(width) || isNaN(height)) error('Missing or invalid dimensions', 'agent-browser set viewport <width> <height>');
+          if (isNaN(width) || isNaN(height))
+            error('Missing or invalid dimensions', 'agent-browser set viewport <width> <height>');
           return { id, action: 'viewport', width, height };
         }
         case 'device': {
@@ -610,7 +761,8 @@ export function parseCommand(args: string[], flags: Flags): Command {
         case 'geolocation': {
           const latitude = rest[1] ? parseFloat(rest[1]) : NaN;
           const longitude = rest[2] ? parseFloat(rest[2]) : NaN;
-          if (isNaN(latitude) || isNaN(longitude)) error('Missing or invalid coordinates', 'agent-browser set geo <latitude> <longitude>');
+          if (isNaN(latitude) || isNaN(longitude))
+            error('Missing or invalid coordinates', 'agent-browser set geo <latitude> <longitude>');
           return { id, action: 'geolocation', latitude, longitude };
         }
         case 'offline': {
@@ -631,26 +783,39 @@ export function parseCommand(args: string[], flags: Flags): Command {
         case 'auth': {
           const username = rest[1];
           const password = rest[2];
-          if (!username || !password) error('Missing credentials', 'agent-browser set credentials <username> <password>');
+          if (!username || !password)
+            error('Missing credentials', 'agent-browser set credentials <username> <password>');
           return { id, action: 'credentials', username, password };
         }
         case 'media': {
-          const color = rest.includes('dark') ? 'dark' : rest.includes('light') ? 'light' : 'no-preference';
+          const color = rest.includes('dark')
+            ? 'dark'
+            : rest.includes('light')
+              ? 'light'
+              : 'no-preference';
           const reduced = rest.includes('reduced-motion') ? 'reduce' : 'no-preference';
           return { id, action: 'emulatemedia', colorScheme: color, reducedMotion: reduced };
         }
         default:
-          error(`Unknown set subcommand: ${subcmd}`, 'agent-browser set <viewport|device|geo|offline|headers|credentials|media> ...');
+          error(
+            `Unknown set subcommand: ${subcmd}`,
+            'agent-browser set <viewport|device|geo|offline|headers|credentials|media> ...'
+          );
       }
     }
 
     case 'network': {
       const subcmd = rest[0];
-      if (!subcmd) error('Missing subcommand', 'agent-browser network <route|unroute|requests> ...');
+      if (!subcmd)
+        error('Missing subcommand', 'agent-browser network <route|unroute|requests> ...');
       switch (subcmd) {
         case 'route': {
           const url = rest[1];
-          if (!url) error('Missing URL pattern', 'agent-browser network route <url> [--abort] [--body <json>]');
+          if (!url)
+            error(
+              'Missing URL pattern',
+              'agent-browser network route <url> [--abort] [--body <json>]'
+            );
           const abort = rest.includes('--abort');
           const bodyIdx = rest.indexOf('--body');
           const body = bodyIdx !== -1 ? rest[bodyIdx + 1] : undefined;
@@ -665,19 +830,24 @@ export function parseCommand(args: string[], flags: Flags): Command {
           return { id, action: 'requests', clear, filter };
         }
         default:
-          error(`Unknown network subcommand: ${subcmd}`, 'agent-browser network <route|unroute|requests> ...');
+          error(
+            `Unknown network subcommand: ${subcmd}`,
+            'agent-browser network <route|unroute|requests> ...'
+          );
       }
     }
 
     case 'storage': {
       const type = rest[0] as 'local' | 'session';
-      if (!type || (type !== 'local' && type !== 'session')) error('Missing storage type', 'agent-browser storage <local|session> [key] [value]');
+      if (!type || (type !== 'local' && type !== 'session'))
+        error('Missing storage type', 'agent-browser storage <local|session> [key] [value]');
       const subcmd = rest[1];
       if (!subcmd) return { id, action: 'storage_get', type };
       if (subcmd === 'set') {
         const key = rest[2];
         const value = rest[3];
-        if (!key || !value) error('Missing key or value', 'agent-browser storage <local|session> set <key> <value>');
+        if (!key || !value)
+          error('Missing key or value', 'agent-browser storage <local|session> set <key> <value>');
         return { id, action: 'storage_set', type, key, value };
       }
       if (subcmd === 'clear') return { id, action: 'storage_clear', type };
@@ -690,7 +860,8 @@ export function parseCommand(args: string[], flags: Flags): Command {
         case 'set': {
           const name = rest[1];
           const value = rest[2];
-          if (!name || !value) error('Missing name or value', 'agent-browser cookies set <name> <value> [options]');
+          if (!name || !value)
+            error('Missing name or value', 'agent-browser cookies set <name> <value> [options]');
           const cookie: Record<string, unknown> = { name, value };
           for (let i = 3; i < rest.length; i++) {
             switch (rest[i]) {
@@ -722,7 +893,11 @@ export function parseCommand(args: string[], flags: Flags): Command {
         case 'clear':
           return { id, action: 'cookies_clear' };
         default:
-          return { id, action: 'cookies_get', urls: subcmd !== 'get' ? [subcmd, ...rest.slice(1)] : undefined };
+          return {
+            id,
+            action: 'cookies_get',
+            urls: subcmd !== 'get' ? [subcmd, ...rest.slice(1)] : undefined,
+          };
       }
     }
 
@@ -761,7 +936,10 @@ export function parseCommand(args: string[], flags: Flags): Command {
       }
       const selector = rest.find((r) => !r.startsWith('--'));
       if (selector) return { id, action: 'frame', selector };
-      error('Missing frame selector', 'agent-browser frame <selector|main> [--url <url>] [--name <name>]');
+      error(
+        'Missing frame selector',
+        'agent-browser frame <selector|main> [--url <url>] [--name <name>]'
+      );
     }
 
     case 'dialog': {
@@ -790,7 +968,8 @@ export function parseCommand(args: string[], flags: Flags): Command {
 
     case 'record': {
       const subcmd = rest[0];
-      if (!subcmd) error('Missing subcommand', 'agent-browser record <start|stop|restart> [path] [url]');
+      if (!subcmd)
+        error('Missing subcommand', 'agent-browser record <start|stop|restart> [path] [url]');
       if (subcmd === 'start') {
         const path = rest[1];
         if (!path) error('Missing path', 'agent-browser record start <output.webm> [url]');
@@ -811,11 +990,15 @@ export function parseCommand(args: string[], flags: Flags): Command {
 
     case 'recorder': {
       const subcmd = rest[0];
-      if (!subcmd) error('Missing subcommand', 'agent-browser recorder <start|stop|status> [options]');
+      if (!subcmd)
+        error('Missing subcommand', 'agent-browser recorder <start|stop|status> [options]');
       if (subcmd === 'start') {
         const cmd: Command = { id, action: 'recorder_start' };
         const url = rest[1];
-        if (url && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('about:'))) {
+        if (
+          url &&
+          (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('about:'))
+        ) {
           cmd.url = url;
         } else if (url && !url.startsWith('-')) {
           cmd.url = `https://${url}`;
@@ -830,7 +1013,10 @@ export function parseCommand(args: string[], flags: Flags): Command {
       if (subcmd === 'status') {
         return { id, action: 'recorder_status' };
       }
-      error('Unknown recorder command', 'agent-browser recorder <start [url]|stop [--output file.yaml]|status>');
+      error(
+        'Unknown recorder command',
+        'agent-browser recorder <start [url]|stop [--output file.yaml]|status>'
+      );
     }
 
     case 'console':
@@ -858,11 +1044,17 @@ export function parseCommand(args: string[], flags: Flags): Command {
     case 'connect': {
       const endpoint = rest[0];
       if (!endpoint) error('Missing endpoint', 'agent-browser connect <port|url>');
-      if (endpoint.startsWith('ws://') || endpoint.startsWith('wss://') || endpoint.startsWith('http://') || endpoint.startsWith('https://')) {
+      if (
+        endpoint.startsWith('ws://') ||
+        endpoint.startsWith('wss://') ||
+        endpoint.startsWith('http://') ||
+        endpoint.startsWith('https://')
+      ) {
         return { id, action: 'launch', cdpUrl: endpoint };
       }
       const port = parseInt(endpoint, 10);
-      if (isNaN(port) || port <= 0 || port > 65535) error('Invalid port', 'agent-browser connect <port|url>');
+      if (isNaN(port) || port <= 0 || port > 65535)
+        error('Invalid port', 'agent-browser connect <port|url>');
       return { id, action: 'launch', cdpPort: port };
     }
 
@@ -874,7 +1066,8 @@ export function parseCommand(args: string[], flags: Flags): Command {
 
     case 'swipe': {
       const direction = rest[0];
-      if (!direction || !['up', 'down', 'left', 'right'].includes(direction)) error('Invalid direction', 'agent-browser swipe <up|down|left|right> [distance]');
+      if (!direction || !['up', 'down', 'left', 'right'].includes(direction))
+        error('Invalid direction', 'agent-browser swipe <up|down|left|right> [distance]');
       const cmd: Command = { id, action: 'swipe', direction };
       if (rest[1]) cmd.distance = parseInt(rest[1], 10);
       return cmd;

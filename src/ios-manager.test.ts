@@ -96,6 +96,15 @@ describe('IOSManager', () => {
       expect(result).toEqual({ selector: 'a', role: 'link', name: 'Learn more' });
     });
 
+    it('should handle [ref=eX] bracketed refs', () => {
+      (manager as any).refMap = {
+        e4: { selector: 'button', role: 'button', name: 'Click me' },
+      };
+
+      const result = (manager as any).getRefData('[ref=e4]');
+      expect(result).toEqual({ selector: 'button', role: 'button', name: 'Click me' });
+    });
+
     it('should handle bare ref names', () => {
       (manager as any).refMap = {
         e3: { selector: 'input', role: 'textbox', name: 'Email' },

@@ -666,9 +666,11 @@ await browser.stopScreencast();
 
 agent-browser uses a client-daemon architecture:
 
-1. **Rust CLI** (fast native binary) - Parses commands, communicates with daemon
-2. **Node.js Daemon** - Manages Playwright browser instance
-3. **Fallback** - If native binary unavailable, uses Node.js directly
+1. **Node.js CLI** (default) - Direct Node.js implementation, bypasses Rust layer
+2. **Rust CLI** (optional) - Fast native binary, requires separate build
+3. **Node.js Daemon** - Manages Playwright browser instance
+
+The default Node.js CLI provides a direct implementation that communicates with the daemon, eliminating the need for Rust dependencies while maintaining full functionality.
 
 The daemon starts automatically on first command and persists between commands for fast subsequent operations.
 

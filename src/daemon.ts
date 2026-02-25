@@ -2,28 +2,24 @@ import * as net from 'net';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import * as http from 'http';
+import { randomUUID } from 'crypto';
 import { BrowserManager } from './browser.js';
 import { IOSManager } from './ios-manager.js';
 import { parseCommand, serializeResponse, errorResponse } from './protocol.js';
 import { executeCommand } from './actions.js';
 import { executeIOSCommand } from './ios-actions.js';
-import { StreamServer } from './stream-server.js';
+import { StreamServerProxy, getStreamServerIpcPath } from './stream-server.js';
 
-// Manager type - either desktop browser or iOS
 type Manager = BrowserManager | IOSManager;
 
-// Platform detection
 const isWindows = process.platform === 'win32';
 
-// Session support - each session gets its own socket/pid
 let currentSession = process.env.AGENT_BROWSER_SESSION || 'default';
+let currentInstanceId = randomUUID().substring(0, 8);
 
-// Stream server for browser preview
-let streamServer: StreamServer | null = null;
+let streamServerProxy: StreamServerProxy | null = null;
 
-// Default stream port (can be overridden with AGENT_BROWSER_STREAM_PORT)
-const DEFAULT_STREAM_PORT = 9223;
+const STREAM_SERVER_PID_FILE = 'stream-server.pid';
 
 /**
  * Set the current session
@@ -37,6 +33,13 @@ export function setSession(session: string): void {
  */
 export function getSession(): string {
   return currentSession;
+}
+
+/**
+ * Get the current instance ID
+ */
+export function getInstanceId(): string {
+  return currentInstanceId;
 }
 
 /**
@@ -109,6 +112,41 @@ export function getPidFile(session?: string): string {
 }
 
 /**
+ * Check if daemon socket is ready to accept connections
+ */
+function isDaemonReady(session?: string): boolean {
+  const connectionInfo = getConnectionInfo(session);
+
+  try {
+    const socket =
+      connectionInfo.type === 'unix'
+        ? net.createConnection({ path: connectionInfo.path })
+        : net.createConnection({ port: connectionInfo.port, host: '127.0.0.1' });
+
+    let connected = false;
+
+    socket.on('connect', () => {
+      connected = true;
+      socket.destroy();
+    });
+
+    socket.on('error', () => {
+      socket.destroy();
+    });
+
+    // Synchronous check with timeout
+    const start = Date.now();
+    while (!connected && Date.now() - start < 100) {
+      // Wait for connection
+    }
+
+    return connected;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Check if daemon is running for the current session
  */
 export function isDaemonRunning(session?: string): boolean {
@@ -119,6 +157,13 @@ export function isDaemonRunning(session?: string): boolean {
     const pid = parseInt(fs.readFileSync(pidFile, 'utf8').trim(), 10);
     // Check if process exists (works on both Unix and Windows)
     process.kill(pid, 0);
+
+    // Also check if socket is actually ready
+    if (!isDaemonReady(session)) {
+      cleanupSocket(session);
+      return false;
+    }
+
     return true;
   } catch {
     // Process doesn't exist, clean up stale files
@@ -162,146 +207,43 @@ export function cleanupSocket(session?: string): void {
   }
 }
 
-/**
- * Get the stream port file path
- */
 export function getStreamPortFile(session?: string): string {
   const sess = session ?? currentSession;
   return path.join(getSocketDir(), `${sess}.stream`);
 }
 
-/**
- * Start HTTP server for receiving commands
- */
-function startHttpServer(browser: BrowserManager, port: number): void {
-  const httpServer = http.createServer(async (req, res) => {
-    // Enable CORS
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-    if (req.method === 'OPTIONS') {
-      res.writeHead(200);
-      res.end();
-      return;
-    }
-
-    // Health check endpoint
-    if (req.url === '/health' && req.method === 'GET') {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ status: 'ok', running: browser.isLaunched() }));
-      return;
-    }
-
-    // Stream port endpoint
-    if (req.url === '/stream_port' && req.method === 'GET') {
-      res.writeHead(200, { 'Content-Type': 'text/plain' });
-      res.end(port.toString());
-      return;
-    }
-
-    // Command endpoint
-    if (req.url === '/command' && req.method === 'POST') {
-      let body = '';
-      req.on('data', (chunk) => {
-        body += chunk;
-      });
-      req.on('end', async () => {
-        try {
-          const parseResult = parseCommand(body);
-
-          if (!parseResult.success) {
-            const resp = errorResponse(parseResult.id ?? 'unknown', parseResult.error);
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(serializeResponse(resp));
-            return;
-          }
-
-          // Auto-launch browser if not already launched
-          if (
-            !browser.isLaunched() &&
-            parseResult.command.action !== 'launch' &&
-            parseResult.command.action !== 'close'
-          ) {
-            await browser.launch({
-              id: 'auto',
-              action: 'launch' as const,
-              headless: process.env.AGENT_BROWSER_HEADED !== '1',
-            });
-          }
-
-          const response = await executeCommand(parseResult.command, browser);
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(serializeResponse(response));
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          const resp = errorResponse('error', message);
-          res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(serializeResponse(resp));
-        }
-      });
-      return;
-    }
-
-    // 404
-    res.writeHead(404, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Not found' }));
-  });
-
-  // Listen on the same port as WebSocket (but different protocol)
-  try {
-    httpServer.listen(port + 1, '127.0.0.1', () => {
-      console.log(`[HttpServer] Listening on port ${port + 1}`);
-    });
-  } catch (err) {
-    console.error(`[HttpServer] Failed to start on port ${port + 1}:`, err);
-  }
+export function getStreamServerPidFile(): string {
+  return path.join(getSocketDir(), STREAM_SERVER_PID_FILE);
 }
 
-/**
- * Start the daemon server
- * @param options.streamPort Port for WebSocket stream server (0 to disable)
- * @param options.provider Provider type ('ios' for iOS Simulator, undefined for desktop)
- */
-export async function startDaemon(options?: {
-  streamPort?: number;
-  provider?: string;
-}): Promise<void> {
-  // Ensure socket directory exists
+export async function startDaemon(options?: { provider?: string }): Promise<void> {
   const socketDir = getSocketDir();
   if (!fs.existsSync(socketDir)) {
     fs.mkdirSync(socketDir, { recursive: true });
   }
 
-  // Clean up any stale socket
   cleanupSocket();
 
-  // Determine provider from options or environment
   const provider = options?.provider ?? process.env.AGENT_BROWSER_PROVIDER;
   const isIOS = provider === 'ios';
 
-  // Create appropriate manager
   const manager: Manager = isIOS ? new IOSManager() : new BrowserManager();
   let shuttingDown = false;
 
-  // Start stream server if port is specified (or use default if env var is set)
-  // Note: Stream server only works with BrowserManager (desktop), not iOS
-  const streamPort =
-    options?.streamPort ??
-    (process.env.AGENT_BROWSER_STREAM_PORT
-      ? parseInt(process.env.AGENT_BROWSER_STREAM_PORT, 10)
-      : 0);
-
-  if (streamPort > 0 && !isIOS && manager instanceof BrowserManager) {
-    streamServer = new StreamServer(manager, streamPort);
-    await streamServer.start();
-
-    // Write stream port to file for clients to discover
-    const streamPortFile = getStreamPortFile();
-    fs.writeFileSync(streamPortFile, streamPort.toString());
-
-    // Also start HTTP server on the same port for commands
-    startHttpServer(manager, streamPort);
+  if (!isIOS && manager instanceof BrowserManager) {
+    const ipcPath = getStreamServerIpcPath();
+    if (fs.existsSync(ipcPath)) {
+      streamServerProxy = new StreamServerProxy(manager);
+      try {
+        await streamServerProxy.connect();
+        console.log('[Daemon] Connected to Stream Server');
+      } catch (err) {
+        console.error('[Daemon] Failed to connect to Stream Server:', err);
+        streamServerProxy = null;
+      }
+    } else {
+      console.log('[Daemon] Stream Server not running, viewer will be unavailable');
+    }
   }
 
   const server = net.createServer((socket) => {
@@ -431,6 +373,11 @@ export async function startDaemon(options?: {
 
             if (!shuttingDown) {
               shuttingDown = true;
+              // 先断开 StreamServer 连接，发送 unregister 消息
+              if (streamServerProxy) {
+                await streamServerProxy.disconnect();
+                streamServerProxy = null;
+              }
               setTimeout(() => {
                 server.close();
                 cleanupSocket();
@@ -445,6 +392,7 @@ export async function startDaemon(options?: {
             isIOS && manager instanceof IOSManager
               ? await executeIOSCommand(parseResult.command, manager)
               : await executeCommand(parseResult.command, manager as BrowserManager);
+
           socket.write(serializeResponse(response) + '\n');
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
@@ -485,22 +433,13 @@ export async function startDaemon(options?: {
     process.exit(1);
   });
 
-  // Handle shutdown signals
   const shutdown = async () => {
     if (shuttingDown) return;
     shuttingDown = true;
 
-    // Stop stream server if running
-    if (streamServer) {
-      await streamServer.stop();
-      streamServer = null;
-      // Clean up stream port file
-      const streamPortFile = getStreamPortFile();
-      try {
-        if (fs.existsSync(streamPortFile)) fs.unlinkSync(streamPortFile);
-      } catch {
-        // Ignore cleanup errors
-      }
+    if (streamServerProxy) {
+      await streamServerProxy.disconnect();
+      streamServerProxy = null;
     }
 
     await manager.close();

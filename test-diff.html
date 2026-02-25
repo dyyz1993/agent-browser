@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Diff Test Page</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; }
+    .status { margin-top: 20px; padding: 10px; background: #f0f0f0; border-radius: 4px; }
+    .hidden { display: none; }
+    .visible { display: block; }
+    input { padding: 8px; font-size: 16px; width: 200px; }
+    button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Diff Test Page</h1>
+    
+    <div id="form-section">
+      <input type="text" id="name-input" placeholder="Enter your name">
+      <button id="submit-btn">Submit</button>
+    </div>
+    
+    <div id="status-section" class="status hidden">
+      <span id="status-text">Hello, <strong id="name-display"></strong>!</span>
+    </div>
+    
+    <div id="counter-section">
+      <p>Counter: <span id="counter">0</span></p>
+      <button id="increment-btn">Increment</button>
+      <button id="decrement-btn">Decrement</button>
+    </div>
+    
+    <div id="toggle-section">
+      <button id="toggle-btn">Show/Hide Secret</button>
+      <p id="secret-text" class="hidden">This is a secret message!</p>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('submit-btn').addEventListener('click', function() {
+      const name = document.getElementById('name-input').value || 'World';
+      document.getElementById('name-display').textContent = name;
+      document.getElementById('status-section').classList.remove('hidden');
+      document.getElementById('status-section').classList.add('visible');
+    });
+
+    let counter = 0;
+    document.getElementById('increment-btn').addEventListener('click', function() {
+      counter++;
+      document.getElementById('counter').textContent = counter;
+    });
+
+    document.getElementById('decrement-btn').addEventListener('click', function() {
+      counter--;
+      document.getElementById('counter').textContent = counter;
+    });
+
+    document.getElementById('toggle-btn').addEventListener('click', function() {
+      const secret = document.getElementById('secret-text');
+      if (secret.classList.contains('hidden')) {
+        secret.classList.remove('hidden');
+        secret.classList.add('visible');
+      } else {
+        secret.classList.remove('visible');
+        secret.classList.add('hidden');
+      }
+    });
+  </script>
+</body>
+</html>

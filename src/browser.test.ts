@@ -1,13 +1,42 @@
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import { BrowserManager } from './browser.js';
 import { chromium } from 'playwright-core';
+
+// 模拟 chromium.connectOverCDP 方法
+vi.mock('playwright-core', () => ({
+  chromium: {
+    connectOverCDP: vi.fn(() => {
+      return Promise.resolve({
+        contexts: () => [
+          {
+            pages: () => [
+              { url: () => 'http://example.com', on: vi.fn() },
+              { url: () => '', on: vi.fn() }, // This page should be filtered out
+              { url: () => 'http://anothersite.com', on: vi.fn() },
+            ],
+            on: vi.fn(),
+            setDefaultTimeout: vi.fn(),
+          },
+        ],
+        close: vi.fn(),
+        removeAllListeners: vi.fn(),
+        on: vi.fn(),
+        once: vi.fn(),
+        addListener: vi.fn(),
+        isConnected: vi.fn(() => true),
+        newContext: vi.fn(),
+        newPage: vi.fn(),
+      });
+    }),
+  },
+}));
 
 describe('BrowserManager', () => {
   let browser: BrowserManager;
 
   beforeAll(async () => {
     browser = new BrowserManager();
-    await browser.launch({ headless: true });
+    await browser.launch({ action: 'launch', id: 'test', headless: true });
   });
 
   afterAll(async () => {
@@ -28,6 +57,8 @@ describe('BrowserManager', () => {
       const testBrowser = new BrowserManager();
       await expect(
         testBrowser.launch({
+          action: 'launch',
+          id: 'test',
           headless: true,
           executablePath: '/nonexistent/path/to/chromium',
         })
@@ -42,11 +73,11 @@ describe('BrowserManager', () => {
 
     it('should reconnect when CDP port changes', async () => {
       const newBrowser = new BrowserManager();
-      await newBrowser.launch({ id: 'test', action: 'launch', headless: true });
+      await newBrowser.launch({ action: 'launch', id: 'test', headless: true });
       expect(newBrowser.getBrowser()).not.toBeNull();
 
       await expect(
-        newBrowser.launch({ id: 'test', action: 'launch', cdpPort: 59999 })
+        newBrowser.launch({ action: 'launch', id: 'test', cdpPort: 59999 })
       ).rejects.toThrow();
 
       expect(newBrowser.getBrowser()).toBeNull();
@@ -500,24 +531,28 @@ describe('BrowserManager', () => {
     });
 
     it('should filter out pages with empty URLs during CDP connection', async () => {
-      const mockBrowser = {
-        contexts: () => [
-          {
-            pages: () => [
-              { url: () => 'http://example.com', on: vi.fn() },
-              { url: () => '', on: vi.fn() }, // This page should be filtered out
-              { url: () => 'http://anothersite.com', on: vi.fn() },
-            ],
-            on: vi.fn(),
-            setDefaultTimeout: vi.fn(),
-          },
-        ],
-        close: vi.fn(),
-      };
-      const spy = vi.spyOn(chromium, 'connectOverCDP').mockResolvedValue(mockBrowser as any);
+      // 使用mockImplementation来覆盖默认的模拟实现
+      // 由于我们只是在测试中模拟一个对象，而不是在实际代码中使用它，
+      // 使用as any类型断言是一个合理的妥协
+      const spy = vi.mocked(chromium.connectOverCDP).mockImplementation(() => {
+        return Promise.resolve({
+          contexts: () => [
+            {
+              pages: () => [
+                { url: () => 'http://example.com', on: vi.fn() },
+                { url: () => '', on: vi.fn() }, // This page should be filtered out
+                { url: () => 'http://anothersite.com', on: vi.fn() },
+              ],
+              on: vi.fn(),
+              setDefaultTimeout: vi.fn(),
+            },
+          ],
+          close: vi.fn(),
+        } as any);
+      });
 
       const cdpBrowser = new BrowserManager();
-      await cdpBrowser.launch({ cdpPort: 9222 });
+      await cdpBrowser.launch({ action: 'launch', id: 'test', cdpPort: 9222 });
 
       // Should have 2 pages, not 3
       expect(cdpBrowser.getPages().length).toBe(2);

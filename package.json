@@ -11,13 +11,13 @@
     "skills"
   ],
   "bin": {
-    "agent-browser": "./bin/agent-browser.js"
+    "agent-browser": "./dist/cli.js"
   },
   "scripts": {
     "prepare": "husky",
     "version:sync": "node scripts/sync-version.js",
     "version": "npm run version:sync && git add cli/Cargo.toml",
-    "build": "tsc",
+    "build": "tsc && node scripts/copy-recorder.js",
     "build:native": "npm run version:sync && cargo build --release --manifest-path cli/Cargo.toml && node scripts/copy-native.js",
     "build:linux": "npm run version:sync && docker compose -f docker/docker-compose.yml run --rm build-linux",
     "build:macos": "npm run version:sync && (cargo build --release --manifest-path cli/Cargo.toml --target aarch64-apple-darwin & cargo build --release --manifest-path cli/Cargo.toml --target x86_64-apple-darwin & wait) && cp cli/target/aarch64-apple-darwin/release/agent-browser bin/agent-browser-darwin-arm64 && cp cli/target/x86_64-apple-darwin/release/agent-browser bin/agent-browser-darwin-x64",
@@ -57,6 +57,7 @@
   "dependencies": {
     "node-simctl": "^7.4.0",
     "playwright-core": "^1.57.0",
+    "sharp": "^0.34.5",
     "webdriverio": "^9.15.0",
     "ws": "^8.19.0",
     "zod": "^3.22.4"
@@ -65,6 +66,7 @@
     "@changesets/cli": "^2.29.8",
     "@types/node": "^20.10.0",
     "@types/ws": "^8.18.1",
+    "happy-dom": "^20.7.0",
     "husky": "^9.1.7",
     "lint-staged": "^15.2.11",
     "playwright": "^1.57.0",

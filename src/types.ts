@@ -1,5 +1,18 @@
 import type { Page, Browser, BrowserContext } from 'playwright-core';
 
+export type HumanPathType = 'bezier' | 'arc' | 'random' | 'linear';
+
+export interface HumanConfig {
+  enabled: boolean;
+  pathType: HumanPathType;
+}
+
+// Diff scope type for --diff parameter
+// - number: N levels up from target element
+// - 'full': entire page
+// - string: CSS selector
+export type DiffScope = number | 'full' | string;
+
 // Base command structure
 export interface BaseCommand {
   id: string;
@@ -45,6 +58,9 @@ export interface ClickCommand extends BaseCommand {
   button?: 'left' | 'right' | 'middle';
   clickCount?: number;
   delay?: number;
+  inFrame?: string;
+  diffScope?: DiffScope;
+  human?: HumanConfig;
 }
 
 export interface TypeCommand extends BaseCommand {
@@ -53,55 +69,61 @@ export interface TypeCommand extends BaseCommand {
   text: string;
   delay?: number;
   clear?: boolean;
+  inFrame?: string;
+  diffScope?: DiffScope;
+  human?: HumanConfig;
 }
 
 export interface FillCommand extends BaseCommand {
   action: 'fill';
   selector: string;
   value: string;
+  inFrame?: string;
+  diffScope?: DiffScope;
+  human?: HumanConfig;
 }
 
 export interface CheckCommand extends BaseCommand {
   action: 'check';
   selector: string;
+  inFrame?: string;
+  diffScope?: DiffScope;
 }
 
 export interface UncheckCommand extends BaseCommand {
   action: 'uncheck';
   selector: string;
+  inFrame?: string;
+  diffScope?: DiffScope;
 }
 
 export interface UploadCommand extends BaseCommand {
   action: 'upload';
   selector: string;
   files: string | string[];
+  inFrame?: string;
 }
 
 export interface DoubleClickCommand extends BaseCommand {
   action: 'dblclick';
   selector: string;
+  inFrame?: string;
+  diffScope?: DiffScope;
+  human?: HumanConfig;
 }
 
 export interface FocusCommand extends BaseCommand {
   action: 'focus';
   selector: string;
+  inFrame?: string;
+  diffScope?: DiffScope;
 }
 
 export interface DragCommand extends BaseCommand {
   action: 'drag';
   source: string;
   target: string;
-}
-
-export interface FrameCommand extends BaseCommand {
-  action: 'frame';
-  selector?: string;
-  name?: string;
-  url?: string;
-}
-
-export interface MainFrameCommand extends BaseCommand {
-  action: 'mainframe';
+  inFrame?: string;
 }
 
 export interface GetByRoleCommand extends BaseCommand {
@@ -111,6 +133,7 @@ export interface GetByRoleCommand extends BaseCommand {
   exact?: boolean;
   subaction: 'click' | 'fill' | 'check' | 'hover';
   value?: string;
+  inFrame?: string;
 }
 
 export interface GetByTextCommand extends BaseCommand {
@@ -118,6 +141,7 @@ export interface GetByTextCommand extends BaseCommand {
   text: string;
   exact?: boolean;
   subaction: 'click' | 'hover';
+  inFrame?: string;
 }
 
 export interface GetByLabelCommand extends BaseCommand {
@@ -126,6 +150,7 @@ export interface GetByLabelCommand extends BaseCommand {
   exact?: boolean;
   subaction: 'click' | 'fill' | 'check';
   value?: string;
+  inFrame?: string;
 }
 
 export interface GetByPlaceholderCommand extends BaseCommand {
@@ -134,6 +159,7 @@ export interface GetByPlaceholderCommand extends BaseCommand {
   exact?: boolean;
   subaction: 'click' | 'fill';
   value?: string;
+  inFrame?: string;
 }
 
 export interface CookiesGetCommand extends BaseCommand {
@@ -216,7 +242,7 @@ export interface RouteCommand extends BaseCommand {
 
 export interface UnrouteCommand extends BaseCommand {
   action: 'unroute';
-  url?: string; // If not provided, remove all routes
+  url?: string;
 }
 
 // Request inspection
@@ -231,6 +257,7 @@ export interface DownloadCommand extends BaseCommand {
   action: 'download';
   selector: string;
   path: string;
+  inFrame?: string;
 }
 
 // Geolocation
@@ -283,10 +310,12 @@ export interface ReloadCommand extends BaseCommand {
 // Get URL/Title
 export interface UrlCommand extends BaseCommand {
   action: 'url';
+  inFrame?: string;
 }
 
 export interface TitleCommand extends BaseCommand {
   action: 'title';
+  inFrame?: string;
 }
 
 // Attribute/Property/Text
@@ -294,43 +323,51 @@ export interface GetAttributeCommand extends BaseCommand {
   action: 'getattribute';
   selector: string;
   attribute: string;
+  inFrame?: string;
 }
 
 export interface GetTextCommand extends BaseCommand {
   action: 'gettext';
   selector: string;
+  inFrame?: string;
 }
 
 export interface IsVisibleCommand extends BaseCommand {
   action: 'isvisible';
   selector: string;
+  inFrame?: string;
 }
 
 export interface IsEnabledCommand extends BaseCommand {
   action: 'isenabled';
   selector: string;
+  inFrame?: string;
 }
 
 export interface IsCheckedCommand extends BaseCommand {
   action: 'ischecked';
   selector: string;
+  inFrame?: string;
 }
 
 export interface CountCommand extends BaseCommand {
   action: 'count';
   selector: string;
+  inFrame?: string;
 }
 
 // Bounding box
 export interface BoundingBoxCommand extends BaseCommand {
   action: 'boundingbox';
   selector: string;
+  inFrame?: string;
 }
 
 // Computed styles
 export interface StylesCommand extends BaseCommand {
   action: 'styles';
   selector: string;
+  inFrame?: string;
 }
 
 // More semantic locators
@@ -339,6 +376,7 @@ export interface GetByAltTextCommand extends BaseCommand {
   text: string;
   exact?: boolean;
   subaction: 'click' | 'hover';
+  inFrame?: string;
 }
 
 export interface GetByTitleCommand extends BaseCommand {
@@ -346,6 +384,7 @@ export interface GetByTitleCommand extends BaseCommand {
   text: string;
   exact?: boolean;
   subaction: 'click' | 'hover';
+  inFrame?: string;
 }
 
 export interface GetByTestIdCommand extends BaseCommand {
@@ -353,6 +392,7 @@ export interface GetByTestIdCommand extends BaseCommand {
   testId: string;
   subaction: 'click' | 'fill' | 'check' | 'hover';
   value?: string;
+  inFrame?: string;
 }
 
 // Nth element selection
@@ -362,6 +402,7 @@ export interface NthCommand extends BaseCommand {
   index: number; // 0-based, or -1 for last
   subaction: 'click' | 'fill' | 'check' | 'hover' | 'text';
   value?: string;
+  inFrame?: string;
 }
 
 // Wait for URL
@@ -420,6 +461,12 @@ export interface MouseUpCommand extends BaseCommand {
   button?: 'left' | 'right' | 'middle';
 }
 
+export interface WanderCommand extends BaseCommand {
+  action: 'wander';
+  duration?: number;
+  human?: HumanConfig;
+}
+
 // Bring to front
 export interface BringToFrontCommand extends BaseCommand {
   action: 'bringtofront';
@@ -436,6 +483,7 @@ export interface WaitForFunctionCommand extends BaseCommand {
 export interface ScrollIntoViewCommand extends BaseCommand {
   action: 'scrollintoview';
   selector: string;
+  inFrame?: string;
 }
 
 // Add init script (runs on every navigation)
@@ -536,7 +584,25 @@ export interface DeviceListCommand extends BaseCommand {
   action: 'device_list';
 }
 
-// Video recording (Playwright native - requires launch-time setup)
+export interface ViewerCommand extends BaseCommand {
+  action: 'viewer';
+}
+
+export interface AskCommand extends BaseCommand {
+  action: 'ask';
+  question: string;
+}
+
+export interface ViewerData {
+  url: string;
+  wsUrl: string;
+  streamPort: number;
+}
+
+export interface AskData {
+  answer: string;
+}
+
 export interface VideoStartCommand extends BaseCommand {
   action: 'video_start';
   path: string;
@@ -561,6 +627,21 @@ export interface RecordingRestartCommand extends BaseCommand {
   action: 'recording_restart';
   path: string;
   url?: string;
+}
+
+// Step recorder (records user interactions)
+export interface RecorderStartCommand extends BaseCommand {
+  action: 'recorder_start';
+  url?: string;
+}
+
+export interface RecorderStopCommand extends BaseCommand {
+  action: 'recorder_stop';
+  output?: string;
+}
+
+export interface RecorderStatusCommand extends BaseCommand {
+  action: 'recorder_status';
 }
 
 // Tracing
@@ -626,6 +707,7 @@ export interface WheelCommand extends BaseCommand {
 export interface TapCommand extends BaseCommand {
   action: 'tap';
   selector: string;
+  inFrame?: string;
 }
 
 // Clipboard
@@ -639,35 +721,41 @@ export interface ClipboardCommand extends BaseCommand {
 export interface HighlightCommand extends BaseCommand {
   action: 'highlight';
   selector: string;
+  inFrame?: string;
 }
 
 // Clear input
 export interface ClearCommand extends BaseCommand {
   action: 'clear';
   selector: string;
+  inFrame?: string;
 }
 
 // Select all text
 export interface SelectAllCommand extends BaseCommand {
   action: 'selectall';
   selector: string;
+  inFrame?: string;
 }
 
 // Inner text vs text content
 export interface InnerTextCommand extends BaseCommand {
   action: 'innertext';
   selector: string;
+  inFrame?: string;
 }
 
 export interface InnerHtmlCommand extends BaseCommand {
   action: 'innerhtml';
   selector: string;
+  inFrame?: string;
 }
 
 // Input value
 export interface InputValueCommand extends BaseCommand {
   action: 'inputvalue';
   selector: string;
+  inFrame?: string;
 }
 
 // Set input value directly (without events)
@@ -675,6 +763,7 @@ export interface SetValueCommand extends BaseCommand {
   action: 'setvalue';
   selector: string;
   value: string;
+  inFrame?: string;
 }
 
 // Dispatch event
@@ -683,6 +772,7 @@ export interface DispatchEventCommand extends BaseCommand {
   selector: string;
   event: string;
   eventInit?: Record<string, unknown>;
+  inFrame?: string;
 }
 
 // Evaluate handle (for complex JS)
@@ -740,6 +830,8 @@ export interface PressCommand extends BaseCommand {
   action: 'press';
   key: string;
   selector?: string;
+  inFrame?: string;
+  diffScope?: DiffScope;
 }
 
 export interface ScreenshotCommand extends BaseCommand {
@@ -749,16 +841,26 @@ export interface ScreenshotCommand extends BaseCommand {
   selector?: string;
   format?: 'png' | 'jpeg';
   quality?: number;
+  inFrame?: string;
 }
 
 export interface SnapshotCommand extends BaseCommand {
   action: 'snapshot';
+  inFrame?: string;
+  interactive?: boolean;
+  compact?: boolean;
+  maxDepth?: number;
+  selector?: string;
+  path?: boolean;
+  attrs?: boolean;
 }
 
 export interface EvaluateCommand extends BaseCommand {
   action: 'evaluate';
-  script: string;
+  script?: string;
+  file?: string;
   args?: unknown[];
+  inFrame?: string;
 }
 
 export interface WaitCommand extends BaseCommand {
@@ -766,6 +868,7 @@ export interface WaitCommand extends BaseCommand {
   selector?: string;
   timeout?: number;
   state?: 'attached' | 'detached' | 'visible' | 'hidden';
+  inFrame?: string;
 }
 
 export interface ScrollCommand extends BaseCommand {
@@ -775,22 +878,29 @@ export interface ScrollCommand extends BaseCommand {
   y?: number;
   direction?: 'up' | 'down' | 'left' | 'right';
   amount?: number;
+  inFrame?: string;
 }
 
 export interface SelectCommand extends BaseCommand {
   action: 'select';
   selector: string;
   values: string | string[];
+  inFrame?: string;
+  diffScope?: DiffScope;
 }
 
 export interface HoverCommand extends BaseCommand {
   action: 'hover';
   selector: string;
+  inFrame?: string;
+  diffScope?: DiffScope;
+  human?: HumanConfig;
 }
 
 export interface ContentCommand extends BaseCommand {
   action: 'content';
   selector?: string;
+  inFrame?: string;
 }
 
 export interface CloseCommand extends BaseCommand {
@@ -835,8 +945,6 @@ export type Command =
   | DoubleClickCommand
   | FocusCommand
   | DragCommand
-  | FrameCommand
-  | MainFrameCommand
   | GetByRoleCommand
   | GetByTextCommand
   | GetByLabelCommand
@@ -891,6 +999,9 @@ export type Command =
   | RecordingStartCommand
   | RecordingStopCommand
   | RecordingRestartCommand
+  | RecorderStartCommand
+  | RecorderStopCommand
+  | RecorderStatusCommand
   | TraceStartCommand
   | TraceStopCommand
   | HarStartCommand
@@ -932,6 +1043,7 @@ export type Command =
   | MouseMoveCommand
   | MouseDownCommand
   | MouseUpCommand
+  | WanderCommand
   | BringToFrontCommand
   | WaitForFunctionCommand
   | ScrollIntoViewCommand
@@ -948,7 +1060,17 @@ export type Command =
   | InputKeyboardCommand
   | InputTouchCommand
   | SwipeCommand
-  | DeviceListCommand;
+  | DeviceListCommand
+  | ViewerCommand
+  | AskCommand;
+
+export interface LooseCommand {
+  id: string;
+  action: string;
+  [key: string]: unknown;
+}
+
+export type AnyCommand = Command | LooseCommand;
 
 // Response types
 export interface SuccessResponse<T = unknown> {
@@ -964,6 +1086,10 @@ export interface ErrorResponse {
 }
 
 export type Response<T = unknown> = SuccessResponse<T> | ErrorResponse;
+
+export function isSuccessResponse<T>(response: Response): response is SuccessResponse<T> {
+  return response.success === true;
+}
 
 // Data types for specific responses
 export interface NavigateData {
@@ -1044,6 +1170,24 @@ export interface RecordingRestartData {
   stopped: boolean;
 }
 
+// Step recorder (records user interactions)
+export interface RecorderStartData {
+  started: boolean;
+  sessionId: string;
+}
+
+export interface RecorderStopData {
+  yaml: string;
+  steps: number;
+}
+
+export interface RecorderStatusData {
+  isRecording: boolean;
+  steps: number;
+  sessionId?: string;
+}
+
+// Tracing
 export interface InputEventData {
   injected: boolean;
 }
@@ -1070,9 +1214,65 @@ export interface StylesData {
   elements: ElementStyleInfo[];
 }
 
+export interface TextData {
+  text: string;
+}
+
+export interface ValueData {
+  value: string;
+}
+
+export interface VisibleData {
+  visible: boolean;
+}
+
+export interface CheckedData {
+  checked: boolean;
+}
+
+export interface CountData {
+  count: number;
+}
+
+export interface DiffActionData {
+  diff?: string;
+  diffScope?: string;
+}
+
 // Browser state
 export interface BrowserState {
   browser: Browser | null;
   context: BrowserContext | null;
   page: Page | null;
+}
+
+// Annotation types for recorder
+export type AnnotationType =
+  | 'wait_element'
+  | 'wait_timeout'
+  | 'data_container'
+  | 'data_item'
+  | 'pagination'
+  | 'login_check'
+  | 'checkpoint'
+  | 'custom';
+
+export interface AnnotationConfig {
+  type: AnnotationType;
+  label: string;
+  selector?: string;
+  waitTimeout?: number;
+  itemSelector?: string;
+  fields?: string[];
+  customNote?: string;
+}
+
+export interface AnnotateStep {
+  id: string;
+  timestamp: number;
+  action: 'annotate';
+  selector: string;
+  xpath?: string;
+  annotation: AnnotationConfig;
+  url?: string;
 }

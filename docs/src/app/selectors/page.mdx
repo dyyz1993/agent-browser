@@ -15,8 +15,10 @@ agent-browser snapshot
 # - textbox "Email" [ref=e3]
 # - link "Learn more" [ref=e4]
 
-# 2. Use refs to interact
-agent-browser click @e2                   # Click the button
+# 2. Use refs to interact (all formats below are supported)
+agent-browser click @e2                   # @-prefix format (recommended)
+agent-browser click "[ref=e2]"            # bracketed format (AI-friendly)
+agent-browser click e2                    # bare ref name
 agent-browser fill @e3 "test@example.com" # Fill the textbox
 agent-browser get text @e1                # Get heading text
 agent-browser hover @e4                   # Hover the link
@@ -27,6 +29,15 @@ agent-browser hover @e4                   # Hover the link
 - **Deterministic** - Ref points to exact element from snapshot
 - **Fast** - No DOM re-query needed
 - **AI-friendly** - LLMs can reliably parse and use refs
+
+### Supported ref formats
+
+| Format | Example | Notes |
+|--------|---------|-------|
+| `@eN` | `@e2` | Recommended, concise |
+| `[ref=eN]` | `[ref=e16]` | AI-friendly, matches snapshot output |
+| `eN` | `e2` | Bare ref name |
+| `ref=eN` | `ref=e2` | Alternative prefix format |
 
 ## CSS selectors
 

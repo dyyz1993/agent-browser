@@ -1,0 +1,25 @@
+=== Domain Check Report ===
+Generated: Mon Feb 23 20:10:49 CST 2026
+
+❌ teochew.com - TAKEN (DNS resolved)
+✅ teochew.cn - AVAILABLE
+✅ teochew.app - AVAILABLE
+✅ teochewtalk.com - AVAILABLE
+✅ teochewlearn.com - AVAILABLE
+✅ teochewedu.com - AVAILABLE
+✅ swatow.com - AVAILABLE
+❌ swatow.cn - TAKEN (DNS resolved)
+✅ swatow.app - AVAILABLE
+❌ gaginan.com - TAKEN (DNS resolved)
+❌ 潮汕话.com - TAKEN (DNS resolved)
+❌ 潮汕话.cn - TAKEN (DNS resolved)
+❌ 潮语.com - TAKEN (DNS resolved)
+❌ 潮语.cn - TAKEN (DNS resolved)
+❌ 潮汕.app - TAKEN (DNS resolved)
+❌ teochew.net - TAKEN (DNS resolved)
+❌ teochew.io - TAKEN (DNS resolved)
+✅ teochewedu.cn - AVAILABLE
+
+=== Summary ===
+Available: 8 domains
+Taken: 10 domains

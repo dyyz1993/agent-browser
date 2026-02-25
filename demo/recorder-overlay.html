@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recorder Demo</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; min-height: 100vh; padding: 20px; }
+    .container { max-width: 800px; margin: 0 auto; }
+    .demo-header { text-align: center; margin-bottom: 30px; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .demo-header h1 { color: #333; margin-bottom: 10px; }
+    .demo-header p { color: #666; }
+    .login-form { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    .login-form h2 { margin-bottom: 20px; color: #333; }
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; margin-bottom: 5px; color: #555; font-weight: 500; }
+    .form-group input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+    .form-group input:focus { outline: none; border-color: #4CAF50; }
+    .btn { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+    .btn-primary { background: #4CAF50; color: white; }
+    .btn-primary:hover { background: #43A047; }
+    .btn-secondary { background: #f5f5f5; color: #333; margin-left: 10px; }
+    .data-table { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    .data-table h2 { margin-bottom: 15px; color: #333; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+    th { background: #f9f9f9; font-weight: 500; color: #555; }
+    .pagination { display: flex; justify-content: center; gap: 5px; margin-top: 15px; }
+    .pagination button { padding: 8px 12px; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer; }
+    .pagination button:hover { background: #f5f5f5; }
+    .pagination button.active { background: #4CAF50; color: white; border-color: #4CAF50; }
+    
+    /* 录制面板 - 提高层级 */
+    .recorded-panel { position: fixed; right: 20px; top: 20px; width: 320px; background: white; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); z-index: 9999999; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column; }
+    .recorded-panel-header { padding: 15px; background: #333; color: white; display: flex; justify-content: space-between; align-items: center; }
+    .recorded-panel-header h3 { font-size: 14px; font-weight: 500; }
+    .recorded-panel-body { flex: 1; overflow-y: auto; padding: 10px; }
+    .step-item { padding: 10px; border-radius: 4px; margin-bottom: 8px; background: #f9f9f9; font-size: 12px; position: relative; }
+    .step-item .action { font-weight: 500; color: #333; display: flex; justify-content: space-between; align-items: center; }
+    .step-item .delete-btn { background: #ff5252; color: white; border: none; border-radius: 3px; padding: 2px 6px; font-size: 10px; cursor: pointer; opacity: 0.7; }
+    .step-item .delete-btn:hover { opacity: 1; }
+    .step-item .selector { color: #666; word-break: break-all; margin: 4px 0; font-size: 11px; }
+    .step-item .xpath { color: #999; word-break: break-all; margin: 2px 0; font-size: 10px; font-family: monospace; }
+    .step-item .annotation { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-top: 4px; }
+    .step-item .annotation.login { background: #E3F2FD; color: #1976D2; }
+    .step-item .annotation.data { background: #FFF3E0; color: #F57C00; }
+    .step-item .annotation.pagination { background: #F3E5F5; color: #7B1FA2; }
+    .step-item .annotation.custom { background: #E8F5E9; color: #388E3C; }
+    .legend { padding: 15px; border-top: 1px solid #eee; font-size: 12px; }
+    .legend h4 { margin-bottom: 8px; color: #333; }
+    .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .legend-color { width: 12px; height: 12px; border-radius: 2px; }
+    .legend-color.login { background: #2196F3; }
+    .legend-color.data { background: #FF9800; }
+    .legend-color.pagination { background: #9C27B0; }
+    
+    /* 持久化边框容器 */
+    .recorder-markers-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 999998; }
+    .recorder-marker { position: absolute; pointer-events: none; border: 2px solid rgba(76, 175, 80, 0.6); border-radius: 4px; transition: all 0.15s ease; }
+    .recorder-marker.login { border-color: rgba(33, 150, 243, 0.8); }
+    .recorder-marker.data { border-color: rgba(255, 152, 0, 0.8); }
+    .recorder-marker.pagination { border-color: rgba(156, 39, 176, 0.8); }
+    .recorder-marker.custom { border-color: rgba(76, 175, 80, 0.8); }
+    
+    /* 轨迹可视化 */
+    #trajectory-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 999990; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="demo-header">
+      <h1>🎬 Recorder Demo</h1>
+      <p>点击、输入元素查看录制效果，移动鼠标查看轨迹，悬停元素查看工具栏</p>
+    </div>
+    
+    <div class="login-form">
+      <h2>用户登录</h2>
+      <div class="form-group">
+        <label for="username">用户名</label>
+        <input type="text" id="username" placeholder="请输入用户名" data-testid="username-input">
+      </div>
+      <div class="form-group">
+        <label for="password">密码</label>
+        <input type="password" id="password" placeholder="请输入密码" data-testid="password-input">
+      </div>
+      <div>
+        <button class="btn btn-primary" id="login-btn" data-testid="login-btn">登录</button>
+        <button class="btn btn-secondary">取消</button>
+      </div>
+    </div>
+    
+    <div class="data-table">
+      <h2>数据列表</h2>
+      <table>
+        <thead><tr><th>ID</th><th>名称</th><th>状态</th></tr></thead>
+        <tbody>
+          <tr><td class="data-id">001</td><td class="data-name">张三</td><td class="data-status">活跃</td></tr>
+          <tr><td class="data-id">002</td><td class="data-name">李四</td><td class="data-status">离线</td></tr>
+        </tbody>
+      </table>
+      <div class="pagination">
+        <button class="prev-page">上一页</button>
+        <button class="active">1</button>
+        <button>2</button>
+        <button class="next-page">下一页</button>
+      </div>
+    </div>
+    
+    <!-- Shadow DOM 演示 -->
+    <div class="data-table">
+      <h2>Shadow DOM 演示</h2>
+      <div id="shadow-host"></div>
+    </div>
+    
+    <!-- iframe 演示 -->
+    <div class="data-table">
+      <h2>iframe 演示</h2>
+      <iframe srcdoc="
+        <!DOCTYPE html>
+        <html>
+        <head><style>body{font-family:sans-serif;padding:15px;background:#fff8e1}input{padding:8px;border:1px solid #ccc;border-radius:4px;margin:5px}button{padding:8px 16px;background:#ff9800;color:white;border:none;border-radius:4px;cursor:pointer;margin:5px}</style></head>
+        <body>
+          <p>这是 iframe 内部的元素：</p>
+          <input type='text' placeholder='iframe 输入框' data-testid='iframe-input'>
+          <button data-testid='iframe-button'>iframe 按钮</button>
+        </body>
+        </html>
+      " style="width:100%;height:120px;border:2px dashed #ff9800;border-radius:8px;"></iframe>
+    </div>
+    
+    <!-- 链接演示 -->
+    <div class="data-table">
+      <h2>链接跳转演示</h2>
+      <p style="margin-bottom: 10px; color: #666;">点击链接测试跳转记录：</p>
+      <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+        <a href="#section1" style="color: #4CAF50;">页面内锚点链接</a>
+        <a href="https://www.baidu.com" target="_blank" style="color: #2196F3;">外部链接（新窗口）</a>
+        <a href="javascript:void(0)" onclick="alert('JS链接')" style="color: #FF9800;">JavaScript 链接</a>
+      </div>
+      <div id="section1" style="margin-top: 200px; padding: 20px; background: #f5f5f5; border-radius: 8px;">
+        <h3>锚点目标区域</h3>
+        <p>这是页面内锚点跳转的目标位置</p>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 录制面板 -->
+  <div class="recorded-panel">
+    <div class="recorded-panel-header">
+      <h3>📝 录制步骤</h3>
+      <button class="btn" style="padding: 4px 8px; font-size: 12px;" onclick="clearSteps()">清空</button>
+    </div>
+    <div class="recorded-panel-body" id="steps-container">
+      <div style="color: #999; text-align: center; padding: 20px;">暂无录制步骤<br><small>开始操作页面元素</small></div>
+    </div>
+    <div class="legend">
+      <h4>标注类型</h4>
+      <div class="legend-item"><div class="legend-color login"></div><span>登录元素</span></div>
+      <div class="legend-item"><div class="legend-color data"></div><span>采集字段</span></div>
+      <div class="legend-item"><div class="legend-color pagination"></div><span>分页元素</span></div>
+    </div>
+  </div>
+  
+  <!-- 持久化边框容器 -->
+  <div class="recorder-markers-container" id="markers-container"></div>
+  
+  <!-- 轨迹画布 -->
+  <canvas id="trajectory-canvas"></canvas>
+
+  <!-- ========== 模拟 Playwright CDP 接收端 ========== -->
+  <script>
+    // 步骤存储
+    const recordedSteps = [];
+    let stepCounter = 0;
+    const annotations = new Map();
+    const markedElements = new Map(); // 持久化边框元素映射
+    
+    // 模拟 CDP: Runtime.addBinding 注入的函数
+    window.__recorderSync = function(payload) {
+      try {
+        const step = JSON.parse(payload);
+        step.url = step.url || window.location.href;
+        step.trajectory = step.trajectory || [];
+        step.viewport = step.viewport || { width: window.innerWidth, height: window.innerHeight };
+        
+        recordedSteps.push(step);
+        stepCounter++;
+        updateStepsPanel();
+        console.log('[CDP] bindingCalled: __recorderSync', step);
+      } catch (e) {
+        console.error('[CDP] Failed to parse:', e);
+      }
+    };
+    
+    // 删除步骤
+    function deleteStep(index) {
+      recordedSteps.splice(index, 1);
+      updateStepsPanel();
+    }
+    
+    // 更新步骤面板
+    function updateStepsPanel() {
+      const container = document.getElementById('steps-container');
+      if (recordedSteps.length === 0) {
+        container.innerHTML = '<div style="color: #999; text-align: center; padding: 20px;">暂无录制步骤<br><small>开始操作页面元素</small></div>';
+        return;
+      }
+      container.innerHTML = recordedSteps.map((step, index) => {
+        let style = '';
+        let extra = '';
+        
+        switch (step.action) {
+          case 'trajectory':
+            style = 'background: #f0f0f0; color: #888; font-size: 11px;';
+            if (step.points && step.points.length > 0) {
+              const pointsStr = step.points.map(p => `(${p.x},${p.y})`).join(' → ');
+              extra = `<div class="selector">🖱️ 轨迹: ${pointsStr}</div>`;
+            }
+            break;
+          case 'scroll':
+            style = 'background: #f0f0f0; color: #888; font-size: 11px;';
+            extra = `<div class="selector">📜 滚动: (${step.x}, ${step.y})</div>`;
+            break;
+          case 'resize':
+            style = 'background: #f0f0f0; color: #888; font-size: 11px;';
+            extra = `<div class="selector">📐 尺寸: ${step.from.width}x${step.from.height} → ${step.to.width}x${step.to.height}</div>`;
+            break;
+          case 'link_click':
+            style = 'background: #E3F2FD; border-left: 3px solid #2196F3;';
+            extra = `<div class="selector">🔗 ${step.value}</div>`;
+            if (step.elementInfo?.isExternal) {
+              extra += `<div class="selector" style="color: #F57C00;">⚠️ 外部链接 (${step.elementInfo.target})</div>`;
+            }
+            break;
+          case 'navigate':
+            style = 'background: #FFF3E0; border-left: 3px solid #FF9800;';
+            extra = `<div class="selector">🌐 ${step.value}</div>`;
+            break;
+          case 'annotate':
+            style = 'background: #e8f5e9; border-left: 3px solid #4CAF50;';
+            break;
+        }
+        
+        return `
+          <div class="step-item" style="${style}">
+            <div class="action">
+              <span>${index + 1}. ${step.action.toUpperCase()}</span>
+              <button class="delete-btn" onclick="deleteStep(${index})">✕</button>
+            </div>
+            ${step.selector ? `<div class="selector">${step.selector}</div>` : ''}
+            ${step.xpath ? `<div class="xpath">xpath: ${step.xpath}</div>` : ''}
+            ${step.value && step.action !== 'link_click' && step.action !== 'navigate' && step.action !== 'resize' ? `<div class="selector">值: "${step.value}"</div>` : ''}
+            ${extra}
+            ${step.annotation ? `<span class="annotation ${step.annotation.type}">🏷️ ${step.annotation.label}</span>` : ''}
+          </div>
+        `;
+      }).join('');
+      container.scrollTop = container.scrollHeight;
+    }
+    
+    function clearSteps() {
+      recordedSteps.length = 0;
+      stepCounter = 0;
+      annotations.clear();
+      // 清除所有持久化边框
+      const markersContainer = document.getElementById('markers-container');
+      markersContainer.innerHTML = '';
+      markedElements.clear();
+      updateStepsPanel();
+    }
+    
+    // ========== 持久化边框 ==========
+    function addMarker(element, type = 'default') {
+      if (!element || markedElements.has(element)) return;
+      
+      const markersContainer = document.getElementById('markers-container');
+      const marker = document.createElement('div');
+      marker.className = 'recorder-marker' + (type !== 'default' ? ' ' + type : '');
+      markersContainer.appendChild(marker);
+      
+      markedElements.set(element, { marker, type });
+      updateMarkerPosition(element);
+    }
+    
+    function updateMarkerPosition(element) {
+      const data = markedElements.get(element);
+      if (!data) return;
+      
+      const rect = element.getBoundingClientRect();
+      const { marker } = data;
+      marker.style.left = rect.left + 'px';
+      marker.style.top = rect.top + 'px';
+      marker.style.width = rect.width + 'px';
+      marker.style.height = rect.height + 'px';
+      marker.style.display = 'block';
+    }
+    
+    function updateAllMarkers() {
+      markedElements.forEach((data, element) => {
+        updateMarkerPosition(element);
+      });
+    }
+    
+    // 监听滚动和resize更新边框位置
+    window.addEventListener('scroll', updateAllMarkers, true);
+    window.addEventListener('resize', updateAllMarkers);
+    
+    // ========== Overlay 样式 ==========
+    const overlayStyle = document.createElement('style');
+    overlayStyle.textContent = `
+      .recorder-shadow { position: absolute; pointer-events: none; border: 2px solid #4CAF50; background: rgba(76, 175, 80, 0.1); border-radius: 4px; z-index: 999999; transition: all 0.15s ease; }
+      .recorder-shadow.login { border-color: #2196F3; background: rgba(33, 150, 243, 0.1); }
+      .recorder-shadow.data { border-color: #FF9800; background: rgba(255, 152, 0, 0.1); }
+      .recorder-shadow.pagination { border-color: #9C27B0; background: rgba(156, 39, 176, 0.1); }
+      .recorder-toolbar { position: absolute; z-index: 1000000; background: white; border-radius: 6px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); padding: 4px; display: flex; gap: 2px; }
+      .recorder-toolbar.horizontal { flex-direction: row; }
+      .recorder-toolbar.vertical { flex-direction: column; }
+      .recorder-toolbar button { padding: 5px 8px; border: none; border-radius: 3px; cursor: pointer; font-size: 11px; transition: transform 0.1s; white-space: nowrap; }
+      .recorder-toolbar button:hover { transform: scale(1.02); }
+      .recorder-toolbar .btn-login { background: #E3F2FD; color: #1976D2; }
+      .recorder-toolbar .btn-data { background: #FFF3E0; color: #F57C00; }
+      .recorder-toolbar .btn-page { background: #F3E5F5; color: #7B1FA2; }
+      .recorder-toolbar .btn-note { background: #E8F5E9; color: #388E3C; }
+    `;
+    document.head.appendChild(overlayStyle);
+    
+    // ========== Overlay 逻辑 ==========
+    let currentElement = null;
+    let shadowBox = null;
+    let toolbar = null;
+    let mouseX = 0;
+    let mouseY = 0;
+    let currentEdge = null;
+    const EDGE_THRESHOLD = 30;
+    
+    function createShadowBox() {
+      if (shadowBox) return;
+      shadowBox = document.createElement('div');
+      shadowBox.className = 'recorder-shadow';
+      document.body.appendChild(shadowBox);
+    }
+    
+    function createToolbar() {
+      if (toolbar) return;
+      toolbar = document.createElement('div');
+      toolbar.className = 'recorder-toolbar';
+      toolbar.innerHTML = `
+        <button class="btn-login" data-type="login">🔐 登录</button>
+        <button class="btn-data" data-type="data">📊 采集</button>
+        <button class="btn-page" data-type="pagination">📄 分页</button>
+        <button class="btn-note" data-type="custom">📝 备注</button>
+      `;
+      document.body.appendChild(toolbar);
+      toolbar.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          annotateElement(currentElement, btn.dataset.type);
+        });
+      });
+    }
+    
+    function updateShadowBox(element) {
+      if (!shadowBox || !element) { if (shadowBox) shadowBox.style.display = 'none'; return; }
+      const rect = element.getBoundingClientRect();
+      shadowBox.style.left = rect.left + window.scrollX + 'px';
+      shadowBox.style.top = rect.top + window.scrollY + 'px';
+      shadowBox.style.width = rect.width + 'px';
+      shadowBox.style.height = rect.height + 'px';
+      shadowBox.style.display = 'block';
+      const annotation = annotations.get(element);
+      shadowBox.className = 'recorder-shadow' + (annotation ? ' ' + annotation.type : '');
+    }
+    
+    function calculateToolbarPosition(rect) {
+      const GAP = 2, TOOLBAR_H = 32, TOOLBAR_W = 220, TOOLBAR_V_W = 45, TOOLBAR_V_H = 140;
+      const scrollX = window.scrollX, scrollY = window.scrollY;
+      const mouseRelX = mouseX - rect.left, mouseRelY = mouseY - rect.top;
+      const distances = [
+        { edge: 'top', dist: mouseRelY },
+        { edge: 'bottom', dist: rect.height - mouseRelY },
+        { edge: 'left', dist: mouseRelX },
+        { edge: 'right', dist: rect.width - mouseRelX }
+      ];
+      distances.sort((a, b) => a.dist - b.dist);
+      const nearestEdge = distances[0].edge, nearestDist = distances[0].dist;
+      let edge = nearestEdge;
+      if (currentEdge) {
+        const currentDist = distances.find(d => d.edge === currentEdge)?.dist || Infinity;
+        if (nearestDist < currentDist - EDGE_THRESHOLD) { edge = nearestEdge; currentEdge = edge; }
+        else { edge = currentEdge; }
+      } else { currentEdge = edge; }
+      
+      if (edge === 'top') return { left: rect.left + scrollX + (rect.width - TOOLBAR_W) / 2, top: rect.top + scrollY - TOOLBAR_H - GAP, orientation: 'horizontal', edge: 'top' };
+      if (edge === 'bottom') return { left: rect.left + scrollX + (rect.width - TOOLBAR_W) / 2, top: rect.bottom + scrollY + GAP, orientation: 'horizontal', edge: 'bottom' };
+      if (edge === 'left') return { left: rect.left + scrollX - TOOLBAR_V_W - GAP, top: mouseY + scrollY - TOOLBAR_V_H / 2, orientation: 'vertical', edge: 'left' };
+      return { left: rect.right + scrollX + GAP, top: mouseY + scrollY - TOOLBAR_V_H / 2, orientation: 'vertical', edge: 'right' };
+    }
+    
+    function updateToolbar(element) {
+      if (!toolbar || !element) { if (toolbar) toolbar.style.display = 'none'; return; }
+      const rect = element.getBoundingClientRect();
+      const pos = calculateToolbarPosition(rect);
+      toolbar.style.left = pos.left + 'px';
+      toolbar.style.top = pos.top + 'px';
+      toolbar.className = 'recorder-toolbar ' + pos.orientation;
+      toolbar.style.display = 'flex';
+    }
+    
+    function getSelector(element) {
+      if (element.id) return '#' + CSS.escape(element.id);
+      const semanticAttrs = ['data-testid', 'data-test', 'data-cy', 'aria-label', 'name', 'role', 'title'];
+      for (const attr of semanticAttrs) {
+        const value = element.getAttribute(attr);
+        if (value) return element.tagName.toLowerCase() + '[' + attr + '="' + CSS.escape(value) + '"]';
+      }
+      if (element.className && typeof element.className === 'string') {
+        const classes = element.className.trim().split(/\s+/).filter(c => c && !c.startsWith('_'));
+        if (classes.length > 0) return element.tagName.toLowerCase() + '.' + classes.slice(0, 2).join('.');
+      }
+      return element.tagName.toLowerCase();
+    }
+    
+    function annotateElement(element, type) {
+      if (!element) return;
+      const selector = getSelector(element);
+      const labels = { login: '登录元素', data: '采集字段', pagination: '分页元素', custom: '自定义备注' };
+      let annotation = null;
+      if (type === 'custom') {
+        const note = prompt('请输入备注:');
+        if (note) annotation = { type: 'custom', label: note };
+        else return;
+      } else {
+        annotation = { type, label: labels[type] };
+      }
+      annotations.set(element, annotation);
+      
+      // 添加持久化边框
+      addMarker(element, type);
+      
+      // 记录标注步骤
+      const step = {
+        id: 'step-' + Date.now(),
+        timestamp: Date.now(),
+        action: 'annotate',
+        selector: selector,
+        annotation: annotation,
+        elementInfo: { tagName: element.tagName.toLowerCase() },
+        trajectory: window.__getTrajectory ? window.__getTrajectory() : [],
+        viewport: { width: window.innerWidth, height: window.innerHeight }
+      };
+      recordedSteps.push(step);
+      stepCounter++;
+      updateStepsPanel();
+      
+      // 闪烁效果
+      if (shadowBox) {
+        shadowBox.style.transition = 'none';
+        shadowBox.style.boxShadow = '0 0 20px 5px rgba(76, 175, 80, 0.8)';
+        setTimeout(() => { shadowBox.style.transition = 'box-shadow 0.3s ease'; shadowBox.style.boxShadow = ''; }, 200);
+      }
+      
+      updateShadowBox(element);
+      console.log('[Recorder] Annotate:', selector, '->', annotation.label);
+    }
+    
+    // 鼠标移动事件（Overlay）
+    document.addEventListener('mousemove', (e) => {
+      const element = e.composedPath()[0] || e.target;
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+      
+      if (element === shadowBox || element === toolbar || toolbar?.contains(element)) return;
+      if (element.closest?.('.recorded-panel')) { updateShadowBox(null); updateToolbar(null); return; }
+      if (element === document.body || element === document.documentElement) { updateShadowBox(null); updateToolbar(null); currentEdge = null; return; }
+      
+      currentElement = element;
+      createShadowBox();
+      createToolbar();
+      updateShadowBox(element);
+      updateToolbar(element);
+    }, true);
+    
+    // 点击时添加持久化边框
+    document.addEventListener('click', (e) => {
+      const element = e.composedPath()[0] || e.target;
+      if (element.closest?.('.recorded-panel')) return;
+      if (element === document.body || element === document.documentElement) return;
+      
+      // 添加默认边框
+      addMarker(element, 'default');
+    }, true);
+    
+    // ========== 轨迹可视化 ==========
+    const canvas = document.getElementById('trajectory-canvas');
+    const ctx = canvas.getContext('2d');
+    function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    
+    setInterval(() => {
+      if (!window.__recorderTrajectory || window.__recorderTrajectory.length < 2) { ctx.clearRect(0, 0, canvas.width, canvas.height); return; }
+      const points = window.__recorderTrajectory;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(76, 175, 80, 0.5)';
+      ctx.lineWidth = 2;
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+      ctx.stroke();
+      points.forEach((p, i) => {
+        ctx.beginPath();
+        ctx.fillStyle = `rgba(76, 175, 80, ${0.3 + (i / points.length) * 0.7})`;
+        ctx.arc(p.x, p.y, 3 + (i / points.length) * 3, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }, 100);
+    
+    // ========== Shadow DOM 演示 ==========
+    const shadowHost = document.getElementById('shadow-host');
+    if (shadowHost) {
+      const shadowRoot = shadowHost.attachShadow({ mode: 'open' });
+      shadowRoot.innerHTML = `
+        <style>
+          .shadow-container { padding: 15px; background: #f0f8ff; border-radius: 8px; border: 2px dashed #4CAF50; }
+          .shadow-input { padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; margin: 5px; }
+          .shadow-button { padding: 8px 16px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 5px; }
+        </style>
+        <div class="shadow-container">
+          <p style="margin-bottom: 10px; color: #333;">这是 Shadow DOM 内部的元素：</p>
+          <input type="text" class="shadow-input" placeholder="Shadow DOM 输入框" data-testid="shadow-input">
+          <button class="shadow-button" data-testid="shadow-button">Shadow DOM 按钮</button>
+        </div>
+      `;
+    }
+    
+    console.log('[Playwright Mock] CDP binding ready: __recorderSync');
+    
+    // ========== iframe 注入（模拟 Playwright page.addInitScript） ==========
+    // 在 Playwright 中，addInitScript 会自动注入到所有 iframe（包括跨域）
+    // 这里只处理同源 iframe 的演示
+    
+    function injectToIframes() {
+      document.querySelectorAll('iframe').forEach((iframe, index) => {
+        try {
+          const iframeDoc = iframe.contentDocument;
+          if (!iframeDoc) return;
+          
+          // 检查是否已注入
+          if (iframeDoc.querySelector('[data-recorder-injected]')) return;
+          
+          // 标记已注入
+          const marker = iframeDoc.createElement('div');
+          marker.setAttribute('data-recorder-injected', 'true');
+          marker.style.display = 'none';
+          iframeDoc.body.appendChild(marker);
+          
+          // 注入 __recorderSync 函数
+          // 在 Playwright 中，这个函数由 CDP Runtime.addBinding 自动注入
+          // iframe 内调用时，Playwright 会自动接收
+          const script = iframeDoc.createElement('script');
+          script.textContent = `
+            // 在 Playwright 中，这个函数由 CDP 自动注入
+            // 这里模拟：iframe 内调用会转发到父页面的处理
+            window.__recorderSync = function(payload) {
+              // 方式1：直接调用父页面的函数（同源）
+              if (window.parent.__recorderSync) {
+                window.parent.__recorderSync(payload);
+              }
+              // 方式2：通过 postMessage（跨域时 Playwright 会处理）
+              else {
+                window.parent.postMessage({
+                  type: 'recorder-iframe-step',
+                  payload: payload
+                }, '*');
+              }
+            };
+            console.log('[Recorder] iframe __recorderSync ready');
+          `;
+          iframeDoc.head.appendChild(script);
+          
+          // 加载注入脚本
+          const injectScript = iframeDoc.createElement('script');
+          injectScript.src = 'recorder-inject.js';
+          iframeDoc.head.appendChild(injectScript);
+          
+          console.log(`[Recorder] Injected into iframe #${index}`);
+        } catch (e) {
+          // 跨域 iframe 无法访问
+          // 在 Playwright 中，addInitScript 会自动处理跨域 iframe
+          console.warn(`[Recorder] Cannot access iframe #${index} (cross-origin):`, e.message);
+          console.log(`[Recorder] In Playwright, addInitScript would handle this automatically`);
+        }
+      });
+    }
+    
+    // 监听来自跨域 iframe 的消息
+    window.addEventListener('message', (e) => {
+      if (e.data.type === 'recorder-iframe-step') {
+        try {
+          const step = JSON.parse(e.data.payload);
+          recordedSteps.push(step);
+          stepCounter++;
+          updateStepsPanel();
+          console.log('[Recorder] From cross-origin iframe:', step);
+        } catch (err) {
+          console.error('[Recorder] Failed to parse iframe step:', err);
+        }
+      }
+    });
+    
+    // 初始化时注入
+    setTimeout(injectToIframes, 500);
+    setTimeout(injectToIframes, 1500);
+    
+    // 监听新 iframe 加载
+    const iframeObserver = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
+          if (node.tagName === 'IFRAME') {
+            node.addEventListener('load', () => injectToIframes());
+          }
+          if (node.querySelectorAll) {
+            node.querySelectorAll('iframe').forEach((iframe) => {
+              iframe.addEventListener('load', () => injectToIframes());
+            });
+          }
+        });
+      });
+    });
+    iframeObserver.observe(document.body, { childList: true, subtree: true });
+  </script>
+  
+  <!-- ========== 注入脚本（模拟 Playwright addInitScript） ========== -->
+  <script src="recorder-inject.js"></script>
+</body>
+</html>

@@ -23,6 +23,40 @@ agent-browser snapshot -i         # Interactive elements only (recommended)
 agent-browser snapshot -c         # Compact output
 agent-browser snapshot -d 3       # Limit depth to 3
 agent-browser snapshot -s "#main" # Scope to CSS selector
+agent-browser snapshot -s "body" --path   # Include xpath and cssPath in refs
+agent-browser snapshot -s "body" --attrs  # Include element attributes in refs
+```
+
+### Path and Attributes Options
+
+When you need element paths or attributes, use `--path` and `--attrs` with `--selector`:
+
+```bash
+# Get xpath and cssPath for elements
+agent-browser snapshot -s "body" --path
+
+# Get element attributes (id, class, href, etc.)
+agent-browser snapshot -s "body" --attrs
+
+# Get both
+agent-browser snapshot -s "body" --path --attrs
+```
+
+**Note:** `--path` and `--attrs` require `--selector` to limit scope and prevent large responses.
+
+**Response example with --path --attrs:**
+```json
+{
+  "refs": {
+    "e1": {
+      "role": "button",
+      "name": "Submit",
+      "xpath": "//*[@id=\"submit-btn\"]",
+      "cssPath": "#submit-btn",
+      "attributes": {"id": "submit-btn", "class": "btn-primary", "type": "submit"}
+    }
+  }
+}
 ```
 
 ## Interactions (use @refs from snapshot)
@@ -47,6 +81,32 @@ agent-browser scrollintoview @e1  # Scroll element into view (alias: scrollinto)
 agent-browser drag @e1 @e2        # Drag and drop
 agent-browser upload @e1 file.pdf # Upload files
 ```
+
+### Human-like Mouse Movement
+
+Add `--human [type]` to simulate natural mouse trajectories:
+
+```bash
+agent-browser click @e1 --human           # Human-like click (arc trajectory)
+agent-browser click @e1 --human arc       # Smooth arc (default, most natural)
+agent-browser click @e1 --human bezier    # Bezier curve with overshoot
+agent-browser click @e1 --human random    # Random path with jitter
+agent-browser click @e1 --human linear    # Straight line (fastest)
+
+# Works with other interactions
+agent-browser fill @e1 "text" --human
+agent-browser type @e1 "text" --human
+agent-browser hover @e1 --human
+agent-browser dblclick @e1 --human
+```
+
+**Trajectory Types:**
+| Type | Description | Best For |
+|------|-------------|----------|
+| `arc` | Smooth arc trajectory (default) | Most natural, general use |
+| `bezier` | Bezier curve with overshoot | Realistic targeting |
+| `random` | Random path with jitter | Maximum unpredictability |
+| `linear` | Straight line | Fastest, less detection needed |
 
 ## Get Information
 
@@ -158,6 +218,10 @@ agent-browser network route <url> --body '{}'  # Mock response
 agent-browser network unroute [url]            # Remove routes
 agent-browser network requests                 # View tracked requests
 agent-browser network requests --filter api    # Filter requests
+
+# Wait for API request and capture response
+agent-browser wait --request "api/users"       # Wait for matching request
+agent-browser wait --request "aweme/post" --timeout 30000  # With timeout
 ```
 
 ## Tabs and Windows
@@ -177,6 +241,37 @@ agent-browser window new          # New window
 agent-browser frame "#iframe"     # Switch to iframe
 agent-browser frame main          # Back to main frame
 ```
+
+## Iframes (--in-frame option)
+
+Most commands support `--in-frame` to operate inside iframes:
+
+```bash
+# Single iframe by ID or name
+agent-browser snapshot --in-frame "#my-iframe"
+agent-browser click @e1 --in-frame "#login-frame"
+agent-browser fill #username "admin" --in-frame "#my-frame"
+
+# Nested iframes using path
+agent-browser snapshot --in-frame "#outer-iframe/inner-iframe"
+agent-browser get value #input --in-frame "#parent/child"
+
+# Using index instead of name
+agent-browser snapshot --in-frame "#0"
+agent-browser snapshot --in-frame "#0/1"  # First iframe's second child
+```
+
+### Frame Path Syntax
+
+| Format | Example | Description |
+|--------|---------|-------------|
+| `#id` | `#my-frame` | Frame by ID attribute |
+| `#name` | `#login-form` | Frame by name attribute |
+| `#index` | `#0`, `#1` | Frame by position |
+| `#path` | `#parent/child` | Nested frame by path |
+| `#mixed` | `#0/login-form` | Mix of index and name |
+
+The `--in-frame` option works with: click, dblclick, hover, focus, fill, type, check, uncheck, select, scrollintoview, drag, upload, download, press, wait, get, is, find, mouse, eval, snapshot, pdf, highlight, and more.
 
 ## Dialogs
 

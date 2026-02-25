@@ -208,12 +208,17 @@ Options:
   -d, --depth <n>      Limit tree depth
   -s, --selector <sel> Scope snapshot to CSS selector
   --in-frame <path>    Target iframe (path: "#frame1" or "#frame1/#frame2")
+  --path               Include xpath and cssPath in refs (requires --selector)
+  --attrs              Include element attributes in refs (requires --selector)
 
 Examples:
   agent-browser snapshot
   agent-browser snapshot -i
   agent-browser snapshot -i -C
   agent-browser snapshot --compact --depth 5
+  agent-browser snapshot --selector "main" --path
+  agent-browser snapshot --selector "form" --attrs
+  agent-browser snapshot -s "main" --path --attrs
 `,
   eval: `
 agent-browser eval - Execute JavaScript

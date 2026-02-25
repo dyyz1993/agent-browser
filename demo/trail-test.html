@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>鼠标轨迹验证器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    h1 {
+      color: #fff;
+      text-align: center;
+      margin-bottom: 20px;
+      font-size: 24px;
+    }
+    
+    .info-bar {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+    }
+    
+    .info-item {
+      background: rgba(255,255,255,0.1);
+      padding: 8px 16px;
+      border-radius: 20px;
+      color: #fff;
+      font-size: 14px;
+    }
+    
+    .info-item span {
+      color: #4ecdc4;
+      font-weight: bold;
+    }
+    
+    .canvas-container {
+      position: relative;
+      background: #0d1117;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    }
+    
+    #trailCanvas {
+      display: block;
+      cursor: crosshair;
+    }
+    
+    .buttons-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 15px;
+      margin-top: 20px;
+    }
+    
+    .btn {
+      padding: 15px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .btn::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 0;
+      background: rgba(255,255,255,0.3);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      transition: width 0.3s, height 0.3s;
+    }
+    
+    .btn:active::after {
+      width: 200px;
+      height: 200px;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
+    .btn-success {
+      background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+      color: white;
+    }
+    
+    .btn-danger {
+      background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+      color: white;
+    }
+    
+    .btn-warning {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      color: white;
+    }
+    
+    .btn-info {
+      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      color: white;
+    }
+    
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+    }
+    
+    .btn:active {
+      transform: translateY(0);
+    }
+    
+    .controls {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+    
+    .control-btn {
+      padding: 10px 20px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: #fff;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .control-btn:hover {
+      background: rgba(255,255,255,0.2);
+    }
+    
+    .control-btn.active {
+      background: #4ecdc4;
+      color: #1a1a2e;
+    }
+    
+    .stats {
+      margin-top: 20px;
+      padding: 15px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 8px;
+      color: #888;
+      font-size: 13px;
+    }
+    
+    .stats strong {
+      color: #4ecdc4;
+    }
+    
+    .target-zones {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    
+    .target-zone {
+      position: absolute;
+      border: 2px dashed rgba(255,255,255,0.3);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255,255,255,0.5);
+      font-size: 12px;
+      pointer-events: auto;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .target-zone:hover {
+      border-color: #4ecdc4;
+      color: #4ecdc4;
+      background: rgba(78, 205, 196, 0.1);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🖱️ 鼠标轨迹验证器</h1>
+    
+    <div class="info-bar">
+      <div class="info-item">位置: <span id="posInfo">0, 0</span></div>
+      <div class="info-item">轨迹点: <span id="pointCount">0</span></div>
+      <div class="info-item">总距离: <span id="totalDistance">0</span>px</div>
+    </div>
+    
+    <div class="canvas-container">
+      <canvas id="trailCanvas" width="1160" height="500"></canvas>
+      <div class="target-zones" id="targetZones"></div>
+    </div>
+    
+    <div class="controls">
+      <button class="control-btn active" data-color="rainbow">🌈 彩虹</button>
+      <button class="control-btn" data-color="#4ecdc4">💚 青色</button>
+      <button class="control-btn" data-color="#f72585">💗 粉色</button>
+      <button class="control-btn" data-color="#ffd60a">💛 黄色</button>
+      <button class="control-btn" data-color="#fff">⚪ 白色</button>
+      <button class="control-btn" id="clearBtn">🗑️ 清空轨迹</button>
+    </div>
+    
+    <div class="buttons-grid">
+      <button class="btn btn-primary" id="btn1">按钮 1</button>
+      <button class="btn btn-success" id="btn2">按钮 2</button>
+      <button class="btn btn-danger" id="btn3">按钮 3</button>
+      <button class="btn btn-warning" id="btn4">按钮 4</button>
+      <button class="btn btn-info" id="btn5">按钮 5</button>
+      <button class="btn btn-primary" id="btn6">按钮 6</button>
+      <button class="btn btn-success" id="btn7">按钮 7</button>
+      <button class="btn btn-danger" id="btn8">按钮 8</button>
+    </div>
+    
+    <div class="stats">
+      <strong>使用说明：</strong>
+      在画布上移动鼠标查看轨迹效果。点击下方按钮测试点击轨迹。
+      使用 <code>--human</code> 参数时，轨迹会呈现贝塞尔曲线/弧形/随机等效果。
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('trailCanvas');
+    const ctx = canvas.getContext('2d');
+    const posInfo = document.getElementById('posInfo');
+    const pointCount = document.getElementById('pointCount');
+    const totalDistanceEl = document.getElementById('totalDistance');
+    const clearBtn = document.getElementById('clearBtn');
+    const controlBtns = document.querySelectorAll('.control-btn[data-color]');
+    const targetZones = document.getElementById('targetZones');
+    
+    let points = [];
+    let currentColor = 'rainbow';
+    let totalDistance = 0;
+    let hue = 0;
+    
+    function resizeCanvas() {
+      const container = canvas.parentElement;
+      canvas.width = container.clientWidth;
+      canvas.height = 500;
+      redraw();
+    }
+    
+    function getRainbowColor() {
+      hue = (hue + 2) % 360;
+      return `hsl(${hue}, 80%, 60%)`;
+    }
+    
+    function addPoint(x, y) {
+      const lastPoint = points[points.length - 1];
+      if (lastPoint) {
+        const dist = Math.sqrt(Math.pow(x - lastPoint.x, 2) + Math.pow(y - lastPoint.y, 2));
+        totalDistance += dist;
+      }
+      
+      points.push({
+        x,
+        y,
+        color: currentColor === 'rainbow' ? getRainbowColor() : currentColor,
+        time: Date.now()
+      });
+      
+      pointCount.textContent = points.length;
+      totalDistanceEl.textContent = Math.round(totalDistance);
+    }
+    
+    function redraw() {
+      ctx.fillStyle = '#0d1117';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      if (points.length < 2) return;
+      
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      
+      for (let i = 1; i < points.length; i++) {
+        const p1 = points[i - 1];
+        const p2 = points[i];
+        
+        const progress = i / points.length;
+        const lineWidth = 2 + progress * 3;
+        
+        ctx.beginPath();
+        ctx.strokeStyle = p2.color;
+        ctx.lineWidth = lineWidth;
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.stroke();
+      }
+      
+      if (points.length > 0) {
+        const lastPoint = points[points.length - 1];
+        ctx.beginPath();
+        ctx.fillStyle = '#fff';
+        ctx.arc(lastPoint.x, lastPoint.y, 6, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.beginPath();
+        ctx.fillStyle = lastPoint.color;
+        ctx.arc(lastPoint.x, lastPoint.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    
+    function clearTrail() {
+      points = [];
+      totalDistance = 0;
+      hue = 0;
+      pointCount.textContent = '0';
+      totalDistanceEl.textContent = '0';
+      redraw();
+    }
+    
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      posInfo.textContent = `${Math.round(x)}, ${Math.round(y)}`;
+      addPoint(x, y);
+      redraw();
+    });
+    
+    canvas.addEventListener('mouseleave', () => {
+      redraw();
+    });
+    
+    clearBtn.addEventListener('click', clearTrail);
+    
+    controlBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        controlBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentColor = btn.dataset.color;
+      });
+    });
+    
+    document.querySelectorAll('.btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const rect = btn.getBoundingClientRect();
+        const x = rect.left + rect.width / 2;
+        const y = rect.top + rect.height / 2;
+        console.log(`Clicked: ${btn.id} at (${Math.round(x)}, ${Math.round(y)})`);
+      });
+    });
+    
+    function createTargetZones() {
+      const zones = [
+        { x: 50, y: 50, w: 80, h: 80, label: 'A' },
+        { x: 200, y: 100, w: 100, h: 60, label: 'B' },
+        { x: 400, y: 50, w: 70, h: 70, label: 'C' },
+        { x: 600, y: 150, w: 120, h: 50, label: 'D' },
+        { x: 800, y: 80, w: 90, h: 90, label: 'E' },
+        { x: 1000, y: 200, w: 80, h: 60, label: 'F' },
+        { x: 150, y: 300, w: 100, h: 100, label: 'G' },
+        { x: 350, y: 350, w: 80, h: 80, label: 'H' },
+        { x: 550, y: 300, w: 110, h: 70, label: 'I' },
+        { x: 750, y: 380, w: 90, h: 90, label: 'J' },
+        { x: 950, y: 320, w: 100, h: 60, label: 'K' },
+      ];
+      
+      zones.forEach(zone => {
+        const div = document.createElement('div');
+        div.className = 'target-zone';
+        div.style.left = zone.x + 'px';
+        div.style.top = zone.y + 'px';
+        div.style.width = zone.w + 'px';
+        div.style.height = zone.h + 'px';
+        div.textContent = zone.label;
+        div.addEventListener('click', () => {
+          console.log(`Target ${zone.label} clicked`);
+        });
+        targetZones.appendChild(div);
+      });
+    }
+    
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+    createTargetZones();
+  </script>
+</body>
+</html>

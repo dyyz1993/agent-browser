@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Selector Uniqueness Test</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    .container { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+  </style>
+</head>
+<body>
+  <h1>Selector Uniqueness Test Page</h1>
+  
+  <div class="container" id="test-id-unique">
+    <h3>Test 1: Unique ID</h3>
+    <button id="unique-button">Button with unique ID</button>
+  </div>
+
+  <div class="container">
+    <h3>Test 2: Multiple Same Tags (no ID)</h3>
+    <div class="list-container">
+      <a href="#1">Link 1</a>
+      <a href="#2">Link 2</a>
+      <a href="#3">Link 3</a>
+      <a href="#4">Link 4</a>
+      <a href="#5">Link 5</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <h3>Test 3: Same Class, Multiple Elements</h3>
+    <button class="btn-action">Action 1</button>
+    <button class="btn-action">Action 2</button>
+    <button class="btn-action">Action 3</button>
+  </div>
+
+  <div class="container">
+    <h3>Test 4: Nested Structure</h3>
+    <div class="level-1">
+      <div class="level-2">
+        <div class="level-3">
+          <span class="target">Target Element</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <h3>Test 5: Semantic Attributes</h3>
+    <button data-testid="submit-btn" class="btn">Submit</button>
+    <input aria-label="search-input" type="text" placeholder="Search">
+    <button data-cy="cancel-btn">Cancel</button>
+  </div>
+
+  <div class="container">
+    <h3>Test 6: Complex List</h3>
+    <ul class="item-list">
+      <li class="item"><a href="/item/1">Item 1</a></li>
+      <li class="item"><a href="/item/2">Item 2</a></li>
+      <li class="item"><a href="/item/3">Item 3</a></li>
+      <li class="item"><a href="/item/4">Item 4</a></li>
+      <li class="item"><a href="/item/5">Item 5</a></li>
+    </ul>
+  </div>
+
+  <div class="container">
+    <h3>Test 7: Mixed Elements</h3>
+    <div class="row">
+      <span>Span 1</span>
+      <span>Span 2</span>
+      <button>Button 1</button>
+      <span>Span 3</span>
+      <button>Button 2</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <h3>Test 8: Deep Nesting</h3>
+    <div id="deep-root">
+      <div>
+        <div>
+          <div>
+            <div>
+              <button id="deep-button">Deep Button</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <h3>Test 9: Pagination Links (Real-world scenario)</h3>
+    <div class="pagination">
+      <a href="?page=1" class="page-link">1</a>
+      <a href="?page=2" class="page-link">2</a>
+      <a href="?page=3" class="page-link">3</a>
+      <a href="?page=4" class="page-link">4</a>
+      <a href="?page=5" class="page-link">5</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <h3>Test 10: Dynamic Classes</h3>
+    <div class="css-abc123 _xyz">Element with dynamic class</div>
+    <div class="css-def456 _abc">Another dynamic class</div>
+  </div>
+</body>
+</html>

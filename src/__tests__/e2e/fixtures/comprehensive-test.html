@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Comprehensive Recorder Test Page</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 20px; background: #f5f5f5; }
+    .section { margin-bottom: 30px; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .section h2 { margin-bottom: 15px; color: #333; }
+    .test-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+    .test-item { padding: 15px; background: #f9f9f9; border-radius: 6px; }
+    .test-item label { display: block; margin-bottom: 8px; font-weight: 500; color: #555; }
+    input, button, select, textarea { margin: 5px 0; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+    button { cursor: pointer; background: #007AFF; color: white; border: none; transition: all 0.2s; }
+    button:hover { background: #0056b3; transform: scale(1.02); }
+    button:active { transform: scale(0.98); }
+    .btn-primary { background: #007AFF; }
+    .btn-secondary { background: #6c757d; }
+    .btn-success { background: #28a745; }
+    .btn-danger { background: #dc3545; }
+    .btn-warning { background: #ffc107; color: #333; }
+    .checkbox-wrapper { display: flex; align-items: center; gap: 10px; }
+    input[type="checkbox"] { width: 20px; height: 20px; margin: 0; }
+    .drop-zone { border: 2px dashed #007AFF; padding: 30px; text-align: center; background: #f0f8ff; border-radius: 8px; transition: all 0.3s; }
+    .drop-zone.dragover { background: #e3f2ff; border-color: #0056b3; }
+    .drop-zone.dragleave { background: #f0f8ff; border-color: #007AFF; }
+    .drop-zone.dropped { background: #d4edda; border-color: #28a745; }
+    .drag-item { width: 60px; height: 60px; background: white; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: move; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .drag-item:active { cursor: grabbing; }
+    .scroll-container { height: 200px; overflow-y: scroll; border: 1px solid #ddd; padding: 10px; }
+    .scroll-content { height: 800px; }
+    .viewport-info { position: fixed; bottom: 10px; right: 10px; background: rgba(0,0,0,0.8); color: white; padding: 10px 15px; border-radius: 6px; font-size: 12px; }
+    .link-section a { display: block; padding: 8px 12px; margin: 5px 0; background: #e9ecef; color: #007AFF; text-decoration: none; border-radius: 4px; transition: all 0.2s; }
+    .link-section a:hover { background: #0056b3; transform: translateX(5px); }
+    .link-section a:visited { background: #6c757d; }
+    .iframe-container { border: 2px solid #ddd; border-radius: 8px; overflow: hidden; }
+    iframe { width: 100%; height: 200px; border: none; }
+    .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 1000; }
+    .modal-overlay.active { display: flex; }
+    .modal { background: white; padding: 30px; border-radius: 12px; max-width: 500px; width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+    .modal h3 { margin-bottom: 20px; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1 style="text-align: center; margin-bottom: 30px; color: #333;">Comprehensive Recorder Test Page</h1>
+  
+  <div class="viewport-info" id="viewportInfo">Viewport: Loading...</div>
+
+  <!-- Mouse Events -->
+  <div class="section">
+    <h2>1. Mouse Events</h2>
+    <div class="test-grid">
+      <div class="test-item">
+        <label>Click</label>
+        <button id="click-btn" data-testid="click-btn">Click Me</button>
+        <button id="dblclick-btn" data-testid="dblclick-btn">Double Click</button>
+      </div>
+      <div class="test-item">
+        <label>Hover</label>
+        <button id="hover-btn" data-testid="hover-btn">Hover Over Me</button>
+        <div id="hover-result" style="margin-top: 10px; color: #666;">Hover result will appear here</div>
+      </div>
+      <div class="test-item">
+        <label>Right Click</label>
+        <button id="rightclick-btn" data-testid="rightclick-btn" oncontextmenu="event.preventDefault();">Right Click Me</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Keyboard Events -->
+  <div class="section">
+    <h2>2. Keyboard Events</h2>
+    <div class="test-grid">
+      <div class="test-item">
+        <label>Type Input</label>
+        <input type="text" id="type-input" data-testid="type-input" placeholder="Type here...">
+      </div>
+      <div class="test-item">
+        <label>Password Input</label>
+        <input type="password" id="password-input" data-testid="password-input" placeholder="Password">
+      </div>
+      <div class="test-item">
+        <label>Email Input</label>
+        <input type="email" id="email-input" name="email" placeholder="email@example.com">
+      </div>
+      <div class="test-item">
+        <label>Textarea</label>
+        <textarea id="textarea" data-testid="textarea" rows="3" placeholder="Multi-line text..."></textarea>
+      </div>
+      <div class="test-item">
+        <label>Press Keys</label>
+        <div style="display: flex; gap: 10px;">
+          <button id="enter-btn" data-testid="enter-btn">Press Enter</button>
+          <button id="escape-btn" data-testid="escape-btn">Press Escape</button>
+          <button id="tab-btn" data-testid="tab-btn">Press Tab</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Form Events -->
+  <div class="section">
+    <h2>3. Form Events</h2>
+    <div class="test-grid">
+      <div class="test-item">
+        <label>Fill</label>
+        <input type="text" id="fill-input" data-testid="fill-input" placeholder="Fill test">
+      </div>
+      <div class="test-item">
+        <label>Select Dropdown</label>
+        <select id="select-dropdown" data-testid="select-dropdown" name="country">
+          <option value="">Select country</option>
+          <option value="us">United States</option>
+          <option value="uk">United Kingdom</option>
+          <option value="cn">China</option>
+          <option value="jp">Japan</option>
+        </select>
+      </div>
+      <div class="test-item">
+        <label>Multi Select</label>
+        <select id="select-multi" data-testid="select-multi" multiple size="3">
+          <option value="option1">Option 1</option>
+          <option value="option2">Option 2</option>
+          <option value="option3">Option 3</option>
+          <option value="option4">Option 4</option>
+        </select>
+      </div>
+      <div class="test-item">
+        <label>Checkbox</label>
+        <div class="checkbox-wrapper">
+          <input type="checkbox" id="checkbox-agree" data-testid="checkbox-agree">
+          <label for="checkbox-agree">I agree to terms</label>
+        </div>
+      </div>
+      <div class="test-item">
+        <label>Radio Buttons</label>
+        <div class="checkbox-wrapper">
+          <input type="radio" id="radio-option1" name="plan" value="basic" data-testid="radio-basic">
+          <label for="radio-option1">Basic Plan</label>
+          <input type="radio" id="radio-option2" name="plan" value="premium" data-testid="radio-premium">
+          <label for="radio-option2">Premium Plan</label>
+        </div>
+      </div>
+      <div class="test-item">
+        <label>Submit Form</label>
+        <button type="submit" id="submit-btn" data-testid="submit-btn">Submit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Wheel Events -->
+  <div class="section">
+    <h2>4. Wheel Events</h2>
+    <div class="test-item">
+      <label>Scroll with Wheel</label>
+      <div id="wheel-container" class="scroll-container">
+        <div class="scroll-content">
+          <p>Scroll this area with mouse wheel...</p>
+          <div style="height: 200px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin: 20px 0; border-radius: 8px;"></div>
+          <p>More content to scroll...</p>
+          <div style="height: 200px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); margin: 20px 0; border-radius: 8px;"></div>
+          <p>Even more content...</p>
+          <div style="height: 200px; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); margin: 20px 0; border-radius: 8px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Drag and Drop -->
+  <div class="section">
+    <h2>5. Drag and Drop</h2>
+    <div class="test-grid">
+      <div class="test-item">
+        <label>Drag Items</label>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <div class="drag-item" id="drag-item1" data-testid="drag-item1" draggable="true">Item 1</div>
+          <div class="drag-item" id="drag-item2" data-testid="drag-item2" draggable="true">Item 2</div>
+          <div class="drag-item" id="drag-item3" data-testid="drag-item3" draggable="true">Item 3</div>
+        </div>
+      </div>
+      <div class="test-item">
+        <label>Drop Zone</label>
+        <div id="drop-zone" class="drop-zone" data-testid="drop-zone">
+          Drop items here
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- File Upload -->
+  <div class="section">
+    <h2>6. File Upload</h2>
+    <div class="test-item">
+      <label>Upload File</label>
+      <input type="file" id="file-upload" data-testid="file-upload" accept="image/*,.pdf,.doc,.doc,.txt">
+    </div>
+  </div>
+
+  <!-- Scroll Events -->
+  <div class="section">
+    <h2>7. Scroll Events</h2>
+    <div class="test-item">
+      <label>Vertical Scroll</label>
+      <div id="scroll-container" class="scroll-container">
+        <div class="scroll-content">
+          <p>Scroll down to see more content...</p>
+          <div style="height: 300px; background: #e94560; margin: 20px 0; border-radius: 8px; padding: 20px;">
+            <button id="scrolled-btn" data-testid="scrolled-button" style="margin-top: 20px;">Button After Scroll</button>
+          </div>
+          <p>More content below...</p>
+          <div style="height: 300px; background: #0f3460; margin: 20px 0; border-radius: 8px; padding: 20px;">
+            <p>Keep scrolling...</p>
+          </div>
+          <p>End of scrollable area</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Navigation Events -->
+  <div class="section">
+    <h2>8. Navigation Events</h2>
+    <div class="test-grid">
+      <div class="test-item">
+        <label>Links</label>
+        <div class="link-section">
+          <a href="#section1" id="anchor-link" data-testid="anchor-link">Anchor Link (Same Page)</a>
+          <a href="https://example.com" target="_blank" id="external-link" data-testid="external-link">External Link (New Tab)</a>
+          <a href="javascript:void(0)" id="js-link" data-testid="js-link">JavaScript Link</a>
+        </div>
+      </div>
+      <div class="test-item">
+        <label>Navigation Buttons</label>
+        <div style="display: flex; gap: 10px;">
+          <button id="nav-back" data-testid="nav-back">Back</button>
+          <button id="nav-forward" data-testid="nav-forward">Forward</button>
+          <button id="nav-reload" data-testid="nav-reload">Reload</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="section1" style="margin-top: 500px; padding: 50px; background: #fff3cd; border-radius: 8px;">
+    <h3>Anchor Target Section</h3>
+    <p>This is the target of the anchor link above.</p>
+  </div>
+
+  <!-- Iframe (Same Origin) -->
+  <div class="section">
+    <h2>9. Iframe (Same Origin)</h2>
+    <div class="iframe-container">
+      <iframe id="same-origin-iframe" data-testid="same-origin-iframe" srcdoc="
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: sans-serif; padding: 20px; background: #fff8e1; }
+            button { padding: 10px 20px; margin: 5px; background: #007AFF; color: white; border: none; border-radius: 4px; cursor: pointer; }
+            input { padding: 8px; margin: 5px 0; border: 1px solid #ddd; border-radius: 4px; }
+          </style>
+        </head>
+        <body>
+          <h3>Iframe Content (Same Origin)</h3>
+          <button id='iframe-btn-1'>Click Me</button>
+          <input type='text' id='iframe-input-1' placeholder='Type here'>
+        </body>
+        </html>
+      "></iframe>
+    </div>
+  </div>
+
+  <!-- Iframe (Cross Origin - using data URL) -->
+  <div class="section">
+    <h2>10. Iframe (Cross Origin Simulation)</h2>
+    <div class="iframe-container">
+      <iframe id="cross-origin-iframe" data-testid="cross-origin-iframe" srcdoc="
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: sans-serif; padding: 20px; background: #ffeaa7; }
+            button { padding: 10px 20px; margin: 5px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; }
+            input { padding: 8px; margin: 5px 0; border: 1px solid #ddd; border-radius: 4px; }
+          </style>
+        </head>
+        <body>
+          <h3>Iframe Content (Cross Origin)</h3>
+          <button id='iframe-btn-2'>Click Me</button>
+          <input type='text' id='iframe-input-2' placeholder='Type here'>
+        </body>
+        </html>
+      "></iframe>
+    </div>
+  </div>
+
+  <!-- Iframe (Real Cross Origin - Baidu) -->
+  <div class="section">
+    <h2>11. Iframe (Real Cross Origin - Baidu)</h2>
+    <div class="iframe-container">
+      <iframe id="baidu-iframe" data-testid="baidu-iframe" src="https://www.baidu.com" width="100%" height="300" style="border: 1px solid #ddd; border-radius: 8px;"></iframe>
+    </div>
+    <p style="margin-top: 10px; color: #666; font-size: 12px;">Note: Real cross-origin iframe (baidu.com) - recording may be limited due to browser security policies</p>
+  </div>
+
+  <!-- Modal Dialog -->
+  <div class="section">
+    <h2>11. Modal Dialog</h2>
+    <div class="test-grid">
+      <div class="test-item">
+        <label>Open Modal</label>
+        <button id="open-modal-btn" data-testid="open-modal-btn">Open Modal</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal">
+      <h3>Test Modal</h3>
+      <p>This is a modal dialog for testing recorder.</p>
+      <div class="modal-actions">
+        <button id="modal-confirm" data-testid="modal-confirm">Confirm</button>
+        <button id="modal-cancel" data-testid="modal-cancel" class="btn-secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Update viewport info
+    function updateViewportInfo() {
+      const info = document.getElementById('viewportInfo');
+      if (info) {
+        info.textContent = `Viewport: ${window.innerWidth}x${window.innerHeight} | Scroll: ${window.scrollX},${window.scrollY}`;
+      }
+    }
+    window.addEventListener('resize', updateViewportInfo);
+    window.addEventListener('scroll', updateViewportInfo);
+    updateViewportInfo();
+
+    // Hover effect
+    const hoverBtn = document.getElementById('hover-btn');
+    const hoverResult = document.getElementById('hover-result');
+    hoverBtn.addEventListener('mouseenter', () => {
+      hoverResult.textContent = 'Hovered! ✓';
+      hoverResult.style.color = '#28a745';
+    });
+    hoverBtn.addEventListener('mouseleave', () => {
+      hoverResult.textContent = 'Hover result will appear here';
+      hoverResult.style.color = '#666';
+    });
+
+    // Drag and drop
+    const dragItems = document.querySelectorAll('.drag-item');
+    const dropZone = document.getElementById('drop-zone');
+
+    dragItems.forEach(item => {
+      item.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', item.id);
+        item.style.opacity = '0.5';
+      });
+      item.addEventListener('dragend', () => {
+        item.style.opacity = '1';
+      });
+    });
+
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('dragover');
+      dropZone.classList.remove('dragleave');
+    });
+
+    dropZone.addEventListener('dragenter', () => {
+      dropZone.classList.add('dragleave');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      dropZone.classList.remove('dragleave');
+      dropZone.classList.add('dropped');
+      dropZone.textContent = `Dropped: ${e.dataTransfer.getData('text/plain')}`;
+      setTimeout(() => {
+        dropZone.classList.remove('dropped');
+        dropZone.textContent = 'Drop items here';
+      }, 2000);
+    });
+
+    // Modal
+    const modalOverlay = document.getElementById('modal-overlay');
+    const openModalBtn = document.getElementById('open-modal-btn');
+    const modalConfirm = document.getElementById('modal-confirm');
+    const modalCancel = document.getElementById('modal-cancel');
+
+    openModalBtn.addEventListener('click', () => {
+      modalOverlay.classList.add('active');
+    });
+
+    modalConfirm.addEventListener('click', () => {
+      modalOverlay.classList.remove('active');
+      alert('Modal confirmed!');
+    });
+
+    modalCancel.addEventListener('click', () => {
+      modalOverlay.classList.remove('active');
+    });
+
+    modalOverlay.addEventListener('click', (e) => {
+      if (e.target === modalOverlay) {
+        modalOverlay.classList.remove('active');
+      }
+    });
+
+    // Navigation
+    document.getElementById('nav-back').addEventListener('click', () => {
+      window.history.back();
+    });
+
+    document.getElementById('nav-forward').addEventListener('click', () => {
+      window.history.forward();
+    });
+
+    document.getElementById('nav-reload').addEventListener('click', () => {
+      window.location.reload();
+    });
+
+    console.log('[Test Page] All interactive elements initialized');
+  </script>
+</body>
+</html>

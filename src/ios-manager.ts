@@ -598,6 +598,8 @@ export class IOSManager {
 
     if (refArg.startsWith('@')) {
       ref = refArg.slice(1);
+    } else if (refArg.startsWith('[ref=') && refArg.endsWith(']')) {
+      ref = refArg.slice(5, -1);
     } else if (refArg.startsWith('ref=')) {
       ref = refArg.slice(4);
     } else if (/^e\d+$/.test(refArg)) {

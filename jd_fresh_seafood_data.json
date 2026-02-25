@@ -1,0 +1,23 @@
+{
+  "keyword": "生鲜海鲜",
+  "crawl_time": "2026-02-24T15:42:00.000Z",
+  "total_products": 1,
+  "products": [
+    {
+      "id": 1,
+      "title": "首鲜道斑节虾特大海鲜竹节虾鲜活急冻九节虾生鲜虾类基尾虾 80-100只 推荐款 2斤(净重)",
+      "shop": "首鲜道旗舰店",
+      "price": "128",
+      "sales": "6000+",
+      "reviews": {
+        "total": "5000+",
+        "good_percent": "91%",
+        "good": "",
+        "neutral": "",
+        "bad": ""
+      },
+      "region": "京朝阳区八里庄街道",
+      "url": "https://item.jd.com/10067459993792.html"
+    }
+  ]
+}

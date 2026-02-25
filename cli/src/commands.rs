@@ -66,6 +66,55 @@ pub fn gen_id() -> String {
     )
 }
 
+fn parse_in_frame<'a>(args: &[&'a str]) -> (Option<String>, Vec<&'a str>) {
+    let mut in_frame: Option<String> = None;
+    let mut remaining: Vec<&'a str> = Vec::new();
+    let mut i = 0;
+    while i < args.len() {
+        if args[i] == "--in-frame" || args[i] == "-f" {
+            if i + 1 < args.len() {
+                in_frame = Some(args[i + 1].to_string());
+                i += 2;
+            } else {
+                i += 1;
+            }
+        } else {
+            remaining.push(args[i]);
+            i += 1;
+        }
+    }
+    (in_frame, remaining)
+}
+
+fn parse_diff<'a>(args: &[&'a str]) -> (Option<serde_json::Value>, Vec<&'a str>) {
+    let diff_idx = args.iter().position(|a| *a == "--diff");
+    if diff_idx.is_none() {
+        return (None, args.to_vec());
+    }
+    
+    let diff_idx = diff_idx.unwrap();
+    let mut remaining: Vec<&'a str> = args.to_vec();
+    remaining.remove(diff_idx);
+    
+    if diff_idx < remaining.len() {
+        let next_arg = remaining[diff_idx];
+        if next_arg == "full" {
+            remaining.remove(diff_idx);
+            return (Some(json!("full")), remaining);
+        }
+        if next_arg.chars().all(|c| c.is_ascii_digit()) {
+            remaining.remove(diff_idx);
+            return (Some(json!(next_arg.parse::<u32>().unwrap_or(3))), remaining);
+        }
+        if !next_arg.starts_with('-') && !next_arg.starts_with('@') {
+            remaining.remove(diff_idx);
+            return (Some(json!(next_arg)), remaining);
+        }
+    }
+    
+    (Some(json!(3)), remaining)
+}
+
 pub fn parse_command(args: &[String], flags: &Flags) -> Result<Value, ParseError> {
     if args.is_empty() {
         return Err(ParseError::MissingArguments {
@@ -117,76 +166,157 @@ pub fn parse_command(args: &[String], flags: &Flags) -> Result<Value, ParseError
 
         // === Core Actions ===
         "click" => {
-            let sel = rest.get(0).ok_or_else(|| ParseError::MissingArguments {
+            let (in_frame, r1) = parse_in_frame(&rest);
+            let (diff_scope, remaining) = parse_diff(&r1);
+            let sel = remaining.get(0).ok_or_else(|| ParseError::MissingArguments {
                 context: "click".to_string(),
-                usage: "click <selector>",
+                usage: "click <selector> [--diff [scope]] [--in-frame <path>]",
             })?;
-            Ok(json!({ "id": id, "action": "click", "selector": sel }))
+            let mut cmd = json!({ "id": id, "action": "click", "selector": sel });
+            if let Some(frame) = in_frame {
+                cmd["inFrame"] = json!(frame);
+            }
+            if let Some(diff) = diff_scope {
+                cmd["diffScope"] = diff;
+            }
+            Ok(cmd)
         }
         "dblclick" => {
-            let sel = rest.get(0).ok_or_else(|| ParseError::MissingArguments {
+            let (in_frame, r1) = parse_in_frame(&rest);
+            let (diff_scope, remaining) = parse_diff(&r1);
+            let sel = remaining.get(0).ok_or_else(|| ParseError::MissingArguments {
                 context: "dblclick".to_string(),
-                usage: "dblclick <selector>",
+                usage: "dblclick <selector> [--diff [scope]] [--in-frame <path>]",
             })?;
-            Ok(json!({ "id": id, "action": "dblclick", "selector": sel }))
+            let mut cmd = json!({ "id": id, "action": "dblclick", "selector": sel });
+            if let Some(frame) = in_frame {
+                cmd["inFrame"] = json!(frame);
+            }
+            if let Some(diff) = diff_scope {
+                cmd["diffScope"] = diff;
+            }
+            Ok(cmd)
         }
         "fill" => {
-            let sel = rest.get(0).ok_or_else(|| ParseError::MissingArguments {
+            let (in_frame, r1) = parse_in_frame(&rest);
+            let (diff_scope, remaining) = parse_diff(&r1);
+            let sel = remaining.get(0).ok_or_else(|| ParseError::MissingArguments {
                 context: "fill".to_string(),
-                usage: "fill <selector> <text>",
+                usage: "fill <selector> <text> [--diff [scope]] [--in-frame <path>]",
             })?;
-            Ok(json!({ "id": id, "action": "fill", "selector": sel, "value": rest[1..].join(" ") }))
+            let mut cmd = json!({ "id": id, "action": "fill", "selector": sel, "value": remaining[1..].join(" ") });
+            if let Some(frame) = in_frame {
+                cmd["inFrame"] = json!(frame);
+            }
+            if let Some(diff) = diff_scope {
+                cmd["diffScope"] = diff;
+            }
+            Ok(cmd)
         }
         "type" => {
-            let sel = rest.get(0).ok_or_else(|| ParseError::MissingArguments {
+            let (in_frame, r1) = parse_in_frame(&rest);
+            let (diff_scope, remaining) = parse_diff(&r1);
+            let sel = remaining.get(0).ok_or_else(|| ParseError::MissingArguments {
                 context: "type".to_string(),
-                usage: "type <selector> <text>",
+                usage: "type <selector> <text> [--diff [scope]] [--in-frame <path>]",
             })?;
-            Ok(json!({ "id": id, "action": "type", "selector": sel, "text": rest[1..].join(" ") }))
+            let mut cmd = json!({ "id": id, "action": "type", "selector": sel, "text": remaining[1..].join(" ") });
+            if let Some(frame) = in_frame {
+                cmd["inFrame"] = json!(frame);
+            }
+            if let Some(diff) = diff_scope {
+                cmd["diffScope"] = diff;
+            }
+            Ok(cmd)
         }
         "hover" => {
-            let sel = rest.get(0).ok_or_else(|| ParseError::MissingArguments {
+            let (in_frame, r1) = parse_in_frame(&rest);
+            let (diff_scope, remaining) = parse_diff(&r1);
+            let sel = remaining.get(0).ok_or_else(|| ParseError::MissingArguments {
                 context: "hover".to_string(),
-                usage: "hover <selector>",
+                usage: "hover <selector> [--diff [scope]] [--in-frame <path>]",
             })?;
-            Ok(json!({ "id": id, "action": "hover", "selector": sel }))
+            let mut cmd = json!({ "id": id, "action": "hover", "selector": sel });
+            if let Some(frame) = in_frame {
+                cmd["inFrame"] = json!(frame);
+            }
+            if let Some(diff) = diff_scope {
+                cmd["diffScope"] = diff;
+            }
+            Ok(cmd)
         }
         "focus" => {
-            let sel = rest.get(0).ok_or_else(|| ParseError::MissingArguments {
+            let (in_frame, r1) = parse_in_frame(&rest);
+            let (diff_scope, remaining) = parse_diff(&r1);
+            let sel = remaining.get(0).ok_or_else(|| ParseError::MissingArguments {
                 context: "focus".to_string(),
-                usage: "focus <selector>",
+                usage: "focus <selector> [--diff [scope]] [--in-frame <path>]",
             })?;
-            Ok(json!({ "id": id, "action": "focus", "selector": sel }))
+            let mut cmd = json!({ "id": id, "action": "focus", "selector": sel });
+            if let Some(frame) = in_frame {
+                cmd["inFrame"] = json!(frame);
+            }
+            if let Some(diff) = diff_scope {
+                cmd["diffScope"] = diff;
+            }
+            Ok(cmd)
         }
         "check" => {
-            let sel = rest.get(0).ok_or_else(|| ParseError::MissingArguments {
+            let (in_frame, r1) = parse_in_frame(&rest);
+            let (diff_scope, remaining) = parse_diff(&r1);
+            let sel = remaining.get(0).ok_or_else(|| ParseError::MissingArguments {
                 context: "check".to_string(),
-                usage: "check <selector>",
+                usage: "check <selector> [--diff [scope]] [--in-frame <path>]",
             })?;
-            Ok(json!({ "id": id, "action": "check", "selector": sel }))
+            let mut cmd = json!({ "id": id, "action": "check", "selector": sel });
+            if let Some(frame) = in_frame {
+                cmd["inFrame"] = json!(frame);
+            }
+            if let Some(diff) = diff_scope {
+                cmd["diffScope"] = diff;
+            }
+            Ok(cmd)
         }
         "uncheck" => {
-            let sel = rest.get(0).ok_or_else(|| ParseError::MissingArguments {
+            let (in_frame, r1) = parse_in_frame(&rest);
+            let (diff_scope, remaining) = parse_diff(&r1);
+            let sel = remaining.get(0).ok_or_else(|| ParseError::MissingArguments {
                 context: "uncheck".to_string(),
-                usage: "uncheck <selector>",
+                usage: "uncheck <selector> [--diff [scope]] [--in-frame <path>]",
             })?;
-            Ok(json!({ "id": id, "action": "uncheck", "selector": sel }))
+            let mut cmd = json!({ "id": id, "action": "uncheck", "selector": sel });
+            if let Some(frame) = in_frame {
+                cmd["inFrame"] = json!(frame);
+            }
+            if let Some(diff) = diff_scope {
+                cmd["diffScope"] = diff;
+            }
+            Ok(cmd)
         }
         "select" => {
-            let sel = rest.get(0).ok_or_else(|| ParseError::MissingArguments {
+            let (in_frame, r1) = parse_in_frame(&rest);
+            let (diff_scope, remaining) = parse_diff(&r1);
+            let sel = remaining.get(0).ok_or_else(|| ParseError::MissingArguments {
                 context: "select".to_string(),
-                usage: "select <selector> <value...>",
+                usage: "select <selector> <value...> [--diff [scope]] [--in-frame <path>]",
             })?;
-            let _val = rest.get(1).ok_or_else(|| ParseError::MissingArguments {
+            let _val = remaining.get(1).ok_or_else(|| ParseError::MissingArguments {
                 context: "select".to_string(),
-                usage: "select <selector> <value...>",
+                usage: "select <selector> <value...> [--diff [scope]] [--in-frame <path>]",
             })?;
-            let values = &rest[1..];
-            if values.len() == 1 {
-                Ok(json!({ "id": id, "action": "select", "selector": sel, "values": values[0] }))
+            let values = &remaining[1..];
+            let mut cmd = if values.len() == 1 {
+                json!({ "id": id, "action": "select", "selector": sel, "values": values[0] })
             } else {
-                Ok(json!({ "id": id, "action": "select", "selector": sel, "values": values }))
+                json!({ "id": id, "action": "select", "selector": sel, "values": values })
+            };
+            if let Some(frame) = in_frame {
+                cmd["inFrame"] = json!(frame);
             }
+            if let Some(diff) = diff_scope {
+                cmd["diffScope"] = diff;
+            }
+            Ok(cmd)
         }
         "drag" => {
             let src = rest.get(0).ok_or_else(|| ParseError::MissingArguments {
@@ -220,11 +350,16 @@ pub fn parse_command(args: &[String], flags: &Flags) -> Result<Value, ParseError
 
         // === Keyboard ===
         "press" | "key" => {
-            let key = rest.get(0).ok_or_else(|| ParseError::MissingArguments {
+            let (diff_scope, remaining) = parse_diff(&rest);
+            let key = remaining.get(0).ok_or_else(|| ParseError::MissingArguments {
                 context: "press".to_string(),
-                usage: "press <key>",
+                usage: "press <key> [--diff [scope]]",
             })?;
-            Ok(json!({ "id": id, "action": "press", "key": key }))
+            let mut cmd = json!({ "id": id, "action": "press", "key": key });
+            if let Some(diff) = diff_scope {
+                cmd["diffScope"] = diff;
+            }
+            Ok(cmd)
         }
         "keydown" => {
             let key = rest.get(0).ok_or_else(|| ParseError::MissingArguments {
@@ -429,39 +564,47 @@ pub fn parse_command(args: &[String], flags: &Flags) -> Result<Value, ParseError
 
         // === Eval ===
         "eval" => {
-            // Check for flags: -b/--base64 or --stdin
-            let (is_base64, is_stdin, script_parts): (bool, bool, &[&str]) =
+            let (is_base64, is_stdin, is_file, script_parts): (bool, bool, bool, &[&str]) =
                 if rest.first() == Some(&"-b") || rest.first() == Some(&"--base64") {
-                    (true, false, &rest[1..])
+                    (true, false, false, &rest[1..])
                 } else if rest.first() == Some(&"--stdin") {
-                    (false, true, &rest[1..])
+                    (false, true, false, &rest[1..])
+                } else if rest.first() == Some(&"--file") || rest.first() == Some(&"-f") {
+                    (false, false, true, &rest[1..])
                 } else {
-                    (false, false, rest.as_slice())
+                    (false, false, false, rest.as_slice())
                 };
 
-            let script = if is_stdin {
-                // Read script from stdin
-                let stdin = io::stdin();
-                let lines: Vec<String> = stdin.lock().lines()
-                    .map(|l| l.unwrap_or_default())
-                    .collect();
-                lines.join("\n")
+            if is_file {
+                let file_path = script_parts.first().ok_or_else(|| ParseError::MissingArguments {
+                    context: "eval --file".to_string(),
+                    usage: "eval --file <path>",
+                })?;
+                Ok(json!({ "id": id, "action": "evaluate", "file": file_path }))
             } else {
-                let raw_script = script_parts.join(" ");
-                if is_base64 {
-                    let decoded = STANDARD.decode(&raw_script).map_err(|_| ParseError::InvalidValue {
-                        message: "Invalid base64 encoding".to_string(),
-                        usage: "eval -b <base64-encoded-script>",
-                    })?;
-                    String::from_utf8(decoded).map_err(|_| ParseError::InvalidValue {
-                        message: "Base64 decoded to invalid UTF-8".to_string(),
-                        usage: "eval -b <base64-encoded-script>",
-                    })?
+                let script = if is_stdin {
+                    let stdin = io::stdin();
+                    let lines: Vec<String> = stdin.lock().lines()
+                        .map(|l| l.unwrap_or_default())
+                        .collect();
+                    lines.join("\n")
                 } else {
-                    raw_script
-                }
-            };
-            Ok(json!({ "id": id, "action": "evaluate", "script": script }))
+                    let raw_script = script_parts.join(" ");
+                    if is_base64 {
+                        let decoded = STANDARD.decode(&raw_script).map_err(|_| ParseError::InvalidValue {
+                            message: "Invalid base64 encoding".to_string(),
+                            usage: "eval -b <base64-encoded-script>",
+                        })?;
+                        String::from_utf8(decoded).map_err(|_| ParseError::InvalidValue {
+                            message: "Base64 decoded to invalid UTF-8".to_string(),
+                            usage: "eval -b <base64-encoded-script>",
+                        })?
+                    } else {
+                        raw_script
+                    }
+                };
+                Ok(json!({ "id": id, "action": "evaluate", "script": script }))
+            }
         }
 
         // === Close ===
@@ -693,11 +836,47 @@ pub fn parse_command(args: &[String], flags: &Flags) -> Result<Value, ParseError
             if rest.get(0).map(|s| *s) == Some("main") {
                 Ok(json!({ "id": id, "action": "mainframe" }))
             } else {
-                let sel = rest.get(0).ok_or_else(|| ParseError::MissingArguments {
-                    context: "frame".to_string(),
-                    usage: "frame <selector|main>",
-                })?;
-                Ok(json!({ "id": id, "action": "frame", "selector": sel }))
+                // Check for --url or --name flags
+                let mut url_opt: Option<&str> = None;
+                let mut name_opt: Option<&str> = None;
+                let mut selector_opt: Option<&str> = None;
+                let mut i = 0;
+                while i < rest.len() {
+                    match rest[i] {
+                        "--url" => {
+                            if let Some(url) = rest.get(i + 1) {
+                                url_opt = Some(*url);
+                            }
+                            i += 2;
+                        }
+                        "--name" => {
+                            if let Some(name) = rest.get(i + 1) {
+                                name_opt = Some(*name);
+                            }
+                            i += 2;
+                        }
+                        other => {
+                            // First non-flag argument is the selector
+                            if selector_opt.is_none() && !other.starts_with("--") {
+                                selector_opt = Some(other);
+                            }
+                            i += 1;
+                        }
+                    }
+                }
+                
+                if let Some(url) = url_opt {
+                    Ok(json!({ "id": id, "action": "frame", "url": url }))
+                } else if let Some(name) = name_opt {
+                    Ok(json!({ "id": id, "action": "frame", "name": name }))
+                } else if let Some(sel) = selector_opt {
+                    Ok(json!({ "id": id, "action": "frame", "selector": sel }))
+                } else {
+                    Err(ParseError::MissingArguments {
+                        context: "frame".to_string(),
+                        usage: "frame <selector|main> [--url <url>] [--name <name>]",
+                    })
+                }
             }
         }
 

@@ -27,6 +27,38 @@ agent-browser wait --load networkidle
 agent-browser snapshot -i  # Check result
 ```
 
+## Working with Iframes
+
+Use `--in-frame` to operate inside iframes. The path uses iframe name/id or index:
+
+```bash
+# Direct iframe by ID or name
+agent-browser snapshot --in-frame "#my-iframe"
+
+# Nested iframe using path (name/id or index)
+agent-browser snapshot --in-frame "#outer-frame/inner-frame"
+
+# Example: Click element inside nested cross-origin iframe
+agent-browser open https://example.com
+agent-browser snapshot --in-frame "#iframe-container"
+agent-browser click @e1 --in-frame "#iframe-container/login-frame"
+agent-browser fill #username "admin" --in-frame "#iframe-container/login-frame"
+agent-browser get value #username --in-frame "#iframe-container/login-frame"
+```
+
+### Frame Path Syntax
+
+The frame path supports:
+- **ID/Name**: `#frame-id` or `#frame-name`
+- **Index**: `#0`, `#1` (by position)
+- **Nested**: `#parent/child/grandchild`
+
+Examples:
+- `#my-iframe` - Single iframe
+- `#0` - First iframe
+- `#outer-iframe/login-frame` - Nested iframes by name
+- `#0/1` - First iframe's second child
+
 ## Essential Commands
 
 ```bash
@@ -38,6 +70,8 @@ agent-browser close                   # Close browser
 agent-browser snapshot -i             # Interactive elements with refs (recommended)
 agent-browser snapshot -i -C          # Include cursor-interactive elements (divs with onclick, cursor:pointer)
 agent-browser snapshot -s "#selector" # Scope to CSS selector
+agent-browser snapshot -s "body" --path   # Include xpath and cssPath in refs
+agent-browser snapshot -s "body" --attrs  # Include element attributes in refs
 
 # Interaction (use @refs from snapshot)
 agent-browser click @e1               # Click element
@@ -64,6 +98,35 @@ agent-browser screenshot              # Screenshot to temp dir
 agent-browser screenshot --full       # Full page screenshot
 agent-browser pdf output.pdf          # Save as PDF
 ```
+
+## Human-like Mouse Movement
+
+Use `--human` to simulate natural mouse trajectories, useful for bypassing bot detection:
+
+```bash
+# Click with human-like movement
+agent-browser click @e1 --human
+agent-browser click @e1 --human arc      # Smooth arc (default, most natural)
+agent-browser click @e1 --human bezier   # Bezier curve with overshoot
+agent-browser click @e1 --human random   # Random path with jitter
+agent-browser click @e1 --human linear   # Straight line (fastest)
+
+# Other interactions
+agent-browser fill @e1 "text" --human
+agent-browser type @e1 "text" --human
+agent-browser hover @e1 --human
+agent-browser dblclick @e1 --human
+
+# Random mouse wandering
+agent-browser mouse wander 3000          # Wander for 3 seconds
+agent-browser mouse wander 5000 --human arc
+```
+
+**Features:**
+- Continues from last mouse position for realistic trajectories
+- Natural acceleration/deceleration curves
+- Randomized delays between movements
+- Four trajectory types: `arc` (default), `bezier`, `random`, `linear`
 
 ## Common Patterns
 
@@ -108,6 +171,40 @@ agent-browser get text body > page.txt  # Get all page text
 # JSON output for parsing
 agent-browser snapshot -i --json
 agent-browser get text @e1 --json
+```
+
+### API Interception
+
+Passively capture API responses without making direct requests. Useful for sites with anti-scraping measures.
+
+```bash
+# 1. Open blank page first
+agent-browser open "about:blank"
+
+# 2. Start request listener in background
+(agent-browser wait --request "api/users" --timeout 30000 > response.json) &
+WAIT_PID=$!
+sleep 1
+
+# 3. Navigate to trigger the API call
+agent-browser open "https://example.com/user/profile"
+
+# 4. Wait for response
+wait $WAIT_PID
+
+# 5. Process captured data
+jq '.body' response.json
+```
+
+Example: Capture Douyin user videos
+```bash
+agent-browser open "about:blank"
+(agent-browser wait --request "aweme/post" --timeout 30000 > /tmp/douyin.json) &
+sleep 1
+agent-browser open "https://www.douyin.com/user/xxx"
+sleep 5
+wait
+jq '.body.aweme_list[:10] | map({id, desc, stats})' /tmp/douyin.json
 ```
 
 ### Parallel Sessions
@@ -196,6 +293,7 @@ agent-browser find testid "submit-btn" click
 | Reference | When to Use |
 |-----------|-------------|
 | [references/commands.md](references/commands.md) | Full command reference with all options |
+| [references/data-extraction.md](references/data-extraction.md) | **Data extraction patterns: DOM, JS variables, API interception, infinite scroll, iframe** |
 | [references/snapshot-refs.md](references/snapshot-refs.md) | Ref lifecycle, invalidation rules, troubleshooting |
 | [references/session-management.md](references/session-management.md) | Parallel sessions, state persistence, concurrent scraping |
 | [references/authentication.md](references/authentication.md) | Login flows, OAuth, 2FA handling, state reuse |
@@ -206,11 +304,20 @@ agent-browser find testid "submit-btn" click
 
 | Template | Description |
 |----------|-------------|
+| [templates/data-extraction.sh](templates/data-extraction.sh) | **Universal data extraction (DOM/JS/API/Scroll modes)** |
+| [templates/api-interception.sh](templates/api-interception.sh) | Passively capture API responses |
 | [templates/form-automation.sh](templates/form-automation.sh) | Form filling with validation |
 | [templates/authenticated-session.sh](templates/authenticated-session.sh) | Login once, reuse state |
 | [templates/capture-workflow.sh](templates/capture-workflow.sh) | Content extraction with screenshots |
 
 ```bash
+# Data extraction examples
+./templates/data-extraction.sh https://example.com/products                    # DOM mode
+./templates/data-extraction.sh https://spa-app.com data.json js               # JS variables
+./templates/data-extraction.sh https://api-site.com output.json api "api/v1"  # API interception
+./templates/data-extraction.sh https://infinite-list.com items.json scroll    # Infinite scroll
+
+# Other templates
 ./templates/form-automation.sh https://example.com/form
 ./templates/authenticated-session.sh https://app.example.com/login
 ./templates/capture-workflow.sh https://example.com ./output

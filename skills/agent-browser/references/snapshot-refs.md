@@ -34,7 +34,38 @@ agent-browser snapshot
 
 # Interactive snapshot (-i flag) - RECOMMENDED
 agent-browser snapshot -i
+
+# Get element paths (xpath, cssPath)
+agent-browser snapshot -s "body" --path
+
+# Get element attributes
+agent-browser snapshot -s "body" --attrs
+
+# Get both paths and attributes
+agent-browser snapshot -s "body" --path --attrs
 ```
+
+### Path and Attributes Options
+
+When you need to get element paths or attributes, use `--path` and `--attrs`:
+
+**Important:** These options require `--selector` to limit scope.
+
+```bash
+# Get xpath and cssPath for debugging or external tools
+agent-browser snapshot -s "body" --path
+# Output: refs include { "xpath": "//*[@id=\"submit-btn\"]", "cssPath": "#submit-btn" }
+
+# Get element attributes for analysis
+agent-browser snapshot -s "body" --attrs
+# Output: refs include { "attributes": {"id": "submit-btn", "class": "btn", "type": "submit"} }
+```
+
+**XPath Generation Rules:**
+1. Priority: `id` > `data-testid` > `data-id` > semantic class > position index
+2. Maximum 5 levels deep
+3. Filters out utility classes (Tailwind, etc.)
+4. Uses semantic tags (main, nav, form) as anchors
 
 ### Snapshot Output Format
 

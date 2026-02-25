@@ -144,12 +144,8 @@ export function printResponse(resp: Response, jsonMode: boolean, action?: string
       return;
     }
 
-    const realDevices = data.devices.filter(
-      (d: Record<string, unknown>) => d.isRealDevice
-    );
-    const simulators = data.devices.filter(
-      (d: Record<string, unknown>) => !d.isRealDevice
-    );
+    const realDevices = data.devices.filter((d: Record<string, unknown>) => d.isRealDevice);
+    const simulators = data.devices.filter((d: Record<string, unknown>) => !d.isRealDevice);
 
     if (realDevices.length > 0) {
       console.log('Connected Devices:\n');
@@ -258,7 +254,9 @@ export function printResponse(resp: Response, jsonMode: boolean, action?: string
 
       if (el.styles) {
         const styles = el.styles as Record<string, unknown>;
-        console.log(`    font: ${styles.fontSize || ''} ${styles.fontWeight || ''} ${styles.fontFamily || ''}`);
+        console.log(
+          `    font: ${styles.fontSize || ''} ${styles.fontWeight || ''} ${styles.fontFamily || ''}`
+        );
         console.log(`    color: ${styles.color || ''}`);
         console.log(`    background: ${styles.backgroundColor || ''}`);
       }
@@ -284,7 +282,9 @@ export function printResponse(resp: Response, jsonMode: boolean, action?: string
   if (data.stopped !== undefined) {
     const path = (data.path as string) || 'unknown';
     if (data.previousPath) {
-      console.log(`${successIndicator()} Recording restarted: ${path} (previous saved to ${data.previousPath})`);
+      console.log(
+        `${successIndicator()} Recording restarted: ${path} (previous saved to ${data.previousPath})`
+      );
     } else {
       console.log(`${successIndicator()} Recording started: ${path}`);
     }
@@ -308,7 +308,9 @@ export function printResponse(resp: Response, jsonMode: boolean, action?: string
     if (data.path) {
       const filename = (data.suggestedFilename as string) || (data.filename as string) || '';
       if (filename) {
-        console.log(`${successIndicator()} Downloaded to ${green(data.path as string)} (${filename})`);
+        console.log(
+          `${successIndicator()} Downloaded to ${green(data.path as string)} (${filename})`
+        );
       } else {
         console.log(`${successIndicator()} Downloaded to ${green(data.path as string)}`);
       }
@@ -338,6 +340,11 @@ export function printResponse(resp: Response, jsonMode: boolean, action?: string
         if (data.note) console.log(data.note);
         console.log(`${successIndicator()} State path set to ${green(data.path)}`);
         break;
+      case 'recorder_stop':
+        console.log(
+          `${successIndicator()} Recorded ${data.steps} steps, saved to ${green(data.path)}`
+        );
+        break;
       default:
         console.log(`${successIndicator()} Saved to ${green(data.path)}`);
     }
@@ -346,6 +353,12 @@ export function printResponse(resp: Response, jsonMode: boolean, action?: string
 
   if (data.note && typeof data.note === 'string') {
     console.log(data.note);
+    return;
+  }
+
+  if (data.yaml && typeof data.yaml === 'string') {
+    console.log(`${successIndicator()} Recorded ${data.steps} steps`);
+    console.log(data.yaml);
     return;
   }
 

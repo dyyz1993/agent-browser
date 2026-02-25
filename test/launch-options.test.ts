@@ -39,7 +39,7 @@ describe('Launch Options', () => {
       expect(browser.isLaunched()).toBe(true);
     });
 
-    it('should launch without args (default behavior)', async () => {
+    it('should launch with default anti-detection args', async () => {
       browser = new BrowserManager();
       await browser.launch({
         headless: true,
@@ -48,9 +48,9 @@ describe('Launch Options', () => {
       const page = browser.getPage();
       await page.goto('about:blank');
 
-      // Default Playwright behavior - webdriver is true
+      // Default behavior with anti-detection - webdriver is false
       const webdriver = await page.evaluate(() => navigator.webdriver);
-      expect(webdriver).toBe(true);
+      expect(webdriver).toBe(false);
     });
   });
 

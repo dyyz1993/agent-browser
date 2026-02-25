@@ -7,6 +7,16 @@ const baseCommandSchema = z.object({
   action: z.string(),
 });
 
+// Human config schema for --human flag
+const humanConfigSchema = z.object({
+  enabled: z.boolean(),
+  pathType: z.enum(['bezier', 'arc', 'random', 'linear']),
+});
+
+// Helper to add inFrame support to element-action schemas
+const withFrame = <T extends z.ZodRawShape>(schema: z.ZodObject<T>) =>
+  schema.extend({ inFrame: z.string().optional() });
+
 // Individual action schemas
 const launchSchema = baseCommandSchema.extend({
   action: z.literal('launch'),
@@ -57,37 +67,55 @@ const navigateSchema = baseCommandSchema.extend({
   headers: z.record(z.string()).optional(),
 });
 
-const clickSchema = baseCommandSchema.extend({
-  action: z.literal('click'),
-  selector: z.string().min(1),
-  button: z.enum(['left', 'right', 'middle']).optional(),
-  clickCount: z.number().positive().optional(),
-  delay: z.number().nonnegative().optional(),
-});
+const clickSchema = withFrame(
+  baseCommandSchema.extend({
+    action: z.literal('click'),
+    selector: z.string().min(1),
+    button: z.enum(['left', 'right', 'middle']).optional(),
+    clickCount: z.number().positive().optional(),
+    delay: z.number().nonnegative().optional(),
+    diffScope: z.union([z.number(), z.literal('full'), z.string()]).optional(),
+    human: humanConfigSchema.optional(),
+  })
+);
 
-const typeSchema = baseCommandSchema.extend({
-  action: z.literal('type'),
-  selector: z.string().min(1),
-  text: z.string(),
-  delay: z.number().nonnegative().optional(),
-  clear: z.boolean().optional(),
-});
+const typeSchema = withFrame(
+  baseCommandSchema.extend({
+    action: z.literal('type'),
+    selector: z.string().min(1),
+    text: z.string(),
+    delay: z.number().nonnegative().optional(),
+    clear: z.boolean().optional(),
+    diffScope: z.union([z.number(), z.literal('full'), z.string()]).optional(),
+    human: humanConfigSchema.optional(),
+  })
+);
 
-const fillSchema = baseCommandSchema.extend({
-  action: z.literal('fill'),
-  selector: z.string().min(1),
-  value: z.string(),
-});
+const fillSchema = withFrame(
+  baseCommandSchema.extend({
+    action: z.literal('fill'),
+    selector: z.string().min(1),
+    value: z.string(),
+    diffScope: z.union([z.number(), z.literal('full'), z.string()]).optional(),
+    human: humanConfigSchema.optional(),
+  })
+);
 
-const checkSchema = baseCommandSchema.extend({
-  action: z.literal('check'),
-  selector: z.string().min(1),
-});
+const checkSchema = withFrame(
+  baseCommandSchema.extend({
+    action: z.literal('check'),
+    selector: z.string().min(1),
+    diffScope: z.union([z.number(), z.literal('full'), z.string()]).optional(),
+  })
+);
 
-const uncheckSchema = baseCommandSchema.extend({
-  action: z.literal('uncheck'),
-  selector: z.string().min(1),
-});
+const uncheckSchema = withFrame(
+  baseCommandSchema.extend({
+    action: z.literal('uncheck'),
+    selector: z.string().min(1),
+    diffScope: z.union([z.number(), z.literal('full'), z.string()]).optional(),
+  })
+);
 
 const uploadSchema = baseCommandSchema.extend({
   action: z.literal('upload'),
@@ -95,21 +123,30 @@ const uploadSchema = baseCommandSchema.extend({
   files: z.union([z.string(), z.array(z.string())]),
 });
 
-const dblclickSchema = baseCommandSchema.extend({
-  action: z.literal('dblclick'),
-  selector: z.string().min(1),
-});
+const dblclickSchema = withFrame(
+  baseCommandSchema.extend({
+    action: z.literal('dblclick'),
+    selector: z.string().min(1),
+    diffScope: z.union([z.number(), z.literal('full'), z.string()]).optional(),
+    human: humanConfigSchema.optional(),
+  })
+);
 
-const focusSchema = baseCommandSchema.extend({
-  action: z.literal('focus'),
-  selector: z.string().min(1),
-});
+const focusSchema = withFrame(
+  baseCommandSchema.extend({
+    action: z.literal('focus'),
+    selector: z.string().min(1),
+    diffScope: z.union([z.number(), z.literal('full'), z.string()]).optional(),
+  })
+);
 
-const dragSchema = baseCommandSchema.extend({
-  action: z.literal('drag'),
-  source: z.string().min(1),
-  target: z.string().min(1),
-});
+const dragSchema = withFrame(
+  baseCommandSchema.extend({
+    action: z.literal('drag'),
+    source: z.string().min(1),
+    target: z.string().min(1),
+  })
+);
 
 const frameSchema = baseCommandSchema.extend({
   action: z.literal('frame'),
@@ -122,37 +159,45 @@ const mainframeSchema = baseCommandSchema.extend({
   action: z.literal('mainframe'),
 });
 
-const getByRoleSchema = baseCommandSchema.extend({
-  action: z.literal('getbyrole'),
-  role: z.string().min(1),
-  name: z.string().optional(),
-  exact: z.boolean().optional(),
-  subaction: z.enum(['click', 'fill', 'check', 'hover']),
-  value: z.string().optional(),
-});
+const getByRoleSchema = withFrame(
+  baseCommandSchema.extend({
+    action: z.literal('getbyrole'),
+    role: z.string().min(1),
+    name: z.string().optional(),
+    exact: z.boolean().optional(),
+    subaction: z.enum(['click', 'fill', 'check', 'hover']),
+    value: z.string().optional(),
+  })
+);
 
-const getByTextSchema = baseCommandSchema.extend({
-  action: z.literal('getbytext'),
-  text: z.string().min(1),
-  exact: z.boolean().optional(),
-  subaction: z.enum(['click', 'hover']),
-});
+const getByTextSchema = withFrame(
+  baseCommandSchema.extend({
+    action: z.literal('getbytext'),
+    text: z.string().min(1),
+    exact: z.boolean().optional(),
+    subaction: z.enum(['click', 'hover']),
+  })
+);
 
-const getByLabelSchema = baseCommandSchema.extend({
-  action: z.literal('getbylabel'),
-  label: z.string().min(1),
-  exact: z.boolean().optional(),
-  subaction: z.enum(['click', 'fill', 'check']),
-  value: z.string().optional(),
-});
+const getByLabelSchema = withFrame(
+  baseCommandSchema.extend({
+    action: z.literal('getbylabel'),
+    label: z.string().min(1),
+    exact: z.boolean().optional(),
+    subaction: z.enum(['click', 'fill', 'check']),
+    value: z.string().optional(),
+  })
+);
 
-const getByPlaceholderSchema = baseCommandSchema.extend({
-  action: z.literal('getbyplaceholder'),
-  placeholder: z.string().min(1),
-  exact: z.boolean().optional(),
-  subaction: z.enum(['click', 'fill']),
-  value: z.string().optional(),
-});
+const getByPlaceholderSchema = withFrame(
+  baseCommandSchema.extend({
+    action: z.literal('getbyplaceholder'),
+    placeholder: z.string().min(1),
+    exact: z.boolean().optional(),
+    subaction: z.enum(['click', 'fill']),
+    value: z.string().optional(),
+  })
+);
 
 const cookiesGetSchema = baseCommandSchema.extend({
   action: z.literal('cookies_get'),
@@ -292,46 +337,62 @@ const titleSchema = baseCommandSchema.extend({
   action: z.literal('title'),
 });
 
-const getAttributeSchema = baseCommandSchema.extend({
-  action: z.literal('getattribute'),
-  selector: z.string().min(1),
-  attribute: z.string().min(1),
-});
+const getAttributeSchema = withFrame(
+  baseCommandSchema.extend({
+    action: z.literal('getattribute'),
+    selector: z.string().min(1),
+    attribute: z.string().min(1),
+  })
+);
 
-const getTextSchema = baseCommandSchema.extend({
-  action: z.literal('gettext'),
-  selector: z.string().min(1),
-});
+const getTextSchema = withFrame(
+  baseCommandSchema.extend({
+    action: z.literal('gettext'),
+    selector: z.string().min(1),
+  })
+);
 
-const isVisibleSchema = baseCommandSchema.extend({
-  action: z.literal('isvisible'),
-  selector: z.string().min(1),
-});
+const isVisibleSchema = withFrame(
+  baseCommandSchema.extend({
+    action: z.literal('isvisible'),
+    selector: z.string().min(1),
+  })
+);
 
-const isEnabledSchema = baseCommandSchema.extend({
-  action: z.literal('isenabled'),
-  selector: z.string().min(1),
-});
+const isEnabledSchema = withFrame(
+  baseCommandSchema.extend({
+    action: z.literal('isenabled'),
+    selector: z.string().min(1),
+  })
+);
 
-const isCheckedSchema = baseCommandSchema.extend({
-  action: z.literal('ischecked'),
-  selector: z.string().min(1),
-});
+const isCheckedSchema = withFrame(
+  baseCommandSchema.extend({
+    action: z.literal('ischecked'),
+    selector: z.string().min(1),
+  })
+);
 
-const countSchema = baseCommandSchema.extend({
-  action: z.literal('count'),
-  selector: z.string().min(1),
-});
+const countSchema = withFrame(
+  baseCommandSchema.extend({
+    action: z.literal('count'),
+    selector: z.string().min(1),
+  })
+);
 
-const boundingBoxSchema = baseCommandSchema.extend({
-  action: z.literal('boundingbox'),
-  selector: z.string().min(1),
-});
+const boundingBoxSchema = withFrame(
+  baseCommandSchema.extend({
+    action: z.literal('boundingbox'),
+    selector: z.string().min(1),
+  })
+);
 
-const stylesSchema = baseCommandSchema.extend({
-  action: z.literal('styles'),
-  selector: z.string().min(1),
-});
+const stylesSchema = withFrame(
+  baseCommandSchema.extend({
+    action: z.literal('styles'),
+    selector: z.string().min(1),
+  })
+);
 
 const videoStartSchema = baseCommandSchema.extend({
   action: z.literal('video_start'),
@@ -357,6 +418,21 @@ const recordingRestartSchema = baseCommandSchema.extend({
   action: z.literal('recording_restart'),
   path: z.string().min(1),
   url: z.string().min(1).optional(),
+});
+
+// Recorder schemas (user interaction recording)
+const recorderStartSchema = baseCommandSchema.extend({
+  action: z.literal('recorder_start'),
+  url: z.string().min(1).optional(),
+});
+
+const recorderStopSchema = baseCommandSchema.extend({
+  action: z.literal('recorder_stop'),
+  output: z.string().min(1).optional(),
+});
+
+const recorderStatusSchema = baseCommandSchema.extend({
+  action: z.literal('recorder_status'),
 });
 
 const traceStartSchema = baseCommandSchema.extend({
@@ -422,48 +498,64 @@ const clipboardSchema = baseCommandSchema.extend({
   text: z.string().optional(),
 });
 
-const highlightSchema = baseCommandSchema.extend({
-  action: z.literal('highlight'),
-  selector: z.string().min(1),
-});
+const highlightSchema = withFrame(
+  baseCommandSchema.extend({
+    action: z.literal('highlight'),
+    selector: z.string().min(1),
+  })
+);
 
-const clearSchema = baseCommandSchema.extend({
-  action: z.literal('clear'),
-  selector: z.string().min(1),
-});
+const clearSchema = withFrame(
+  baseCommandSchema.extend({
+    action: z.literal('clear'),
+    selector: z.string().min(1),
+  })
+);
 
-const selectAllSchema = baseCommandSchema.extend({
-  action: z.literal('selectall'),
-  selector: z.string().min(1),
-});
+const selectAllSchema = withFrame(
+  baseCommandSchema.extend({
+    action: z.literal('selectall'),
+    selector: z.string().min(1),
+  })
+);
 
-const innerTextSchema = baseCommandSchema.extend({
-  action: z.literal('innertext'),
-  selector: z.string().min(1),
-});
+const innerTextSchema = withFrame(
+  baseCommandSchema.extend({
+    action: z.literal('innertext'),
+    selector: z.string().min(1),
+  })
+);
 
-const innerHtmlSchema = baseCommandSchema.extend({
-  action: z.literal('innerhtml'),
-  selector: z.string().min(1),
-});
+const innerHtmlSchema = withFrame(
+  baseCommandSchema.extend({
+    action: z.literal('innerhtml'),
+    selector: z.string().min(1),
+  })
+);
 
-const inputValueSchema = baseCommandSchema.extend({
-  action: z.literal('inputvalue'),
-  selector: z.string().min(1),
-});
+const inputValueSchema = withFrame(
+  baseCommandSchema.extend({
+    action: z.literal('inputvalue'),
+    selector: z.string().min(1),
+  })
+);
 
-const setValueSchema = baseCommandSchema.extend({
-  action: z.literal('setvalue'),
-  selector: z.string().min(1),
-  value: z.string(),
-});
+const setValueSchema = withFrame(
+  baseCommandSchema.extend({
+    action: z.literal('setvalue'),
+    selector: z.string().min(1),
+    value: z.string(),
+  })
+);
 
-const dispatchSchema = baseCommandSchema.extend({
-  action: z.literal('dispatch'),
-  selector: z.string().min(1),
-  event: z.string().min(1),
-  eventInit: z.record(z.unknown()).optional(),
-});
+const dispatchSchema = withFrame(
+  baseCommandSchema.extend({
+    action: z.literal('dispatch'),
+    selector: z.string().min(1),
+    event: z.string().min(1),
+    eventInit: z.record(z.unknown()).optional(),
+  })
+);
 
 const evalHandleSchema = baseCommandSchema.extend({
   action: z.literal('evalhandle'),
@@ -509,34 +601,42 @@ const pauseSchema = baseCommandSchema.extend({
   action: z.literal('pause'),
 });
 
-const getByAltTextSchema = baseCommandSchema.extend({
-  action: z.literal('getbyalttext'),
-  text: z.string().min(1),
-  exact: z.boolean().optional(),
-  subaction: z.enum(['click', 'hover']),
-});
+const getByAltTextSchema = withFrame(
+  baseCommandSchema.extend({
+    action: z.literal('getbyalttext'),
+    text: z.string().min(1),
+    exact: z.boolean().optional(),
+    subaction: z.enum(['click', 'hover']),
+  })
+);
 
-const getByTitleSchema = baseCommandSchema.extend({
-  action: z.literal('getbytitle'),
-  text: z.string().min(1),
-  exact: z.boolean().optional(),
-  subaction: z.enum(['click', 'hover']),
-});
+const getByTitleSchema = withFrame(
+  baseCommandSchema.extend({
+    action: z.literal('getbytitle'),
+    text: z.string().min(1),
+    exact: z.boolean().optional(),
+    subaction: z.enum(['click', 'hover']),
+  })
+);
 
-const getByTestIdSchema = baseCommandSchema.extend({
-  action: z.literal('getbytestid'),
-  testId: z.string().min(1),
-  subaction: z.enum(['click', 'fill', 'check', 'hover']),
-  value: z.string().optional(),
-});
+const getByTestIdSchema = withFrame(
+  baseCommandSchema.extend({
+    action: z.literal('getbytestid'),
+    testId: z.string().min(1),
+    subaction: z.enum(['click', 'fill', 'check', 'hover']),
+    value: z.string().optional(),
+  })
+);
 
-const nthSchema = baseCommandSchema.extend({
-  action: z.literal('nth'),
-  selector: z.string().min(1),
-  index: z.number(),
-  subaction: z.enum(['click', 'fill', 'check', 'hover', 'text']),
-  value: z.string().optional(),
-});
+const nthSchema = withFrame(
+  baseCommandSchema.extend({
+    action: z.literal('nth'),
+    selector: z.string().min(1),
+    index: z.number(),
+    subaction: z.enum(['click', 'fill', 'check', 'hover', 'text']),
+    value: z.string().optional(),
+  })
+);
 
 const waitForUrlSchema = baseCommandSchema.extend({
   action: z.literal('waitforurl'),
@@ -587,6 +687,17 @@ const mouseUpSchema = baseCommandSchema.extend({
   button: z.enum(['left', 'right', 'middle']).optional(),
 });
 
+const wanderSchema = baseCommandSchema.extend({
+  action: z.literal('wander'),
+  duration: z.number().positive().optional(),
+  human: z
+    .object({
+      enabled: z.boolean(),
+      pathType: z.enum(['bezier', 'arc', 'random', 'linear']),
+    })
+    .optional(),
+});
+
 const bringToFrontSchema = baseCommandSchema.extend({
   action: z.literal('bringtofront'),
 });
@@ -597,10 +708,12 @@ const waitForFunctionSchema = baseCommandSchema.extend({
   timeout: z.number().positive().optional(),
 });
 
-const scrollIntoViewSchema = baseCommandSchema.extend({
-  action: z.literal('scrollintoview'),
-  selector: z.string().min(1),
-});
+const scrollIntoViewSchema = withFrame(
+  baseCommandSchema.extend({
+    action: z.literal('scrollintoview'),
+    selector: z.string().min(1),
+  })
+);
 
 const addInitScriptSchema = baseCommandSchema.extend({
   action: z.literal('addinitscript'),
@@ -700,10 +813,20 @@ const deviceListSchema = baseCommandSchema.extend({
   action: z.literal('device_list'),
 });
 
+const viewerSchema = baseCommandSchema.extend({
+  action: z.literal('viewer'),
+});
+
+const askSchema = baseCommandSchema.extend({
+  action: z.literal('ask'),
+  question: z.string().min(1),
+});
+
 const pressSchema = baseCommandSchema.extend({
   action: z.literal('press'),
   key: z.string().min(1),
   selector: z.string().min(1).optional(),
+  diffScope: z.union([z.number(), z.literal('full'), z.string()]).optional(),
 });
 
 const screenshotSchema = baseCommandSchema.extend({
@@ -715,17 +838,23 @@ const screenshotSchema = baseCommandSchema.extend({
   quality: z.number().min(0).max(100).optional(),
 });
 
-const snapshotSchema = baseCommandSchema.extend({
-  action: z.literal('snapshot'),
-  interactive: z.boolean().optional(),
-  maxDepth: z.number().nonnegative().optional(),
-  compact: z.boolean().optional(),
-  selector: z.string().optional(),
-});
+const snapshotSchema = withFrame(
+  baseCommandSchema.extend({
+    action: z.literal('snapshot'),
+    interactive: z.boolean().optional(),
+    maxDepth: z.number().nonnegative().optional(),
+    compact: z.boolean().optional(),
+    selector: z.string().optional(),
+    cursor: z.boolean().optional(),
+    path: z.boolean().optional(),
+    attrs: z.boolean().optional(),
+  })
+);
 
 const evaluateSchema = baseCommandSchema.extend({
   action: z.literal('evaluate'),
-  script: z.string().min(1),
+  script: z.string().min(1).optional(),
+  file: z.string().min(1).optional(),
   args: z.array(z.unknown()).optional(),
 });
 
@@ -745,16 +874,23 @@ const scrollSchema = baseCommandSchema.extend({
   amount: z.number().positive().optional(),
 });
 
-const selectSchema = baseCommandSchema.extend({
-  action: z.literal('select'),
-  selector: z.string().min(1),
-  values: z.union([z.string(), z.array(z.string())]),
-});
+const selectSchema = withFrame(
+  baseCommandSchema.extend({
+    action: z.literal('select'),
+    selector: z.string().min(1),
+    values: z.union([z.string(), z.array(z.string())]),
+    diffScope: z.union([z.number(), z.literal('full'), z.string()]).optional(),
+  })
+);
 
-const hoverSchema = baseCommandSchema.extend({
-  action: z.literal('hover'),
-  selector: z.string().min(1),
-});
+const hoverSchema = withFrame(
+  baseCommandSchema.extend({
+    action: z.literal('hover'),
+    selector: z.string().min(1),
+    diffScope: z.union([z.number(), z.literal('full'), z.string()]).optional(),
+    human: humanConfigSchema.optional(),
+  })
+);
 
 const contentSchema = baseCommandSchema.extend({
   action: z.literal('content'),
@@ -864,6 +1000,9 @@ const commandSchema = z.discriminatedUnion('action', [
   recordingStartSchema,
   recordingStopSchema,
   recordingRestartSchema,
+  recorderStartSchema,
+  recorderStopSchema,
+  recorderStatusSchema,
   traceStartSchema,
   traceStopSchema,
   harStartSchema,
@@ -905,6 +1044,7 @@ const commandSchema = z.discriminatedUnion('action', [
   mouseMoveSchema,
   mouseDownSchema,
   mouseUpSchema,
+  wanderSchema,
   bringToFrontSchema,
   waitForFunctionSchema,
   scrollIntoViewSchema,
@@ -922,6 +1062,8 @@ const commandSchema = z.discriminatedUnion('action', [
   inputTouchSchema,
   swipeSchema,
   deviceListSchema,
+  viewerSchema,
+  askSchema,
 ]);
 
 // Parse result type

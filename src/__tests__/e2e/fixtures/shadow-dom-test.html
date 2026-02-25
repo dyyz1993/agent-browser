@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shadow DOM Test</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    .container { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+  </style>
+</head>
+<body>
+  <h1>Shadow DOM Selector Test</h1>
+  
+  <div class="container">
+    <h3>Simple Shadow DOM</h3>
+    <my-button id="shadow-btn-1"></my-button>
+  </div>
+
+  <div class="container">
+    <h3>Nested Shadow DOM</h3>
+    <outer-component id="outer-1"></outer-component>
+  </div>
+
+  <div class="container">
+    <h3>Regular Element (for comparison)</h3>
+    <button id="regular-btn" data-testid="regular-btn">Regular Button</button>
+  </div>
+
+  <script>
+    // Simple Shadow DOM Component
+    class MyButton extends HTMLElement {
+      constructor() {
+        super();
+        this.attachShadow({ mode: 'open' });
+        this.shadowRoot.innerHTML = `
+          <style>
+            button { padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
+            button:hover { background: #45a049; }
+          </style>
+          <button id="inner-btn" data-testid="shadow-inner-btn">Click Me</button>
+        `;
+      }
+    }
+    customElements.define('my-button', MyButton);
+
+    // Outer Component with nested Shadow DOM
+    class OuterComponent extends HTMLElement {
+      constructor() {
+        super();
+        this.attachShadow({ mode: 'open' });
+        this.shadowRoot.innerHTML = `
+          <style>
+            .outer-container { padding: 10px; border: 1px solid #ccc; }
+          </style>
+          <div class="outer-container">
+            <inner-component id="inner-1"></inner-component>
+          </div>
+        `;
+      }
+    }
+    customElements.define('outer-component', OuterComponent);
+
+    // Inner Component with Shadow DOM
+    class InnerComponent extends HTMLElement {
+      constructor() {
+        super();
+        this.attachShadow({ mode: 'open' });
+        this.shadowRoot.innerHTML = `
+          <style>
+            .inner-container { padding: 10px; background: #f5f5f5; }
+          </style>
+          <div class="inner-container">
+            <button id="deep-shadow-btn" data-testid="deep-shadow-btn">Deep Shadow Button</button>
+          </div>
+        `;
+      }
+    }
+    customElements.define('inner-component', InnerComponent);
+  </script>
+</body>
+</html>

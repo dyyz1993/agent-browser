@@ -1,0 +1,3 @@
+- [x] DiffActionData interface added to types.ts
+- [x] Test file updated to use DiffActionData type parameter
+- [x] All TypeScript errors resolved in diff.e2e.test.ts
