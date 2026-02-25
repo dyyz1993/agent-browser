@@ -219,6 +219,52 @@ async function findCursorInteractiveElements(
       return path.join(' > ');
     };
 
+    // Heuristic patterns for clickable element class names
+    // Use substring matching (contains) for more flexible detection
+    const clickableClassPatterns = [
+      /tab/i,        // matches: tab, tabs, tab-item, creator-tab, tablist
+      /btn/i,        // matches: btn, button, btn-primary, my-btn
+      /button/i,     // matches: button, button-group, my-button
+      /clickable/i,  // matches: clickable, is-clickable, clickable-area
+      /action/i,     // matches: action, actions, action-btn, user-action
+      /menuitem/i,   // matches: menuitem, menu-item, my-menuitem
+      /navitem/i,    // matches: navitem, nav-item, navbar-item
+      /listitem/i,   // matches: listitem, list-item, my-listitem
+      /card/i,       // matches: card, card-item, profile-card
+      /toggle/i,     // matches: toggle, toggle-btn, dark-toggle
+      /switch/i,     // matches: switch, switch-btn, toggle-switch
+      /dropdown/i,   // matches: dropdown, dropdown-menu, my-dropdown
+      /modal/i,      // matches: modal, modal-trigger, modal-open
+      /popup/i,      // matches: popup, popup-trigger, show-popup
+      /close/i,      // matches: close, close-btn, modal-close
+      /dismiss/i,    // matches: dismiss, dismiss-btn
+      /expand/i,     // matches: expand, expand-btn, expandable
+      /collapse/i,   // matches: collapse, collapse-btn, collapsible
+    ];
+
+    // Check if element looks clickable based on class name
+    const hasClickableClassName = (el) => {
+      const className = el.getAttribute('class') || '';
+      // Split by whitespace and check each individual class
+      const classes = className.split(/\s+/);
+      return classes.some(cls => clickableClassPatterns.some(p => p.test(cls)));
+    };
+
+    // Check for Vue/React event handlers (data attributes or special patterns)
+    const hasFrameworkEventHandler = (el) => {
+      // Vue: elements with @click often have data-v-* attributes and are in components
+      // Check for common Vue/React patterns
+      const attrs = el.attributes;
+      for (let i = 0; i < attrs.length; i++) {
+        const name = attrs[i].name;
+        // Vue compiled @click handlers
+        if (name.startsWith('data-v-')) return true;
+        // React synthetic events sometimes leave traces
+        if (name.startsWith('data-reactid')) return true;
+      }
+      return false;
+    };
+
     for (const el of allElements) {
       const tagName = el.tagName.toLowerCase();
       if (interactiveTags.has(tagName)) continue;
@@ -232,20 +278,53 @@ async function findCursorInteractiveElements(
       const tabIndex = el.getAttribute('tabindex');
       const hasTabIndex = tabIndex !== null && tabIndex !== '-1';
 
-      if (!hasCursorPointer && !hasOnClick && !hasTabIndex) continue;
+      // New heuristic checks
+      const looksClickable = hasClickableClassName(el);
+      const hasFrameworkEvent = hasFrameworkEventHandler(el);
 
-      const text = (el.textContent || '').trim().slice(0, 100);
+      // Skip if no indication of interactivity
+      // Only include elements that look explicitly clickable (not just have framework events)
+      const isClickable = hasCursorPointer || hasOnClick || hasTabIndex || looksClickable;
+      if (!isClickable) continue;
+
+      // Get direct text content only (exclude child elements' text)
+      // This helps avoid duplicate entries from parent containers
+      let text = '';
+      for (const node of el.childNodes) {
+        if (node.nodeType === Node.TEXT_NODE) {
+          text += node.textContent || '';
+        }
+      }
+      text = text.trim();
+
+      // If no direct text, check if element has only one child element (like a span)
+      // This handles cases like <div class="tab"><span>Tab Text</span></div>
+      if (!text && el.children.length === 1) {
+        const child = el.children[0];
+        // Check if child is a simple inline element with only text
+        if (child.tagName === 'SPAN' || child.tagName === 'A' || child.tagName === 'LABEL') {
+          text = (child.textContent || '').trim();
+        }
+      }
+
+      // Skip if no text
       if (!text) continue;
+
+      // Skip if text is too long (likely a container with many children)
+      if (text.length > 30) continue;
 
       const rect = el.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) continue;
+
+      // Determine if this is truly clickable or just has framework events
+      const trulyClickable = hasCursorPointer || hasOnClick || hasTabIndex || looksClickable;
 
       results.push({
         selector: buildSelector(el),
         text,
         tagName,
         hasOnClick,
-        hasCursorPointer,
+        hasCursorPointer: trulyClickable,
         hasTabIndex
       });
     }
@@ -556,11 +635,11 @@ async function enrichRefsWithPathsAndAttrs(
       function getImplicitRole(element) {
         const tag = element.tagName.toLowerCase();
         const type = element.getAttribute('type');
-        
+
         // Check explicit role first
         const explicitRole = element.getAttribute('role');
         if (explicitRole) return explicitRole.toLowerCase();
-        
+
         // Check implicit roles
         if (tag === 'a' && element.hasAttribute('href')) return 'link';
         if (tag === 'button') return 'button';
@@ -568,6 +647,10 @@ async function enrichRefsWithPathsAndAttrs(
           if (type === 'button' || type === 'submit' || type === 'reset') return 'button';
           if (type === 'checkbox') return 'checkbox';
           if (type === 'radio') return 'radio';
+          if (type === 'file') return 'button'; // file input is rendered as button
+          if (type === 'range') return 'slider';
+          if (type === 'number') return 'spinbutton';
+          if (type === 'date' || type === 'datetime-local' || type === 'month' || type === 'week' || type === 'time') return 'textbox';
           return 'textbox';
         }
         if (tag === 'textarea') return 'textbox';
@@ -581,7 +664,7 @@ async function enrichRefsWithPathsAndAttrs(
         if (tag === 'form') return 'form';
         if (tag === 'ul' || tag === 'ol') return 'list';
         if (tag === 'li') return 'listitem';
-        
+
         return null;
       }
 
@@ -592,20 +675,20 @@ async function enrichRefsWithPathsAndAttrs(
         const targetRole = data.role;
         const targetName = data.name;
         const nth = data.nth;
-        
+
         // Find matching elements
         let elements = [];
         const allElements = document.querySelectorAll('*');
-        
+
         for (const el of allElements) {
           const elRole = getImplicitRole(el);
           if (elRole !== targetRole && targetRole !== 'clickable' && targetRole !== 'focusable') continue;
-          
+
           // Get accessible name
-          let elName = el.getAttribute('aria-label') || 
-                       el.getAttribute('title') || 
+          let elName = el.getAttribute('aria-label') ||
+                       el.getAttribute('title') ||
                        el.getAttribute('alt') || '';
-          
+
           if (!elName) {
             // For heading, use text content
             if (targetRole === 'heading') {
@@ -623,6 +706,10 @@ async function enrichRefsWithPathsAndAttrs(
             // For button, use text or value
             else if (targetRole === 'button') {
               elName = el.textContent?.trim() || el.getAttribute('value') || '';
+              // Special case for file input - Playwright shows "Choose File" but element has no name
+              if (!elName && el.tagName.toLowerCase() === 'input' && el.getAttribute('type') === 'file') {
+                elName = 'choose file'; // Match Playwright's localized name
+              }
             }
             // For textbox, use label or placeholder
             else if (targetRole === 'textbox') {
@@ -634,7 +721,7 @@ async function enrichRefsWithPathsAndAttrs(
               elName = el.textContent?.trim().slice(0, 100) || '';
             }
           }
-          
+
           // Match name
           if (targetName) {
             const normalizedElName = elName.toLowerCase().trim();
@@ -643,10 +730,10 @@ async function enrichRefsWithPathsAndAttrs(
               continue;
             }
           }
-          
+
           elements.push(el);
         }
-        
+
         if (elements.length > 0) {
           const element = nth !== undefined ? elements[nth] : elements[0];
           if (element) {
@@ -839,6 +926,9 @@ async function enrichRefsWithPathsAndAttrs(
         if (type === 'button' || type === 'submit' || type === 'reset') return 'button';
         if (type === 'checkbox') return 'checkbox';
         if (type === 'radio') return 'radio';
+        if (type === 'file') return 'button'; // file input is rendered as button
+        if (type === 'range') return 'slider';
+        if (type === 'number') return 'spinbutton';
         return 'textbox';
       }
       if (tag === 'textarea') return 'textbox';
@@ -887,6 +977,14 @@ async function enrichRefsWithPathsAndAttrs(
             }
           } else if (targetRole === 'button') {
             elName = el.textContent?.trim() || el.getAttribute('value') || '';
+            // Special case for file input - Playwright shows "Choose File" but element has no name
+            if (
+              !elName &&
+              el.tagName.toLowerCase() === 'input' &&
+              el.getAttribute('type') === 'file'
+            ) {
+              elName = 'choose file'; // Match Playwright's localized name
+            }
           } else if (targetRole === 'textbox') {
             elName = el.getAttribute('placeholder') || '';
             const label = (el as any).labels?.[0]?.textContent?.trim();

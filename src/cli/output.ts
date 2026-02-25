@@ -1,5 +1,106 @@
 import { Response } from './connection.js';
 
+interface RefInfo {
+  role?: string;
+  name?: string;
+  xpath?: string;
+  cssPath?: string;
+  attributes?: Record<string, string>;
+}
+
+/**
+ * 检查 refs 中是否有 path/attrs 信息需要显示
+ */
+function hasPathOrAttrs(refs: Record<string, RefInfo>): boolean {
+  for (const ref of Object.values(refs)) {
+    if (ref.xpath || ref.cssPath || ref.attributes) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * 转义字符串中的特殊字符用于终端显示
+ */
+function truncatePath(path: string, maxLength: number = 60): string {
+  if (path.length <= maxLength) return path;
+  return path.substring(0, maxLength - 3) + '...';
+}
+
+/**
+ * 在 snapshot 文本中内联显示 refs 的 xpath/cssPath/attributes 信息
+ */
+function enhanceSnapshotWithRefs(snapshot: string, refs: Record<string, RefInfo>): string {
+  // 如果没有 path/attrs 信息，直接返回原 snapshot
+  if (!hasPathOrAttrs(refs)) {
+    return snapshot;
+  }
+
+  const lines = snapshot.split('\n');
+  const enhancedLines: string[] = [];
+
+  for (const line of lines) {
+    // 匹配 [ref=e1] 或 [ref=e12] 等模式
+    const refMatch = line.match(/\[ref=(e\d+)\]/);
+    if (refMatch) {
+      const refId = refMatch[1];
+      const refInfo = refs[refId];
+
+      if (refInfo) {
+        const extras: string[] = [];
+
+        // 添加 xpath（使用反引号避免引号冲突）
+        if (refInfo.xpath) {
+          extras.push(`xpath=\`${truncatePath(refInfo.xpath)}\``);
+        }
+
+        // 添加 cssPath
+        if (refInfo.cssPath) {
+          extras.push(`css=\`${truncatePath(refInfo.cssPath)}\``);
+        }
+
+        // 添加 attributes（只显示关键属性）
+        if (refInfo.attributes && Object.keys(refInfo.attributes).length > 0) {
+          const importantAttrs = ['id', 'name', 'type', 'placeholder', 'data-testid', 'aria-label'];
+          const attrsToShow: string[] = [];
+
+          for (const key of importantAttrs) {
+            if (refInfo.attributes[key]) {
+              attrsToShow.push(`${key}=\`${refInfo.attributes[key]}\``);
+            }
+          }
+
+          // 如果没有重要属性，显示前 2 个属性
+          if (attrsToShow.length === 0) {
+            const keys = Object.keys(refInfo.attributes).slice(0, 2);
+            for (const key of keys) {
+              attrsToShow.push(`${key}=\`${refInfo.attributes[key]}\``);
+            }
+          }
+
+          if (attrsToShow.length > 0) {
+            extras.push(`attrs: ${attrsToShow.join(', ')}`);
+          }
+        }
+
+        if (extras.length > 0) {
+          // 在行尾添加额外信息（保持缩进格式）
+          enhancedLines.push(line + ` {${extras.join(' | ')}}`);
+        } else {
+          enhancedLines.push(line);
+        }
+      } else {
+        enhancedLines.push(line);
+      }
+    } else {
+      enhancedLines.push(line);
+    }
+  }
+
+  return enhancedLines.join('\n');
+}
+
 const COLORS = {
   reset: '\x1b[0m',
   bold: '\x1b[1m',
@@ -89,7 +190,16 @@ export function printResponse(resp: Response, jsonMode: boolean, action?: string
   }
 
   if (data.snapshot && typeof data.snapshot === 'string') {
-    console.log(data.snapshot);
+    // 如果有 refs 且包含 path/attrs 信息，内联显示
+    if (data.refs && typeof data.refs === 'object') {
+      const enhancedSnapshot = enhanceSnapshotWithRefs(
+        data.snapshot,
+        data.refs as Record<string, RefInfo>
+      );
+      console.log(enhancedSnapshot);
+    } else {
+      console.log(data.snapshot);
+    }
     return;
   }
 
