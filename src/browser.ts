@@ -2177,12 +2177,24 @@ export class BrowserManager {
       // Binding 已存在，忽略错误继续使用
     }
 
-    // 设置录制会话激活标志
+    // 在当前页面设置录制会话激活标志
+    try {
+      await page.evaluate(() => {
+        (window as any).__recorderSessionActive = true;
+      });
+    } catch (e) {}
+
+    // 设置录制会话激活标志（用于新页面）
     await context.addInitScript({
       content: 'window.__recorderSessionActive = true;',
     });
 
-    // 使用 addInitScript 自动注入到所有页面
+    // 在当前页面注入录制器脚本
+    try {
+      await page.evaluate(injectScript);
+    } catch (e) {}
+
+    // 使用 addInitScript 自动注入到所有新页面
     await context.addInitScript(injectScript);
 
     // 处理导航事件（用于记录 back/forward）
@@ -2319,17 +2331,27 @@ export class BrowserManager {
 
     if (page) {
       try {
-        await page.evaluate(() => {
+        const result = await page.evaluate(() => {
           const win = window as any;
           // 清除录制会话激活标志
           win.__recorderSessionActive = false;
-          // 清除录制会话激活标志
-          win.__recorderSessionActive = false;
-          if (typeof win.__recorderClosePanel === 'function') {
+          const hasPanel = !!document.getElementById('recorder-panel');
+          const hasCloseFunc = typeof win.__recorderClosePanel === 'function';
+
+          if (hasCloseFunc) {
             win.__recorderClosePanel();
           }
+
+          return {
+            hadPanel: hasPanel,
+            hadCloseFunc: hasCloseFunc,
+            stillHasPanel: !!document.getElementById('recorder-panel'),
+          };
         });
-      } catch (e) {}
+        console.log('[stopRecorder] Result:', result);
+      } catch (e) {
+        console.error('[stopRecorder] Error:', e);
+      }
 
       if (this.recorderNavigatedHandler) {
         page.off('framenavigated', this.recorderNavigatedHandler);

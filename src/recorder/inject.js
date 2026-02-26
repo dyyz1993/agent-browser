@@ -702,6 +702,51 @@
   });
 
   if (!isInIframe) {
+    // 定义关闭面板函数（必须在检查 __recorderSessionActive 之前）
+    // 这样即使会话不激活，stopRecorder 也能调用此函数关闭面板
+    let _animationFrameId = null;
+    let _highlightRafId = null;
+    let _toolbarHideTimeout = null;
+    let _pollInterval = null;
+
+    window.__recorderClosePanel = function() {
+      if (_animationFrameId) {
+        cancelAnimationFrame(_animationFrameId);
+        _animationFrameId = null;
+      }
+
+      if (_highlightRafId) {
+        cancelAnimationFrame(_highlightRafId);
+        _highlightRafId = null;
+      }
+
+      clearTimeout(_toolbarHideTimeout);
+
+      if (_pollInterval) {
+        clearInterval(_pollInterval);
+        _pollInterval = null;
+      }
+
+      const elements = [
+        document.getElementById('recorder-panel'),
+        document.getElementById('recorder-markers'),
+        document.getElementById('recorder-canvas'),
+        document.getElementById('recorder-shadow'),
+        document.getElementById('recorder-toolbar'),
+        document.getElementById('recorder-styles')
+      ];
+
+      elements.forEach(el => {
+        if (el && el.parentNode) {
+          el.parentNode.removeChild(el);
+        }
+      });
+
+      window.__recorderInitialized = false;
+      window.__recorderSteps = [];
+      console.log('[Recorder] Panel closed');
+    };
+
     // 检查录制会话是否激活
     if (!window.__recorderSessionActive) {
       console.log('[Recorder] Session not active, skipping panel creation');
@@ -1427,55 +1472,12 @@
           pollInterval = null;
         }
       }
-      
+
       window.__recorderStartPolling = startPolling;
       window.__recorderStopPolling = stopPolling;
-      
+
       startPolling();
     }
-
-    window.__recorderClosePanel = function() {
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-        animationFrameId = null;
-      }
-      
-      if (highlightRafId) {
-        cancelAnimationFrame(highlightRafId);
-        highlightRafId = null;
-      }
-      
-      clearTimeout(toolbarHideTimeout);
-      
-      if (typeof window.__recorderStopPolling === 'function') {
-        window.__recorderStopPolling();
-      }
-      
-      const elements = [
-        document.getElementById('recorder-panel'),
-        document.getElementById('recorder-markers'),
-        document.getElementById('recorder-canvas'),
-        document.getElementById('recorder-shadow'),
-        document.getElementById('recorder-toolbar'),
-        document.getElementById('recorder-styles')
-      ];
-      
-      elements.forEach(el => {
-        if (el && el.parentNode) {
-          el.parentNode.removeChild(el);
-        }
-      });
-      
-      window.__recorderInitialized = false;
-      window.__recorderSteps = [];
-      window.__recorderUISteps = [];
-      markedElements.clear();
-      annotations.clear();
-      highlightCache = new WeakMap();
-      recorderPanelElement = null;
-      
-      console.log('[Recorder] Panel closed');
-    };
 
     createRecorderOverlay();
     
