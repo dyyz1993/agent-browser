@@ -638,6 +638,7 @@ export interface RecordingRestartCommand extends BaseCommand {
 export interface RecorderStartCommand extends BaseCommand {
   action: 'recorder_start';
   url?: string;
+  hide?: boolean; // 隐藏录制 UI（面板、工具栏、高亮框等）
 }
 
 export interface RecorderStopCommand extends BaseCommand {

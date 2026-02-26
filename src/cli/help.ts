@@ -168,9 +168,13 @@ Examples:
   screenshot: `
 agent-browser screenshot - Take a screenshot
 
-Usage: agent-browser screenshot [path] [--full] [--in-frame <path>]
+Usage: agent-browser screenshot [selector] [path] [options]
 
-Captures a screenshot of the current page.
+Captures a screenshot of the current page or a specific element.
+
+Arguments:
+  [selector]           CSS selector, XPath, or element reference (e.g., @e1)
+  [path]               Save path for the screenshot
 
 Options:
   --full, -f           Capture full page (not just viewport)
@@ -180,6 +184,9 @@ Examples:
   agent-browser screenshot
   agent-browser screenshot ./screenshot.png
   agent-browser screenshot --full ./full-page.png
+  agent-browser screenshot .header                        # Screenshot element
+  agent-browser screenshot #submit-btn ./button.png       # Screenshot element to file
+  agent-browser screenshot @e1                            # Screenshot referenced element
   agent-browser screenshot --in-frame "#frame1"
 `,
   snapshot: `

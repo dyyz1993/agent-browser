@@ -2493,7 +2493,7 @@ async function handleRecorderStart(
   command: RecorderStartCommand,
   browser: BrowserManager
 ): Promise<Response<{ started: boolean; sessionId: string }>> {
-  const result = await browser.startRecorder(command.url);
+  const result = await browser.startRecorder(command.url, command.hide);
   return successResponse(command.id, result);
 }
 

@@ -2104,12 +2104,18 @@ export class BrowserManager {
     return this.pages.indexOf(page);
   }
 
-  private getRecorderInjectScript(): string {
+  private getRecorderInjectScript(hide: boolean = false): string {
     const injectScriptPath = path.join(__dirname, 'recorder', 'inject.js');
-    return readFileSync(injectScriptPath, 'utf-8');
+    let script = readFileSync(injectScriptPath, 'utf-8');
+    // 在脚本开头注入配置（使用 xyz 前缀）
+    const config = `window.xyzHide = ${hide};`;
+    return config + '\n' + script;
   }
 
-  async startRecorder(url?: string): Promise<{ started: boolean; sessionId: string }> {
+  async startRecorder(
+    url?: string,
+    hide: boolean = false
+  ): Promise<{ started: boolean; sessionId: string }> {
     // 检查是否已经在录制中
     if (this.recorderSessionId) {
       throw new Error(
@@ -2132,7 +2138,8 @@ export class BrowserManager {
     this.lastNavigationTime = 0;
 
     const context = page.context();
-    const injectScript = this.getRecorderInjectScript();
+    // 传递 hide 参数给注入脚本
+    const injectScript = this.getRecorderInjectScript(hide);
 
     // For CDP connections, we need to ensure the debugger is attached to the page
     // before calling exposeBinding. Creating a CDP session will attach the debugger.
@@ -2143,8 +2150,9 @@ export class BrowserManager {
     // 使用 Playwright 的 exposeBinding，自动处理所有导航和新标签页
     // 注意：如果 binding 已存在（从之前的录制会话），会抛出错误
     // 我们先尝试注册，如果失败则说明 binding 已存在
+    // 使用 xyz 前缀的名称，看起来像普通业务代码
     try {
-      await context.exposeBinding('__recorderSync', async (source, payload: string) => {
+      await context.exposeBinding('xyzTrack', async (source, payload: string) => {
         if (!payload) return;
 
         const targetPage = source.page;
@@ -2152,21 +2160,21 @@ export class BrowserManager {
         try {
           const step = JSON.parse(payload);
           if (step && step.action) {
-            if (step.action === '__poll__') {
+            if (step.action === 'xyzPoll') {
               await targetPage
                 ?.evaluate((steps) => {
-                  (window as any).__recorderSteps = steps;
-                  window.dispatchEvent(new CustomEvent('recorder:steps', { detail: steps }));
+                  (window as any).xyzQueue = steps;
+                  window.dispatchEvent(new CustomEvent('xyzEvt', { detail: steps }));
                 }, this.recorderSteps)
                 .catch(() => {});
-            } else if (step.action === '__clear__') {
+            } else if (step.action === 'xyzClear') {
               this.recorderSteps = [];
-            } else if (step.action !== '__update_step__') {
+            } else if (step.action !== 'xyzUpdate') {
               this.recorderSteps.push(step);
               await targetPage
                 ?.evaluate((steps) => {
-                  (window as any).__recorderSteps = steps;
-                  window.dispatchEvent(new CustomEvent('recorder:steps', { detail: steps }));
+                  (window as any).xyzQueue = steps;
+                  window.dispatchEvent(new CustomEvent('xyzEvt', { detail: steps }));
                 }, this.recorderSteps)
                 .catch(() => {});
             }
@@ -2178,18 +2186,19 @@ export class BrowserManager {
     }
 
     // 在当前页面设置录制会话激活标志
+    // 使用 xyz 前缀
     try {
       await page.evaluate(() => {
-        (window as any).__recorderSessionActive = true;
+        (window as any).xyzActive = true;
         // 清除停止标志（允许重新开始录制）
-        (window as any).__recorderSessionStopped = false;
+        (window as any).xyzStopped = false;
       });
     } catch (e) {}
 
     // 设置录制会话激活标志（用于新页面）
     // 同时清除停止标志
     await context.addInitScript({
-      content: 'window.__recorderSessionActive = true; window.__recorderSessionStopped = false;',
+      content: 'window.xyzActive = true; window.xyzStopped = false;',
     });
 
     // 在当前页面注入录制器脚本
@@ -2342,21 +2351,21 @@ export class BrowserManager {
       try {
         const result = await page.evaluate(() => {
           const win = window as any;
-          // 清除录制会话激活标志
-          win.__recorderSessionActive = false;
+          // 清除录制会话激活标志（xyz 前缀）
+          win.xyzActive = false;
           // 设置停止标志（防止刷新后重新创建面板）
-          win.__recorderSessionStopped = true;
-          const hasPanel = !!document.getElementById('recorder-panel');
-          const hasCloseFunc = typeof win.__recorderClosePanel === 'function';
+          win.xyzStopped = true;
+          const hasPanel = !!document.getElementById('xyzPnl');
+          const hasCloseFunc = typeof win.xyzClose === 'function';
 
           if (hasCloseFunc) {
-            win.__recorderClosePanel();
+            win.xyzClose();
           }
 
           return {
             hadPanel: hasPanel,
             hadCloseFunc: hasCloseFunc,
-            stillHasPanel: !!document.getElementById('recorder-panel'),
+            stillHasPanel: !!document.getElementById('xyzPnl'),
           };
         });
         console.log('[stopRecorder] Result:', result);
@@ -2367,8 +2376,7 @@ export class BrowserManager {
       // 添加 initScript 来禁用后续页面的录制会话
       try {
         await page.context().addInitScript({
-          content:
-            'window.__recorderSessionActive = false; window.__recorderSessionStopped = true;',
+          content: 'window.xyzActive = false; window.xyzStopped = true;',
         });
       } catch (e) {}
 
@@ -2381,9 +2389,9 @@ export class BrowserManager {
         this.recorderPageHandler = null;
       }
 
-      // 移除 __recorderSync binding（覆盖为空函数）
+      // 移除 xyzTrack binding（覆盖为空函数）
       try {
-        await page.context().exposeBinding('__recorderSync', () => {});
+        await page.context().exposeBinding('xyzTrack', () => {});
       } catch (e) {
         // 忽略错误，可能 binding 已经被移除或其他问题
       }

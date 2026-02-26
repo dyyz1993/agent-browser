@@ -1,4 +1,7 @@
 (function() {
+  'use strict';
+
+  // 配置常量
   const TRAJECTORY_INTERVAL = 50;
   const MAX_TRAJECTORY_POINTS = 10;
   const SCROLL_THRESHOLD = 50;
@@ -6,75 +9,29 @@
   const TOOLBAR_HIDE_DELAY = 500;
   const CACHE_TTL = 100;
 
+  // 是否隐藏 UI
+  const HIDE_UI = window.xyzHide === true;
+
   const isInIframe = window.self !== window.top;
   const iframePrefix = isInIframe ? 'iframe >> ' : '';
 
-  if (window.__recorderInitialized) return;
-  window.__recorderInitialized = true;
+  // 检查是否已初始化（使用隐蔽名称）
+  if (window.xyzInited) return;
+  window.xyzInited = true;
 
-  // Step ID generator (6 digits)
+  // ============ 闭包内私有变量 ============
   let stepIdCounter = 0;
   function generateStepId() {
     stepIdCounter = (stepIdCounter + 1) % 1000000;
     return String(stepIdCounter).padStart(6, '0');
   }
 
-  // Unified API for recorder actions
-  window.__recorderAction = function(action) {
-    if (!action || !action.type) {
-      return { success: false, steps: window.__recorderSteps || [], error: 'Invalid action' };
-    }
-    
-    const steps = window.__recorderSteps || [];
-    
-    switch (action.type) {
-      case 'add':
-        if (!action.data) {
-          return { success: false, steps, error: 'Missing data for add action' };
-        }
-        const newStep = { ...action.data, id: action.data.id || generateStepId() };
-        steps.push(newStep);
-        window.__recorderSteps = steps;
-        return { success: true, steps };
-        
-      case 'update':
-        if (!action.id) {
-          return { success: false, steps, error: 'Missing id for update action' };
-        }
-        const updateIndex = steps.findIndex(s => s.id === action.id);
-        if (updateIndex >= 0) {
-          steps[updateIndex] = { ...steps[updateIndex], ...action.data };
-          window.__recorderSteps = steps;
-          return { success: true, steps };
-        }
-        return { success: false, steps, error: 'Step not found' };
-        
-      case 'delete':
-        if (!action.id) {
-          return { success: false, steps, error: 'Missing id for delete action' };
-        }
-        const deleteIndex = steps.findIndex(s => s.id === action.id);
-        if (deleteIndex >= 0) {
-          steps.splice(deleteIndex, 1);
-          window.__recorderSteps = steps;
-          return { success: true, steps };
-        }
-        return { success: false, steps, error: 'Step not found' };
-        
-      case 'list':
-        return { success: true, steps };
-        
-      case 'clear':
-        window.__recorderSteps = [];
-        return { success: true, steps: [] };
-        
-      default:
-        return { success: false, steps, error: 'Unknown action type' };
-    }
-  };
+  // 事件队列（步骤存储）
+  window.xyzQueue = window.xyzQueue || [];
 
-  window.__recorderTrajectory = [];
-  window.__recorderLastTime = 0;
+  // 鼠标轨迹
+  let mousePath = [];
+  let lastTime = 0;
   let lastScrollX = window.scrollX;
   let lastScrollY = window.scrollY;
   let scrollTimeout = null;
@@ -91,9 +48,64 @@
   const xpathCache = new WeakMap();
   const highlightCache = new WeakMap();
 
-  window.__recorderInitialViewport = { ...currentViewport };
+  // 暴露初始视口（隐蔽名称）
+  window.xyzVp = { ...currentViewport };
 
   const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'META', 'LINK', 'HEAD', 'NOSCRIPT', 'BR', 'HR', 'SVG', 'PATH', 'TITLE', 'BASE', 'WBR', 'AREA', 'MAP', 'COL', 'COLGROUP']);
+
+  // ============ 私有函数：统一事件 API ============
+  function pushEvent(action) {
+    if (!action || !action.type) {
+      return { success: false, steps: window.xyzQueue || [], error: 'Invalid action' };
+    }
+
+    const steps = window.xyzQueue || [];
+
+    switch (action.type) {
+      case 'add':
+        if (!action.data) {
+          return { success: false, steps, error: 'Missing data for add action' };
+        }
+        const newStep = { ...action.data, id: action.data.id || generateStepId() };
+        steps.push(newStep);
+        window.xyzQueue = steps;
+        return { success: true, steps };
+
+      case 'update':
+        if (!action.id) {
+          return { success: false, steps, error: 'Missing id for update action' };
+        }
+        const updateIndex = steps.findIndex(s => s.id === action.id);
+        if (updateIndex >= 0) {
+          steps[updateIndex] = { ...steps[updateIndex], ...action.data };
+          window.xyzQueue = steps;
+          return { success: true, steps };
+        }
+        return { success: false, steps, error: 'Step not found' };
+
+      case 'delete':
+        if (!action.id) {
+          return { success: false, steps, error: 'Missing id for delete action' };
+        }
+        const deleteIndex = steps.findIndex(s => s.id === action.id);
+        if (deleteIndex >= 0) {
+          steps.splice(deleteIndex, 1);
+          window.xyzQueue = steps;
+          return { success: true, steps };
+        }
+        return { success: false, steps, error: 'Step not found' };
+
+      case 'list':
+        return { success: true, steps };
+
+      case 'clear':
+        window.xyzQueue = [];
+        return { success: true, steps: [] };
+
+      default:
+        return { success: false, steps, error: 'Unknown action type' };
+    }
+  }
 
   function shouldHighlightElement(element) {
     if (!element || !element.tagName) return false;
@@ -106,7 +118,7 @@
     }
 
     if (element.closest) {
-      const recorderEl = element.closest('.recorder-panel, .recorder-toolbar, .recorder-shadow, .recorder-markers-container');
+      const recorderEl = element.closest('.xyzPnl, .xyzTb, .xyzSh, .xyzMk');
       if (recorderEl) {
         highlightCache.set(element, { time: now, result: false });
         return false;
@@ -119,7 +131,7 @@
       return false;
     }
 
-    // 排除尺寸接近视口的大元素（超过视口 70% 的元素）
+    // 排除尺寸接近视口的大元素
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
     const widthRatio = rect.width / viewportWidth;
@@ -136,35 +148,17 @@
     return result;
   }
 
-  window.__recorderAddMarker = function(element, type) {
-    if (!element || markedElements.has(element)) return;
-    const markersContainer = document.getElementById('recorder-markers');
-    if (!markersContainer) return;
-    
-    const marker = document.createElement('div');
-    marker.className = 'recorder-marker' + (type !== 'default' ? ' ' + type : '');
-    markersContainer.appendChild(marker);
-    markedElements.set(element, { marker, type });
-    
-    const rect = element.getBoundingClientRect();
-    marker.style.left = rect.left + 'px';
-    marker.style.top = rect.top + 'px';
-    marker.style.width = rect.width + 'px';
-    marker.style.height = rect.height + 'px';
-    marker.style.display = 'block';
-  };
+  const MESSAGE_TYPE = 'xyzMsg';
 
-  const RECORDER_MESSAGE_TYPE = '__recorder_step__';
-  
   window.addEventListener('message', (event) => {
-    if (event.data && event.data.type === RECORDER_MESSAGE_TYPE && event.data.step) {
+    if (event.data && event.data.type === MESSAGE_TYPE && event.data.step) {
       if (!isInIframe) {
-        if (typeof window.__recorderSync === 'function') {
-          try { window.__recorderSync(JSON.stringify(event.data.step)); } catch (e) {}
+        if (typeof window.xyzTrack === 'function') {
+          try { window.xyzTrack(JSON.stringify(event.data.step)); } catch (e) {}
         }
       } else {
         try {
-          window.parent.postMessage({ type: RECORDER_MESSAGE_TYPE, step: event.data.step }, '*');
+          window.parent.postMessage({ type: MESSAGE_TYPE, step: event.data.step }, '*');
         } catch (e) {}
       }
     }
@@ -172,44 +166,41 @@
 
   document.addEventListener('mousemove', (e) => {
     const now = Date.now();
-    if (now - window.__recorderLastTime > TRAJECTORY_INTERVAL) {
-      window.__recorderTrajectory.push({ x: e.clientX, y: e.clientY, t: now });
-      if (window.__recorderTrajectory.length > MAX_TRAJECTORY_POINTS) {
-        window.__recorderTrajectory.shift();
+    if (now - lastTime > TRAJECTORY_INTERVAL) {
+      mousePath.push({ x: e.clientX, y: e.clientY, t: now });
+      if (mousePath.length > MAX_TRAJECTORY_POINTS) {
+        mousePath.shift();
       }
-      window.__recorderLastTime = now;
+      lastTime = now;
     }
   }, true);
 
-  window.__getTrajectory = function() {
-    const points = window.__recorderTrajectory.slice(-4);
-    window.__recorderTrajectory = [];
+  function getTrajectory() {
+    const points = mousePath.slice(-4);
+    mousePath = [];
     return points;
-  };
+  }
 
-  let recorderPanelElement = null;
-  function isInRecorderPanel(element) {
+  let panelElement = null;
+  function isInPanel(element) {
     if (!element) return false;
-    
-    // Check if in recorder-panel
-    if (!recorderPanelElement) {
-      recorderPanelElement = document.querySelector('.recorder-panel');
+
+    if (!panelElement) {
+      panelElement = document.querySelector('.xyzPnl');
     }
-    if (recorderPanelElement && (element === recorderPanelElement || recorderPanelElement.contains(element))) {
+    if (panelElement && (element === panelElement || panelElement.contains(element))) {
       return true;
     }
-    
-    // Check if in recorder-toolbar
-    const toolbar = document.querySelector('.recorder-toolbar');
+
+    const toolbar = document.querySelector('.xyzTb');
     if (toolbar && (element === toolbar || toolbar.contains(element))) {
       return true;
     }
-    
+
     return false;
   }
 
-  window.__syncStepDirect = function(step) {
-    // 生成 id（如果没有）
+  function syncStepDirect(step) {
     if (!step.id) {
       step.id = 'step-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6);
     }
@@ -217,56 +208,36 @@
     step.url = window.location.href;
     step.iframe = isInIframe;
 
-    // 使用统一 API 添加步骤
-    const result = window.__recorderAction({ type: 'add', data: step });
-    
+    pushEvent({ type: 'add', data: step });
+
     if (isInIframe) {
       try {
-        window.parent.postMessage({ type: RECORDER_MESSAGE_TYPE, step: step }, '*');
+        window.parent.postMessage({ type: MESSAGE_TYPE, step: step }, '*');
       } catch (e) {}
-    } else if (typeof window.__recorderSync === 'function') {
-      try { 
-        window.__recorderSync(JSON.stringify(step)); 
+    } else if (typeof window.xyzTrack === 'function') {
+      try {
+        window.xyzTrack(JSON.stringify(step));
       } catch (e) {
-        console.error('[Recorder] __recorderSync failed:', e);
+        console.error('[Sync] failed:', e);
       }
-    } else {
-      console.warn('[Recorder] __recorderSync is not available, step not saved:', step.action);
     }
-  };
+  }
 
-  window.__syncStep = function(step) {
+  function syncStep(step) {
     if (pendingResize) {
-      window.__syncStepDirect({ timestamp: Date.now(), action: 'resize', from: pendingResize.from, to: pendingResize.to });
+      syncStepDirect({ timestamp: Date.now(), action: 'resize', from: pendingResize.from, to: pendingResize.to });
       pendingResize = null;
     }
     if (pendingScroll) {
-      window.__syncStepDirect({ timestamp: Date.now(), action: 'scroll', x: pendingScroll.x, y: pendingScroll.y });
+      syncStepDirect({ timestamp: Date.now(), action: 'scroll', x: pendingScroll.x, y: pendingScroll.y });
       pendingScroll = null;
     }
-    const trajectory = window.__getTrajectory();
+    const trajectory = getTrajectory();
     if (trajectory.length > 0) {
-      window.__syncStepDirect({ timestamp: Date.now(), action: 'trajectory', points: trajectory });
+      syncStepDirect({ timestamp: Date.now(), action: 'trajectory', points: trajectory });
     }
-    step.viewport = { width: window.innerWidth, height: window.innerHeight };
-    step.url = window.location.href;
-    step.iframe = isInIframe;
-    
-    if (isInIframe) {
-      try {
-        window.parent.postMessage({ type: RECORDER_MESSAGE_TYPE, step: step }, '*');
-      } catch (e) {}
-    } else if (typeof window.__recorderSync === 'function') {
-      try { window.__recorderSync(JSON.stringify(step)); } catch (e) {}
-    }
-  };
-
-  window.__clearPendingSteps = function() {
-    pendingResize = null;
-    pendingScroll = null;
-    trajectory = [];
-    lastTrajectoryLength = 0;
-  };
+    syncStepDirect(step);
+  }
 
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimeout);
@@ -293,6 +264,7 @@
     }, 100);
   }, true);
 
+  // ============ XPath 和 Selector 工具函数 ============
   function isUniqueXPath(xpath) {
     try {
       return document.evaluate(
@@ -319,15 +291,15 @@
         if (sibling.nodeType === Node.ELEMENT_NODE && sibling.tagName === current.tagName) index++;
         sibling = sibling.previousSibling;
       }
-      
+
       let part = current.tagName.toLowerCase() + '[' + index + ']';
-      
+
       if (current.id) {
         part = '*[@id="' + current.id + '"]';
         parts.unshift(part);
         break;
       }
-      
+
       const semanticAttrs = ['data-testid', 'data-test', 'data-cy', 'aria-label', 'name'];
       for (const attr of semanticAttrs) {
         const value = current.getAttribute(attr);
@@ -336,14 +308,14 @@
           break;
         }
       }
-      
+
       parts.unshift(part);
-      
+
       const fullXPath = '/' + parts.join('/');
       if (isUniqueXPath(fullXPath)) {
         return fullXPath;
       }
-      
+
       current = current.parentNode;
       depth++;
     }
@@ -355,14 +327,14 @@
     if (xpathCache.has(element)) {
       return xpathCache.get(element);
     }
-    
+
     let result = null;
-    
+
     if (element.id) {
       const xpath = '//*[@id="' + element.id + '"]';
       if (isUniqueXPath(xpath)) result = xpath;
     }
-    
+
     if (!result) {
       const semanticAttrs = ['data-testid', 'data-test', 'data-cy', 'aria-label', 'name', 'role', 'title', 'placeholder'];
       for (const attr of semanticAttrs) {
@@ -376,7 +348,7 @@
         }
       }
     }
-    
+
     if (!result) {
       const text = element.innerText?.trim();
       if (text && text.length < 30 && ['BUTTON', 'A', 'SPAN', 'LABEL'].includes(element.tagName)) {
@@ -384,7 +356,7 @@
         if (isUniqueXPath(xpath)) result = xpath;
       }
     }
-    
+
     if (!result) {
       if (element.className && typeof element.className === 'string') {
         const classes = element.className.trim().split(/\s+/).filter(c => c && !c.startsWith('_') && !c.startsWith('css-') && !/^[a-z]{1,2}$/.test(c));
@@ -394,11 +366,11 @@
         }
       }
     }
-    
+
     if (!result) {
       result = buildUniqueXPath(element);
     }
-    
+
     xpathCache.set(element, result);
     return result;
   }
@@ -429,11 +401,11 @@
 
     const siblings = Array.from(parent.children);
     const sameTagSiblings = siblings.filter(s => s.tagName === element.tagName);
-    
+
     if (sameTagSiblings.length === 1) {
       return baseSelector;
     }
-    
+
     const index = siblings.indexOf(element) + 1;
     return baseSelector + ':nth-child(' + index + ')';
   }
@@ -447,12 +419,12 @@
       const baseSelector = getBaseSelector(current);
       const selector = makeUniqueWithNth(current, baseSelector);
       parts.unshift(selector);
-      
+
       const fullSelector = parts.join(' > ');
       if (isUniqueSelector(fullSelector)) {
         return fullSelector;
       }
-      
+
       current = current.parentElement;
       depth++;
     }
@@ -460,7 +432,7 @@
     if (parts.length > 0) {
       return parts.join(' > ');
     }
-    
+
     return null;
   }
 
@@ -489,16 +461,16 @@
     if (selectorCache.has(element)) {
       return selectorCache.get(element);
     }
-    
+
     let result = null;
-    
+
     if (element.id) {
       const selector = '#' + CSS.escape(element.id);
       try {
         if (element.getRootNode().querySelectorAll(selector).length === 1) result = selector;
       } catch (e) {}
     }
-    
+
     if (!result) {
       const semanticAttrs = ['data-testid', 'data-test', 'data-cy', 'aria-label', 'name', 'role', 'title'];
       for (const attr of semanticAttrs) {
@@ -514,7 +486,7 @@
         }
       }
     }
-    
+
     if (!result) {
       const baseSelector = getBaseSelector(element);
       const uniqueSelector = makeUniqueWithNth(element, baseSelector);
@@ -522,16 +494,16 @@
         if (element.getRootNode().querySelectorAll(uniqueSelector).length === 1) result = uniqueSelector;
       } catch (e) {}
     }
-    
+
     if (!result) {
       const pathSelector = buildUniquePath(element);
       if (pathSelector) result = pathSelector;
     }
-    
+
     if (!result) {
       result = element.tagName.toLowerCase();
     }
-    
+
     selectorCache.set(element, result);
     return result;
   }
@@ -550,9 +522,10 @@
     };
   }
 
+  // ============ 录制核心逻辑 ============
   function recordStep(action, data) {
     // 检查是否暂停录制
-    if (window.__recorderPaused) return;
+    if (window.xyzPaused) return;
 
     const step = {
       id: 'step-' + Date.now() + '-' + Math.random().toString(36).substr(2, 10),
@@ -566,21 +539,20 @@
       iframe: isInIframe
     };
 
-    // keyboard 类型不需要 selector/xpath/elementInfo
     if (action === 'keyboard') {
       delete step.selector;
       delete step.xpath;
       delete step.elementInfo;
     }
 
-    window.__syncStep(step);
+    syncStep(step);
   }
 
   document.addEventListener('click', (e) => {
     const path = e.composedPath();
     const element = path[0] || e.target;
-    
-    if (isInRecorderPanel(element)) {
+
+    if (isInPanel(element)) {
       return;
     }
     if (element === document.body || element === document.documentElement) {
@@ -598,7 +570,7 @@
           isExternal = linkHost !== window.location.host;
         } catch (e) {}
       }
-      
+
       recordStep('link_click', {
         selector: getSelector(link),
         xpath: getXPath(link),
@@ -614,25 +586,26 @@
       elementInfo: getElementInfo(element)
     });
 
-    if (!isInIframe && typeof window.__recorderAddMarker === 'function') {
-      window.__recorderAddMarker(element, 'default');
+    // 非隐藏模式下添加标记
+    if (!HIDE_UI && !isInIframe && typeof addMarker === 'function') {
+      addMarker(element, 'default');
     }
   }, true);
 
   document.addEventListener('input', (e) => {
     const element = e.target;
     if (!element || !element.tagName) return;
-    if (isInRecorderPanel(element)) return;
+    if (isInPanel(element)) return;
 
     const selector = getSelector(element);
     const value = element.value;
 
     clearTimeout(fillTimeout);
-    
+
     if (lastFillSelector && lastFillSelector !== selector && lastFillValue) {
       recordStep('fill', { selector: lastFillSelector, value: lastFillValue });
     }
-    
+
     lastFillSelector = selector;
     lastFillValue = value;
 
@@ -648,7 +621,7 @@
   document.addEventListener('change', (e) => {
     const element = e.target;
     if (!element || element.tagName !== 'SELECT') return;
-    if (isInRecorderPanel(element)) return;
+    if (isInPanel(element)) return;
 
     recordStep('select', {
       selector: getSelector(element),
@@ -660,7 +633,7 @@
 
   document.addEventListener('keydown', (e) => {
     const element = document.activeElement;
-    if (isInRecorderPanel(element)) return;
+    if (isInPanel(element)) return;
 
     const specialKeys = ['Enter', 'Tab', 'Escape', 'Backspace', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
 
@@ -685,7 +658,7 @@
 
   window.addEventListener('beforeunload', () => {
     if (lastFillSelector && lastFillValue) {
-      window.__syncStepDirect({
+      syncStepDirect({
         id: 'step-' + Date.now(),
         timestamp: Date.now(),
         action: 'fill',
@@ -693,7 +666,7 @@
         value: lastFillValue
       });
     }
-    window.__syncStepDirect({
+    syncStepDirect({
       id: 'step-' + Date.now(),
       timestamp: Date.now(),
       action: 'navigate',
@@ -701,16 +674,16 @@
     });
   });
 
-  if (!isInIframe) {
-    // 定义关闭面板函数（必须在检查 __recorderSessionActive 之前）
-    // 这样即使会话不激活，stopRecorder 也能调用此函数关闭面板
+  // ============ UI 部分（仅在非隐藏模式下创建）============
+  if (!isInIframe && !HIDE_UI) {
     let _animationFrameId = null;
     let _highlightRafId = null;
     let _toolbarHideTimeout = null;
     let _pollInterval = null;
     let _checkPanelInterval = null;
 
-    window.__recorderClosePanel = function() {
+    // 关闭面板函数（暴露给外部调用）
+    window.xyzClose = function() {
       if (_animationFrameId) {
         cancelAnimationFrame(_animationFrameId);
         _animationFrameId = null;
@@ -734,12 +707,12 @@
       }
 
       const elements = [
-        document.getElementById('recorder-panel'),
-        document.getElementById('recorder-markers'),
-        document.getElementById('recorder-canvas'),
-        document.getElementById('recorder-shadow'),
-        document.getElementById('recorder-toolbar'),
-        document.getElementById('recorder-styles')
+        document.getElementById('xyzPnl'),
+        document.getElementById('xyzMk'),
+        document.getElementById('xyzCv'),
+        document.getElementById('xyzSh'),
+        document.getElementById('xyzTb'),
+        document.getElementById('xyzSt')
       ];
 
       elements.forEach(el => {
@@ -748,22 +721,20 @@
         }
       });
 
-      window.__recorderInitialized = false;
-      window.__recorderSteps = [];
-      console.log('[Recorder] Panel closed');
+      window.xyzInited = false;
+      window.xyzQueue = [];
+      console.log('[Panel] closed');
     };
 
-    // 检查录制会话是否已停止（防止刷新后重新创建面板）
-    // 注意：这个检查必须在 __recorderSessionActive 检查之前
-    // 因为 initScript 执行顺序问题
-    if (window.__recorderSessionStopped) {
-      console.log('[Recorder] Session was stopped, skipping panel creation');
+    // 检查录制会话是否已停止
+    if (window.xyzStopped) {
+      console.log('[Panel] Session was stopped, skipping panel creation');
       return;
     }
 
     // 检查录制会话是否激活
-    if (!window.__recorderSessionActive) {
-      console.log('[Recorder] Session not active, skipping panel creation');
+    if (!window.xyzActive) {
+      console.log('[Panel] Session not active, skipping panel creation');
       return;
     }
 
@@ -780,6 +751,24 @@
     let currentStepIndex = -1;
     let currentStepId = null;
 
+    function addMarker(element, type) {
+      if (!element || markedElements.has(element)) return;
+      const markersContainer = document.getElementById('xyzMk');
+      if (!markersContainer) return;
+
+      const marker = document.createElement('div');
+      marker.className = 'xyzMrk' + (type !== 'default' ? ' ' + type : '');
+      markersContainer.appendChild(marker);
+      markedElements.set(element, { marker, type });
+
+      const rect = element.getBoundingClientRect();
+      marker.style.left = rect.left + 'px';
+      marker.style.top = rect.top + 'px';
+      marker.style.width = rect.width + 'px';
+      marker.style.height = rect.height + 'px';
+      marker.style.display = 'block';
+    }
+
     function createRecorderOverlay() {
       if (!document.body) {
         if (document.readyState === 'loading') {
@@ -790,97 +779,95 @@
         return;
       }
 
-      // 检查面板是否已存在
-      const existingPanel = document.getElementById('recorder-panel');
-      
-      // 检查并创建样式（样式可能被销毁）
-      let style = document.getElementById('recorder-styles');
+      const existingPanel = document.getElementById('xyzPnl');
+
+      // 检查并创建样式
+      let style = document.getElementById('xyzSt');
       if (!style) {
         style = document.createElement('style');
-        style.id = 'recorder-styles';
+        style.id = 'xyzSt';
         style.textContent = `
-        .recorder-panel { position: fixed; right: 20px; top: 20px; width: 320px; background: white; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); z-index: 2147483647; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-        .recorder-panel-header { padding: 12px 15px; background: #333; color: white; display: flex; justify-content: space-between; align-items: center; cursor: move; user-select: none; }
-        .recorder-panel-header h3 { font-size: 14px; font-weight: 500; margin: 0; }
-        .recorder-panel-header button { padding: 4px 10px; font-size: 12px; border: none; border-radius: 4px; cursor: pointer; background: #555; color: white; }
-        .recorder-panel-header button:hover { background: #666; }
-        .recorder-panel-body { flex: 1; overflow-y: auto; padding: 10px; max-height: 400px; }
-        .recorder-step { padding: 8px 10px; border-radius: 4px; margin-bottom: 6px; background: #f5f5f5; font-size: 12px; border-left: 3px solid #4CAF50; position: relative; }
-        .recorder-step.click { border-left-color: #4CAF50; }
-        .recorder-step.fill { border-left-color: #2196F3; }
-        .recorder-step.select { border-left-color: #FF9800; }
-        .recorder-step.link_click { border-left-color: #9C27B0; }
-        .recorder-step.navigate { border-left-color: #607D8B; }
-        .recorder-step.annotate { border-left-color: #E91E63; }
-        .recorder-step .action { font-weight: 500; color: #333; }
-        .recorder-step .selector { color: #666; word-break: break-all; margin-top: 4px; font-size: 11px; }
-        .recorder-step .value { color: #888; margin-top: 2px; font-size: 11px; }
-        .recorder-step .annotation { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-top: 4px; background: #E8F5E9; color: #388E3C; }
-        .recorder-step.selected { background: #e3f2fd; border-left-color: #2196F3; }
-        .recorder-step:hover { background: #f0f0f0; }
-        .recorder-step.selected:hover { background: #e3f2fd; }
-        .recorder-delete-btn { position: absolute; right: 8px; bottom: 8px; padding: 2px 6px; font-size: 12px; border: none; border-radius: 3px; background: #ffebee; cursor: pointer; opacity: 0.8; }
-        .recorder-delete-btn:hover { background: #ffcdd2; opacity: 1; }
-        .recorder-empty { color: #999; text-align: center; padding: 20px; font-size: 13px; }
-        .recorder-status { padding: 8px 15px; background: #f0f0f0; font-size: 11px; color: #666; border-top: 1px solid #eee; }
-        .recorder-panel-tools { padding: 8px 10px; background: #fafafa; border-top: 1px solid #eee; }
-        .recorder-tools-label { font-size: 11px; color: #666; margin-bottom: 6px; font-weight: 500; }
-        .recorder-tools-list { display: flex; flex-wrap: wrap; gap: 4px; }
-        .recorder-tools-list .tool-btn { padding: 4px 8px; font-size: 10px; border: 1px solid #ddd; border-radius: 3px; background: white; cursor: pointer; transition: all 0.2s; }
-        .recorder-tools-list .tool-btn:hover { background: #f0f0f0; border-color: #bbb; }
-        .recorder-tools-list .tool-btn:active { transform: scale(0.95); }
-        #recorder-collapse { padding: 4px 8px; font-size: 14px; font-weight: bold; border: none; border-radius: 4px; cursor: pointer; background: #555; color: white; margin-right: 5px; }
-        #recorder-collapse:hover { background: #666; }
-        .recorder-shadow { position: absolute; pointer-events: none; border: 2px solid #4CAF50; background: rgba(76, 175, 80, 0.1); border-radius: 4px; z-index: 2147483646; transition: all 0.2s ease-out; will-change: transform, width, height; }
-        .recorder-shadow.login { border-color: #2196F3; background: rgba(33, 150, 243, 0.1); }
-        .recorder-shadow.data { border-color: #FF9800; background: rgba(255, 152, 0, 0.1); }
-        .recorder-shadow.pagination { border-color: #9C27B0; background: rgba(156, 39, 176, 0.1); }
-        .recorder-toolbar { position: absolute; z-index: 2147483647; background: white; border-radius: 6px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); padding: 4px; display: flex; gap: 2px; pointer-events: auto; }
-        .recorder-toolbar.horizontal { flex-direction: row; }
-        .recorder-toolbar.vertical { flex-direction: column; }
-        .recorder-toolbar button { padding: 5px 8px; border: none; border-radius: 3px; cursor: pointer; font-size: 11px; white-space: nowrap; pointer-events: auto; }
-        .recorder-toolbar button:hover { transform: scale(1.02); }
-        .recorder-toolbar .btn-login { background: #E3F2FD; color: #1976D2; }
-        .recorder-toolbar .btn-data { background: #FFF3E0; color: #F57C00; }
-        .recorder-toolbar .btn-page { background: #F3E5F5; color: #7B1FA2; }
-        .recorder-toolbar .btn-note { background: #E8F5E9; color: #388E3C; }
-        .recorder-toolbar .btn-wait { background: #FFF8E1; color: #F9A825; }
-        .recorder-toolbar .btn-container { background: #E0F7FA; color: #00838F; }
-        .recorder-toolbar .btn-item { background: #FFF3E0; color: #F57C00; }
-        .recorder-toolbar .btn-check { background: #E8F5E9; color: #2E7D32; }
-        .recorder-markers-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2147483645; }
-        .recorder-marker { position: absolute; pointer-events: none; border: 2px solid rgba(76, 175, 80, 0.6); border-radius: 4px; transition: all 0.2s ease-out; }
-        .recorder-marker.login { border-color: rgba(33, 150, 243, 0.8); }
-        .recorder-marker.data { border-color: rgba(255, 152, 0, 0.8); }
-        .recorder-marker.pagination { border-color: rgba(156, 39, 176, 0.8); }
-        .recorder-marker.custom { border-color: rgba(76, 175, 80, 0.8); }
-        #recorder-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2147483644; }
+        .xyzPnl { position: fixed; right: 20px; top: 20px; width: 320px; background: white; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); z-index: 2147483647; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .xyzPnl-hdr { padding: 12px 15px; background: #333; color: white; display: flex; justify-content: space-between; align-items: center; cursor: move; user-select: none; }
+        .xyzPnl-hdr h3 { font-size: 14px; font-weight: 500; margin: 0; }
+        .xyzPnl-hdr button { padding: 4px 10px; font-size: 12px; border: none; border-radius: 4px; cursor: pointer; background: #555; color: white; }
+        .xyzPnl-hdr button:hover { background: #666; }
+        .xyzPnl-bdy { flex: 1; overflow-y: auto; padding: 10px; max-height: 400px; }
+        .xyzStp { padding: 8px 10px; border-radius: 4px; margin-bottom: 6px; background: #f5f5f5; font-size: 12px; border-left: 3px solid #4CAF50; position: relative; }
+        .xyzStp.click { border-left-color: #4CAF50; }
+        .xyzStp.fill { border-left-color: #2196F3; }
+        .xyzStp.select { border-left-color: #FF9800; }
+        .xyzStp.link_click { border-left-color: #9C27B0; }
+        .xyzStp.navigate { border-left-color: #607D8B; }
+        .xyzStp.annotate { border-left-color: #E91E63; }
+        .xyzStp .action { font-weight: 500; color: #333; }
+        .xyzStp .selector { color: #666; word-break: break-all; margin-top: 4px; font-size: 11px; }
+        .xyzStp .value { color: #888; margin-top: 2px; font-size: 11px; }
+        .xyzStp .annotation { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-top: 4px; background: #E8F5E9; color: #388E3C; }
+        .xyzStp.selected { background: #e3f2fd; border-left-color: #2196F3; }
+        .xyzStp:hover { background: #f0f0f0; }
+        .xyzStp.selected:hover { background: #e3f2fd; }
+        .xyzDelBtn { position: absolute; right: 8px; bottom: 8px; padding: 2px 6px; font-size: 12px; border: none; border-radius: 3px; background: #ffebee; cursor: pointer; opacity: 0.8; }
+        .xyzDelBtn:hover { background: #ffcdd2; opacity: 1; }
+        .xyzEmpty { color: #999; text-align: center; padding: 20px; font-size: 13px; }
+        .xyzStatus { padding: 8px 15px; background: #f0f0f0; font-size: 11px; color: #666; border-top: 1px solid #eee; }
+        .xyzPnl-tools { padding: 8px 10px; background: #fafafa; border-top: 1px solid #eee; }
+        .xyzTools-label { font-size: 11px; color: #666; margin-bottom: 6px; font-weight: 500; }
+        .xyzTools-list { display: flex; flex-wrap: wrap; gap: 4px; }
+        .xyzTools-list .tool-btn { padding: 4px 8px; font-size: 10px; border: 1px solid #ddd; border-radius: 3px; background: white; cursor: pointer; transition: all 0.2s; }
+        .xyzTools-list .tool-btn:hover { background: #f0f0f0; border-color: #bbb; }
+        .xyzTools-list .tool-btn:active { transform: scale(0.95); }
+        #xyzCollapse { padding: 4px 8px; font-size: 14px; font-weight: bold; border: none; border-radius: 4px; cursor: pointer; background: #555; color: white; margin-right: 5px; }
+        #xyzCollapse:hover { background: #666; }
+        .xyzSh { position: absolute; pointer-events: none; border: 2px solid #4CAF50; background: rgba(76, 175, 80, 0.1); border-radius: 4px; z-index: 2147483646; transition: all 0.2s ease-out; will-change: transform, width, height; }
+        .xyzSh.login { border-color: #2196F3; background: rgba(33, 150, 243, 0.1); }
+        .xyzSh.data { border-color: #FF9800; background: rgba(255, 152, 0, 0.1); }
+        .xyzSh.pagination { border-color: #9C27B0; background: rgba(156, 39, 176, 0.1); }
+        .xyzTb { position: absolute; z-index: 2147483647; background: white; border-radius: 6px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); padding: 4px; display: flex; gap: 2px; pointer-events: auto; }
+        .xyzTb.horizontal { flex-direction: row; }
+        .xyzTb.vertical { flex-direction: column; }
+        .xyzTb button { padding: 5px 8px; border: none; border-radius: 3px; cursor: pointer; font-size: 11px; white-space: nowrap; pointer-events: auto; }
+        .xyzTb button:hover { transform: scale(1.02); }
+        .xyzTb .btn-login { background: #E3F2FD; color: #1976D2; }
+        .xyzTb .btn-data { background: #FFF3E0; color: #F57C00; }
+        .xyzTb .btn-page { background: #F3E5F5; color: #7B1FA2; }
+        .xyzTb .btn-note { background: #E8F5E9; color: #388E3C; }
+        .xyzTb .btn-wait { background: #FFF8E1; color: #F9A825; }
+        .xyzTb .btn-container { background: #E0F7FA; color: #00838F; }
+        .xyzTb .btn-item { background: #FFF3E0; color: #F57C00; }
+        .xyzTb .btn-check { background: #E8F5E9; color: #2E7D32; }
+        .xyzMk { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2147483645; }
+        .xyzMrk { position: absolute; pointer-events: none; border: 2px solid rgba(76, 175, 80, 0.6); border-radius: 4px; transition: all 0.2s ease-out; }
+        .xyzMrk.login { border-color: rgba(33, 150, 243, 0.8); }
+        .xyzMrk.data { border-color: rgba(255, 152, 0, 0.8); }
+        .xyzMrk.pagination { border-color: rgba(156, 39, 176, 0.8); }
+        .xyzMrk.custom { border-color: rgba(76, 175, 80, 0.8); }
+        #xyzCv { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2147483644; }
       `;
         (document.head || document.documentElement).appendChild(style);
       }
-      
-      // 检查面板是否已存在
+
       if (existingPanel) {
         return;
       }
 
       const panel = document.createElement('div');
-      panel.className = 'recorder-panel';
-      panel.id = 'recorder-panel';
+      panel.className = 'xyzPnl';
+      panel.id = 'xyzPnl';
       panel.innerHTML = `
-        <div class="recorder-panel-header">
+        <div class="xyzPnl-hdr">
           <h3>📝 Recorder</h3>
           <div>
-            <button id="recorder-collapse">−</button>
-            <button id="recorder-clear">Clear</button>
+            <button id="xyzCollapse">−</button>
+            <button id="xyzClear">Clear</button>
           </div>
         </div>
-        <div class="recorder-panel-body" id="recorder-steps">
-          <div class="recorder-empty">No steps recorded yet</div>
+        <div class="xyzPnl-bdy" id="xyzSteps">
+          <div class="xyzEmpty">No steps recorded yet</div>
         </div>
-        <div class="recorder-panel-tools" id="recorder-tools">
-          <div class="recorder-tools-label">+ Tool:</div>
-          <div class="recorder-tools-list">
+        <div class="xyzPnl-tools" id="xyzTools">
+          <div class="xyzTools-label">+ Tool:</div>
+          <div class="xyzTools-list">
             <button class="tool-btn" data-tool="wait_element">⏳ Wait</button>
             <button class="tool-btn" data-tool="data_container">📦 Container</button>
             <button class="tool-btn" data-tool="data_item">📊 Item</button>
@@ -890,19 +877,19 @@
             <button class="tool-btn" data-tool="custom">📝 Note</button>
           </div>
         </div>
-        <div class="recorder-status" id="recorder-status">Steps: 0</div>
+        <div class="xyzStatus" id="xyzStatus">Steps: 0</div>
       `;
       document.body.appendChild(panel);
-      recorderPanelElement = panel;
+      panelElement = panel;
 
       // Panel collapse functionality
       let isCollapsed = false;
       let autoScroll = true;
-      const collapseBtn = document.getElementById('recorder-collapse');
-      const panelBody = document.getElementById('recorder-steps');
-      const panelTools = document.getElementById('recorder-tools');
-      const panelStatus = document.getElementById('recorder-status');
-      
+      const collapseBtn = document.getElementById('xyzCollapse');
+      const panelBody = document.getElementById('xyzSteps');
+      const panelTools = document.getElementById('xyzTools');
+      const panelStatus = document.getElementById('xyzStatus');
+
       collapseBtn.addEventListener('click', () => {
         isCollapsed = !isCollapsed;
         if (isCollapsed) {
@@ -918,12 +905,12 @@
         }
       });
 
-      // Prevent scroll穿透
+      // Prevent scroll penetration
       panelBody.addEventListener('wheel', (e) => {
         const { scrollTop, scrollHeight, clientHeight } = panelBody;
         const atTop = scrollTop === 0;
         const atBottom = scrollTop + clientHeight >= scrollHeight - 1;
-        
+
         if ((atTop && e.deltaY < 0) || (atBottom && e.deltaY > 0)) {
           e.preventDefault();
         }
@@ -939,7 +926,7 @@
       panelTools.querySelectorAll('.tool-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           if (!currentStepId) {
-            const steps = window.__recorderSteps || [];
+            const steps = window.xyzQueue || [];
             if (steps.length > 0) {
               currentStepId = steps[steps.length - 1].id;
             } else {
@@ -956,7 +943,7 @@
       let dragStartX = 0, dragStartY = 0;
       let panelStartX = 0, panelStartY = 0;
 
-      const header = panel.querySelector('.recorder-panel-header');
+      const header = panel.querySelector('.xyzPnl-hdr');
       header.addEventListener('mousedown', (e) => {
         if (e.target.tagName === 'BUTTON') return;
         isDragging = true;
@@ -983,7 +970,7 @@
         if (isDragging) {
           isDragging = false;
           try {
-            localStorage.setItem('recorder-panel-pos', JSON.stringify({
+            localStorage.setItem('xyzPnl-pos', JSON.stringify({
               left: panel.style.left,
               top: panel.style.top
             }));
@@ -993,7 +980,7 @@
 
       // Restore saved position
       try {
-        const savedPos = localStorage.getItem('recorder-panel-pos');
+        const savedPos = localStorage.getItem('xyzPnl-pos');
         if (savedPos) {
           const pos = JSON.parse(savedPos);
           if (pos.left && pos.top) {
@@ -1005,23 +992,23 @@
       } catch(e) {}
 
       const markersContainer = document.createElement('div');
-      markersContainer.className = 'recorder-markers-container';
-      markersContainer.id = 'recorder-markers';
+      markersContainer.className = 'xyzMk';
+      markersContainer.id = 'xyzMk';
       document.body.appendChild(markersContainer);
 
       const canvas = document.createElement('canvas');
-      canvas.id = 'recorder-canvas';
+      canvas.id = 'xyzCv';
       document.body.appendChild(canvas);
 
       const shadowBox = document.createElement('div');
-      shadowBox.className = 'recorder-shadow';
-      shadowBox.id = 'recorder-shadow';
+      shadowBox.className = 'xyzSh';
+      shadowBox.id = 'xyzSh';
       shadowBox.style.display = 'none';
       document.body.appendChild(shadowBox);
 
       const toolbar = document.createElement('div');
-      toolbar.className = 'recorder-toolbar';
-      toolbar.id = 'recorder-toolbar';
+      toolbar.className = 'xyzTb';
+      toolbar.id = 'xyzTb';
       toolbar.innerHTML = `
         <button class="btn-wait" data-type="wait_element">⏳ Wait</button>
         <button class="btn-container" data-type="data_container">📦 Container</button>
@@ -1036,29 +1023,27 @@
 
       uiElements = { panel, markersContainer, canvas, shadowBox, toolbar, style };
 
-      window.__recorderUISteps = [];
-
-      window.__updateRecorderUI = function() {
-        const container = document.getElementById('recorder-steps');
-        const status = document.getElementById('recorder-status');
+      function updateUI() {
+        const container = document.getElementById('xyzSteps');
+        const status = document.getElementById('xyzStatus');
         if (!container || !status) return;
-        
-        const steps = window.__recorderSteps || [];
+
+        const steps = window.xyzQueue || [];
         status.textContent = 'Steps: ' + steps.length;
-        
+
         if (steps.length === 0) {
-          container.innerHTML = '<div class="recorder-empty">No steps recorded yet</div>';
+          container.innerHTML = '<div class="xyzEmpty">No steps recorded yet</div>';
           return;
         }
-        
+
         const displaySteps = steps.slice(-20);
-        
+
         container.innerHTML = displaySteps.map((step) => {
           const action = step.action || 'unknown';
           const selector = step.selector || '';
           const value = step.value || '';
           const stepId = step.id || '';
-          
+
           let extra = '';
           if (action === 'trajectory' && step.points) {
             extra = '<div class="selector">🖱️ ' + step.points.length + ' points</div>';
@@ -1069,54 +1054,50 @@
           } else if (action === 'link_click') {
             extra = '<div class="selector">🔗 ' + (value || '') + '</div>';
           }
-          
+
           const hasAnnotation = step.annotation && step.annotation.label;
           const isSelected = stepId === currentStepId;
-          
-          return '<div class="recorder-step ' + action + (isSelected ? ' selected' : '') + '" data-step-id="' + stepId + '">' +
+
+          return '<div class="xyzStp ' + action + (isSelected ? ' selected' : '') + '" data-step-id="' + stepId + '">' +
             '<div class="action">' + action.toUpperCase() + '</div>' +
             (selector ? '<div class="selector">' + selector + '</div>' : '') +
             (value && !['trajectory', 'scroll', 'resize', 'link_click'].includes(action) ? '<div class="value">"' + value.slice(0, 30) + (value.length > 30 ? '...' : '') + '"</div>' : '') +
             extra +
             (hasAnnotation ? '<span class="annotation">🏷️ ' + step.annotation.label + '</span>' : '') +
-            (isSelected ? '<button class="recorder-delete-btn" data-step-id="' + stepId + '" title="Delete step">🗑️</button>' : '') +
+            (isSelected ? '<button class="xyzDelBtn" data-step-id="' + stepId + '" title="Delete step">🗑️</button>' : '') +
           '</div>';
         }).join('');
-        
+
         // Click to select step
-        container.querySelectorAll('.recorder-step').forEach(stepEl => {
+        container.querySelectorAll('.xyzStp').forEach(stepEl => {
           stepEl.addEventListener('click', (e) => {
-            // 如果点击的是删除按钮，不选中步骤
-            if (e.target.classList.contains('recorder-delete-btn')) return;
-            
+            if (e.target.classList.contains('xyzDelBtn')) return;
+
             const stepId = stepEl.dataset.stepId;
             currentStepId = stepId;
-            window.__recorderCurrentStepId = stepId;
-            window.__updateRecorderUI();
+            updateUI();
           });
         });
-        
+
         // Delete button click
-        container.querySelectorAll('.recorder-delete-btn').forEach(btn => {
+        container.querySelectorAll('.xyzDelBtn').forEach(btn => {
           btn.addEventListener('click', (e) => {
             e.stopPropagation();
             const stepId = btn.dataset.stepId;
             deleteStep(stepId);
           });
         });
-        
-        // Only auto-scroll if user is at bottom
+
         if (typeof autoScroll !== 'undefined' && autoScroll) {
           container.scrollTop = container.scrollHeight;
         }
-      };
+      }
 
       function addToolAnnotation(stepId, toolType) {
         if (!stepId) {
-          // 如果没有传入 ID，使用当前选中的步骤 ID
           stepId = currentStepId;
           if (!stepId) {
-            const steps = window.__recorderSteps || [];
+            const steps = window.xyzQueue || [];
             if (steps.length > 0) {
               stepId = steps[steps.length - 1].id;
             } else {
@@ -1124,11 +1105,11 @@
             }
           }
         }
-        
-        const steps = window.__recorderSteps || [];
+
+        const steps = window.xyzQueue || [];
         const step = steps.find(s => s.id === stepId);
         if (!step) return;
-        
+
         const labels = {
           wait_element: 'Wait',
           data_container: 'Container',
@@ -1138,9 +1119,9 @@
           checkpoint: 'Check',
           custom: 'Custom'
         };
-        
+
         let annotation = null;
-        
+
         if (toolType === 'custom') {
           const note = prompt('Enter custom annotation:');
           if (note) {
@@ -1150,77 +1131,71 @@
           }
         } else if (toolType === 'wait_element') {
           const timeout = prompt('Enter wait timeout (ms, default 10000):', '10000');
-          annotation = { 
-            type: toolType, 
+          annotation = {
+            type: toolType,
             label: labels[toolType],
             waitTimeout: parseInt(timeout) || 10000
           };
         } else if (toolType === 'data_container') {
           const itemSelector = prompt('Enter item selector (e.g., .product-item):');
-          annotation = { 
-            type: toolType, 
+          annotation = {
+            type: toolType,
             label: labels[toolType],
             itemSelector: itemSelector || ''
           };
         } else {
           annotation = { type: toolType, label: labels[toolType] };
         }
-        
-        // 使用统一 API 更新步骤
-        const result = window.__recorderAction({ type: 'update', id: stepId, data: { annotation } });
-        
+
+        const result = pushEvent({ type: 'update', id: stepId, data: { annotation } });
+
         if (result.success) {
-          // 同步到主进程
-          if (typeof window.__recorderSync === 'function') {
+          if (typeof window.xyzTrack === 'function') {
             try {
-              window.__recorderSync(JSON.stringify({ action: '__update_step__', id: stepId, data: { annotation } }));
+              window.xyzTrack(JSON.stringify({ action: 'xyzUpdate', id: stepId, data: { annotation } }));
             } catch (e) {}
           }
-          
-          window.__updateRecorderUI();
+
+          updateUI();
         }
       }
 
       function deleteStep(stepId) {
         if (!stepId) return;
-        
-        const result = window.__recorderAction({ type: 'delete', id: stepId });
-        
+
+        const result = pushEvent({ type: 'delete', id: stepId });
+
         if (result.success) {
-          // 同步到主进程
-          if (typeof window.__recorderSync === 'function') {
+          if (typeof window.xyzTrack === 'function') {
             try {
-              window.__recorderSync(JSON.stringify({ action: '__delete_step__', id: stepId }));
+              window.xyzTrack(JSON.stringify({ action: 'xyzDelete', id: stepId }));
             } catch (e) {}
           }
-          
-          // 清除选中状态
+
           currentStepIndex = -1;
           currentStepId = null;
-          window.__recorderCurrentStepIndex = -1;
-          window.__recorderCurrentStepId = null;
-          
-          window.__updateRecorderUI();
+
+          updateUI();
         }
       }
 
-      window.addEventListener('recorder:steps', function(e) {
-        window.__recorderSteps = e.detail;
-        window.__updateRecorderUI();
+      window.addEventListener('xyzEvt', function(e) {
+        window.xyzQueue = e.detail;
+        updateUI();
       });
 
-      if (typeof window.__recorderSync === 'function') {
-        window.__recorderSync('');
+      if (typeof window.xyzTrack === 'function') {
+        window.xyzTrack('');
       }
 
-      document.getElementById('recorder-clear').addEventListener('click', function() {
-        window.__recorderSteps = [];
-        document.getElementById('recorder-markers').innerHTML = '';
+      document.getElementById('xyzClear').addEventListener('click', function() {
+        window.xyzQueue = [];
+        document.getElementById('xyzMk').innerHTML = '';
         markedElements.clear();
         annotations.clear();
-        window.__updateRecorderUI();
-        if (typeof window.__recorderSync === 'function') {
-          try { window.__recorderSync(JSON.stringify({ action: '__clear__' })); } catch (e) {}
+        updateUI();
+        if (typeof window.xyzTrack === 'function') {
+          try { window.xyzTrack(JSON.stringify({ action: 'xyzClear' })); } catch (e) {}
         }
       });
 
@@ -1243,9 +1218,9 @@
       window.addEventListener('resize', updateAllMarkers);
 
       function updateShadowBox(element) {
-        if (!element) { 
-          shadowBox.style.display = 'none'; 
-          return; 
+        if (!element) {
+          shadowBox.style.display = 'none';
+          return;
         }
         const rect = element.getBoundingClientRect();
         shadowBox.style.left = rect.left + window.scrollX + 'px';
@@ -1254,7 +1229,7 @@
         shadowBox.style.height = rect.height + 'px';
         shadowBox.style.display = 'block';
         const annotation = annotations.get(element);
-        shadowBox.className = 'recorder-shadow' + (annotation ? ' ' + annotation.type : '');
+        shadowBox.className = 'xyzSh' + (annotation ? ' ' + annotation.type : '');
       }
 
       function calculateToolbarPosition(rect) {
@@ -1262,36 +1237,33 @@
         const TOOLBAR_W = 280;
         const TOOLBAR_H = 32;
         const scrollX = window.scrollX, scrollY = window.scrollY;
-        
-        // Priority: place toolbar near mouse position
+
         let left = mouseX + GAP;
         let top = mouseY + GAP;
-        
-        // Boundary detection
+
         if (left + TOOLBAR_W > window.innerWidth - 10) {
           left = mouseX - TOOLBAR_W - GAP;
         }
         if (top + TOOLBAR_H > window.innerHeight - 10) {
           top = mouseY - TOOLBAR_H - GAP;
         }
-        
-        // Ensure toolbar stays within screen
+
         left = Math.max(10, Math.min(window.innerWidth - TOOLBAR_W - 10, left));
         top = Math.max(10, Math.min(window.innerHeight - TOOLBAR_H - 10, top));
-        
+
         return { left: left + scrollX, top: top + scrollY, orientation: 'horizontal' };
       }
 
       function updateToolbar(element) {
-        if (!element) { 
-          toolbar.style.display = 'none'; 
-          return; 
+        if (!element) {
+          toolbar.style.display = 'none';
+          return;
         }
         const rect = element.getBoundingClientRect();
         const pos = calculateToolbarPosition(rect);
         toolbar.style.left = pos.left + 'px';
         toolbar.style.top = pos.top + 'px';
-        toolbar.className = 'recorder-toolbar ' + pos.orientation;
+        toolbar.className = 'xyzTb ' + pos.orientation;
         toolbar.style.display = 'flex';
       }
 
@@ -1328,16 +1300,16 @@
           else return;
         } else if (type === 'wait_element') {
           const timeout = prompt('Enter wait timeout (ms, default 10000):', '10000');
-          annotation = { 
-            type, 
+          annotation = {
+            type,
             label: labels[type],
             selector: selector,
             waitTimeout: parseInt(timeout) || 10000
           };
         } else if (type === 'data_container') {
           const itemSelector = prompt('Enter item selector (e.g., .product-item):');
-          annotation = { 
-            type, 
+          annotation = {
+            type,
             label: labels[type],
             selector: selector,
             itemSelector: itemSelector || ''
@@ -1346,10 +1318,8 @@
           annotation = { type, label: labels[type], selector: selector };
         }
         annotations.set(element, annotation);
-        if (typeof window.__recorderAddMarker === 'function') {
-          window.__recorderAddMarker(element, type);
-        }
-        
+        addMarker(element, type);
+
         recordStep('annotate', {
           selector: selector,
           xpath: getXPath(element),
@@ -1360,7 +1330,7 @@
         shadowBox.style.transition = 'none';
         shadowBox.style.boxShadow = '0 0 20px 5px rgba(76, 175, 80, 0.8)';
         setTimeout(() => { shadowBox.style.transition = 'box-shadow 0.3s ease'; shadowBox.style.boxShadow = ''; }, 200);
-        
+
         updateShadowBox(element);
       }
 
@@ -1386,7 +1356,7 @@
       function throttledHighlight(element) {
         const now = Date.now();
         pendingHighlightElement = element;
-        
+
         if (now - lastHighlightTime >= HIGHLIGHT_THROTTLE) {
           lastHighlightTime = now;
           if (highlightRafId === null) {
@@ -1401,43 +1371,43 @@
 
       document.addEventListener('mousemove', (e) => {
         if (isOverToolbar) return;
-        
+
         const element = e.composedPath()[0] || e.target;
         mouseX = e.clientX;
         mouseY = e.clientY;
-        
+
         if (element === shadowBox || element === toolbar || toolbar.contains(element)) return;
-        if (isInRecorderPanel(element)) { 
-          throttledHighlight(null); 
-          return; 
+        if (isInPanel(element)) {
+          throttledHighlight(null);
+          return;
         }
-        if (element === document.body || element === document.documentElement) { 
-          throttledHighlight(null); 
-          currentEdge = null; 
-          return; 
+        if (element === document.body || element === document.documentElement) {
+          throttledHighlight(null);
+          currentEdge = null;
+          return;
         }
-        
+
         if (!shouldHighlightElement(element)) {
           throttledHighlight(null);
           return;
         }
-        
+
         currentElement = element;
         throttledHighlight(element);
       }, true);
 
       const ctx = canvas.getContext('2d');
-      function resizeCanvas() { 
-        canvas.width = window.innerWidth; 
-        canvas.height = window.innerHeight; 
+      function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
       }
       resizeCanvas();
       window.addEventListener('resize', resizeCanvas);
 
       function drawCanvas() {
-        const points = window.__recorderTrajectory;
+        const points = mousePath;
         const currentLength = points ? points.length : 0;
-        
+
         if (currentLength < 2) {
           if (lastTrajectoryLength > 0) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1445,7 +1415,7 @@
           }
           return;
         }
-        
+
         lastTrajectoryLength = currentLength;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.beginPath();
@@ -1467,83 +1437,63 @@
         animationFrameId = requestAnimationFrame(animateTrajectory);
       }
       animateTrajectory();
-      
+
       let pollInterval = null;
-      
+
       function startPolling() {
         if (pollInterval) return;
-        
+
         pollInterval = setInterval(() => {
-          if (typeof window.__recorderSync === 'function') {
-            window.__recorderSync(JSON.stringify({ action: '__poll__' }));
+          if (typeof window.xyzTrack === 'function') {
+            window.xyzTrack(JSON.stringify({ action: 'xyzPoll' }));
           }
         }, 500);
       }
-      
-      function stopPolling() {
-        if (pollInterval) {
-          clearInterval(pollInterval);
-          pollInterval = null;
-        }
-      }
-
-      window.__recorderStartPolling = startPolling;
-      window.__recorderStopPolling = stopPolling;
 
       startPolling();
     }
 
-    // 延迟创建面板， 等待所有 initScript 执行完毕
-    // 这样可以在 stopRecorder 后正确检测到 __recorderSessionStopped 标志
+    // 延迟创建面板
     setTimeout(() => {
-      // 再次检查状态（可能在等待期间被其他 initScript 修改）
-      if (window.__recorderSessionStopped) {
-        console.log('[Recorder] Session was stopped during init, skipping panel creation');
+      if (window.xyzStopped) {
+        console.log('[Panel] Session was stopped during init, skipping panel creation');
         return;
       }
-      if (!window.__recorderSessionActive) {
-        console.log('[Recorder] Session not active during init, skipping panel creation');
+      if (!window.xyzActive) {
+        console.log('[Panel] Session not active during init, skipping panel creation');
         return;
       }
       createRecorderOverlay();
     }, 0);
 
-    // 监听页面变化，重新创建面板
+    // 监听页面变化
     let lastUrl = window.location.href;
     _checkPanelInterval = setInterval(() => {
-      // 检查录制会话是否已停止（stopRecorder 后刷新页面时会触发）
-      if (window.__recorderSessionStopped) {
-        console.log('[Recorder] Session was stopped, removing panel');
-        if (typeof window.__recorderClosePanel === 'function') {
-          window.__recorderClosePanel();
+      if (window.xyzStopped) {
+        console.log('[Panel] Session was stopped, removing panel');
+        if (typeof window.xyzClose === 'function') {
+          window.xyzClose();
         }
         clearInterval(_checkPanelInterval);
         _checkPanelInterval = null;
         return;
       }
 
-      // 检查录制会话是否仍然激活
-      if (!window.__recorderSessionActive) {
+      if (!window.xyzActive) {
         clearInterval(_checkPanelInterval);
         _checkPanelInterval = null;
         return;
       }
 
-      // 检查 URL 是否变化
       if (window.location.href !== lastUrl) {
         lastUrl = window.location.href;
       }
 
-      // 定期检查面板和样式是否存在（处理 SPA 销毁的情况）
-      const panel = document.getElementById('recorder-panel');
-      const style = document.getElementById('recorder-styles');
+      const panel = document.getElementById('xyzPnl');
+      const style = document.getElementById('xyzSt');
       if (document.body && (!panel || !style)) {
         createRecorderOverlay();
       }
     }, 1000);
-    
-    window.__recorderStopPolling = function() {
-      clearInterval(checkPanelInterval);
-    };
   }
 })();

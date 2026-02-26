@@ -280,6 +280,8 @@ async function main(): Promise<void> {
       printError(e.message, flags.json);
       if (e.usage && !flags.json) {
         console.error(`Usage: ${e.usage}`);
+      } else if (!flags.json) {
+        console.error('\nRun "agent-browser --help" to see available commands.');
       }
     } else {
       printError(e instanceof Error ? e.message : String(e), flags.json);
