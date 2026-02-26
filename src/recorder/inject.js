@@ -98,13 +98,13 @@
   function shouldHighlightElement(element) {
     if (!element || !element.tagName) return false;
     if (SKIP_TAGS.has(element.tagName)) return false;
-    
+
     const now = Date.now();
     const cached = highlightCache.get(element);
     if (cached && (now - cached.time) < CACHE_TTL) {
       return cached.result;
     }
-    
+
     if (element.closest) {
       const recorderEl = element.closest('.recorder-panel, .recorder-toolbar, .recorder-shadow, .recorder-markers-container');
       if (recorderEl) {
@@ -112,16 +112,26 @@
         return false;
       }
     }
-    
+
     const rect = element.getBoundingClientRect();
     if (rect.width < 5 || rect.height < 5) {
       highlightCache.set(element, { time: now, result: false });
       return false;
     }
-    
+
+    // 排除尺寸接近视口的大元素（超过视口 70% 的元素）
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const widthRatio = rect.width / viewportWidth;
+    const heightRatio = rect.height / viewportHeight;
+    if (widthRatio > 0.7 || heightRatio > 0.7) {
+      highlightCache.set(element, { time: now, result: false });
+      return false;
+    }
+
     const style = window.getComputedStyle(element);
     const result = style.display !== 'none' && style.visibility !== 'hidden' && parseFloat(style.opacity) !== 0;
-    
+
     highlightCache.set(element, { time: now, result });
     return result;
   }
