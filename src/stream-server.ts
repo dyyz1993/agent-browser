@@ -20,7 +20,7 @@ export interface StreamStateConfig {
 }
 
 export const STATE_CONFIGS: Record<StreamState, StreamStateConfig> = {
-  user_interacting: { format: 'jpeg', quality: 80, maxFps: 60, scale: 0.2 },
+  user_interacting: { format: 'jpeg', quality: 80, maxFps: 60, scale: 0.4 },
   screen_moving: { format: 'webp', quality: 50, maxFps: 1, scale: 0.6 },
   static: { format: 'webp', quality: 80, maxFps: 0.5, scale: 1 },
 };
