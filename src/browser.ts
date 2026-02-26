@@ -2110,6 +2110,13 @@ export class BrowserManager {
   }
 
   async startRecorder(url?: string): Promise<{ started: boolean; sessionId: string }> {
+    // 检查是否已经在录制中
+    if (this.recorderSessionId) {
+      throw new Error(
+        `Recording already in progress (session: ${this.recorderSessionId}). Use 'recorder stop' to stop current recording first.`
+      );
+    }
+
     const page = this.getPage();
     if (!page) {
       throw new Error('No page available. Launch browser first.');
