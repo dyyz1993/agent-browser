@@ -2324,6 +2324,13 @@ export class BrowserManager {
         page.context().off('page', this.recorderPageHandler);
         this.recorderPageHandler = null;
       }
+
+      // 移除 __recorderSync binding（覆盖为空函数）
+      try {
+        await page.context().exposeBinding('__recorderSync', () => {});
+      } catch (e) {
+        // 忽略错误，可能 binding 已经被移除或其他问题
+      }
     }
 
     this.recorderSessionId = null;
