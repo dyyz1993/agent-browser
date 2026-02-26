@@ -36,7 +36,7 @@ export class StreamStateManager {
   private onStateChange: StateChangeCallback | null = null;
   private staticTimer: ReturnType<typeof setTimeout> | null = null;
 
-  private readonly USER_INTERACTION_TIMEOUT_MS = 2000;
+  private readonly USER_INTERACTION_TIMEOUT_MS = 1000;
   private readonly SCREEN_MOVING_THRESHOLD_MS = 1000;
   private readonly STATIC_TIMEOUT_MS = 1500;
 
