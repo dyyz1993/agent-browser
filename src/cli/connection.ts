@@ -15,6 +15,7 @@ export interface Response {
   success: boolean;
   data?: unknown;
   error?: string;
+  tips?: string | string[];
 }
 
 export interface ConnectionInfo {
@@ -235,7 +236,7 @@ async function checkStreamServerPort(): Promise<boolean> {
 
 export async function ensureStreamServer(): Promise<boolean> {
   const port = parseInt(process.env.AGENT_BROWSER_STREAM_PORT || '5005', 10);
-  
+
   if (isStreamServerRunning()) {
     return true;
   }
@@ -305,7 +306,7 @@ export async function ensureStreamServer(): Promise<boolean> {
 export async function ensureDaemon(options: DaemonOptions): Promise<DaemonResult> {
   const session = options.session;
 
-  if (isDaemonProcessRunning(session) && await isDaemonReady(session)) {
+  if (isDaemonProcessRunning(session) && (await isDaemonReady(session))) {
     await sleep(150);
     if (await isDaemonReady(session)) {
       return { alreadyRunning: true };
@@ -499,7 +500,9 @@ export async function sendCommand(cmd: Command, session: string): Promise<Respon
     }
   }
 
-  throw new Error(`${lastError} (after ${MAX_RETRIES} retries - daemon may be busy or unresponsive)`);
+  throw new Error(
+    `${lastError} (after ${MAX_RETRIES} retries - daemon may be busy or unresponsive)`
+  );
 }
 
 export async function listSessions(): Promise<string[]> {
@@ -527,33 +530,33 @@ export async function listSessions(): Promise<string[]> {
 
 export async function killDaemon(session: string): Promise<boolean> {
   const pidPath = getPidPath(session);
-  
+
   if (!fs.existsSync(pidPath)) {
     return false;
   }
 
   try {
     const pid = parseInt(fs.readFileSync(pidPath, 'utf8').trim(), 10);
-    
+
     if (isProcessRunning(pid)) {
       process.kill(pid, 'SIGTERM');
-      
+
       for (let i = 0; i < 10; i++) {
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise((resolve) => setTimeout(resolve, 200));
         if (!isProcessRunning(pid)) {
           break;
         }
       }
-      
+
       if (isProcessRunning(pid)) {
         process.kill(pid, 'SIGKILL');
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
     }
   } catch {}
 
   cleanupStaleFiles(session);
-  
+
   const streamPortFile = path.join(getSocketDir(), `${session}.stream`);
   try {
     if (fs.existsSync(streamPortFile)) fs.unlinkSync(streamPortFile);
@@ -585,18 +588,18 @@ async function findProcessByPort(port: number): Promise<number | null> {
 export async function killStreamServer(): Promise<boolean> {
   const pidPath = getStreamServerPidPath();
   let pid: number | null = null;
-  
+
   if (fs.existsSync(pidPath)) {
     try {
       pid = parseInt(fs.readFileSync(pidPath, 'utf8').trim(), 10);
     } catch {}
   }
-  
+
   if (!pid) {
     const port = parseInt(process.env.AGENT_BROWSER_STREAM_PORT || '5005', 10);
     pid = await findProcessByPort(port);
   }
-  
+
   if (!pid) {
     return false;
   }
@@ -604,17 +607,17 @@ export async function killStreamServer(): Promise<boolean> {
   try {
     if (isProcessRunning(pid)) {
       process.kill(pid, 'SIGTERM');
-      
+
       for (let i = 0; i < 10; i++) {
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise((resolve) => setTimeout(resolve, 200));
         if (!isProcessRunning(pid!)) {
           break;
         }
       }
-      
+
       if (isProcessRunning(pid!)) {
         process.kill(pid!, 'SIGKILL');
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
     }
   } catch {}
@@ -643,6 +646,6 @@ export async function killAll(): Promise<{ daemons: string[]; streamServer: bool
 
   return {
     daemons: killedDaemons,
-    streamServer: killedStreamServer
+    streamServer: killedStreamServer,
   };
 }

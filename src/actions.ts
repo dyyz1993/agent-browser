@@ -6,6 +6,7 @@ import { getAppDir, getSession, getInstanceId } from './daemon.js';
 import { getEnhancedSnapshot } from './snapshot.js';
 import { performDiff } from './diff.js';
 import { MessageBridge } from './message-bridge.js';
+import { detectMainContent, generateContentTips } from './content-detection.js';
 import {
   humanClick,
   humanType,
@@ -786,12 +787,22 @@ async function handleSnapshot(
   },
   browser: BrowserManager
 ): Promise<Response<SnapshotData>> {
+  let effectiveSelector = command.selector;
+  let detectionResult = null;
+
+  // 如果未指定 selector，自动检测主体区域
+  if (!command.selector) {
+    const page = browser.getPage();
+    detectionResult = await detectMainContent(page);
+    effectiveSelector = detectionResult.selector;
+  }
+
   const snapshot = await browser.getSnapshot({
     interactive: command.interactive,
     cursor: command.cursor,
     maxDepth: command.maxDepth,
     compact: command.compact,
-    selector: command.selector,
+    selector: effectiveSelector,
     framePath: command.inFrame,
     path: command.path,
     attrs: command.attrs,
@@ -818,10 +829,17 @@ async function handleSnapshot(
     };
   }
 
-  return successResponse(command.id, {
-    snapshot: snapshot.tree || 'Empty page',
-    refs: Object.keys(simpleRefs).length > 0 ? simpleRefs : undefined,
-  });
+  // 生成 tips（只有自动检测到非 body 区域时才提示）
+  const tips = detectionResult ? generateContentTips(detectionResult) : undefined;
+
+  return successResponse(
+    command.id,
+    {
+      snapshot: snapshot.tree || 'Empty page',
+      refs: Object.keys(simpleRefs).length > 0 ? simpleRefs : undefined,
+    },
+    tips ?? undefined
+  );
 }
 
 async function handleEvaluate(

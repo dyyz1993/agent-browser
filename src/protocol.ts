@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { Command, Response } from './types.js';
+import type { Command, Response, SuccessResponse } from './types.js';
 
 // Base schema for all commands
 const baseCommandSchema = z.object({
@@ -1109,8 +1109,10 @@ export function parseCommand(input: string): ParseResult {
 /**
  * Create a success response
  */
-export function successResponse<T>(id: string, data: T): Response<T> {
-  return { id, success: true, data };
+export function successResponse<T>(id: string, data: T, tips?: string | string[]): Response<T> {
+  const response: SuccessResponse<T> = { id, success: true, data };
+  if (tips) response.tips = tips;
+  return response as Response<T>;
 }
 
 /**

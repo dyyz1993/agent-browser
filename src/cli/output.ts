@@ -167,6 +167,15 @@ export function printResponse(resp: Response, jsonMode: boolean, action?: string
     return;
   }
 
+  // 文本模式：在输出 data 之前显示 tips
+  if (resp.tips) {
+    const tipsArray = Array.isArray(resp.tips) ? resp.tips : [resp.tips];
+    for (const tip of tipsArray) {
+      console.error(`💡 ${tip}`);
+    }
+    console.error('');
+  }
+
   if (!resp.data) {
     console.log(`${successIndicator()} Done`);
     return;

@@ -1083,6 +1083,7 @@ export interface SuccessResponse<T = unknown> {
   id: string;
   success: true;
   data: T;
+  tips?: string | string[];
 }
 
 export interface ErrorResponse {

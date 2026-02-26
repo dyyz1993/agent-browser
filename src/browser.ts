@@ -2127,6 +2127,12 @@ export class BrowserManager {
     const context = page.context();
     const injectScript = this.getRecorderInjectScript();
 
+    // For CDP connections, we need to ensure the debugger is attached to the page
+    // before calling exposeBinding. Creating a CDP session will attach the debugger.
+    if (this.cdpEndpoint !== null) {
+      await this.getCDPSession();
+    }
+
     // 使用 Playwright 的 exposeBinding，自动处理所有导航和新标签页
     await context.exposeBinding('__recorderSync', async (source, payload: string) => {
       if (!payload) return;
