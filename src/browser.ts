@@ -2141,34 +2141,45 @@ export class BrowserManager {
     }
 
     // 使用 Playwright 的 exposeBinding，自动处理所有导航和新标签页
-    await context.exposeBinding('__recorderSync', async (source, payload: string) => {
-      if (!payload) return;
+    // 注意：如果 binding 已存在（从之前的录制会话），会抛出错误
+    // 我们先尝试注册，如果失败则说明 binding 已存在
+    try {
+      await context.exposeBinding('__recorderSync', async (source, payload: string) => {
+        if (!payload) return;
 
-      const targetPage = source.page;
+        const targetPage = source.page;
 
-      try {
-        const step = JSON.parse(payload);
-        if (step && step.action) {
-          if (step.action === '__poll__') {
-            await targetPage
-              ?.evaluate((steps) => {
-                (window as any).__recorderSteps = steps;
-                window.dispatchEvent(new CustomEvent('recorder:steps', { detail: steps }));
-              }, this.recorderSteps)
-              .catch(() => {});
-          } else if (step.action === '__clear__') {
-            this.recorderSteps = [];
-          } else if (step.action !== '__update_step__') {
-            this.recorderSteps.push(step);
-            await targetPage
-              ?.evaluate((steps) => {
-                (window as any).__recorderSteps = steps;
-                window.dispatchEvent(new CustomEvent('recorder:steps', { detail: steps }));
-              }, this.recorderSteps)
-              .catch(() => {});
+        try {
+          const step = JSON.parse(payload);
+          if (step && step.action) {
+            if (step.action === '__poll__') {
+              await targetPage
+                ?.evaluate((steps) => {
+                  (window as any).__recorderSteps = steps;
+                  window.dispatchEvent(new CustomEvent('recorder:steps', { detail: steps }));
+                }, this.recorderSteps)
+                .catch(() => {});
+            } else if (step.action === '__clear__') {
+              this.recorderSteps = [];
+            } else if (step.action !== '__update_step__') {
+              this.recorderSteps.push(step);
+              await targetPage
+                ?.evaluate((steps) => {
+                  (window as any).__recorderSteps = steps;
+                  window.dispatchEvent(new CustomEvent('recorder:steps', { detail: steps }));
+                }, this.recorderSteps)
+                .catch(() => {});
+            }
           }
-        }
-      } catch (e) {}
+        } catch (e) {}
+      });
+    } catch (e) {
+      // Binding 已存在，忽略错误继续使用
+    }
+
+    // 设置录制会话激活标志
+    await context.addInitScript({
+      content: 'window.__recorderSessionActive = true;',
     });
 
     // 使用 addInitScript 自动注入到所有页面
@@ -2310,6 +2321,10 @@ export class BrowserManager {
       try {
         await page.evaluate(() => {
           const win = window as any;
+          // 清除录制会话激活标志
+          win.__recorderSessionActive = false;
+          // 清除录制会话激活标志
+          win.__recorderSessionActive = false;
           if (typeof win.__recorderClosePanel === 'function') {
             win.__recorderClosePanel();
           }

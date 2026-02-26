@@ -702,6 +702,12 @@
   });
 
   if (!isInIframe) {
+    // 检查录制会话是否激活
+    if (!window.__recorderSessionActive) {
+      console.log('[Recorder] Session not active, skipping panel creation');
+      return;
+    }
+
     let uiElements = {};
     let toolbarHideTimeout = null;
     let isOverToolbar = false;
