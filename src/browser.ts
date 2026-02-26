@@ -2181,12 +2181,15 @@ export class BrowserManager {
     try {
       await page.evaluate(() => {
         (window as any).__recorderSessionActive = true;
+        // 清除停止标志（允许重新开始录制）
+        (window as any).__recorderSessionStopped = false;
       });
     } catch (e) {}
 
     // 设置录制会话激活标志（用于新页面）
+    // 同时清除停止标志
     await context.addInitScript({
-      content: 'window.__recorderSessionActive = true;',
+      content: 'window.__recorderSessionActive = true; window.__recorderSessionStopped = false;',
     });
 
     // 在当前页面注入录制器脚本
