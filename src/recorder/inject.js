@@ -708,6 +708,7 @@
     let _highlightRafId = null;
     let _toolbarHideTimeout = null;
     let _pollInterval = null;
+    let _checkPanelInterval = null;
 
     window.__recorderClosePanel = function() {
       if (_animationFrameId) {
@@ -725,6 +726,11 @@
       if (_pollInterval) {
         clearInterval(_pollInterval);
         _pollInterval = null;
+      }
+
+      if (_checkPanelInterval) {
+        clearInterval(_checkPanelInterval);
+        _checkPanelInterval = null;
       }
 
       const elements = [
@@ -1483,12 +1489,19 @@
     
     // 监听页面变化，重新创建面板
     let lastUrl = window.location.href;
-    const checkPanelInterval = setInterval(() => {
+    _checkPanelInterval = setInterval(() => {
+      // 检查录制会话是否仍然激活
+      if (!window.__recorderSessionActive) {
+        clearInterval(_checkPanelInterval);
+        _checkPanelInterval = null;
+        return;
+      }
+
       // 检查 URL 是否变化
       if (window.location.href !== lastUrl) {
         lastUrl = window.location.href;
       }
-      
+
       // 定期检查面板和样式是否存在（处理 SPA 销毁的情况）
       const panel = document.getElementById('recorder-panel');
       const style = document.getElementById('recorder-styles');
