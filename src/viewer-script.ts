@@ -46,36 +46,37 @@ export function createInitialState(): ViewerState {
     clickTimer: null,
     isComposing: false,
     lastInputValue: '',
-    fixedSize: false
+    fixedSize: false,
   };
 }
 
 export function buildWebSocketUrl(config: ViewerConfig): string {
-  const wsParam = config.instanceId 
-    ? 'instanceId=' + config.instanceId 
+  const wsParam = config.instanceId
+    ? 'instanceId=' + config.instanceId
     : 'session=' + config.session;
   return config.wsProtocol + '//' + config.hostname + ':' + config.port + '?' + wsParam;
 }
 
 export function parseConfigFromLocation(): ViewerConfig {
-  const wsProtocol = (typeof location !== 'undefined' && location.protocol === 'https:') ? 'wss:' : 'ws:';
+  const wsProtocol =
+    typeof location !== 'undefined' && location.protocol === 'https:' ? 'wss:' : 'ws:';
   const defaultPort = 5005;
   const port = (typeof location !== 'undefined' && parseInt(location.port, 10)) || defaultPort;
   let instanceId: string | null = null;
   let session = 'default';
-  
+
   if (typeof URLSearchParams !== 'undefined' && typeof location !== 'undefined') {
     const urlParams = new URLSearchParams(location.search);
     instanceId = urlParams.get('instanceId');
     session = urlParams.get('session') || 'default';
   }
-  
-  return { 
-    wsProtocol, 
-    hostname: typeof location !== 'undefined' ? location.hostname : 'localhost', 
-    port, 
-    instanceId, 
-    session 
+
+  return {
+    wsProtocol,
+    hostname: typeof location !== 'undefined' ? location.hostname : 'localhost',
+    port,
+    instanceId,
+    session,
   };
 }
 
@@ -86,36 +87,36 @@ export function safeSend(ws: WebSocket | null, data: string): void {
 }
 
 export function sendUserActivity(
-  state: ViewerState, 
-  qualityBadge: HTMLElement, 
+  state: ViewerState,
+  qualityBadge: HTMLElement,
   ws: WebSocket | null
 ): void {
   safeSend(ws, JSON.stringify({ type: 'user_activity' }));
-  
+
   if (state.userActivityTimeout !== null) {
     clearTimeout(state.userActivityTimeout);
   }
   state.userActivityTimeout = setTimeout(() => {
     qualityBadge.textContent = 'static';
   }, 2000);
-  
+
   qualityBadge.textContent = 'interacting';
 }
 
 export function screenToPage(
-  screenX: number, 
-  screenY: number, 
-  screenWidth: number, 
+  screenX: number,
+  screenY: number,
+  screenWidth: number,
   screenHeight: number,
   deviceWidth: number,
   deviceHeight: number
 ): { x: number; y: number } {
   const scaleX = deviceWidth / screenWidth;
   const scaleY = deviceHeight / screenHeight;
-  
+
   return {
     x: Math.round(screenX * scaleX),
-    y: Math.round(screenY * scaleY)
+    y: Math.round(screenY * scaleY),
   };
 }
 
@@ -128,7 +129,12 @@ export function updateModifiers(e: MouseEvent | KeyboardEvent): number {
   return modifiers;
 }
 
-export function shouldSendText(key: string, ctrlKey: boolean, metaKey: boolean, altKey: boolean): boolean {
+export function shouldSendText(
+  key: string,
+  ctrlKey: boolean,
+  metaKey: boolean,
+  altKey: boolean
+): boolean {
   return key.length === 1 && !ctrlKey && !metaKey && !altKey;
 }
 
@@ -171,6 +177,7 @@ export function buildViewerScript(): string {
     let isComposing = false;
     let lastInputValue = '';
     let fixedSize = false;
+    let isRecording = false;
     
     function connect() {
       ws = new WebSocket(wsUrl);
@@ -198,9 +205,35 @@ export function buildViewerScript(): string {
           handleBinary(event.data);
           return;
         }
-        
+
         const msg = JSON.parse(event.data);
-        
+
+        // Handle recorder responses
+        if (msg.id && msg.id.startsWith('recorder-')) {
+          if (msg.id.startsWith('recorder-start-') && msg.success) {
+            isRecording = true;
+            recordBtn.classList.add('recording');
+            recordText.textContent = 'Stop';
+          } else if (msg.id.startsWith('recorder-stop-') && msg.success) {
+            isRecording = false;
+            recordBtn.classList.remove('recording');
+            recordText.textContent = 'Record';
+
+            // Download YAML
+            if (msg.data && msg.data.yaml) {
+              const blob = new Blob([msg.data.yaml], { type: 'text/yaml' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'session-' + Date.now() + '.yaml';
+              a.click();
+              URL.revokeObjectURL(url);
+              alert('Recording stopped. ' + msg.data.steps + ' steps recorded.');
+            }
+          }
+          return;
+        }
+
         switch (msg.type) {
           case 'frame':
             pendingBinary = true;
@@ -210,7 +243,7 @@ export function buildViewerScript(): string {
               qualityBadge.textContent = msg.state;
             }
             break;
-            
+
           case 'status':
             if (msg.connected === false) {
               statusDot.classList.remove('connected');
@@ -225,20 +258,20 @@ export function buildViewerScript(): string {
               }
             }
             break;
-            
+
           case 'navigation':
             urlDisplay.value = msg.data.url;
             document.title = msg.data.title + ' - Agent Browser Viewer';
             break;
-            
+
           case 'tab_created':
             addTab(msg.data.index, msg.data.url, msg.data.title, false);
             break;
-            
+
           case 'tab_closed':
             removeTab(msg.data.index);
             break;
-            
+
           case 'tab_switched':
             setActiveTab(msg.data.toIndex);
             break;
@@ -558,8 +591,7 @@ export function buildViewerScript(): string {
     // Recorder functionality
     const recordBtn = document.getElementById('recordBtn');
     const recordText = document.getElementById('recordText');
-    let isRecording = false;
-    
+
     recordBtn.onclick = () => {
       if (isRecording) {
         // Stop recording
@@ -569,51 +601,7 @@ export function buildViewerScript(): string {
         safeSend(JSON.stringify({ id: 'recorder-start-' + Date.now(), action: 'recorder_start' }));
       }
     };
-    
-    // Handle recorder responses
-    const originalOnMessage = ws.onmessage;
-    ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        
-        // Handle recorder responses
-        if (msg.id && msg.id.startsWith('recorder-')) {
-          if (msg.id.startsWith('recorder-start-') && msg.success) {
-            isRecording = true;
-            recordBtn.classList.add('recording');
-            recordText.textContent = 'Stop';
-          } else if (msg.id.startsWith('recorder-stop-') && msg.success) {
-            isRecording = false;
-            recordBtn.classList.remove('recording');
-            recordText.textContent = 'Record';
-            
-            // Download YAML
-            if (msg.data && msg.data.yaml) {
-              const blob = new Blob([msg.data.yaml], { type: 'text/yaml' });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = 'session-' + Date.now() + '.yaml';
-              a.click();
-              URL.revokeObjectURL(url);
-              alert('Recording stopped. ' + msg.data.steps + ' steps recorded.');
-            }
-          }
-          return;
-        }
-        
-        // Call original handler
-        if (originalOnMessage) {
-          originalOnMessage.call(ws, event);
-        }
-      } catch (e) {
-        // Not JSON or other error, pass to original handler
-        if (originalOnMessage) {
-          originalOnMessage.call(ws, event);
-        }
-      }
-    };
-    
+
     focusHiddenInput();
     connect();
 `;
