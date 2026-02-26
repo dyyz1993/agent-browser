@@ -753,6 +753,14 @@
       console.log('[Recorder] Panel closed');
     };
 
+    // 检查录制会话是否已停止（防止刷新后重新创建面板）
+    // 注意：这个检查必须在 __recorderSessionActive 检查之前
+    // 因为 initScript 执行顺序问题
+    if (window.__recorderSessionStopped) {
+      console.log('[Recorder] Session was stopped, skipping panel creation');
+      return;
+    }
+
     // 检查录制会话是否激活
     if (!window.__recorderSessionActive) {
       console.log('[Recorder] Session not active, skipping panel creation');
@@ -1486,10 +1494,21 @@
     }
 
     createRecorderOverlay();
-    
+
     // 监听页面变化，重新创建面板
     let lastUrl = window.location.href;
     _checkPanelInterval = setInterval(() => {
+      // 检查录制会话是否已停止（stopRecorder 后刷新页面时会触发）
+      if (window.__recorderSessionStopped) {
+        console.log('[Recorder] Session was stopped, removing panel');
+        if (typeof window.__recorderClosePanel === 'function') {
+          window.__recorderClosePanel();
+        }
+        clearInterval(_checkPanelInterval);
+        _checkPanelInterval = null;
+        return;
+      }
+
       // 检查录制会话是否仍然激活
       if (!window.__recorderSessionActive) {
         clearInterval(_checkPanelInterval);

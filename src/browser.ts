@@ -2323,11 +2323,11 @@ export class BrowserManager {
     return { started: true, sessionId: this.recorderSessionId };
   }
 
-  async stopRecorder(): Promise<{ yaml: string; steps: number }> {
+  async stopRecorder(): Promise<{ yaml: string; steps: number; wasRecording?: boolean }> {
     // 检查是否在录制中
     if (!this.recorderSessionId) {
       console.log('[stopRecorder] No active recording session');
-      return { yaml: '', steps: 0 };
+      return { yaml: '', steps: 0, wasRecording: false };
     }
 
     const yaml = this.generateRecorderYaml();
@@ -2341,6 +2341,8 @@ export class BrowserManager {
           const win = window as any;
           // 清除录制会话激活标志
           win.__recorderSessionActive = false;
+          // 设置停止标志（防止刷新后重新创建面板）
+          win.__recorderSessionStopped = true;
           const hasPanel = !!document.getElementById('recorder-panel');
           const hasCloseFunc = typeof win.__recorderClosePanel === 'function';
 
@@ -2358,6 +2360,14 @@ export class BrowserManager {
       } catch (e) {
         console.error('[stopRecorder] Error:', e);
       }
+
+      // 添加 initScript 来禁用后续页面的录制会话
+      try {
+        await page.context().addInitScript({
+          content:
+            'window.__recorderSessionActive = false; window.__recorderSessionStopped = true;',
+        });
+      } catch (e) {}
 
       if (this.recorderNavigatedHandler) {
         page.off('framenavigated', this.recorderNavigatedHandler);

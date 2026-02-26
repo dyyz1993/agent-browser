@@ -2503,6 +2503,15 @@ async function handleRecorderStop(
 ): Promise<Response<{ yaml?: string; steps: number; path?: string }>> {
   const result = await browser.stopRecorder();
 
+  // 如果没有在录制中，返回提示
+  if (result.wasRecording === false) {
+    return successResponse(command.id, {
+      yaml: '',
+      steps: 0,
+      note: 'No active recording session. Use "recorder start" to begin recording.',
+    });
+  }
+
   if (command.output) {
     const fs = await import('node:fs');
     const outputPath = path.resolve(command.output);
