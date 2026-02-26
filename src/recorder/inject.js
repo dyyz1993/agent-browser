@@ -209,10 +209,14 @@
   }
 
   window.__syncStepDirect = function(step) {
+    // 生成 id（如果没有）
+    if (!step.id) {
+      step.id = 'step-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6);
+    }
     step.viewport = { width: window.innerWidth, height: window.innerHeight };
     step.url = window.location.href;
     step.iframe = isInIframe;
-    
+
     // 使用统一 API 添加步骤
     const result = window.__recorderAction({ type: 'add', data: step });
     
@@ -549,8 +553,9 @@
   function recordStep(action, data) {
     // 检查是否暂停录制
     if (window.__recorderPaused) return;
-    
+
     const step = {
+      id: 'step-' + Date.now() + '-' + Math.random().toString(36).substr(2, 10),
       timestamp: Date.now(),
       action: action,
       selector: iframePrefix + (data.selector || ''),
@@ -560,6 +565,14 @@
       annotation: data.annotation,
       iframe: isInIframe
     };
+
+    // keyboard 类型不需要 selector/xpath/elementInfo
+    if (action === 'keyboard') {
+      delete step.selector;
+      delete step.xpath;
+      delete step.elementInfo;
+    }
+
     window.__syncStep(step);
   }
 
