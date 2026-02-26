@@ -1493,7 +1493,20 @@
       startPolling();
     }
 
-    createRecorderOverlay();
+    // 延迟创建面板， 等待所有 initScript 执行完毕
+    // 这样可以在 stopRecorder 后正确检测到 __recorderSessionStopped 标志
+    setTimeout(() => {
+      // 再次检查状态（可能在等待期间被其他 initScript 修改）
+      if (window.__recorderSessionStopped) {
+        console.log('[Recorder] Session was stopped during init, skipping panel creation');
+        return;
+      }
+      if (!window.__recorderSessionActive) {
+        console.log('[Recorder] Session not active during init, skipping panel creation');
+        return;
+      }
+      createRecorderOverlay();
+    }, 0);
 
     // 监听页面变化，重新创建面板
     let lastUrl = window.location.href;
