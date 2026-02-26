@@ -84,20 +84,30 @@ agent-browser upload @e1 file.pdf # Upload files
 
 ### Human-like Mouse Movement
 
-Add `--human [type]` to simulate natural mouse trajectories:
+Enable globally via environment variable to simulate natural mouse trajectories:
 
 ```bash
-agent-browser click @e1 --human           # Human-like click (arc trajectory)
-agent-browser click @e1 --human arc       # Smooth arc (default, most natural)
-agent-browser click @e1 --human bezier    # Bezier curve with overshoot
-agent-browser click @e1 --human random    # Random path with jitter
-agent-browser click @e1 --human linear    # Straight line (fastest)
+# Enable human mode (default: arc path type)
+export AGENT_BROWSER_HUMAN=1
 
-# Works with other interactions
-agent-browser fill @e1 "text" --human
-agent-browser type @e1 "text" --human
-agent-browser hover @e1 --human
-agent-browser dblclick @e1 --human
+# Or specify path type
+export AGENT_BROWSER_HUMAN=bezier   # Bezier curve with overshoot
+export AGENT_BROWSER_HUMAN=arc      # Smooth arc (default, most natural)
+export AGENT_BROWSER_HUMAN=random   # Random path with jitter
+export AGENT_BROWSER_HUMAN=linear   # Straight line (fastest)
+
+# All interactions will use human-like movement
+agent-browser click @e1
+agent-browser fill @e1 "text"
+agent-browser type @e1 "text"
+agent-browser hover @e1
+agent-browser dblclick @e1
+
+# Wait with mouse wandering (when human mode enabled)
+agent-browser wait 3000  # Wanders mouse while waiting
+
+# Disable human mode
+unset AGENT_BROWSER_HUMAN
 ```
 
 **Trajectory Types:**
@@ -107,6 +117,16 @@ agent-browser dblclick @e1 --human
 | `bezier` | Bezier curve with overshoot | Realistic targeting |
 | `random` | Random path with jitter | Maximum unpredictability |
 | `linear` | Straight line | Fastest, less detection needed |
+
+**Affected Commands:**
+| Command | Human Mode Effect |
+|---------|-------------------|
+| `click` | Human-like mouse trajectory + click |
+| `dblclick` | Human-like mouse trajectory + double-click |
+| `fill` | Human-like mouse trajectory + character-by-character typing |
+| `type` | Human-like mouse trajectory + character-by-character typing |
+| `hover` | Human-like mouse trajectory |
+| `wait <ms>` | Random mouse wandering while waiting |
 
 ## Get Information
 
@@ -351,4 +371,5 @@ AGENT_BROWSER_EXTENSIONS="/ext1,/ext2"       # Comma-separated extension paths
 AGENT_BROWSER_PROVIDER="browserbase"         # Cloud browser provider
 AGENT_BROWSER_STREAM_PORT="9223"             # WebSocket streaming port
 AGENT_BROWSER_HOME="/path/to/agent-browser"  # Custom install location
+AGENT_BROWSER_HUMAN="1"                      # Enable human-like mouse movement (1, bezier, arc, random, linear)
 ```

@@ -7,7 +7,7 @@ const baseCommandSchema = z.object({
   action: z.string(),
 });
 
-// Human config schema for --human flag
+// Human config schema for human-like mouse movement (set via AGENT_BROWSER_HUMAN env)
 const humanConfigSchema = z.object({
   enabled: z.boolean(),
   pathType: z.enum(['bezier', 'arc', 'random', 'linear']),
@@ -822,6 +822,11 @@ const askSchema = baseCommandSchema.extend({
   question: z.string().min(1),
 });
 
+const configSchema = baseCommandSchema.extend({
+  action: z.literal('config'),
+  json: z.boolean().optional(),
+});
+
 const pressSchema = baseCommandSchema.extend({
   action: z.literal('press'),
   key: z.string().min(1),
@@ -1064,6 +1069,7 @@ const commandSchema = z.discriminatedUnion('action', [
   deviceListSchema,
   viewerSchema,
   askSchema,
+  configSchema,
 ]);
 
 // Parse result type

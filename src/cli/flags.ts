@@ -1,3 +1,5 @@
+import { HumanConfig, getHumanConfigFromEnv } from '../human-mouse.js';
+
 export interface Flags {
   json: boolean;
   full: boolean;
@@ -18,6 +20,7 @@ export interface Flags {
   ignoreHttpsErrors: boolean;
   allowFileAccess: boolean;
   device?: string;
+  human: HumanConfig;
 
   cliExecutablePath: boolean;
   cliExtensions: boolean;
@@ -84,6 +87,7 @@ export function parseFlags(args: string[]): Flags {
     ignoreHttpsErrors: false,
     allowFileAccess: process.env.AGENT_BROWSER_ALLOW_FILE_ACCESS === '1',
     device: process.env.AGENT_BROWSER_IOS_DEVICE,
+    human: getHumanConfigFromEnv(),
     cliExecutablePath: false,
     cliExtensions: false,
     cliProfile: false,

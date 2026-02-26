@@ -67,8 +67,6 @@ Options:
                          - N         N levels up from target
                          - full      entire page
                          - selector  CSS selector for diff scope
-  --human [type]       Simulate human-like mouse movement
-                       type options: bezier, arc (default), random, linear
 
 Examples:
   agent-browser click "#submit-button"
@@ -77,9 +75,6 @@ Examples:
   agent-browser click @e1 --diff 5
   agent-browser click @e1 --diff full
   agent-browser click @e2 --in-frame "frame1"
-  agent-browser click @e1 --human
-  agent-browser click @e1 --human arc
-  agent-browser click @e1 --human random
 `,
   fill: `
 agent-browser fill - Clear and fill an input field
@@ -91,15 +86,12 @@ Clears the input field and fills it with the specified text.
 Options:
   --in-frame <path>    Target element in iframe
   --diff [scope]       Show page changes after fill
-  --human [type]       Simulate human-like mouse movement
-                       type options: bezier, arc (default), random, linear
 
 Examples:
   agent-browser fill "#email" "user@example.com"
   agent-browser fill @e3 "Hello World"
   agent-browser fill @e3 "Hello" --diff
   agent-browser fill "#input" "test" --in-frame "#frame1"
-  agent-browser fill "#email" "test@example.com" --human
 `,
   type: `
 agent-browser type - Type text into an element
@@ -111,15 +103,12 @@ Types text into the specified element character by character.
 Options:
   --in-frame <path>    Target element in iframe
   --diff [scope]       Show page changes after type
-  --human [type]       Simulate human-like mouse movement
-                       type options: bezier, arc (default), random, linear
 
 Examples:
   agent-browser type "#search" "hello"
   agent-browser type @e2 "additional text"
   agent-browser type @e2 "hello" --diff
   agent-browser type "#input" "test" --in-frame "#frame1"
-  agent-browser type "#search" "query" --human
 `,
   press: `
 agent-browser press - Press a key or key combination
@@ -557,14 +546,11 @@ Hovers over the specified element.
 Options:
   --in-frame <path>    Target element in iframe
   --diff [scope]       Show page changes after hover
-  --human [type]       Simulate human-like mouse movement
-                       type options: bezier, arc (default), random, linear
 
 Examples:
   agent-browser hover "#menu-item"
   agent-browser hover @e2
   agent-browser hover "#btn" --in-frame "#frame1"
-  agent-browser hover "#menu" --human
 `,
   focus: `
 agent-browser focus - Focus an element
@@ -718,14 +704,11 @@ Double-clicks on the specified element.
 Options:
   --in-frame <path>    Target element in iframe
   --diff [scope]       Show page changes after double-click
-  --human [type]       Simulate human-like mouse movement
-                       type options: bezier, arc (default), random, linear
 
 Examples:
   agent-browser dblclick "#item"
   agent-browser dblclick @e8
   agent-browser dblclick "#file" --in-frame "#frame1"
-  agent-browser dblclick "#item" --human
 `,
   viewer: `
 agent-browser viewer - Get viewer URL for browser session
@@ -794,6 +777,34 @@ Examples:
 Output:
   answer    User's response (string or selected option(s))
 `,
+  config: `
+agent-browser config - Show current configuration
+
+Usage: agent-browser config [--json]
+
+Displays all AGENT_BROWSER_* environment variables and their current values.
+
+Options:
+  --json    Output in JSON format
+
+Examples:
+  agent-browser config           # Show all settings
+  agent-browser config --json    # JSON output
+
+Output Fields:
+  session             Session name (AGENT_BROWSER_SESSION)
+  executablePath      Custom browser path
+  provider            Cloud browser provider
+  headed              Show browser window
+  profile             Persistent profile directory
+  extensions          Browser extensions
+  proxy               Proxy server URL
+  human               Human mode settings (runtime)
+
+Note: Most settings only take effect at browser startup.
+Use "export AGENT_BROWSER_XXX=value" before starting.
+Only AGENT_BROWSER_HUMAN takes effect at runtime.
+`,
 };
 
 export function printCommandHelp(command: string): boolean {
@@ -852,7 +863,7 @@ Find Elements:  agent-browser find <locator> <value> <action> [text]
 
 Mouse:  agent-browser mouse <action> [args]
   move <x> <y>, down [btn], up [btn], wheel <dy> [dx]
-  wander <ms> [--human [type]]  Random mouse movement
+  wander <ms>                     Random mouse movement
 
 Browser Settings:  agent-browser set <setting> [value]
   viewport <w> <h>, device <name>, geo <lat> <lng>
@@ -890,6 +901,9 @@ Sessions:
 Remote:
   viewer                     Get viewer URL for browser session
   ask <question>             Ask user a question (requires Stream Server)
+
+Config:
+  config [--json]            Show current environment configuration
 
 Setup:
   install                    Install browser binaries
@@ -960,6 +974,7 @@ Environment:
   AGENT_BROWSER_IGNORE_HTTPS_ERRORS  Set to "1" to ignore HTTPS errors
   AGENT_BROWSER_ALLOW_FILE_ACCESS    Set to "1" to allow file:// access
   AGENT_BROWSER_HEADED           Set to "1" for headed mode
+  AGENT_BROWSER_HUMAN            Enable human-like mouse movement (1, bezier, arc, random, linear)
 
   MESSAGE_BRIDGE_URL             Message Bridge URL for 'ask' command
   HTTP_PROXY / HTTPS_PROXY       Proxy for Message Bridge requests

@@ -11,6 +11,7 @@ import {
   humanType,
   humanMoveTo,
   humanWander,
+  getHumanConfigFromEnv,
   type HumanConfig,
 } from './human-mouse.js';
 import type {
@@ -513,6 +514,8 @@ export async function executeCommand(
         return await handleViewer(cmd, browser);
       case 'ask':
         return await handleAsk(cmd, browser);
+      case 'config':
+        return handleConfig(cmd);
       default: {
         const unknownCommand = cmd as { id: string; action: string };
         return errorResponse(unknownCommand.id, `Unknown action: ${unknownCommand.action}`);
@@ -855,6 +858,15 @@ async function handleEvaluate(
 }
 
 async function handleWait(command: WaitCommand, browser: BrowserManager): Promise<Response> {
+  const humanConfig = getHumanConfigFromEnv();
+  const page = browser.getPage();
+
+  // If human mode is enabled and waiting for a duration, do mouse wander
+  if (humanConfig.enabled && command.timeout && !command.selector) {
+    await humanWander(page, humanConfig, { duration: command.timeout });
+    return successResponse(command.id, { waited: true, wandered: true });
+  }
+
   if (command.inFrame) {
     const frame = browser.getFrame(command.inFrame);
     if (command.selector) {
@@ -2519,4 +2531,82 @@ async function handleAsk(
     const message = error instanceof Error ? error.message : String(error);
     return errorResponse(command.id, `Failed to ask question: ${message}`) as Response<AskData>;
   }
+}
+
+// Config command types
+interface ConfigData {
+  config: {
+    session: string;
+    executablePath: string | null;
+    extensions: string | null;
+    profile: string | null;
+    state: string | null;
+    proxy: string | null;
+    proxyBypass: string | null;
+    args: string | null;
+    userAgent: string | null;
+    provider: string | null;
+    allowFileAccess: boolean;
+    iosDevice: string | null;
+    streamPort: string | null;
+    headed: boolean;
+    human: HumanConfig;
+  };
+  output?: string;
+}
+
+function handleConfig(
+  command: Command & { action: 'config'; json?: boolean }
+): Response<ConfigData> {
+  const humanConfig = getHumanConfigFromEnv();
+
+  const config = {
+    session: process.env.AGENT_BROWSER_SESSION || 'default',
+    executablePath: process.env.AGENT_BROWSER_EXECUTABLE_PATH || null,
+    extensions: process.env.AGENT_BROWSER_EXTENSIONS || null,
+    profile: process.env.AGENT_BROWSER_PROFILE || null,
+    state: process.env.AGENT_BROWSER_STATE || null,
+    proxy: process.env.AGENT_BROWSER_PROXY || null,
+    proxyBypass: process.env.AGENT_BROWSER_PROXY_BYPASS || null,
+    args: process.env.AGENT_BROWSER_ARGS || null,
+    userAgent: process.env.AGENT_BROWSER_USER_AGENT || null,
+    provider: process.env.AGENT_BROWSER_PROVIDER || null,
+    allowFileAccess: process.env.AGENT_BROWSER_ALLOW_FILE_ACCESS === '1',
+    iosDevice: process.env.AGENT_BROWSER_IOS_DEVICE || null,
+    streamPort: process.env.AGENT_BROWSER_STREAM_PORT || null,
+    headed: process.env.AGENT_BROWSER_HEADED === '1',
+    human: humanConfig,
+  };
+
+  if (command.json) {
+    return successResponse(command.id, { config });
+  }
+
+  // Format human-readable output
+  const lines: string[] = [
+    'Agent Browser Configuration',
+    '===========================',
+    '',
+    'Session & Browser:',
+    `  AGENT_BROWSER_SESSION          ${config.session}`,
+    `  AGENT_BROWSER_EXECUTABLE_PATH  ${config.executablePath || '(not set)'}`,
+    `  AGENT_BROWSER_PROVIDER         ${config.provider || '(not set)'}`,
+    `  AGENT_BROWSER_HEADED           ${config.headed ? 'true' : 'false (default)'}`,
+    '',
+    'Browser Options:',
+    `  AGENT_BROWSER_PROFILE          ${config.profile || '(not set)'}`,
+    `  AGENT_BROWSER_EXTENSIONS       ${config.extensions || '(not set)'}`,
+    `  AGENT_BROWSER_ARGS             ${config.args || '(not set)'}`,
+    `  AGENT_BROWSER_USER_AGENT       ${config.userAgent || '(not set)'}`,
+    `  AGENT_BROWSER_PROXY            ${config.proxy || '(not set)'}`,
+    `  AGENT_BROWSER_ALLOW_FILE_ACCESS ${config.allowFileAccess ? 'true' : 'false (default)'}`,
+    '',
+    'Human Mode (runtime):',
+    `  AGENT_BROWSER_HUMAN            ${humanConfig.enabled ? humanConfig.pathType + ' ✓' : '(disabled)'}`,
+    '',
+    'Note: Most settings only take effect at browser startup.',
+    'Use "export AGENT_BROWSER_XXX=value" before starting.',
+  ];
+
+  return successResponse(command.id, { config, output: lines.join('\n') });
 }

@@ -101,25 +101,30 @@ agent-browser pdf output.pdf          # Save as PDF
 
 ## Human-like Mouse Movement
 
-Use `--human` to simulate natural mouse trajectories, useful for bypassing bot detection:
+Enable globally via environment variable to simulate natural mouse trajectories:
 
 ```bash
-# Click with human-like movement
-agent-browser click @e1 --human
-agent-browser click @e1 --human arc      # Smooth arc (default, most natural)
-agent-browser click @e1 --human bezier   # Bezier curve with overshoot
-agent-browser click @e1 --human random   # Random path with jitter
-agent-browser click @e1 --human linear   # Straight line (fastest)
+# Enable human mode (default: arc path type)
+export AGENT_BROWSER_HUMAN=1
 
-# Other interactions
-agent-browser fill @e1 "text" --human
-agent-browser type @e1 "text" --human
-agent-browser hover @e1 --human
-agent-browser dblclick @e1 --human
+# Or specify path type
+export AGENT_BROWSER_HUMAN=bezier   # Bezier curve with overshoot
+export AGENT_BROWSER_HUMAN=arc      # Smooth arc (default, most natural)
+export AGENT_BROWSER_HUMAN=random   # Random path with jitter
+export AGENT_BROWSER_HUMAN=linear   # Straight line (fastest)
 
-# Random mouse wandering
-agent-browser mouse wander 3000          # Wander for 3 seconds
-agent-browser mouse wander 5000 --human arc
+# All interactions will use human-like movement
+agent-browser click @e1
+agent-browser fill @e1 "text"
+agent-browser type @e1 "text"
+agent-browser hover @e1
+agent-browser dblclick @e1
+
+# Wait with mouse wandering (when human mode enabled)
+agent-browser wait 3000  # Wanders mouse while waiting
+
+# Disable human mode
+unset AGENT_BROWSER_HUMAN
 ```
 
 **Features:**
@@ -127,6 +132,7 @@ agent-browser mouse wander 5000 --human arc
 - Natural acceleration/deceleration curves
 - Randomized delays between movements
 - Four trajectory types: `arc` (default), `bezier`, `random`, `linear`
+- `wait <ms>` automatically does mouse wandering when enabled
 
 ## Common Patterns
 

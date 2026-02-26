@@ -1,7 +1,15 @@
 #!/usr/bin/env npx tsx
 
 import { parseFlags, cleanArgs, Flags } from './cli/flags.js';
-import { ensureDaemon, sendCommand, Command, listSessions, genId, killDaemon, killAll } from './cli/connection.js';
+import {
+  ensureDaemon,
+  sendCommand,
+  Command,
+  listSessions,
+  genId,
+  killDaemon,
+  killAll,
+} from './cli/connection.js';
 import { parseCommand, CliError } from './cli/commands.js';
 import { printHelp, printCommandHelp, printVersion } from './cli/help.js';
 import {
@@ -13,6 +21,7 @@ import {
   warningIndicator,
 } from './cli/output.js';
 import { spawn } from 'child_process';
+import { getHumanConfigFromEnv } from './human-mouse.js';
 
 function parseProxy(proxyStr: string): Record<string, unknown> {
   const protocolEnd = proxyStr.indexOf('://');
@@ -83,6 +92,60 @@ async function runSession(flags: Flags): Promise<void> {
   printSession(flags.session, sessions, flags.json);
 }
 
+function runConfig(flags: Flags): void {
+  const humanConfig = getHumanConfigFromEnv();
+
+  const config = {
+    session: process.env.AGENT_BROWSER_SESSION || 'default',
+    executablePath: process.env.AGENT_BROWSER_EXECUTABLE_PATH || null,
+    extensions: process.env.AGENT_BROWSER_EXTENSIONS || null,
+    profile: process.env.AGENT_BROWSER_PROFILE || null,
+    state: process.env.AGENT_BROWSER_STATE || null,
+    proxy: process.env.AGENT_BROWSER_PROXY || null,
+    proxyBypass: process.env.AGENT_BROWSER_PROXY_BYPASS || null,
+    args: process.env.AGENT_BROWSER_ARGS || null,
+    userAgent: process.env.AGENT_BROWSER_USER_AGENT || null,
+    provider: process.env.AGENT_BROWSER_PROVIDER || null,
+    allowFileAccess: process.env.AGENT_BROWSER_ALLOW_FILE_ACCESS === '1',
+    iosDevice: process.env.AGENT_BROWSER_IOS_DEVICE || null,
+    streamPort: process.env.AGENT_BROWSER_STREAM_PORT || null,
+    headed: flags.headed,
+    human: humanConfig,
+  };
+
+  if (flags.json) {
+    console.log(JSON.stringify({ success: true, data: config }, null, 2));
+    return;
+  }
+
+  const lines: string[] = [
+    'Agent Browser Configuration',
+    '===========================',
+    '',
+    'Session & Browser:',
+    `  AGENT_BROWSER_SESSION          ${config.session}`,
+    `  AGENT_BROWSER_EXECUTABLE_PATH  ${config.executablePath || '(not set)'}`,
+    `  AGENT_BROWSER_PROVIDER         ${config.provider || '(not set)'}`,
+    `  AGENT_BROWSER_HEADED           ${config.headed ? 'true' : 'false (default)'}`,
+    '',
+    'Browser Options:',
+    `  AGENT_BROWSER_PROFILE          ${config.profile || '(not set)'}`,
+    `  AGENT_BROWSER_EXTENSIONS       ${config.extensions || '(not set)'}`,
+    `  AGENT_BROWSER_ARGS             ${config.args || '(not set)'}`,
+    `  AGENT_BROWSER_USER_AGENT       ${config.userAgent || '(not set)'}`,
+    `  AGENT_BROWSER_PROXY            ${config.proxy || '(not set)'}`,
+    `  AGENT_BROWSER_ALLOW_FILE_ACCESS ${config.allowFileAccess ? 'true' : 'false (default)'}`,
+    '',
+    'Human Mode (runtime):',
+    `  AGENT_BROWSER_HUMAN            ${humanConfig.enabled ? humanConfig.pathType + ' ✓' : '(disabled)'}`,
+    '',
+    'Note: Most settings only take effect at browser startup.',
+    'Use "export AGENT_BROWSER_XXX=value" before starting.',
+  ];
+
+  console.log(lines.join('\n'));
+}
+
 async function launchWithFlags(flags: Flags): Promise<void> {
   const launchCmd: Command = {
     id: genId(),
@@ -110,7 +173,10 @@ async function launchWithFlags(flags: Flags): Promise<void> {
     launchCmd.userAgent = flags.userAgent;
   }
   if (flags.args) {
-    launchCmd.args = flags.args.split(/[,\n]/).map((a) => a.trim()).filter((a) => a);
+    launchCmd.args = flags.args
+      .split(/[,\n]/)
+      .map((a) => a.trim())
+      .filter((a) => a);
   }
   if (flags.ignoreHttpsErrors) {
     launchCmd.ignoreHTTPSErrors = true;
@@ -171,15 +237,22 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (args[0] === 'config') {
+    runConfig(flags);
+    return;
+  }
+
   if (args[0] === 'kill') {
     try {
       const result = await killAll();
       if (flags.json) {
-        console.log(JSON.stringify({ 
-          success: true, 
-          daemons: result.daemons,
-          streamServer: result.streamServer
-        }));
+        console.log(
+          JSON.stringify({
+            success: true,
+            daemons: result.daemons,
+            streamServer: result.streamServer,
+          })
+        );
       } else {
         if (result.daemons.length > 0) {
           console.log(`✓ Killed daemons: ${result.daemons.join(', ')}`);
@@ -265,7 +338,10 @@ async function main(): Promise<void> {
   }
 
   if (flags.provider && flags.extensions.length > 0) {
-    printError('Cannot use --extension with -p/--provider (extensions require local browser)', flags.json);
+    printError(
+      'Cannot use --extension with -p/--provider (extensions require local browser)',
+      flags.json
+    );
     process.exit(1);
     return;
   }

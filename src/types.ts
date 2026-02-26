@@ -593,6 +593,11 @@ export interface AskCommand extends BaseCommand {
   question: string;
 }
 
+export interface ConfigCommand extends BaseCommand {
+  action: 'config';
+  json?: boolean;
+}
+
 export interface ViewerData {
   url: string;
   wsUrl: string;
@@ -1062,7 +1067,8 @@ export type Command =
   | SwipeCommand
   | DeviceListCommand
   | ViewerCommand
-  | AskCommand;
+  | AskCommand
+  | ConfigCommand;
 
 export interface LooseCommand {
   id: string;

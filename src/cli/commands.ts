@@ -1,6 +1,5 @@
 import { Command } from './connection.js';
 import { Flags } from './flags.js';
-import { parseHumanFlag } from '../human-mouse.js';
 
 export class CliError extends Error {
   constructor(
@@ -110,74 +109,69 @@ export function parseCommand(args: string[], flags: Flags): Command {
 
     case 'click': {
       const { inFrame, remaining: r1 } = parseInFrame(rest);
-      const { diffScope, remaining: r2 } = parseDiff(r1);
-      const { config: human, remaining } = parseHumanFlag(r2);
+      const { diffScope, remaining } = parseDiff(r1);
       const selector = remaining[0];
       if (!selector)
         error(
           'Missing selector',
-          'agent-browser click <selector> [--diff [scope]] [--in-frame <path>] [--human [bezier|arc|random|linear]]'
+          'agent-browser click <selector> [--diff [scope]] [--in-frame <path>]'
         );
       const cmd: Command = { id, action: 'click', selector, inFrame, diffScope };
-      if (human.enabled) cmd.human = human;
+      if (flags.human.enabled) cmd.human = flags.human;
       return cmd;
     }
     case 'dblclick': {
       const { inFrame, remaining: r1 } = parseInFrame(rest);
-      const { diffScope, remaining: r2 } = parseDiff(r1);
-      const { config: human, remaining } = parseHumanFlag(r2);
+      const { diffScope, remaining } = parseDiff(r1);
       const selector = remaining[0];
       if (!selector)
         error(
           'Missing selector',
-          'agent-browser dblclick <selector> [--diff [scope]] [--in-frame <path>] [--human [bezier|arc|random|linear]]'
+          'agent-browser dblclick <selector> [--diff [scope]] [--in-frame <path>]'
         );
       const cmd: Command = { id, action: 'dblclick', selector, inFrame, diffScope };
-      if (human.enabled) cmd.human = human;
+      if (flags.human.enabled) cmd.human = flags.human;
       return cmd;
     }
     case 'fill': {
       const { inFrame, remaining: r1 } = parseInFrame(rest);
-      const { diffScope, remaining: r2 } = parseDiff(r1);
-      const { config: human, remaining } = parseHumanFlag(r2);
+      const { diffScope, remaining } = parseDiff(r1);
       const selector = remaining[0];
       const value = remaining.slice(1).join(' ');
       if (!selector || !value)
         error(
           'Missing selector or value',
-          'agent-browser fill <selector> <text> [--diff [scope]] [--in-frame <path>] [--human [bezier|arc|random|linear]]'
+          'agent-browser fill <selector> <text> [--diff [scope]] [--in-frame <path>]'
         );
       const cmd: Command = { id, action: 'fill', selector, value, inFrame, diffScope };
-      if (human.enabled) cmd.human = human;
+      if (flags.human.enabled) cmd.human = flags.human;
       return cmd;
     }
     case 'type': {
       const { inFrame, remaining: r1 } = parseInFrame(rest);
-      const { diffScope, remaining: r2 } = parseDiff(r1);
-      const { config: human, remaining } = parseHumanFlag(r2);
+      const { diffScope, remaining } = parseDiff(r1);
       const selector = remaining[0];
       const text = remaining.slice(1).join(' ');
       if (!selector || !text)
         error(
           'Missing selector or text',
-          'agent-browser type <selector> <text> [--diff [scope]] [--in-frame <path>] [--human [bezier|arc|random|linear]]'
+          'agent-browser type <selector> <text> [--diff [scope]] [--in-frame <path>]'
         );
       const cmd: Command = { id, action: 'type', selector, text, inFrame, diffScope };
-      if (human.enabled) cmd.human = human;
+      if (flags.human.enabled) cmd.human = flags.human;
       return cmd;
     }
     case 'hover': {
       const { inFrame, remaining: r1 } = parseInFrame(rest);
-      const { diffScope, remaining: r2 } = parseDiff(r1);
-      const { config: human, remaining } = parseHumanFlag(r2);
+      const { diffScope, remaining } = parseDiff(r1);
       const selector = remaining[0];
       if (!selector)
         error(
           'Missing selector',
-          'agent-browser hover <selector> [--diff [scope]] [--in-frame <path>] [--human [bezier|arc|random|linear]]'
+          'agent-browser hover <selector> [--diff [scope]] [--in-frame <path>]'
         );
       const cmd: Command = { id, action: 'hover', selector, inFrame, diffScope };
-      if (human.enabled) cmd.human = human;
+      if (flags.human.enabled) cmd.human = flags.human;
       return cmd;
     }
     case 'focus': {
@@ -723,10 +717,10 @@ export function parseCommand(args: string[], flags: Flags): Command {
           return { id, action: 'wheel', deltaX, deltaY };
         }
         case 'wander': {
-          const { config: human, remaining: wRest } = parseHumanFlag(rest.slice(1));
+          const wRest = rest.slice(1);
           const duration = wRest[0] ? parseInt(wRest[0], 10) : 2000;
           const cmd: Command = { id, action: 'wander', duration };
-          if (human.enabled) cmd.human = human;
+          if (flags.human.enabled) cmd.human = flags.human;
           return cmd;
         }
         default:
@@ -1088,6 +1082,11 @@ export function parseCommand(args: string[], flags: Flags): Command {
       const question = rest.join(' ');
       if (!question) error('Missing question', 'agent-browser ask <question>');
       return { id, action: 'ask', question };
+    }
+
+    case 'config': {
+      const json = rest.includes('--json');
+      return { id, action: 'config', json };
     }
 
     default:
