@@ -2324,6 +2324,12 @@ export class BrowserManager {
   }
 
   async stopRecorder(): Promise<{ yaml: string; steps: number }> {
+    // 检查是否在录制中
+    if (!this.recorderSessionId) {
+      console.log('[stopRecorder] No active recording session');
+      return { yaml: '', steps: 0 };
+    }
+
     const yaml = this.generateRecorderYaml();
     const steps = this.recorderSteps.length;
 
