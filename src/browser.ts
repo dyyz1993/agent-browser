@@ -111,6 +111,7 @@ export class BrowserManager {
 
   // User interaction recorder
   private recorderSessionId: string | null = null;
+  private recorderBindingName: string | null = null; // 唯一绑定名称，避免 Playwright 绑定冲突
   private recorderStartTime: number = 0;
   private recorderSteps: any[] = [];
   private recorderPages: any[] = [];
@@ -1277,6 +1278,56 @@ export class BrowserManager {
       });
     }
 
+    // Add anti-bot detection evasion script
+    await context.addInitScript(() => {
+      // 1. Simulate window.chrome object
+      if (!(window as any).chrome) {
+        (window as any).chrome = {
+          runtime: {},
+          loadTimes: function () {},
+          csi: function () {},
+          app: {},
+        };
+      }
+
+      // 2. Simulate navigator.plugins
+      Object.defineProperty(navigator, 'plugins', {
+        get: () => [
+          {
+            name: 'Chrome PDF Plugin',
+            filename: 'internal-pdf-viewer',
+            description: 'Portable Document Format',
+          },
+          {
+            name: 'Chrome PDF Viewer',
+            filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai',
+            description: '',
+          },
+          {
+            name: 'Native Client',
+            filename: 'internal-nacl-plugin',
+            description: '',
+          },
+        ],
+      });
+
+      // 3. Simulate navigator.mimeTypes
+      Object.defineProperty(navigator, 'mimeTypes', {
+        get: () => [
+          {
+            type: 'application/pdf',
+            suffixes: 'pdf',
+            description: 'Portable Document Format',
+          },
+          {
+            type: 'application/x-google-chrome-pdf',
+            suffixes: 'pdf',
+            description: 'Portable Document Format',
+          },
+        ],
+      });
+    });
+
     context.setDefaultTimeout(60000);
     this.contexts.push(context);
     this.setupContextTracking(context);
@@ -1854,6 +1905,25 @@ export class BrowserManager {
     return this.recorderSessionId !== null;
   }
 
+  /**
+   * Whether recording is temporarily paused (e.g., during replay)
+   */
+  recorderPaused: boolean = false;
+
+  /**
+   * Pause recording temporarily
+   */
+  pauseRecording(): void {
+    this.recorderPaused = true;
+  }
+
+  /**
+   * Resume recording
+   */
+  resumeRecording(): void {
+    this.recorderPaused = false;
+  }
+
   recordStep(step: {
     action: string;
     index?: number;
@@ -1866,7 +1936,7 @@ export class BrowserManager {
     selector?: string;
     value?: string;
   }): void {
-    if (this.recorderSessionId) {
+    if (this.recorderSessionId && !this.recorderPaused) {
       this.recorderSteps.push({
         id: `step-${Date.now()}`,
         timestamp: Date.now(),
@@ -2104,11 +2174,11 @@ export class BrowserManager {
     return this.pages.indexOf(page);
   }
 
-  private getRecorderInjectScript(hide: boolean = false): string {
+  private getRecorderInjectScript(hide: boolean = false, bindingName: string = 'xyzTrack'): string {
     const injectScriptPath = path.join(__dirname, 'recorder', 'inject.js');
     let script = readFileSync(injectScriptPath, 'utf-8');
     // 在脚本开头注入配置（使用 xyz 前缀）
-    const config = `window.xyzHide = ${hide};`;
+    const config = `window.xyzHide = ${hide}; window.xyzBindingName = '${bindingName}';`;
     return config + '\n' + script;
   }
 
@@ -2138,8 +2208,14 @@ export class BrowserManager {
     this.lastNavigationTime = 0;
 
     const context = page.context();
-    // 传递 hide 参数给注入脚本
-    const injectScript = this.getRecorderInjectScript(hide);
+
+    // 使用 Playwright 的 exposeBinding，自动处理所有导航和新标签页
+    // 使用唯一的绑定名称，避免绑定冲突问题
+    const bindingName = `xyzTrack_${this.recorderSessionId}`;
+    this.recorderBindingName = bindingName;
+
+    // 传递 hide 参数和绑定名称给注入脚本
+    const injectScript = this.getRecorderInjectScript(hide, bindingName);
 
     // For CDP connections, we need to ensure the debugger is attached to the page
     // before calling exposeBinding. Creating a CDP session will attach the debugger.
@@ -2147,12 +2223,8 @@ export class BrowserManager {
       await this.getCDPSession();
     }
 
-    // 使用 Playwright 的 exposeBinding，自动处理所有导航和新标签页
-    // 注意：如果 binding 已存在（从之前的录制会话），会抛出错误
-    // 我们先尝试注册，如果失败则说明 binding 已存在
-    // 使用 xyz 前缀的名称，看起来像普通业务代码
     try {
-      await context.exposeBinding('xyzTrack', async (source, payload: string) => {
+      await context.exposeBinding(bindingName, async (source, payload: string) => {
         if (!payload) return;
 
         const targetPage = source.page;
@@ -2169,7 +2241,28 @@ export class BrowserManager {
                 .catch(() => {});
             } else if (step.action === 'xyzClear') {
               this.recorderSteps = [];
-            } else if (step.action !== 'xyzUpdate') {
+            } else if (step.action === 'xyzUpdate') {
+              // Handle update operations (e.g., adding annotations)
+              if (step.id && step.data) {
+                const updateIndex = this.recorderSteps.findIndex((s) => s.id === step.id);
+                if (updateIndex >= 0) {
+                  // Merge the update data into the existing step
+                  this.recorderSteps[updateIndex] = {
+                    ...this.recorderSteps[updateIndex],
+                    ...step.data,
+                  };
+
+                  // Sync the updated steps back to the frontend
+                  await targetPage
+                    ?.evaluate((steps) => {
+                      (window as any).xyzQueue = steps;
+                      window.dispatchEvent(new CustomEvent('xyzEvt', { detail: steps }));
+                    }, this.recorderSteps)
+                    .catch(() => {});
+                }
+              }
+            } else {
+              // Regular step addition
               this.recorderSteps.push(step);
               await targetPage
                 ?.evaluate((steps) => {
@@ -2192,6 +2285,8 @@ export class BrowserManager {
         (window as any).xyzActive = true;
         // 清除停止标志（允许重新开始录制）
         (window as any).xyzStopped = false;
+        // 清除已初始化标志（允许重新注入脚本）
+        (window as any).xyzInited = false;
       });
     } catch (e) {}
 
@@ -2391,7 +2486,7 @@ export class BrowserManager {
 
       // 移除 xyzTrack binding（覆盖为空函数）
       try {
-        await page.context().exposeBinding('xyzTrack', () => {});
+        await page.context().exposeBinding(this.recorderBindingName || 'xyzTrack', () => {});
       } catch (e) {
         // 忽略错误，可能 binding 已经被移除或其他问题
       }
@@ -2418,10 +2513,17 @@ export class BrowserManager {
   private generateRecorderYaml(): string {
     const lines: string[] = [];
 
+    // 格式化时间为 HH:MM:SS
+    const formatTime = (ts: number | undefined): string => {
+      if (!ts) return 'unknown';
+      const d = new Date(ts);
+      return d.toTimeString().split(' ')[0]; // HH:MM:SS
+    };
+
     lines.push('session:');
     lines.push(`  id: ${this.recorderSessionId || 'unknown'}`);
-    lines.push(`  startTime: ${new Date(this.recorderStartTime).toISOString()}`);
-    lines.push(`  endTime: ${new Date().toISOString()}`);
+    lines.push(`  startTime: ${formatTime(this.recorderStartTime)}`);
+    lines.push(`  endTime: ${formatTime(Date.now())}`);
     lines.push(`  steps: ${this.recorderSteps.length}`);
     lines.push('');
 
@@ -2430,20 +2532,42 @@ export class BrowserManager {
       for (const page of this.recorderPages) {
         lines.push(`  - url: ${page.url}`);
         lines.push(`    title: ${page.title || 'N/A'}`);
-        lines.push(`    firstVisitTime: ${new Date(page.firstVisitTime).toISOString()}`);
+        lines.push(`    firstVisitTime: ${formatTime(page.firstVisitTime)}`);
       }
       lines.push('');
     }
 
+    // 需要携带 URL 的操作类型
+    const urlRequiredActions = [
+      'open',
+      'goto',
+      'back',
+      'forward',
+      'reload',
+      'tab_new',
+      'tab_switch',
+      'link_click',
+    ];
+
     lines.push('steps:');
     for (const step of this.recorderSteps) {
       lines.push(`  - id: ${step.id}`);
-      lines.push(`    timestamp: ${new Date(step.timestamp).toISOString()}`);
+      lines.push(`    time: ${formatTime(step.timestamp)}`);
       lines.push(`    action: ${step.action}`);
       if (step.selector) lines.push(`    selector: "${step.selector}"`);
       if (step.xpath) lines.push(`    xpath: "${step.xpath}"`);
       if (step.value) lines.push(`    value: "${step.value}"`);
-      if (step.points) lines.push(`    points: ${JSON.stringify(step.points)}`);
+
+      // 轨迹点 - 同时生成可执行的 CLI 命令
+      if (step.points && Array.isArray(step.points) && step.points.length > 0) {
+        lines.push(`    points: ${JSON.stringify(step.points)}`);
+        // 生成可执行的 CLI 命令
+        const trajectoryCmd = this.generateStepCliCommand(step);
+        if (trajectoryCmd) {
+          lines.push(`    # Replay: ${trajectoryCmd}`);
+        }
+      }
+
       if (step.x !== undefined) lines.push(`    x: ${step.x}`);
       if (step.y !== undefined) lines.push(`    y: ${step.y}`);
       if (step.from && typeof step.from === 'string') {
@@ -2456,11 +2580,44 @@ export class BrowserManager {
       } else if (step.to) {
         lines.push(`    to: { width: ${step.to.width}, height: ${step.to.height} }`);
       }
-      if (step.annotation)
-        lines.push(
-          `    annotation: { type: ${step.annotation.type}, label: "${step.annotation.label}" }`
-        );
-      if (step.url !== undefined) lines.push(`    url: "${step.url}"`);
+
+      // 备注信息 - 添加重点提示
+      if (step.annotation) {
+        lines.push(`    annotation:`);
+        lines.push(`      type: ${step.annotation.type}`);
+        lines.push(`      label: "${step.annotation.label}"`);
+
+        // 完整属性生成
+        if (step.annotation.selector) {
+          lines.push(`      selector: "${step.annotation.selector}"`);
+        }
+        if (step.annotation.itemSelector) {
+          lines.push(`      itemSelector: "${step.annotation.itemSelector}"`);
+        }
+        if (step.annotation.nextSelector) {
+          lines.push(`      nextSelector: "${step.annotation.nextSelector}"`);
+        }
+        if (step.annotation.fields && step.annotation.fields.length > 0) {
+          lines.push(
+            `      fields: [${step.annotation.fields.map((f: string) => `"${f}"`).join(', ')}]`
+          );
+        }
+        if (step.annotation.waitTimeout !== undefined) {
+          lines.push(`      waitTimeout: ${step.annotation.waitTimeout}`);
+        }
+        if (step.annotation.customNote) {
+          lines.push(`      customNote: "${step.annotation.customNote}"`);
+        }
+
+        lines.push(`      # ⚠️ IMPORTANT: This step requires special attention`);
+        lines.push(`      # User marked this as: "${step.annotation.label}"`);
+      }
+
+      // 只在特定操作类型时携带 URL
+      if (step.url && urlRequiredActions.includes(step.action)) {
+        lines.push(`    url: "${step.url}"`);
+      }
+
       if (step.index !== undefined) lines.push(`    index: ${step.index}`);
       if (step.key) lines.push(`    key: "${step.key}"`);
       if (step.code) lines.push(`    code: "${step.code}"`);
@@ -2471,7 +2628,158 @@ export class BrowserManager {
       lines.push('');
     }
 
+    // ═══════════════════════════════════════════════════════════
+    // CLI Commands Section - 生成可执行的 CLI 命令
+    // ═══════════════════════════════════════════════════════════
+    lines.push('# ═══════════════════════════════════════════════════════════');
+    lines.push('# CLI Commands (Copy & Execute)');
+    lines.push('# ═══════════════════════════════════════════════════════════');
+    lines.push('');
+    lines.push('# 启用模拟人类鼠标移动（推荐）');
+    lines.push('# Enable human-like mouse movement (recommended)');
+    lines.push('export AGENT_BROWSER_HUMAN=bezier');
+    lines.push('');
+
+    for (const step of this.recorderSteps) {
+      const cmd = this.generateStepCliCommand(step);
+      if (cmd) {
+        lines.push(`# ${step.id}: ${step.action}`);
+        lines.push(cmd);
+        lines.push('');
+      }
+    }
+
     return lines.join('\n');
+  }
+
+  /**
+   * Generate CLI command for a single recorder step
+   */
+  private generateStepCliCommand(step: any): string | null {
+    const escapeShell = (str: string): string => {
+      return str.replace(/"/g, '\\"').replace(/\$/g, '\\$').replace(/`/g, '\\`');
+    };
+
+    const formatKeyCombo = (s: any): string => {
+      const parts: string[] = [];
+      if (s.ctrlKey) parts.push('Control');
+      if (s.metaKey) parts.push('Meta');
+      if (s.altKey) parts.push('Alt');
+      if (
+        s.shiftKey &&
+        !['Shift', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(s.key)
+      ) {
+        parts.push('Shift');
+      }
+      if (s.key) parts.push(s.key);
+      return parts.join('+');
+    };
+
+    switch (step.action) {
+      case 'click':
+      case 'link_click':
+        if (step.selector) {
+          return `agent-browser click "${escapeShell(step.selector)}"`;
+        }
+        return null;
+
+      case 'fill':
+        if (step.selector && step.value !== undefined) {
+          return `agent-browser fill "${escapeShell(step.selector)}" "${escapeShell(String(step.value))}"`;
+        }
+        return null;
+
+      case 'select':
+        if (step.selector && step.value !== undefined) {
+          return `agent-browser select "${escapeShell(step.selector)}" "${escapeShell(String(step.value))}"`;
+        }
+        return null;
+
+      case 'keyboard':
+        const key = formatKeyCombo(step);
+        if (key) {
+          return `agent-browser press "${key}"`;
+        }
+        return null;
+
+      case 'scroll':
+        if (step.x !== undefined && step.y !== undefined) {
+          return `agent-browser mouse wheel ${step.y} ${step.x}`;
+        }
+        return null;
+
+      case 'trajectory':
+        if (step.points && Array.isArray(step.points) && step.points.length > 0) {
+          // 简化轨迹点，最多5个
+          const maxPoints = 5;
+          let sampled: any[];
+          if (step.points.length <= maxPoints) {
+            sampled = step.points;
+          } else {
+            // 均匀采样
+            sampled = [];
+            const step_size = (step.points.length - 1) / (maxPoints - 1);
+            for (let i = 0; i < maxPoints; i++) {
+              const idx = Math.round(i * step_size);
+              sampled.push(step.points[idx]);
+            }
+          }
+
+          // 格式化为 x:y:delay 字符串
+          const segments = sampled.map((p: any, i: number) => {
+            const x = Math.round(p.x);
+            const y = Math.round(p.y);
+            const delay = i === 0 ? 0 : Math.round(p.t - sampled[i - 1].t);
+            return `${x}:${y}:${delay}`;
+          });
+
+          return `AGENT_BROWSER_HUMAN=bezier agent-browser mouse trajectory "${segments.join(';')}"`;
+        }
+        return null;
+
+      case 'open':
+      case 'goto':
+        if (step.url) {
+          return `agent-browser open "${step.url}"`;
+        }
+        return null;
+
+      case 'back':
+        return 'agent-browser back';
+
+      case 'forward':
+        return 'agent-browser forward';
+
+      case 'reload':
+        return 'agent-browser reload';
+
+      case 'tab_new':
+        if (step.url) {
+          return `agent-browser tab new "${step.url}"`;
+        }
+        return 'agent-browser tab new';
+
+      case 'tab_switch':
+        if (step.index !== undefined) {
+          return `agent-browser tab ${step.index}`;
+        }
+        return null;
+
+      case 'resize':
+        if (step.to && typeof step.to === 'object') {
+          return `agent-browser set viewport ${step.to.width} ${step.to.height}`;
+        }
+        return null;
+
+      case 'hover':
+        if (step.selector) {
+          return `agent-browser hover "${escapeShell(step.selector)}"`;
+        }
+        return null;
+
+      default:
+        return null;
+    }
   }
 
   /**
@@ -2489,7 +2797,7 @@ export class BrowserManager {
     }
 
     // Remove recorder event listeners
-    const page = this.getPage();
+    const page = this.pages.length > 0 ? this.getPage() : null;
     if (page) {
       if (this.recorderNavigatedHandler) {
         page.off('framenavigated', this.recorderNavigatedHandler);

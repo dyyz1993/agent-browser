@@ -20,6 +20,15 @@ describe('Selector Uniqueness E2E Tests', () => {
     await browser.close();
   });
 
+  // Helper to get the actual result value from executeCommand response
+  function extractResult(data: any): any {
+    if (data === null || data === undefined) return null;
+    if (typeof data === 'object' && 'result' in data) {
+      return extractResult(data.result);
+    }
+    return data;
+  }
+
   async function getSelectorForElement(targetSelector: string): Promise<string | null> {
     const result = await executeCommand(
       parseCliArgs([
@@ -27,7 +36,7 @@ describe('Selector Uniqueness E2E Tests', () => {
         `(function() {
         const el = document.querySelector('${targetSelector}');
         if (!el) return null;
-        
+
         function isUniqueSelector(sel) {
           try {
             return document.querySelectorAll(sel).length === 1;
@@ -35,7 +44,7 @@ describe('Selector Uniqueness E2E Tests', () => {
             return false;
           }
         }
-        
+
         function getBaseSelector(element) {
           let sel = element.tagName.toLowerCase();
           if (element.className && typeof element.className === 'string') {
@@ -47,7 +56,7 @@ describe('Selector Uniqueness E2E Tests', () => {
           }
           return sel;
         }
-        
+
         function makeUniqueWithNth(element, baseSelector) {
           const parent = element.parentElement;
           if (!parent) return baseSelector;
@@ -57,7 +66,7 @@ describe('Selector Uniqueness E2E Tests', () => {
           const index = siblings.indexOf(element) + 1;
           return baseSelector + ':nth-child(' + index + ')';
         }
-        
+
         function buildUniquePath(element, maxDepth = 5) {
           const parts = [];
           let current = element;
@@ -73,7 +82,7 @@ describe('Selector Uniqueness E2E Tests', () => {
           }
           return parts.length > 0 ? parts.join(' > ') : null;
         }
-        
+
         function getSelector(element) {
           if (element.id) {
             const sel = '#' + CSS.escape(element.id);
@@ -94,7 +103,7 @@ describe('Selector Uniqueness E2E Tests', () => {
           if (pathSelector) return pathSelector;
           return element.tagName.toLowerCase();
         }
-        
+
         return getSelector(el);
       })()`,
       ]),
@@ -102,8 +111,7 @@ describe('Selector Uniqueness E2E Tests', () => {
     );
 
     if (result.success && result.data) {
-      const data = result.data as any;
-      return data.result || data;
+      return extractResult(result.data);
     }
     return null;
   }
@@ -114,8 +122,8 @@ describe('Selector Uniqueness E2E Tests', () => {
       browser
     );
     if (result.success && result.data) {
-      const data = result.data as any;
-      return data === 1 || data.result === 1;
+      const data = extractResult(result.data);
+      return data === 1;
     }
     return false;
   }
@@ -141,6 +149,29 @@ describe('Selector Uniqueness E2E Tests', () => {
       const isUnique = await verifySelectorUniqueness(selector!);
       expect(isUnique).toBe(true);
     });
+
+    it('should handle ID with dot character', async () => {
+      // Test that CSS.escape properly escapes dot in ID
+      const selector = await getSelectorForElement('button[id="submit.btn"]');
+      expect(selector).toBeTruthy();
+      expect(typeof selector).toBe('string');
+      // The selector should use CSS.escape to produce a valid selector
+      expect(selector).toMatch(/#submit.*btn|button\[id/);
+    });
+
+    it('should handle ID with colon character', async () => {
+      const selector = await getSelectorForElement('input[id="user:name"]');
+      expect(selector).toBeTruthy();
+      expect(typeof selector).toBe('string');
+      expect(selector).toMatch(/#user.*name|input\[id/);
+    });
+
+    it('should handle ID with bracket characters', async () => {
+      const selector = await getSelectorForElement('span[id="item[0]"]');
+      expect(selector).toBeTruthy();
+      expect(typeof selector).toBe('string');
+      expect(selector).toMatch(/#item.*0|span\[id/);
+    });
   });
 
   describe('Semantic Attribute Selectors', () => {
@@ -160,6 +191,14 @@ describe('Selector Uniqueness E2E Tests', () => {
       expect(isUnique).toBe(true);
     });
 
+    it('should generate unique selector for aria-label button', async () => {
+      const selector = await getSelectorForElement('[aria-label="search"]');
+      expect(selector).toBe('button[aria-label="search"]');
+
+      const isUnique = await verifySelectorUniqueness(selector!);
+      expect(isUnique).toBe(true);
+    });
+
     it('should generate unique selector for data-cy', async () => {
       const selector = await getSelectorForElement('[data-cy="cancel-btn"]');
       expect(selector).toBe('button[data-cy="cancel-btn"]');
@@ -167,9 +206,59 @@ describe('Selector Uniqueness E2E Tests', () => {
       const isUnique = await verifySelectorUniqueness(selector!);
       expect(isUnique).toBe(true);
     });
+
+    it('should generate unique selector for name attribute', async () => {
+      const selector = await getSelectorForElement('[name="email"]');
+      expect(selector).toBe('input[name="email"]');
+
+      const isUnique = await verifySelectorUniqueness(selector!);
+      expect(isUnique).toBe(true);
+    });
+
+    it('should generate unique selector for name attribute (password)', async () => {
+      const selector = await getSelectorForElement('[name="password"]');
+      expect(selector).toBe('input[name="password"]');
+
+      const isUnique = await verifySelectorUniqueness(selector!);
+      expect(isUnique).toBe(true);
+    });
+
+    it('should generate unique selector for role attribute (submit)', async () => {
+      const selector = await getSelectorForElement('[role="submit"]');
+      expect(selector).toBe('button[role="submit"]');
+
+      const isUnique = await verifySelectorUniqueness(selector!);
+      expect(isUnique).toBe(true);
+    });
+
+    it('should generate unique selector for role attribute (cancel)', async () => {
+      const selector = await getSelectorForElement('[role="cancel"]');
+      expect(selector).toBe('button[role="cancel"]');
+
+      const isUnique = await verifySelectorUniqueness(selector!);
+      expect(isUnique).toBe(true);
+    });
   });
 
   describe('Nth-child Selectors', () => {
+    it('should generate unique selector for multiple same tags (3rd li)', async () => {
+      const selector = await getSelectorForElement('.simple-list li:nth-child(3)');
+      expect(selector).toBeTruthy();
+      expect(selector).toContain(':nth-child');
+
+      const isUnique = await verifySelectorUniqueness(selector!);
+      expect(isUnique).toBe(true);
+    });
+
+    it('should generate unique selector for same class elements (2nd .item)', async () => {
+      const selector = await getSelectorForElement('.item-group .item:nth-child(2)');
+      expect(selector).toBeTruthy();
+      expect(selector).toContain(':nth-child');
+
+      const isUnique = await verifySelectorUniqueness(selector!);
+      expect(isUnique).toBe(true);
+    });
+
     it('should generate unique selector for multiple same tags', async () => {
       const selector = await getSelectorForElement('.list-container a[href="#3"]');
       expect(selector).toBeTruthy();
@@ -186,6 +275,24 @@ describe('Selector Uniqueness E2E Tests', () => {
       const isUnique = await verifySelectorUniqueness(selector!);
       expect(isUnique).toBe(true);
     });
+
+    it('should generate unique selector for pagination link (3rd page)', async () => {
+      const selector = await getSelectorForElement('.pagination a[href="?page=3"]');
+      expect(selector).toBeTruthy();
+      expect(selector).toContain(':nth-child');
+
+      const isUnique = await verifySelectorUniqueness(selector!);
+      expect(isUnique).toBe(true);
+    });
+
+    it('should generate unique selector for list item (5th item)', async () => {
+      const selector = await getSelectorForElement('.item-list li:nth-child(5)');
+      expect(selector).toBeTruthy();
+      expect(selector).toContain(':nth-child');
+
+      const isUnique = await verifySelectorUniqueness(selector!);
+      expect(isUnique).toBe(true);
+    });
   });
 
   describe('Path-based Selectors', () => {
@@ -198,21 +305,105 @@ describe('Selector Uniqueness E2E Tests', () => {
     });
   });
 
-  describe('Pagination Links (Real-world)', () => {
-    it('should generate unique selector for pagination link', async () => {
-      const selector = await getSelectorForElement('.pagination a[href="?page=3"]');
-      expect(selector).toBeTruthy();
-      expect(selector).toContain(':nth-child');
-
-      const isUnique = await verifySelectorUniqueness(selector!);
-      expect(isUnique).toBe(true);
-    });
-  });
-
   describe('Dynamic Classes', () => {
     it('should filter out dynamic classes and use nth-child', async () => {
       const selector = await getSelectorForElement('#test-id-unique + .container div');
       expect(selector).toBeTruthy();
+
+      const isUnique = await verifySelectorUniqueness(selector!);
+      expect(isUnique).toBe(true);
+    });
+
+    it('should filter css-* pattern classes', async () => {
+      // Find the div with css-abc123 class using direct selector
+      const selector = await getSelectorForElement('.css-abc123');
+      expect(selector).toBeTruthy();
+      expect(typeof selector).toBe('string');
+
+      // The generated selector should not contain css- prefix
+      if (selector && typeof selector === 'string') {
+        expect(selector).not.toContain('css-');
+        const isUnique = await verifySelectorUniqueness(selector);
+        expect(isUnique).toBe(true);
+      }
+    });
+
+    it('should filter underscore-prefixed classes', async () => {
+      // Find the div with css-def456 class using direct selector
+      const selector = await getSelectorForElement('.css-def456');
+      expect(selector).toBeTruthy();
+      expect(typeof selector).toBe('string');
+
+      // The generated selector should not contain underscore-prefixed classes
+      if (selector && typeof selector === 'string') {
+        expect(selector).not.toMatch(/\._/);
+        const isUnique = await verifySelectorUniqueness(selector);
+        expect(isUnique).toBe(true);
+      }
+    });
+  });
+
+  describe('High-Entropy Class Names', () => {
+    it('should filter high-entropy class like oMpq4HiN', async () => {
+      const selector = await getSelectorForElement('[data-testid="high-entropy-btn-1"]');
+      expect(selector).toBeTruthy();
+      expect(typeof selector).toBe('string');
+
+      // The generated selector should use data-testid, not the high-entropy class
+      expect(selector).toContain('data-testid');
+      expect(selector).not.toContain('oMpq4HiN');
+
+      const isUnique = await verifySelectorUniqueness(selector!);
+      expect(isUnique).toBe(true);
+    });
+
+    it('should filter multiple high-entropy classes', async () => {
+      const selector = await getSelectorForElement('[data-testid="high-entropy-btn-2"]');
+      expect(selector).toBeTruthy();
+      expect(typeof selector).toBe('string');
+
+      // Should use data-testid instead of YoNA2Hyj or qKr0RhiL
+      expect(selector).toContain('data-testid');
+      expect(selector).not.toContain('YoNA2Hyj');
+      expect(selector).not.toContain('qKr0RhiL');
+
+      const isUnique = await verifySelectorUniqueness(selector!);
+      expect(isUnique).toBe(true);
+    });
+
+    it('should filter Emotion-style classes (sc-*)', async () => {
+      const selector = await getSelectorForElement('[data-testid="high-entropy-div"]');
+      expect(selector).toBeTruthy();
+      expect(typeof selector).toBe('string');
+
+      // Should use data-testid instead of sc-dkzDqf
+      expect(selector).toContain('data-testid');
+      expect(selector).not.toContain('sc-');
+
+      const isUnique = await verifySelectorUniqueness(selector!);
+      expect(isUnique).toBe(true);
+    });
+
+    it('should filter alternating case pattern classes', async () => {
+      const selector = await getSelectorForElement('[data-testid="high-entropy-span"]');
+      expect(selector).toBeTruthy();
+      expect(typeof selector).toBe('string');
+
+      // xYzAbC has alternating case pattern, should be filtered
+      expect(selector).toContain('data-testid');
+      expect(selector).not.toContain('xYzAbC');
+
+      const isUnique = await verifySelectorUniqueness(selector!);
+      expect(isUnique).toBe(true);
+    });
+
+    it('should prefer semantic class over high-entropy class', async () => {
+      const selector = await getSelectorForElement('[data-testid="semantic-with-random"]');
+      expect(selector).toBeTruthy();
+      expect(typeof selector).toBe('string');
+
+      // Should use data-testid first (highest priority)
+      expect(selector).toContain('data-testid');
 
       const isUnique = await verifySelectorUniqueness(selector!);
       expect(isUnique).toBe(true);

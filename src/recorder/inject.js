@@ -153,8 +153,10 @@
   window.addEventListener('message', (event) => {
     if (event.data && event.data.type === MESSAGE_TYPE && event.data.step) {
       if (!isInIframe) {
-        if (typeof window.xyzTrack === 'function') {
-          try { window.xyzTrack(JSON.stringify(event.data.step)); } catch (e) {}
+        // 使用动态绑定名称
+        const bindingName = window.xyzBindingName || 'xyzTrack';
+        if (typeof window[bindingName] === 'function') {
+          try { window[bindingName](JSON.stringify(event.data.step)); } catch (e) {}
         }
       } else {
         try {
@@ -214,9 +216,9 @@
       try {
         window.parent.postMessage({ type: MESSAGE_TYPE, step: step }, '*');
       } catch (e) {}
-    } else if (typeof window.xyzTrack === 'function') {
+    } else if (typeof window[window.xyzBindingName || 'xyzTrack'] === 'function') {
       try {
-        window.xyzTrack(JSON.stringify(step));
+        window[window.xyzBindingName || 'xyzTrack'](JSON.stringify(step));
       } catch (e) {
         console.error('[Sync] failed:', e);
       }
@@ -358,12 +360,10 @@
     }
 
     if (!result) {
-      if (element.className && typeof element.className === 'string') {
-        const classes = element.className.trim().split(/\s+/).filter(c => c && !c.startsWith('_') && !c.startsWith('css-') && !/^[a-z]{1,2}$/.test(c));
-        if (classes.length > 0) {
-          const xpath = '//*[contains(@class, "' + classes[0] + '")]';
-          if (isUniqueXPath(xpath)) result = xpath;
-        }
+      const classes = filterUsefulClasses(element);
+      if (classes.length > 0) {
+        const xpath = '//*[contains(@class, "' + classes[0] + '")]';
+        if (isUniqueXPath(xpath)) result = xpath;
       }
     }
 
@@ -383,14 +383,229 @@
     }
   }
 
+  // ============ 增强的选择器生成函数 ============
+
+  // 语义属性优先级列表
+  const SEMANTIC_ATTRS = [
+    'data-testid', 'data-test', 'data-cy',
+    'name', 'aria-label', 'aria-labelledby',
+    'role', 'type', 'placeholder', 'title', 'alt'
+  ];
+
+  // 工具类名排除规则
+  const UTILITY_CLASS_PATTERNS = [
+    /^_/,           // 下划线开头
+    /^css-/,        // CSS Modules
+    /^[a-z]{1,2}$/, // 1-2个字符的短类名
+    /^(active|disabled|hidden|visible|selected|hover|focus|current|open|closed)$/i,
+    /^(text-|font-|bg-|p-|m-|w-|h-|flex|grid|border|rounded|shadow|opacity|z-)/,
+    /^(sm:|md:|lg:|xl:|2xl:)/  // 响应式前缀
+  ];
+
+  // 检测高熵类名（CSS Modules/Emotion/Styled Components 自动生成的随机类名）
+  // 例如: oMpq4HiN, YoNA2Hyj, qKr0RhiL, GzPW6isY, sc-dkzDqf, css-1a2b3c
+  function isHighEntropyClassName(className) {
+    if (!className || className.length < 4 || className.length > 15) return false;
+
+    // CSS Modules: xxx_yyy__zzz 格式
+    if (/^[a-zA-Z]+_[a-zA-Z]+_{2}[a-zA-Z0-9]+$/.test(className)) return true;
+
+    // Emotion/Styled Components: sc-xxxxx 或纯随机字符
+    if (/^sc-[a-zA-Z0-9]+$/.test(className)) return true;
+
+    // 高熵类名特征：混合大小写+数字，无语义分隔符
+    // 模式1: 纯字母混合大小写，长度6-12，如 YoNA2Hyj, oMpq4HiN
+    const hasUpper = /[A-Z]/.test(className);
+    const hasLower = /[a-z]/.test(className);
+    const hasDigit = /[0-9]/.test(className);
+    const hasSeparator = /[-_]/.test(className);
+
+    // 如果有分隔符，可能是有意义的（如 btn-primary），不过滤
+    if (hasSeparator) return false;
+
+    // 混合大小写且包含数字，且没有分隔符 -> 高概率是生成的类名
+    if (hasUpper && hasLower && hasDigit) return true;
+
+    // 纯大写字母+数字混合，长度6-10
+    if (/^[A-Z][a-z0-9]+[A-Z]/.test(className) && className.length <= 12) return true;
+
+    // 以小写字母开头，后面有连续大写字母切换的驼峰模式（非语义）
+    // 如 "xYzAbC" 这种无意义的交替模式
+    if (/^[a-z]/.test(className) && /[a-z][A-Z][a-z][A-Z]/.test(className)) return true;
+
+    return false;
+  }
+
+  // 过滤有用的类名
+  function filterUsefulClasses(element) {
+    if (!element.className || typeof element.className !== 'string') return [];
+    return element.className.trim().split(/\s+/).filter(c => {
+      if (!c) return false;
+      // 过滤工具类名
+      if (UTILITY_CLASS_PATTERNS.some(p => p.test(c))) return false;
+      // 过滤高熵类名
+      if (isHighEntropyClassName(c)) return false;
+      return true;
+    });
+  }
+
+  // 策略1: 多属性组合选择器
+  function getMultiAttributeSelector(element) {
+    const tag = element.tagName.toLowerCase();
+    const attrs = [];
+
+    for (const attr of SEMANTIC_ATTRS) {
+      const value = element.getAttribute(attr);
+      if (value) {
+        attrs.push({ attr, value });
+      }
+    }
+
+    if (attrs.length === 0) return null;
+
+    // 尝试单属性
+    for (const { attr, value } of attrs) {
+      const selector = tag + '[' + attr + '="' + CSS.escape(value) + '"]';
+      if (isUniqueSelector(selector)) return selector;
+    }
+
+    // 尝试双属性组合
+    if (attrs.length >= 2) {
+      for (let i = 0; i < attrs.length; i++) {
+        for (let j = i + 1; j < attrs.length; j++) {
+          const selector = tag +
+            '[' + attrs[i].attr + '="' + CSS.escape(attrs[i].value) + '"]' +
+            '[' + attrs[j].attr + '="' + CSS.escape(attrs[j].value) + '"]';
+          if (isUniqueSelector(selector)) return selector;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  // 策略2: 属性 + 类名组合选择器
+  function getAttributeClassComboSelector(element) {
+    const tag = element.tagName.toLowerCase();
+    const classes = filterUsefulClasses(element);
+    if (classes.length === 0) return null;
+
+    // 按长度排序（更长的类名通常更具体）
+    classes.sort((a, b) => b.length - a.length);
+    const bestClass = classes[0];
+
+    // 查找可用属性
+    for (const attr of SEMANTIC_ATTRS) {
+      const value = element.getAttribute(attr);
+      if (value) {
+        const selector = tag + '.' + CSS.escape(bestClass) + '[' + attr + '="' + CSS.escape(value) + '"]';
+        if (isUniqueSelector(selector)) return selector;
+      }
+    }
+
+    return null;
+  }
+
+  // 策略3: 智能类名选择
+  function getBestClassSelector(element) {
+    const classes = filterUsefulClasses(element);
+    if (classes.length === 0) return null;
+
+    // 按区分度排序（更长的类名通常更具体）
+    classes.sort((a, b) => b.length - a.length);
+
+    const tag = element.tagName.toLowerCase();
+
+    // 尝试单个类名
+    for (const cls of classes) {
+      const selector = tag + '.' + CSS.escape(cls);
+      if (isUniqueSelector(selector)) return selector;
+    }
+
+    // 尝试组合多个类名
+    for (let i = 2; i <= Math.min(3, classes.length); i++) {
+      const selector = tag + '.' + classes.slice(0, i).map(c => CSS.escape(c)).join('.');
+      if (isUniqueSelector(selector)) return selector;
+    }
+
+    return null;
+  }
+
+  // 策略4: 文本内容选择器
+  function getTextBasedSelector(element) {
+    const text = element.innerText?.trim();
+    if (!text || text.length > 30) return null;
+
+    // 只对特定标签使用文本选择器
+    const textTags = ['BUTTON', 'A', 'SPAN', 'LABEL', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6'];
+    if (!textTags.includes(element.tagName)) return null;
+
+    const tag = element.tagName.toLowerCase();
+    const escapedText = text.replace(/"/g, '\\"').slice(0, 20);
+
+    // Playwright 风格的文本选择器
+    const selector = tag + ':has-text("' + escapedText + '")';
+    // 注意：这种选择器在 querySelectorAll 中不直接支持，仅作为备选记录
+    return null; // 暂时返回 null，因为标准 CSS 不支持 :has-text
+  }
+
+  // 策略5: 兄弟元素定位
+  function getSiblingBasedSelector(element) {
+    const sibling = element.previousElementSibling;
+    if (!sibling) return null;
+
+    // 查找前面有特征的兄弟元素
+    let prevSibling = sibling;
+    let attempts = 0;
+    while (prevSibling && attempts < 3) {
+      const siblingSelector = getFeatureSelector(prevSibling);
+      if (siblingSelector && isUniqueSelector(siblingSelector)) {
+        const elementSelector = getBaseSelector(element);
+        const combined = siblingSelector + ' + ' + elementSelector;
+        if (isUniqueSelector(combined)) return combined;
+      }
+      prevSibling = prevSibling.previousElementSibling;
+      attempts++;
+    }
+
+    return null;
+  }
+
+  // 获取元素的特征选择器（用于父元素或兄弟元素）
+  function getFeatureSelector(element) {
+    if (!element || element === document.body) return null;
+
+    // ID 优先
+    if (element.id) {
+      return '#' + CSS.escape(element.id);
+    }
+
+    // 有特征的属性
+    for (const attr of ['data-testid', 'data-test', 'name', 'role', 'aria-label']) {
+      const value = element.getAttribute(attr);
+      if (value) {
+        return element.tagName.toLowerCase() + '[' + attr + '="' + CSS.escape(value) + '"]';
+      }
+    }
+
+    // 唯一的类名选择器
+    const classes = filterUsefulClasses(element);
+    if (classes.length > 0) {
+      classes.sort((a, b) => b.length - a.length);
+      const selector = element.tagName.toLowerCase() + '.' + CSS.escape(classes[0]);
+      if (isUniqueSelector(selector)) return selector;
+    }
+
+    return null;
+  }
+
   function getBaseSelector(element) {
     let selector = element.tagName.toLowerCase();
-    if (element.className && typeof element.className === 'string') {
-      const classes = element.className.trim().split(/\s+/)
-        .filter(c => c && !c.startsWith('_') && !c.startsWith('css-') && !/^[a-z]{1,2}$/.test(c));
-      if (classes.length > 0) {
-        selector += '.' + classes.slice(0, 2).map(c => CSS.escape(c)).join('.');
-      }
+    const classes = filterUsefulClasses(element);
+    if (classes.length > 0) {
+      // 按长度排序，取最具体的类名
+      classes.sort((a, b) => b.length - a.length);
+      selector += '.' + classes.slice(0, 2).map(c => CSS.escape(c)).join('.');
     }
     return selector;
   }
@@ -408,6 +623,53 @@
 
     const index = siblings.indexOf(element) + 1;
     return baseSelector + ':nth-child(' + index + ')';
+  }
+
+  // 策略6: 智能父子组合选择器
+  function buildComposedSelector(element, maxDepth = 3) {
+    const parts = [];
+    let current = element;
+    let depth = 0;
+
+    // 先尝试元素自身的选择器
+    const selfSelector = getBestClassSelector(element);
+    if (selfSelector && isUniqueSelector(selfSelector)) {
+      return selfSelector;
+    }
+
+    // 向上查找有特征的祖先
+    while (current && current !== document.body && depth < maxDepth) {
+      const featureSelector = getFeatureSelector(current);
+      if (featureSelector) {
+        parts.unshift(featureSelector);
+        const combined = parts.join(' > ');
+        // 添加当前元素的类名选择器
+        const elementSelector = depth === 0 ? getBaseSelector(element) : getBaseSelector(current);
+        const fullSelector = combined + (depth > 0 ? '' : ' > ' + elementSelector);
+        if (isUniqueSelector(fullSelector)) {
+          return fullSelector;
+        }
+      } else {
+        // 如果没有特征选择器，使用基本选择器
+        const baseSelector = getBaseSelector(current);
+        const selector = makeUniqueWithNth(current, baseSelector);
+        parts.unshift(selector);
+
+        const fullSelector = parts.join(' > ');
+        if (isUniqueSelector(fullSelector)) {
+          return fullSelector;
+        }
+      }
+
+      current = current.parentElement;
+      depth++;
+    }
+
+    if (parts.length > 0) {
+      return parts.join(' > ');
+    }
+
+    return null;
   }
 
   function buildUniquePath(element, maxDepth = 5) {
@@ -457,49 +719,64 @@
     return getSelectorInternal(element);
   }
 
+  // 优化后的主选择器生成函数
   function getSelectorInternal(element) {
     if (selectorCache.has(element)) {
       return selectorCache.get(element);
     }
 
     let result = null;
+    const root = element.getRootNode();
 
+    // 策略1: ID 选择器（最高优先级）
     if (element.id) {
       const selector = '#' + CSS.escape(element.id);
       try {
-        if (element.getRootNode().querySelectorAll(selector).length === 1) result = selector;
+        if (root.querySelectorAll(selector).length === 1) result = selector;
       } catch (e) {}
     }
 
+    // 策略2: 多属性组合选择器
     if (!result) {
-      const semanticAttrs = ['data-testid', 'data-test', 'data-cy', 'aria-label', 'name', 'role', 'title'];
-      for (const attr of semanticAttrs) {
-        const value = element.getAttribute(attr);
-        if (value) {
-          const selector = element.tagName.toLowerCase() + '[' + attr + '="' + CSS.escape(value) + '"]';
-          try {
-            if (element.getRootNode().querySelectorAll(selector).length === 1) {
-              result = selector;
-              break;
-            }
-          } catch (e) {}
-        }
-      }
+      result = getMultiAttributeSelector(element);
     }
 
+    // 策略3: 属性 + 类名组合
+    if (!result) {
+      result = getAttributeClassComboSelector(element);
+    }
+
+    // 策略4: 智能类名选择
+    if (!result) {
+      result = getBestClassSelector(element);
+    }
+
+    // 策略5: 兄弟元素定位
+    if (!result) {
+      result = getSiblingBasedSelector(element);
+    }
+
+    // 策略6: 智能父子组合
+    if (!result) {
+      result = buildComposedSelector(element);
+    }
+
+    // 策略7: 基本类名 + nth-child
     if (!result) {
       const baseSelector = getBaseSelector(element);
       const uniqueSelector = makeUniqueWithNth(element, baseSelector);
       try {
-        if (element.getRootNode().querySelectorAll(uniqueSelector).length === 1) result = uniqueSelector;
+        if (root.querySelectorAll(uniqueSelector).length === 1) result = uniqueSelector;
       } catch (e) {}
     }
 
+    // 策略8: 路径选择器（兜底）
     if (!result) {
       const pathSelector = buildUniquePath(element);
       if (pathSelector) result = pathSelector;
     }
 
+    // 最终兜底
     if (!result) {
       result = element.tagName.toLowerCase();
     }
@@ -596,6 +873,11 @@
     const element = e.target;
     if (!element || !element.tagName) return;
     if (isInPanel(element)) return;
+
+    // Skip checkbox, radio, and select - they are handled by click and change events
+    if (element.tagName === 'SELECT') return;
+    const inputType = (element.type || '').toLowerCase();
+    if (inputType === 'checkbox' || inputType === 'radio') return;
 
     const selector = getSelector(element);
     const value = element.value;
@@ -1150,9 +1432,9 @@
         const result = pushEvent({ type: 'update', id: stepId, data: { annotation } });
 
         if (result.success) {
-          if (typeof window.xyzTrack === 'function') {
+          if (typeof window[window.xyzBindingName || 'xyzTrack'] === 'function') {
             try {
-              window.xyzTrack(JSON.stringify({ action: 'xyzUpdate', id: stepId, data: { annotation } }));
+              window[window.xyzBindingName || 'xyzTrack'](JSON.stringify({ action: 'xyzUpdate', id: stepId, data: { annotation } }));
             } catch (e) {}
           }
 
@@ -1166,9 +1448,9 @@
         const result = pushEvent({ type: 'delete', id: stepId });
 
         if (result.success) {
-          if (typeof window.xyzTrack === 'function') {
+          if (typeof window[window.xyzBindingName || 'xyzTrack'] === 'function') {
             try {
-              window.xyzTrack(JSON.stringify({ action: 'xyzDelete', id: stepId }));
+              window[window.xyzBindingName || 'xyzTrack'](JSON.stringify({ action: 'xyzDelete', id: stepId }));
             } catch (e) {}
           }
 
@@ -1184,8 +1466,8 @@
         updateUI();
       });
 
-      if (typeof window.xyzTrack === 'function') {
-        window.xyzTrack('');
+      if (typeof window[window.xyzBindingName || 'xyzTrack'] === 'function') {
+        window[window.xyzBindingName || 'xyzTrack']('');
       }
 
       document.getElementById('xyzClear').addEventListener('click', function() {
@@ -1194,8 +1476,8 @@
         markedElements.clear();
         annotations.clear();
         updateUI();
-        if (typeof window.xyzTrack === 'function') {
-          try { window.xyzTrack(JSON.stringify({ action: 'xyzClear' })); } catch (e) {}
+        if (typeof window[window.xyzBindingName || 'xyzTrack'] === 'function') {
+          try { window[window.xyzBindingName || 'xyzTrack'](JSON.stringify({ action: 'xyzClear' })); } catch (e) {}
         }
       });
 
@@ -1444,8 +1726,8 @@
         if (pollInterval) return;
 
         pollInterval = setInterval(() => {
-          if (typeof window.xyzTrack === 'function') {
-            window.xyzTrack(JSON.stringify({ action: 'xyzPoll' }));
+          if (typeof window[window.xyzBindingName || 'xyzTrack'] === 'function') {
+            window[window.xyzBindingName || 'xyzTrack'](JSON.stringify({ action: 'xyzPoll' }));
           }
         }, 500);
       }

@@ -106,5 +106,61 @@
     <div class="css-abc123 _xyz">Element with dynamic class</div>
     <div class="css-def456 _abc">Another dynamic class</div>
   </div>
+
+  <div class="container" id="test-special-id">
+    <h3>Test 11: ID with Special Characters</h3>
+    <button id="submit.btn">Button with dot in ID</button>
+    <input id="user:name" type="text" placeholder="Input with colon in ID">
+    <span id="item[0]">Span with brackets in ID</span>
+  </div>
+
+  <div class="container">
+    <h3>Test 12: Name and Role Attributes</h3>
+    <input name="email" type="email" placeholder="Email input">
+    <input name="password" type="password" placeholder="Password input">
+    <button role="submit" type="button">Submit Button</button>
+    <button role="cancel" type="button">Cancel Button</button>
+  </div>
+
+  <div class="container">
+    <h3>Test 13: Same Tag List Items</h3>
+    <ul class="simple-list">
+      <li>First item</li>
+      <li>Second item</li>
+      <li>Third item</li>
+      <li>Fourth item</li>
+      <li>Fifth item</li>
+    </ul>
+  </div>
+
+  <div class="container">
+    <h3>Test 14: Same Class Items with nth-child</h3>
+    <div class="item-group">
+      <div class="item">Item 1</div>
+      <div class="item">Item 2</div>
+      <div class="item">Item 3</div>
+      <div class="item">Item 4</div>
+      <div class="item">Item 5</div>
+    </div>
+  </div>
+
+  <div class="container">
+    <h3>Test 15: Aria-label Variations</h3>
+    <button aria-label="search">Search Button</button>
+    <input aria-label="email" type="text">
+    <textarea aria-label="description"></textarea>
+  </div>
+
+  <div class="container">
+    <h3>Test 16: High-Entropy Class Names (CSS Modules/Emotion)</h3>
+    <!-- These simulate auto-generated class names from bundlers -->
+    <button class="oMpq4HiN" data-testid="high-entropy-btn-1">Button with high-entropy class 1</button>
+    <button class="YoNA2Hyj qKr0RhiL" data-testid="high-entropy-btn-2">Button with multiple high-entropy classes</button>
+    <div class="GzPW6isY sc-dkzDqf" data-testid="high-entropy-div">Div with Emotion-style classes</div>
+    <span class="xYzAbC randomName" data-testid="high-entropy-span">Span with mixed classes</span>
+    <button class="css-1a2b3c4 myButton" data-testid="css-modules-btn">Button with CSS Modules style</button>
+    <!-- Semantic class should be preserved -->
+    <button class="submit-button oMpq4HiN" data-testid="semantic-with-random">Semantic class with random</button>
+  </div>
 </body>
 </html>
