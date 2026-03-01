@@ -95,6 +95,9 @@ export function parseCommand(args: string[], flags: Flags): Command {
           navCmd.headers = JSON.parse(flags.headers);
         } catch {}
       }
+      if (flags.timeout) {
+        navCmd.timeout = parseInt(flags.timeout, 10);
+      }
       if (flags.provider === 'ios' && flags.device) {
         navCmd.iosDevice = flags.device;
       }
@@ -698,7 +701,10 @@ export function parseCommand(args: string[], flags: Flags): Command {
     case 'mouse': {
       const subcmd = rest[0];
       if (!subcmd)
-        error('Missing subcommand', 'agent-browser mouse <move|down|up|wheel|wander> [args...]');
+        error(
+          'Missing subcommand',
+          'agent-browser mouse <move|down|up|wheel|wander|trajectory> [args...]'
+        );
       switch (subcmd) {
         case 'move': {
           const x = rest[1] ? parseInt(rest[1], 10) : NaN;
@@ -723,10 +729,19 @@ export function parseCommand(args: string[], flags: Flags): Command {
           if (flags.human.enabled) cmd.human = flags.human;
           return cmd;
         }
+        case 'trajectory': {
+          // agent-browser mouse trajectory "x:y:d;x:y:d;..."
+          const data = rest.slice(1).join(' ');
+          if (!data)
+            error('Missing trajectory data', 'agent-browser mouse trajectory "x:y:d;x:y:d;..."');
+          const cmd: Command = { id, action: 'mousetrajectory', data };
+          if (flags.human.enabled) cmd.human = flags.human;
+          return cmd;
+        }
         default:
           error(
             `Unknown mouse subcommand: ${subcmd}`,
-            'agent-browser mouse <move|down|up|wheel|wander> [args...]'
+            'agent-browser mouse <move|down|up|wheel|wander|trajectory> [args...]'
           );
       }
     }
@@ -1007,9 +1022,13 @@ export function parseCommand(args: string[], flags: Flags): Command {
       if (subcmd === 'status') {
         return { id, action: 'recorder_status' };
       }
+      if (subcmd === 'replay') {
+        const path = rest[1];
+        return { id, action: 'recorder_replay', path };
+      }
       error(
         'Unknown recorder command',
-        'agent-browser recorder <start [url]|stop [--output file.yaml]|status>'
+        'agent-browser recorder <start [url]|stop [--output file.yaml]|status|replay [file.yaml]>'
       );
     }
 

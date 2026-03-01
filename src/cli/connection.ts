@@ -119,6 +119,53 @@ function isProcessRunning(pid: number): boolean {
   }
 }
 
+function getLockPath(session: string): string {
+  return path.join(getSocketDir(), `${session}.lock`);
+}
+
+async function acquireLock(session: string, timeoutMs: number = 10000): Promise<void> {
+  const lockPath = getLockPath(session);
+  const startTime = Date.now();
+
+  while (Date.now() - startTime < timeoutMs) {
+    try {
+      const fd = fs.openSync(lockPath, 'wx');
+      fs.writeSync(fd, `${process.pid}\n`);
+      fs.closeSync(fd);
+      return;
+    } catch (e: any) {
+      if (e.code === 'EEXIST') {
+        const lockAge = Date.now() - (fs.statSync(lockPath).mtimeMs || 0);
+        if (lockAge > 30000) {
+          try {
+            fs.unlinkSync(lockPath);
+          } catch {}
+        }
+        await sleep(50);
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw new Error(`Timeout acquiring lock for session ${session}`);
+}
+
+function releaseLock(session: string): void {
+  const lockPath = getLockPath(session);
+  try {
+    fs.unlinkSync(lockPath);
+  } catch {}
+}
+
+async function withLock<T>(session: string, fn: () => Promise<T>): Promise<T> {
+  await acquireLock(session);
+  try {
+    return await fn();
+  } finally {
+    releaseLock(session);
+  }
+}
+
 function isDaemonProcessRunning(session: string): boolean {
   const pidPath = getPidPath(session);
   if (!fs.existsSync(pidPath)) return false;
@@ -252,7 +299,8 @@ export async function ensureStreamServer(): Promise<boolean> {
     fs.mkdirSync(socketDir, { recursive: true });
   }
 
-  const exeDir = path.dirname(process.argv[1] || '');
+  const exePath = fs.realpathSync(process.argv[1] || '');
+  const exeDir = path.dirname(exePath);
   const streamServerPaths = [
     path.join(exeDir, 'stream-server-standalone.js'),
     path.join(exeDir, '../dist/stream-server-standalone.js'),
@@ -313,90 +361,97 @@ export async function ensureDaemon(options: DaemonOptions): Promise<DaemonResult
     }
   }
 
-  cleanupStaleFiles(session);
+  return withLock(session, async () => {
+    if (isDaemonProcessRunning(session) && (await isDaemonReady(session))) {
+      return { alreadyRunning: true };
+    }
 
-  const socketDir = getSocketDir();
-  if (!fs.existsSync(socketDir)) {
-    fs.mkdirSync(socketDir, { recursive: true });
-  }
+    cleanupStaleFiles(session);
 
-  if (!isWindows) {
-    const socketPath = getSocketPath(session);
-    if (socketPath.length > 103) {
-      throw new Error(
-        `Session name '${session}' is too long. Socket path would be ${socketPath.length} bytes (max 103).`
+    const socketDir = getSocketDir();
+    if (!fs.existsSync(socketDir)) {
+      fs.mkdirSync(socketDir, { recursive: true });
+    }
+
+    if (!isWindows) {
+      const socketPath = getSocketPath(session);
+      if (socketPath.length > 103) {
+        throw new Error(
+          `Session name '${session}' is too long. Socket path would be ${socketPath.length} bytes (max 103).`
+        );
+      }
+    }
+
+    const testFile = path.join(socketDir, '.write_test');
+    try {
+      fs.writeFileSync(testFile, '');
+      fs.unlinkSync(testFile);
+    } catch (e) {
+      throw new Error(`Socket directory '${socketDir}' is not writable: ${e}`);
+    }
+
+    await ensureStreamServer();
+
+    const exePath = fs.realpathSync(process.argv[1] || '');
+    const exeDir = path.dirname(exePath);
+    const daemonPaths = [
+      path.join(exeDir, 'daemon.js'),
+      path.join(exeDir, '../dist/daemon.js'),
+      path.join(process.cwd(), 'dist/daemon.js'),
+    ];
+
+    if (process.env.AGENT_BROWSER_HOME) {
+      daemonPaths.unshift(
+        path.join(process.env.AGENT_BROWSER_HOME, 'dist/daemon.js'),
+        path.join(process.env.AGENT_BROWSER_HOME, 'daemon.js')
       );
     }
-  }
 
-  const testFile = path.join(socketDir, '.write_test');
-  try {
-    fs.writeFileSync(testFile, '');
-    fs.unlinkSync(testFile);
-  } catch (e) {
-    throw new Error(`Socket directory '${socketDir}' is not writable: ${e}`);
-  }
-
-  await ensureStreamServer();
-
-  const exeDir = path.dirname(process.argv[1] || '');
-  const daemonPaths = [
-    path.join(exeDir, 'daemon.js'),
-    path.join(exeDir, '../dist/daemon.js'),
-    path.join(process.cwd(), 'dist/daemon.js'),
-  ];
-
-  if (process.env.AGENT_BROWSER_HOME) {
-    daemonPaths.unshift(
-      path.join(process.env.AGENT_BROWSER_HOME, 'dist/daemon.js'),
-      path.join(process.env.AGENT_BROWSER_HOME, 'daemon.js')
-    );
-  }
-
-  const daemonPath = daemonPaths.find((p) => fs.existsSync(p));
-  if (!daemonPath) {
-    throw new Error('Daemon not found. Set AGENT_BROWSER_HOME environment variable.');
-  }
-
-  const env: NodeJS.ProcessEnv = {
-    ...process.env,
-    AGENT_BROWSER_DAEMON: '1',
-    AGENT_BROWSER_SESSION: session,
-  };
-
-  if (options.headed) env.AGENT_BROWSER_HEADED = '1';
-  if (options.executablePath) env.AGENT_BROWSER_EXECUTABLE_PATH = options.executablePath;
-  if (options.extensions?.length) env.AGENT_BROWSER_EXTENSIONS = options.extensions.join(',');
-  if (options.args) env.AGENT_BROWSER_ARGS = options.args;
-  if (options.userAgent) env.AGENT_BROWSER_USER_AGENT = options.userAgent;
-  if (options.proxy) env.AGENT_BROWSER_PROXY = options.proxy;
-  if (options.proxyBypass) env.AGENT_BROWSER_PROXY_BYPASS = options.proxyBypass;
-  if (options.ignoreHttpsErrors) env.AGENT_BROWSER_IGNORE_HTTPS_ERRORS = '1';
-  if (options.allowFileAccess) env.AGENT_BROWSER_ALLOW_FILE_ACCESS = '1';
-  if (options.profile) env.AGENT_BROWSER_PROFILE = options.profile;
-  if (options.state) env.AGENT_BROWSER_STATE = options.state;
-  if (options.provider) env.AGENT_BROWSER_PROVIDER = options.provider;
-  if (options.device) env.AGENT_BROWSER_IOS_DEVICE = options.device;
-
-  const logFile = path.join(socketDir, `${session}.log`);
-  const logStream = fs.openSync(logFile, 'a');
-
-  const daemon = spawn('node', [daemonPath], {
-    detached: true,
-    stdio: ['ignore', logStream, logStream],
-    env,
-  });
-
-  daemon.unref();
-
-  for (let i = 0; i < 50; i++) {
-    await sleep(100);
-    if (await isDaemonReady(session)) {
-      return { alreadyRunning: false };
+    const daemonPath = daemonPaths.find((p) => fs.existsSync(p));
+    if (!daemonPath) {
+      throw new Error('Daemon not found. Set AGENT_BROWSER_HOME environment variable.');
     }
-  }
 
-  throw new Error(`Daemon failed to start (socket: ${getSocketDir()}/${session}.sock)`);
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      AGENT_BROWSER_DAEMON: '1',
+      AGENT_BROWSER_SESSION: session,
+    };
+
+    if (options.headed) env.AGENT_BROWSER_HEADED = '1';
+    if (options.executablePath) env.AGENT_BROWSER_EXECUTABLE_PATH = options.executablePath;
+    if (options.extensions?.length) env.AGENT_BROWSER_EXTENSIONS = options.extensions.join(',');
+    if (options.args) env.AGENT_BROWSER_ARGS = options.args;
+    if (options.userAgent) env.AGENT_BROWSER_USER_AGENT = options.userAgent;
+    if (options.proxy) env.AGENT_BROWSER_PROXY = options.proxy;
+    if (options.proxyBypass) env.AGENT_BROWSER_PROXY_BYPASS = options.proxyBypass;
+    if (options.ignoreHttpsErrors) env.AGENT_BROWSER_IGNORE_HTTPS_ERRORS = '1';
+    if (options.allowFileAccess) env.AGENT_BROWSER_ALLOW_FILE_ACCESS = '1';
+    if (options.profile) env.AGENT_BROWSER_PROFILE = options.profile;
+    if (options.state) env.AGENT_BROWSER_STATE = options.state;
+    if (options.provider) env.AGENT_BROWSER_PROVIDER = options.provider;
+    if (options.device) env.AGENT_BROWSER_IOS_DEVICE = options.device;
+
+    const logFile = path.join(socketDir, `${session}.log`);
+    const logStream = fs.openSync(logFile, 'a');
+
+    const daemon = spawn('node', [daemonPath], {
+      detached: true,
+      stdio: ['ignore', logStream, logStream],
+      env,
+    });
+
+    daemon.unref();
+
+    for (let i = 0; i < 50; i++) {
+      await sleep(100);
+      if (await isDaemonReady(session)) {
+        return { alreadyRunning: false };
+      }
+    }
+
+    throw new Error(`Daemon failed to start (socket: ${getSocketDir()}/${session}.sock)`);
+  });
 }
 
 function isTransientError(error: string): boolean {

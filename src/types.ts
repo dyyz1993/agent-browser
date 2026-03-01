@@ -50,6 +50,7 @@ export interface NavigateCommand extends BaseCommand {
   url: string;
   waitUntil?: 'load' | 'domcontentloaded' | 'networkidle';
   headers?: Record<string, string>;
+  timeout?: number;
 }
 
 export interface ClickCommand extends BaseCommand {
@@ -58,6 +59,7 @@ export interface ClickCommand extends BaseCommand {
   button?: 'left' | 'right' | 'middle';
   clickCount?: number;
   delay?: number;
+  timeout?: number;
   inFrame?: string;
   diffScope?: DiffScope;
   human?: HumanConfig;
@@ -467,6 +469,12 @@ export interface WanderCommand extends BaseCommand {
   human?: HumanConfig;
 }
 
+export interface MouseTrajectoryCommand extends BaseCommand {
+  action: 'mousetrajectory';
+  data: string; // Format: "x:y:delay;x:y:delay;..."
+  human?: HumanConfig;
+}
+
 // Bring to front
 export interface BringToFrontCommand extends BaseCommand {
   action: 'bringtofront';
@@ -648,6 +656,11 @@ export interface RecorderStopCommand extends BaseCommand {
 
 export interface RecorderStatusCommand extends BaseCommand {
   action: 'recorder_status';
+}
+
+export interface RecorderReplayCommand extends BaseCommand {
+  action: 'recorder_replay';
+  path?: string; // YAML file path, if not provided, use the most recent recording
 }
 
 // Tracing
@@ -1008,6 +1021,7 @@ export type Command =
   | RecorderStartCommand
   | RecorderStopCommand
   | RecorderStatusCommand
+  | RecorderReplayCommand
   | TraceStartCommand
   | TraceStopCommand
   | HarStartCommand
@@ -1050,6 +1064,7 @@ export type Command =
   | MouseDownCommand
   | MouseUpCommand
   | WanderCommand
+  | MouseTrajectoryCommand
   | BringToFrontCommand
   | WaitForFunctionCommand
   | ScrollIntoViewCommand

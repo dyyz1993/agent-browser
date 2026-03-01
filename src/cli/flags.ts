@@ -21,6 +21,7 @@ export interface Flags {
   allowFileAccess: boolean;
   device?: string;
   human: HumanConfig;
+  timeout?: string;
 
   cliExecutablePath: boolean;
   cliExtensions: boolean;
@@ -58,6 +59,7 @@ const GLOBAL_FLAGS_WITH_VALUE: string[] = [
   '-p',
   '--provider',
   '--device',
+  '--timeout',
 ];
 
 export function parseFlags(args: string[]): Flags {
@@ -88,6 +90,7 @@ export function parseFlags(args: string[]): Flags {
     allowFileAccess: process.env.AGENT_BROWSER_ALLOW_FILE_ACCESS === '1',
     device: process.env.AGENT_BROWSER_IOS_DEVICE,
     human: getHumanConfigFromEnv(),
+    timeout: undefined,
     cliExecutablePath: false,
     cliExtensions: false,
     cliProfile: false,
@@ -208,6 +211,12 @@ export function parseFlags(args: string[]): Flags {
       case '--device':
         if (nextArg) {
           flags.device = nextArg;
+          i++;
+        }
+        break;
+      case '--timeout':
+        if (nextArg) {
+          flags.timeout = nextArg;
           i++;
         }
         break;

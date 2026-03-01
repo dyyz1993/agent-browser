@@ -1,4 +1,4 @@
-#!/usr/bin/env npx tsx
+#!/usr/bin/env node
 
 import { parseFlags, cleanArgs, Flags } from './cli/flags.js';
 import {

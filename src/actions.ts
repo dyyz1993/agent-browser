@@ -1,5 +1,5 @@
 import type { Page, Frame } from 'playwright-core';
-import { mkdirSync, readFileSync, existsSync } from 'node:fs';
+import { mkdirSync, readFileSync, existsSync, writeFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import type { BrowserManager, ScreencastFrame } from './browser.js';
 import { getAppDir, getSession, getInstanceId } from './daemon.js';
@@ -103,6 +103,7 @@ import type {
   MouseDownCommand,
   MouseUpCommand,
   WanderCommand,
+  MouseTrajectoryCommand,
   WaitForFunctionCommand,
   ScrollIntoViewCommand,
   AddInitScriptCommand,
@@ -123,6 +124,7 @@ import type {
   RecorderStartCommand,
   RecorderStopCommand,
   RecorderStatusCommand,
+  RecorderReplayCommand,
   NavigateData,
   ScreenshotData,
   EvaluateData,
@@ -469,6 +471,8 @@ export async function executeCommand(
         return await handleMouseUp(cmd, browser);
       case 'wander':
         return await handleWander(cmd, browser);
+      case 'mousetrajectory':
+        return await handleMouseTrajectory(cmd, browser);
       case 'bringtofront':
         return await handleBringToFront(cmd, browser);
       case 'waitforfunction':
@@ -511,6 +515,8 @@ export async function executeCommand(
         return await handleRecorderStop(cmd, browser);
       case 'recorder_status':
         return await handleRecorderStatus(cmd, browser);
+      case 'recorder_replay':
+        return await handleRecorderReplay(cmd, browser);
       case 'viewer':
         return await handleViewer(cmd, browser);
       case 'ask':
@@ -553,6 +559,7 @@ async function handleNavigate(
 
   await page.goto(command.url, {
     waitUntil: command.waitUntil ?? 'load',
+    timeout: command.timeout,
   });
 
   return successResponse(command.id, {
@@ -562,6 +569,12 @@ async function handleNavigate(
 }
 
 async function handleClick(command: ClickCommand, browser: BrowserManager): Promise<Response> {
+  // Record the click action
+  browser.recordStep({
+    action: 'click',
+    selector: command.selector,
+  });
+
   const locator = browser.getLocator(command.selector, command.inFrame);
 
   if (command.human?.enabled) {
@@ -598,6 +611,7 @@ async function handleClick(command: ClickCommand, browser: BrowserManager): Prom
         button: command.button,
         clickCount: command.clickCount,
         delay: command.delay,
+        timeout: command.timeout || 5000, // Default 5s timeout for element to appear
       });
     } catch (error) {
       throw toAIFriendlyError(error, command.selector);
@@ -961,8 +975,15 @@ async function handleScroll(command: ScrollCommand, browser: BrowserManager): Pr
 }
 
 async function handleSelect(command: SelectCommand, browser: BrowserManager): Promise<Response> {
-  const locator = browser.getLocator(command.selector, command.inFrame);
+  // Record the select action
   const values = Array.isArray(command.values) ? command.values : [command.values];
+  browser.recordStep({
+    action: 'select',
+    selector: command.selector,
+    value: values.join(','),
+  });
+
+  const locator = browser.getLocator(command.selector, command.inFrame);
 
   const diffResult = await performDiff(locator, command.diffScope, async () => {
     try {
@@ -1110,6 +1131,13 @@ async function handleWindowNew(
 // New handlers for enhanced Playwright parity
 
 async function handleFill(command: FillCommand, browser: BrowserManager): Promise<Response> {
+  // Record the fill action
+  browser.recordStep({
+    action: 'fill',
+    selector: command.selector,
+    value: command.value,
+  });
+
   const locator = browser.getLocator(command.selector, command.inFrame);
 
   if (command.human?.enabled) {
@@ -1125,6 +1153,9 @@ async function handleFill(command: FillCommand, browser: BrowserManager): Promis
 
         await humanClick(page, targetX, targetY, command.human as HumanConfig);
         await locator.focus();
+        // Clear existing content: triple-click to select all, then delete with Backspace
+        await page.mouse.click(targetX, targetY, { clickCount: 3 });
+        await page.keyboard.press('Backspace');
         await humanType(page, command.value, command.human as HumanConfig);
       } catch (error) {
         throw toAIFriendlyError(error, command.selector);
@@ -2266,6 +2297,44 @@ async function handleWander(command: WanderCommand, browser: BrowserManager): Pr
   return successResponse(command.id, { wandered: true, duration: command.duration ?? 2000 });
 }
 
+/**
+ * Parse trajectory data string into array of points
+ * Format: "x:y:delay;x:y:delay;..."
+ */
+function parseTrajectoryData(data: string): Array<{ x: number; y: number; delay: number }> {
+  return data.split(';').map((segment) => {
+    const parts = segment.split(':').map(Number);
+    return { x: parts[0] || 0, y: parts[1] || 0, delay: parts[2] || 0 };
+  });
+}
+
+async function handleMouseTrajectory(
+  command: MouseTrajectoryCommand,
+  browser: BrowserManager
+): Promise<Response> {
+  const page = browser.getPage();
+  const points = parseTrajectoryData(command.data);
+  const config = command.human ?? { enabled: true, pathType: 'bezier' };
+
+  for (let i = 0; i < points.length; i++) {
+    const { x, y, delay } = points[i];
+
+    // Wait for the specified delay (except first point)
+    if (delay > 0) {
+      await page.waitForTimeout(delay);
+    }
+
+    // Move with human-like animation if enabled
+    if (config.enabled) {
+      await humanMoveTo(page, { x, y }, config);
+    } else {
+      await page.mouse.move(x, y);
+    }
+  }
+
+  return successResponse(command.id, { moved: true, points: points.length });
+}
+
 async function handleBringToFront(
   command: Command & { action: 'bringtofront' },
   browser: BrowserManager
@@ -2500,11 +2569,33 @@ async function handleRecorderStart(
 async function handleRecorderStop(
   command: RecorderStopCommand,
   browser: BrowserManager
-): Promise<Response<{ yaml?: string; steps: number; path?: string }>> {
+): Promise<Response<{ yaml?: string; steps: number; path?: string; tip?: string }>> {
   const result = await browser.stopRecorder();
 
-  // 如果没有在录制中，返回提示
+  // 如果没有在录制中，返回提示但仍尝试获取最近的录制文件
   if (result.wasRecording === false) {
+    // 尝试获取最近的录制文件
+    const recorderDir = path.join(getAppDir(), 'tmp', 'recordings');
+    if (existsSync(recorderDir)) {
+      const files = readdirSync(recorderDir)
+        .filter((f) => f.endsWith('.yaml') || f.endsWith('.yml'))
+        .map((f) => ({
+          name: f,
+          time: statSync(path.join(recorderDir, f)).mtime.getTime(),
+        }))
+        .sort((a, b) => b.time - a.time);
+
+      if (files.length > 0) {
+        const recentPath = path.join(recorderDir, files[0].name);
+        return successResponse(command.id, {
+          yaml: '',
+          steps: 0,
+          path: recentPath,
+          note: 'No active recording session. Returning most recent recording file.',
+        });
+      }
+    }
+
     return successResponse(command.id, {
       yaml: '',
       steps: 0,
@@ -2512,14 +2603,32 @@ async function handleRecorderStop(
     });
   }
 
+  // 确定输出路径
+  let outputPath: string;
+  let isDefaultPath = false;
   if (command.output) {
-    const fs = await import('node:fs');
-    const outputPath = path.resolve(command.output);
-    fs.writeFileSync(outputPath, result.yaml, 'utf-8');
-    return successResponse(command.id, { steps: result.steps, path: outputPath });
+    outputPath = path.resolve(command.output);
+  } else {
+    // 默认保存到临时目录
+    const recorderDir = path.join(getAppDir(), 'tmp', 'recordings');
+    if (!existsSync(recorderDir)) {
+      mkdirSync(recorderDir, { recursive: true });
+    }
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    outputPath = path.join(recorderDir, `session-${timestamp}.yaml`);
+    isDefaultPath = true;
   }
 
-  return successResponse(command.id, { yaml: result.yaml, steps: result.steps });
+  // 保存文件
+  writeFileSync(outputPath, result.yaml, 'utf-8');
+
+  // 返回 YAML 内容和路径
+  return successResponse(command.id, {
+    yaml: result.yaml,
+    steps: result.steps,
+    path: outputPath,
+    tip: isDefaultPath ? `Full YAML saved to: ${outputPath}` : undefined,
+  });
 }
 
 async function handleRecorderStatus(
@@ -2528,6 +2637,193 @@ async function handleRecorderStatus(
 ): Promise<Response<{ isRecording: boolean; steps: number; sessionId?: string }>> {
   const result = browser.getRecorderStatus();
   return successResponse(command.id, result);
+}
+
+/**
+ * Parse and execute CLI commands from YAML file
+ */
+async function handleRecorderReplay(
+  command: RecorderReplayCommand,
+  browser: BrowserManager
+): Promise<Response> {
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+
+  // Determine YAML file path
+  let yamlPath = command.path;
+  if (!yamlPath) {
+    // Use the most recent recording from temp directory
+    const recorderDir = path.join(getAppDir(), 'tmp', 'recordings');
+    if (!fs.existsSync(recorderDir)) {
+      return errorResponse(command.id, 'No recordings found. Please record first.');
+    }
+    const files = fs
+      .readdirSync(recorderDir)
+      .filter((f) => f.endsWith('.yaml') || f.endsWith('.yml'))
+      .map((f) => ({
+        name: f,
+        time: fs.statSync(path.join(recorderDir, f)).mtime.getTime(),
+      }))
+      .sort((a, b) => b.time - a.time);
+
+    if (files.length === 0) {
+      return errorResponse(command.id, 'No recordings found. Please record first.');
+    }
+    yamlPath = path.join(recorderDir, files[0].name);
+  }
+
+  // Read YAML file
+  if (!fs.existsSync(yamlPath)) {
+    return errorResponse(command.id, `Recording file not found: ${yamlPath}`);
+  }
+  const yamlContent = fs.readFileSync(yamlPath, 'utf-8');
+
+  // Parse CLI commands from YAML
+  const lines = yamlContent.split('\n');
+  const cliCommands: string[] = [];
+  let inCliSection = false;
+
+  for (const line of lines) {
+    if (line.includes('# CLI Commands')) {
+      inCliSection = true;
+      continue;
+    }
+    if (
+      inCliSection &&
+      (line.startsWith('agent-browser ') || line.startsWith('AGENT_BROWSER_HUMAN='))
+    ) {
+      cliCommands.push(line.trim());
+    }
+  }
+
+  if (cliCommands.length === 0) {
+    return errorResponse(
+      command.id,
+      'No CLI commands found in recording. Please re-record with the new version.'
+    );
+  }
+
+  // Helper function to parse command line with proper quote handling
+  function parseCommandLine(line: string): string[] {
+    const parts: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    let quoteChar = '';
+
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+
+      if ((char === '"' || char === "'") && !inQuotes) {
+        inQuotes = true;
+        quoteChar = char;
+      } else if (char === quoteChar && inQuotes) {
+        inQuotes = false;
+        quoteChar = '';
+      } else if (char === ' ' && !inQuotes) {
+        if (current) {
+          parts.push(current);
+          current = '';
+        }
+      } else {
+        current += char;
+      }
+    }
+    if (current) {
+      parts.push(current);
+    }
+    return parts;
+  }
+
+  // Execute each command
+  const results: Array<{ command: string; success: boolean; error?: string }> = [];
+
+  for (const cmdLine of cliCommands) {
+    try {
+      // Parse command line with proper quote handling
+      let parts = parseCommandLine(cmdLine);
+      const envVars: Record<string, string> = {};
+
+      // Extract environment variables (format: KEY=value)
+      while (parts.length > 0 && parts[0].includes('=')) {
+        const [key, ...valueParts] = parts.shift()!.split('=');
+        envVars[key] = valueParts.join('=');
+      }
+
+      // Remove 'agent-browser' prefix if present
+      if (parts.length > 0 && parts[0] === 'agent-browser') {
+        parts = parts.slice(1);
+      }
+
+      // Skip empty commands
+      if (parts.length === 0) {
+        results.push({ command: cmdLine, success: true });
+        continue;
+      }
+
+      // Set environment variables temporarily
+      const originalEnv: Record<string, string | undefined> = {};
+      for (const [key, value] of Object.entries(envVars)) {
+        originalEnv[key] = process.env[key];
+        process.env[key] = value;
+      }
+
+      // Execute command using the existing executeCommand flow
+      const { parseCommand } = await import('./cli/commands.js');
+      const { parseFlags } = await import('./cli/flags.js');
+
+      const flags = parseFlags([]);
+      const parsedCmd = parseCommand(parts, flags);
+
+      // Check if recording is active, and temporarily disable
+      const wasRecording = browser.isRecordingSession();
+      if (wasRecording) {
+        browser.pauseRecording();
+      }
+
+      // Execute the command with a timeout to prevent hanging on invalid selectors
+      const COMMAND_TIMEOUT_MS = 5000;
+      const result = (await Promise.race([
+        executeCommand(parsedCmd, browser),
+        new Promise<Response>((_, reject) =>
+          setTimeout(
+            () => reject(new Error(`Command timed out after ${COMMAND_TIMEOUT_MS}ms`)),
+            COMMAND_TIMEOUT_MS
+          )
+        ),
+      ])) as Response;
+
+      // Restore recording state
+      if (wasRecording) {
+        browser.resumeRecording();
+      }
+
+      // Restore environment variables
+      for (const [key, value] of Object.entries(originalEnv)) {
+        if (value === undefined) {
+          delete process.env[key];
+        } else {
+          process.env[key] = value;
+        }
+      }
+
+      results.push({ command: cmdLine, success: result.success });
+    } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : String(e);
+      results.push({ command: cmdLine, success: false, error: errorMessage });
+    }
+  }
+
+  const successCount = results.filter((r) => r.success).length;
+  const failCount = results.filter((r) => !r.success).length;
+
+  return successResponse(command.id, {
+    replayed: true,
+    file: yamlPath,
+    totalCommands: cliCommands.length,
+    successCount,
+    failCount,
+    results: results.slice(0, 20), // Only return first 20 results
+  });
 }
 
 async function handleViewer(
