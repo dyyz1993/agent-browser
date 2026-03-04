@@ -2223,6 +2223,7 @@ export class BrowserManager {
     url?: string,
     hide: boolean = false
   ): Promise<{ started: boolean; sessionId: string }> {
+    console.log('[BrowserManager] startRecorder called, url:', url, 'hide:', hide);
     // 检查是否已经在录制中
     if (this.recorderSessionId) {
       throw new Error(
@@ -2382,12 +2383,9 @@ export class BrowserManager {
 
     // 在当前页面注入录制器脚本
     // 注意：这里需要手动注入，因为 addInitScript 只对新页面生效
-    // 使用 addScriptTag 来注入脚本，这样可以确保脚本被正确执行
     try {
-      // 使用 addScriptTag 需要设置 type="module" 来避免 CSP 阻止
       await page.addScriptTag({ content: injectScript, type: 'text/javascript' });
     } catch (e) {
-      // 如果 addScriptTag 失败，尝试使用 evaluate
       try {
         await page.evaluate((scriptContent) => {
           const script = document.createElement('script');
@@ -2543,28 +2541,41 @@ export class BrowserManager {
       return { yaml: '', steps: 0, wasRecording: false };
     }
 
-    const yaml = this.generateRecorderYaml();
-    const steps = this.recorderSteps.length;
-
     const page = this.getPage();
 
     if (page) {
       try {
         const result = await page.evaluate(() => {
           const win = window as any;
+          // 先检查是否有待处理的 fill，在设置 xyzStopped 之前调用
+          const hasPanel = !!document.getElementById('xyzPnl');
+          const hasCloseFunc = typeof win.xyzClose === 'function';
+          const hasFlushFunc = typeof win.xyzFlushPending === 'function';
+          console.log(
+            '[stopRecorder] hasFlushFunc:',
+            hasFlushFunc,
+            'hasCloseFunc:',
+            hasCloseFunc,
+            'hasPanel:',
+            hasPanel
+          );
+
+          // 重要：先调用 xyzFlushPending，再设置 xyzStopped
+          // 因为 recordStep 会检查 xyzStopped，如果为 true 就不记录
+          if (hasFlushFunc) {
+            console.log('[stopRecorder] Calling xyzFlushPending');
+            win.xyzFlushPending();
+          } else {
+            console.log('[stopRecorder] xyzFlushPending not found');
+          }
+
+          // 然后再设置停止标志
           win.xyzActive = false;
           win.xyzStopped = true;
           // 重置初始化标志，允许新的录制会话重新初始化
           win.xyzInited = false;
           win.xyzInitializedSessionId = undefined;
           win.xyzSessionId = undefined;
-          const hasPanel = !!document.getElementById('xyzPnl');
-          const hasCloseFunc = typeof win.xyzClose === 'function';
-          const hasFlushFunc = typeof win.xyzFlushPending === 'function';
-
-          if (hasFlushFunc) {
-            win.xyzFlushPending();
-          }
 
           if (hasCloseFunc) {
             win.xyzClose();
@@ -2597,6 +2608,13 @@ export class BrowserManager {
         // 忽略错误，可能 binding 已经被移除或其他问题
       }
     }
+
+    // 等待一下，确保所有步骤都被处理
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // 在 xyzFlushPending 之后生成 YAML
+    const yaml = this.generateRecorderYaml();
+    const steps = this.recorderSteps.length;
 
     this.recorderSessionId = null;
     this.recorderSteps = [];
