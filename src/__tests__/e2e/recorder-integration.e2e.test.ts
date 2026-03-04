@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { BrowserManager } from '../../browser.js';
 import { executeCommand } from '../../actions.js';
 import { parseCliArgs } from '../utils/parseCli';
@@ -65,6 +65,37 @@ describe('Recorder Integration E2E Test', { sequential: true }, () => {
     expect(openResult.success).toBe(true);
 
     // Wait for page to be fully loaded
+    await new Promise((resolve) => setTimeout(resolve, 300));
+  });
+
+  afterEach(async () => {
+    // Ensure recording is stopped
+    await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
+
+    // Wait for all async operations to complete
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Reset browser page state by evaluating cleanup script
+    const page = browser.getPage();
+    if (page) {
+      try {
+        await page.evaluate(() => {
+          // Reset all recorder-related window variables
+          const win = window as any;
+          win.xyzActive = false;
+          win.xyzStopped = true;
+          win.xyzInited = false;
+          win.xyzInitializedSessionId = undefined;
+          win.xyzSessionId = undefined;
+          win.xyzQueue = [];
+          win.xyzPaused = false;
+        });
+      } catch (e) {
+        // Ignore errors if page is already closed
+      }
+    }
+
+    // Wait a bit more for cleanup to take effect
     await new Promise((resolve) => setTimeout(resolve, 300));
   });
 
