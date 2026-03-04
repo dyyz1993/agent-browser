@@ -562,6 +562,10 @@ async function handleNavigate(
     timeout: command.timeout,
   });
 
+  if (browser.isRecordingSession()) {
+    await browser.injectRecorderIfNeeded();
+  }
+
   return successResponse(command.id, {
     url: page.url(),
     title: await page.title(),
@@ -569,12 +573,6 @@ async function handleNavigate(
 }
 
 async function handleClick(command: ClickCommand, browser: BrowserManager): Promise<Response> {
-  // Record the click action
-  browser.recordStep({
-    action: 'click',
-    selector: command.selector,
-  });
-
   const locator = browser.getLocator(command.selector, command.inFrame);
 
   if (command.human?.enabled) {
@@ -694,26 +692,6 @@ async function handlePress(command: PressCommand, browser: BrowserManager): Prom
   } else if (command.selector) {
     locator = page.locator(command.selector);
   }
-
-  // Record keyboard action if recording
-  const key = command.key;
-  const parts = key.split('+');
-  const mainKey = parts[parts.length - 1];
-  const hasCtrl = parts.includes('Control') || parts.includes('Ctrl');
-  const hasMeta = parts.includes('Meta') || parts.includes('Command') || parts.includes('Cmd');
-  const hasAlt = parts.includes('Alt');
-  const hasShift = parts.includes('Shift');
-
-  browser.recordStep({
-    action: 'keyboard',
-    key: mainKey,
-    code: mainKey,
-    ctrlKey: hasCtrl,
-    metaKey: hasMeta,
-    altKey: hasAlt,
-    shiftKey: hasShift,
-    selector: command.selector,
-  });
 
   const diffResult = await performDiff(locator, command.diffScope, async () => {
     if (command.inFrame && command.selector) {
@@ -975,22 +953,12 @@ async function handleScroll(command: ScrollCommand, browser: BrowserManager): Pr
 }
 
 async function handleSelect(command: SelectCommand, browser: BrowserManager): Promise<Response> {
-  // Record the select action
   const values = Array.isArray(command.values) ? command.values : [command.values];
-  browser.recordStep({
-    action: 'select',
-    selector: command.selector,
-    value: values.join(','),
-  });
-
   const locator = browser.getLocator(command.selector, command.inFrame);
 
   const diffResult = await performDiff(locator, command.diffScope, async () => {
     try {
       await locator.selectOption(values);
-      await locator.evaluate((el) => {
-        el.dispatchEvent(new Event('change', { bubbles: true }));
-      });
     } catch (error) {
       throw toAIFriendlyError(error, command.selector);
     }
@@ -1131,13 +1099,6 @@ async function handleWindowNew(
 // New handlers for enhanced Playwright parity
 
 async function handleFill(command: FillCommand, browser: BrowserManager): Promise<Response> {
-  // Record the fill action
-  browser.recordStep({
-    action: 'fill',
-    selector: command.selector,
-    value: command.value,
-  });
-
   const locator = browser.getLocator(command.selector, command.inFrame);
 
   if (command.human?.enabled) {
@@ -1173,10 +1134,18 @@ async function handleFill(command: FillCommand, browser: BrowserManager): Promis
   const diffResult = await performDiff(locator, command.diffScope, async () => {
     try {
       await locator.fill(command.value);
-      // Trigger input event for recorder
-      await locator.evaluate((el) => {
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-      });
+      // Trigger input event for recorder to capture
+      // Use page.evaluate to dispatch events in the browser context
+      const page = browser.getPage();
+      if (page) {
+        await page.evaluate((selector) => {
+          const el = document.querySelector(selector);
+          if (el) {
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        }, command.selector);
+      }
     } catch (error) {
       throw toAIFriendlyError(error, command.selector);
     }
@@ -2654,7 +2623,9 @@ async function handleRecorderReplay(
   if (!yamlPath) {
     // Use the most recent recording from temp directory
     const recorderDir = path.join(getAppDir(), 'tmp', 'recordings');
+    console.log('[Replay] Looking for recordings in:', recorderDir);
     if (!fs.existsSync(recorderDir)) {
+      console.log('[Replay] Directory does not exist');
       return errorResponse(command.id, 'No recordings found. Please record first.');
     }
     const files = fs
@@ -2666,10 +2637,12 @@ async function handleRecorderReplay(
       }))
       .sort((a, b) => b.time - a.time);
 
+    console.log('[Replay] Found files:', files.length);
     if (files.length === 0) {
       return errorResponse(command.id, 'No recordings found. Please record first.');
     }
     yamlPath = path.join(recorderDir, files[0].name);
+    console.log('[Replay] Using file:', yamlPath);
   }
 
   // Read YAML file

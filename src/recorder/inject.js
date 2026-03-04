@@ -15,9 +15,30 @@
   const isInIframe = window.self !== window.top;
   const iframePrefix = isInIframe ? 'iframe >> ' : '';
 
-  // 检查是否已初始化（使用隐蔽名称）
-  if (window.xyzInited) return;
+  // 当前脚本的会话 ID（在脚本注入时设置）
+  // 使用闭包变量保存当前会话 ID，避免被后续脚本覆盖
+  // xyzInjectedSessionId 是在脚本字符串中直接嵌入的值
+  const thisSessionId = window.xyzInjectedSessionId;
+
+  // 如果没有会话 ID，跳过
+  if (!thisSessionId) {
+    return;
+  }
+
+  // 检查录制会话是否有效
+  // 如果 xyzStopped 为 true，说明录制已停止
+  if (window.xyzStopped) {
+    return;
+  }
+
+  // 如果已经初始化且会话 ID 相同，跳过
+  if (window.xyzInited && window.xyzInitializedSessionId === thisSessionId) {
+    return;
+  }
+
+  // 标记为已初始化，并记录当前会话 ID
   window.xyzInited = true;
+  window.xyzInitializedSessionId = thisSessionId;
 
   // ============ 闭包内私有变量 ============
   let stepIdCounter = 0;
@@ -212,13 +233,15 @@
 
     pushEvent({ type: 'add', data: step });
 
+    const bindingName = window.xyzBindingName || 'xyzTrack';
+
     if (isInIframe) {
       try {
         window.parent.postMessage({ type: MESSAGE_TYPE, step: step }, '*');
       } catch (e) {}
-    } else if (typeof window[window.xyzBindingName || 'xyzTrack'] === 'function') {
+    } else if (typeof window[bindingName] === 'function') {
       try {
-        window[window.xyzBindingName || 'xyzTrack'](JSON.stringify(step));
+        window[bindingName](JSON.stringify(step));
       } catch (e) {
         console.error('[Sync] failed:', e);
       }
@@ -801,8 +824,8 @@
 
   // ============ 录制核心逻辑 ============
   function recordStep(action, data) {
-    // 检查是否暂停录制
-    if (window.xyzPaused) return;
+    // 检查是否暂停录制或已停止
+    if (window.xyzPaused || window.xyzStopped) return;
 
     const step = {
       id: 'step-' + Date.now() + '-' + Math.random().toString(36).substr(2, 10),
@@ -898,7 +921,47 @@
         lastFillValue = '';
       }
     }, 300);
-  }, true);
+  }, true);  // capture phase
+
+  // Also listen in bubbling phase to catch programmatically dispatched events
+  document.addEventListener('input', (e) => {
+    const element = e.target;
+    if (!element || !element.tagName) return;
+    if (isInPanel(element)) return;
+
+    // Skip checkbox, radio, and select - they are handled by click and change events
+    if (element.tagName === 'SELECT') return;
+    const inputType = (element.type || '').toLowerCase();
+    if (inputType === 'checkbox' || inputType === 'radio') return;
+
+    const selector = getSelector(element);
+    const value = element.value;
+
+    // Only process if not already processed in capture phase
+    if (lastFillSelector === selector && lastFillValue === value) {
+      return;
+    }
+
+    clearTimeout(fillTimeout);
+
+    if (lastFillSelector && lastFillSelector !== selector && lastFillValue) {
+      recordStep('fill', { selector: lastFillSelector, value: lastFillValue });
+    }
+
+    lastFillSelector = selector;
+    lastFillValue = value;
+
+    fillTimeout = setTimeout(() => {
+      if (lastFillSelector && lastFillValue) {
+        recordStep('fill', { selector: lastFillSelector, value: lastFillValue });
+        lastFillSelector = null;
+        lastFillValue = '';
+      }
+    }, 300);
+  }, false);  // bubbling phase
+
+  // 标记事件监听器已注册
+  window.xyzHasInputListener = true;
 
   document.addEventListener('change', (e) => {
     const element = e.target;
@@ -955,6 +1018,18 @@
       value: window.location.href
     });
   });
+
+  window.xyzFlushPending = function() {
+    if (lastFillSelector && lastFillValue) {
+      recordStep('fill', { selector: lastFillSelector, value: lastFillValue });
+      lastFillSelector = null;
+      lastFillValue = '';
+    }
+    if (fillTimeout) {
+      clearTimeout(fillTimeout);
+      fillTimeout = null;
+    }
+  };
 
   // ============ UI 部分（仅在非隐藏模式下创建）============
   if (!isInIframe && !HIDE_UI) {
@@ -1136,6 +1211,7 @@
       const panel = document.createElement('div');
       panel.className = 'xyzPnl';
       panel.id = 'xyzPnl';
+      panel.setAttribute('aria-hidden', 'true');
       panel.innerHTML = `
         <div class="xyzPnl-hdr">
           <h3>📝 Recorder</h3>
@@ -1276,21 +1352,25 @@
       const markersContainer = document.createElement('div');
       markersContainer.className = 'xyzMk';
       markersContainer.id = 'xyzMk';
+      markersContainer.setAttribute('aria-hidden', 'true');
       document.body.appendChild(markersContainer);
 
       const canvas = document.createElement('canvas');
       canvas.id = 'xyzCv';
+      canvas.setAttribute('aria-hidden', 'true');
       document.body.appendChild(canvas);
 
       const shadowBox = document.createElement('div');
       shadowBox.className = 'xyzSh';
       shadowBox.id = 'xyzSh';
       shadowBox.style.display = 'none';
+      shadowBox.setAttribute('aria-hidden', 'true');
       document.body.appendChild(shadowBox);
 
       const toolbar = document.createElement('div');
       toolbar.className = 'xyzTb';
       toolbar.id = 'xyzTb';
+      toolbar.setAttribute('aria-hidden', 'true');
       toolbar.innerHTML = `
         <button class="btn-wait" data-type="wait_element">⏳ Wait</button>
         <button class="btn-container" data-type="data_container">📦 Container</button>

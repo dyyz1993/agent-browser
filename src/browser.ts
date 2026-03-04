@@ -123,10 +123,13 @@ export class BrowserManager {
   private recorderNavigatedHandler: ((frame: Frame) => Promise<void>) | null = null;
 
   /**
-   * Check if browser is launched
+   * Check if browser is launched and still connected
    */
   isLaunched(): boolean {
-    return this.browser !== null || this.isPersistentContext;
+    if (this.isPersistentContext) return true;
+    if (!this.browser) return false;
+    // Also check if the browser is still connected (user might have closed it manually)
+    return this.browser.isConnected();
   }
 
   /**
@@ -1147,12 +1150,15 @@ export class BrowserManager {
       );
     }
 
-    if (this.isLaunched()) {
-      // Check if the browser is actually alive
-      const isActuallyAlive = this.browser?.isConnected() ?? false;
+    // Clean up stale browser state if exists but not connected
+    // This handles the case where user manually closed the headed browser
+    if (this.browser && !this.browser.isConnected()) {
+      await this.close();
+    }
 
+    if (this.isLaunched()) {
+      // Check if we need to reconnect to a different CDP endpoint
       const needsRelaunch =
-        !isActuallyAlive ||
         (!cdpEndpoint && this.cdpEndpoint !== null) ||
         (!!cdpEndpoint && this.needsCdpReconnect(cdpEndpoint));
       if (needsRelaunch) {
@@ -1403,7 +1409,7 @@ export class BrowserManager {
       this.cdpEndpoint = cdpEndpoint;
 
       for (const context of contexts) {
-        context.setDefaultTimeout(10000);
+        context.setDefaultTimeout(30000);
         this.contexts.push(context);
         this.setupContextTracking(context);
       }
@@ -1905,6 +1911,30 @@ export class BrowserManager {
     return this.recorderSessionId !== null;
   }
 
+  async injectRecorderIfNeeded(): Promise<void> {
+    if (!this.recorderSessionId) return;
+
+    const page = this.getPage();
+    if (!page) return;
+
+    try {
+      // 先重置状态标志
+      await page.evaluate(() => {
+        (window as any).xyzActive = true;
+        (window as any).xyzStopped = false;
+        (window as any).xyzInited = false;
+      });
+
+      const injectScript = this.getRecorderInjectScript(
+        false,
+        this.recorderBindingName || 'xyzTrack',
+        this.recorderSessionId
+      );
+      // 使用 page.evaluate 执行字符串脚本
+      await page.evaluate(injectScript);
+    } catch (e) {}
+  }
+
   /**
    * Whether recording is temporarily paused (e.g., during replay)
    */
@@ -2174,11 +2204,16 @@ export class BrowserManager {
     return this.pages.indexOf(page);
   }
 
-  private getRecorderInjectScript(hide: boolean = false, bindingName: string = 'xyzTrack'): string {
+  private getRecorderInjectScript(
+    hide: boolean = false,
+    bindingName: string = 'xyzTrack',
+    sessionId?: string
+  ): string {
     const injectScriptPath = path.join(__dirname, 'recorder', 'inject.js');
     let script = readFileSync(injectScriptPath, 'utf-8');
     // 在脚本开头注入配置（使用 xyz 前缀）
-    const config = `window.xyzHide = ${hide}; window.xyzBindingName = '${bindingName}';`;
+    // 注意：xyzSessionId 必须在脚本开头设置，以便 inject.js 可以读取它
+    const config = `window.xyzHide = ${hide}; window.xyzBindingName = '${bindingName}'; window.xyzSessionId = '${sessionId || ''}'; window.xyzInjectedSessionId = '${sessionId || ''}';`;
     return config + '\n' + script;
   }
 
@@ -2215,7 +2250,8 @@ export class BrowserManager {
     this.recorderBindingName = bindingName;
 
     // 传递 hide 参数和绑定名称给注入脚本
-    const injectScript = this.getRecorderInjectScript(hide, bindingName);
+    // 同时传递会话 ID 用于验证录制会话是否仍然活跃
+    const injectScript = this.getRecorderInjectScript(hide, bindingName, this.recorderSessionId);
 
     // For CDP connections, we need to ensure the debugger is attached to the page
     // before calling exposeBinding. Creating a CDP session will attach the debugger.
@@ -2225,7 +2261,12 @@ export class BrowserManager {
 
     try {
       await context.exposeBinding(bindingName, async (source, payload: string) => {
-        if (!payload) return;
+        // 如果录制会话已停止，返回 false 表示无效
+        if (!this.recorderSessionId) {
+          return false;
+        }
+
+        if (!payload) return true;
 
         const targetPage = source.page;
 
@@ -2273,6 +2314,7 @@ export class BrowserManager {
             }
           }
         } catch (e) {}
+        return true;
       });
     } catch (e) {
       // Binding 已存在，忽略错误继续使用
@@ -2290,19 +2332,23 @@ export class BrowserManager {
       });
     } catch (e) {}
 
-    // 设置录制会话激活标志（用于新页面）
-    // 同时清除停止标志
-    await context.addInitScript({
-      content: 'window.xyzActive = true; window.xyzStopped = false;',
-    });
-
     // 在当前页面注入录制器脚本
     try {
       await page.evaluate(injectScript);
     } catch (e) {}
 
-    // 使用 addInitScript 自动注入到所有新页面
+    // 设置录制会话激活标志（用于新页面）
+    // 注意：addInitScript 执行顺序是后添加的先执行
+    // 所以我们先添加 injectScript，再添加状态设置脚本
+    // 这样状态设置脚本会先执行
     await context.addInitScript(injectScript);
+
+    // 设置录制会话激活标志（用于新页面）
+    // 这个会在 injectScript 之前执行
+    // 注意：必须设置 xyzSessionId，否则 inject.js 会跳过初始化
+    await context.addInitScript({
+      content: `window.xyzActive = true; window.xyzStopped = false; window.xyzInited = false; window.xyzSessionId = '${this.recorderSessionId}';`,
+    });
 
     // 处理导航事件（用于记录 back/forward）
     this.recorderNavigatedHandler = async (frame: Frame) => {
@@ -2446,12 +2492,15 @@ export class BrowserManager {
       try {
         const result = await page.evaluate(() => {
           const win = window as any;
-          // 清除录制会话激活标志（xyz 前缀）
           win.xyzActive = false;
-          // 设置停止标志（防止刷新后重新创建面板）
           win.xyzStopped = true;
           const hasPanel = !!document.getElementById('xyzPnl');
           const hasCloseFunc = typeof win.xyzClose === 'function';
+          const hasFlushFunc = typeof win.xyzFlushPending === 'function';
+
+          if (hasFlushFunc) {
+            win.xyzFlushPending();
+          }
 
           if (hasCloseFunc) {
             win.xyzClose();
@@ -2467,13 +2516,6 @@ export class BrowserManager {
       } catch (e) {
         console.error('[stopRecorder] Error:', e);
       }
-
-      // 添加 initScript 来禁用后续页面的录制会话
-      try {
-        await page.context().addInitScript({
-          content: 'window.xyzActive = false; window.xyzStopped = true;',
-        });
-      } catch (e) {}
 
       if (this.recorderNavigatedHandler) {
         page.off('framenavigated', this.recorderNavigatedHandler);
@@ -2681,17 +2723,30 @@ export class BrowserManager {
         if (step.selector) {
           return `agent-browser click "${escapeShell(step.selector)}"`;
         }
+        if (step.xpath) {
+          return `agent-browser click "xpath=${escapeShell(step.xpath)}"`;
+        }
         return null;
 
       case 'fill':
-        if (step.selector && step.value !== undefined) {
-          return `agent-browser fill "${escapeShell(step.selector)}" "${escapeShell(String(step.value))}"`;
+        if (step.value !== undefined) {
+          if (step.selector) {
+            return `agent-browser fill "${escapeShell(step.selector)}" "${escapeShell(String(step.value))}"`;
+          }
+          if (step.xpath) {
+            return `agent-browser fill "xpath=${escapeShell(step.xpath)}" "${escapeShell(String(step.value))}"`;
+          }
         }
         return null;
 
       case 'select':
-        if (step.selector && step.value !== undefined) {
-          return `agent-browser select "${escapeShell(step.selector)}" "${escapeShell(String(step.value))}"`;
+        if (step.value !== undefined) {
+          if (step.selector) {
+            return `agent-browser select "${escapeShell(step.selector)}" "${escapeShell(String(step.value))}"`;
+          }
+          if (step.xpath) {
+            return `agent-browser select "xpath=${escapeShell(step.xpath)}" "${escapeShell(String(step.value))}"`;
+          }
         }
         return null;
 
@@ -2772,6 +2827,9 @@ export class BrowserManager {
         return null;
 
       case 'hover':
+        if (step.xpath) {
+          return `agent-browser hover "xpath=${escapeShell(step.xpath)}"`;
+        }
         if (step.selector) {
           return `agent-browser hover "${escapeShell(step.selector)}"`;
         }
