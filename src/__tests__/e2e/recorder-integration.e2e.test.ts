@@ -41,11 +41,12 @@ describe('Recorder Integration E2E Test', { sequential: true }, () => {
     }
 
     // Clean up old recording files to avoid interference
+    // But keep modified files for tests that need them
     const recordingsDir = path.join(getAppDir(), 'tmp', 'recordings');
     if (fs.existsSync(recordingsDir)) {
       const files = fs
         .readdirSync(recordingsDir)
-        .filter((f) => f.endsWith('.yaml') || f.endsWith('.yml'));
+        .filter((f) => (f.endsWith('.yaml') || f.endsWith('.yml')) && !f.includes('-modified'));
       for (const file of files) {
         try {
           fs.unlinkSync(path.join(recordingsDir, file));
@@ -54,7 +55,7 @@ describe('Recorder Integration E2E Test', { sequential: true }, () => {
     }
 
     // Wait longer to ensure all async operations complete
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 800));
 
     // Open fresh page for each test - this resets page state
     const openResult = await executeCommand(
@@ -64,7 +65,7 @@ describe('Recorder Integration E2E Test', { sequential: true }, () => {
     expect(openResult.success).toBe(true);
 
     // Wait for page to be fully loaded
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await new Promise((resolve) => setTimeout(resolve, 300));
   });
 
   /**

@@ -121,6 +121,7 @@ export class BrowserManager {
   private lastNavigationUrl: string = '';
   private lastNavigationTime: number = 0;
   private recorderNavigatedHandler: ((frame: Frame) => Promise<void>) | null = null;
+  private recorderFrameAttachedHandler: ((frame: Frame) => Promise<void>) | null = null;
 
   /**
    * Check if browser is launched and still connected
@@ -2455,6 +2456,57 @@ export class BrowserManager {
     };
     page.on('framenavigated', this.recorderNavigatedHandler);
 
+    // 处理 iframe 附加和导航事件 - 向 iframe 注入录制器脚本
+    const injectScriptToFrame = async (frame: Frame) => {
+      if (!this.recorderSessionId) return;
+      // 跳过主框架
+      if (frame === page.mainFrame()) return;
+
+      try {
+        // 检查是否已经注入过
+        const alreadyInjected = await frame
+          .evaluate(() => {
+            return !!(window as any).xyzInjectedSessionId;
+          })
+          .catch(() => false);
+
+        if (alreadyInjected) return;
+
+        // 向 iframe 注入录制器脚本
+        const injectScript = this.getRecorderInjectScript(
+          false,
+          this.recorderBindingName || 'xyzTrack',
+          this.recorderSessionId
+        );
+
+        // 使用 evaluate 在 iframe 上下文中执行脚本
+        await frame.evaluate(injectScript).catch((e) => {
+          // 可能是跨域 iframe，忽略错误
+        });
+      } catch (e) {
+        // 忽略错误，可能是跨域 iframe
+      }
+    };
+
+    // 向所有现有 iframe 注入脚本
+    const injectToAllFrames = async () => {
+      const frames = page.frames();
+      for (const frame of frames) {
+        await injectScriptToFrame(frame);
+      }
+    };
+
+    // 立即向现有 iframe 注入
+    await injectToAllFrames();
+
+    // 监听 frameattached 事件
+    this.recorderFrameAttachedHandler = async (frame: Frame) => {
+      // 等待一小段时间让 iframe 初始化
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      await injectScriptToFrame(frame);
+    };
+    page.on('frameattached', this.recorderFrameAttachedHandler);
+
     // 处理新标签页
     this.recorderPageHandler = async (newPage: Page) => {
       if (this.recorderSessionId) {
@@ -2597,6 +2649,10 @@ export class BrowserManager {
       if (this.recorderNavigatedHandler) {
         page.off('framenavigated', this.recorderNavigatedHandler);
         this.recorderNavigatedHandler = null;
+      }
+      if (this.recorderFrameAttachedHandler) {
+        page.off('frameattached', this.recorderFrameAttachedHandler);
+        this.recorderFrameAttachedHandler = null;
       }
       if (this.recorderPageHandler) {
         page.context().off('page', this.recorderPageHandler);
@@ -2944,6 +3000,10 @@ export class BrowserManager {
       if (this.recorderNavigatedHandler) {
         page.off('framenavigated', this.recorderNavigatedHandler);
         this.recorderNavigatedHandler = null;
+      }
+      if (this.recorderFrameAttachedHandler) {
+        page.off('frameattached', this.recorderFrameAttachedHandler);
+        this.recorderFrameAttachedHandler = null;
       }
       if (this.recorderPageHandler) {
         page.context().off('page', this.recorderPageHandler);
