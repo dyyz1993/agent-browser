@@ -31,7 +31,7 @@ describe('Anti-Bot Detection - Real Website Tests', () => {
     expect(pluginsCount).toBeGreaterThan(0);
     expect(mimeTypesCount).toBeGreaterThan(0);
     expect(hasChrome).toBe(true);
-  });
+  }, 60000);
 
     it('should hide webdriver with anti-detection settings', async () => {
       browser = new BrowserManager();
@@ -52,7 +52,7 @@ describe('Anti-Bot Detection - Real Website Tests', () => {
       expect(pluginsCount).toBeGreaterThan(0);
       expect(mimeTypesCount).toBeGreaterThan(0);
       expect(hasChrome).toBe(true);
-    });
+    }, 60000);
 
     it('should hide webdriver with comprehensive anti-detection settings', async () => {
       browser = new BrowserManager();
@@ -73,7 +73,7 @@ describe('Anti-Bot Detection - Real Website Tests', () => {
       expect(pluginsCount).toBeGreaterThan(0);
       expect(mimeTypesCount).toBeGreaterThan(0);
       expect(hasChrome).toBe(true);
-    });
+    }, 60000);
 
     it('should hide webdriver with custom user-agent', async () => {
       const customUA =
@@ -100,7 +100,7 @@ describe('Anti-Bot Detection - Real Website Tests', () => {
       expect(pluginsCount).toBeGreaterThan(0);
       expect(mimeTypesCount).toBeGreaterThan(0);
       expect(hasChrome).toBe(true);
-    });
+    }, 60000);
 
     it('should detect HeadlessChrome in default user-agent', async () => {
       browser = new BrowserManager();
@@ -115,7 +115,7 @@ describe('Anti-Bot Detection - Real Website Tests', () => {
       const userAgent = await page.evaluate(() => navigator.userAgent);
 
       expect(userAgent).toContain('HeadlessChrome');
-    });
+    }, 60000);
 
     it('should verify all browser fingerprint properties', async () => {
       const customUA =
@@ -172,7 +172,7 @@ describe('Anti-Bot Detection - Real Website Tests', () => {
       expect(fingerprint.screen.height).toBeGreaterThan(0);
       expect(fingerprint.window.innerWidth).toBeGreaterThan(0);
       expect(fingerprint.window.innerHeight).toBeGreaterThan(0);
-    });
+    }, 60000);
 
     it('should verify website detection results', async () => {
       const customUA =
@@ -228,6 +228,6 @@ describe('Anti-Bot Detection - Real Website Tests', () => {
       expect(websiteDetection.userAgent).not.toContain('HeadlessChrome');
       expect(websiteDetection.webdriver).toBe(false);
       expect(websiteDetection.attributesFound).toBeDefined();
-    });
+    }, 60000);
   });
 });

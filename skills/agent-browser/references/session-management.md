@@ -52,10 +52,15 @@ agent-browser state save /path/to/auth-state.json
 ### Load Session State
 
 ```bash
-# Restore saved state
+# Set state path (loads at browser launch)
 agent-browser state load /path/to/auth-state.json
 
-# Continue with authenticated session
+# State loads at browser launch - use --state flag or close first
+agent-browser --state /path/to/auth-state.json open https://app.example.com/dashboard
+
+# Or: close and reopen to apply state
+agent-browser state load /path/to/auth-state.json
+agent-browser close
 agent-browser open https://app.example.com/dashboard
 ```
 
@@ -82,8 +87,7 @@ STATE_FILE="/tmp/auth-state.json"
 
 # Check if we have saved state
 if [[ -f "$STATE_FILE" ]]; then
-    agent-browser state load "$STATE_FILE"
-    agent-browser open https://app.example.com/dashboard
+    agent-browser --state "$STATE_FILE" open https://app.example.com/dashboard
 else
     # Perform login
     agent-browser open https://app.example.com/login

@@ -2215,7 +2215,8 @@ export class BrowserManager {
     // 注意：xyzInjectedSessionId 必须在脚本开头设置，以便 inject.js 可以读取它
     // 使用 window.xyzInjectedSessionId = 'xxx' 的形式，让 inject.js 可以读取
     const config = `window.xyzHide = ${hide}; window.xyzBindingName = '${bindingName}'; window.xyzInjectedSessionId = '${sessionId || ''}';`;
-    return config + '\n' + script;
+    const fullScript = config + '\n' + script;
+    return fullScript;
   }
 
   async startRecorder(
@@ -2340,11 +2341,12 @@ export class BrowserManager {
     // 所以我们先添加 injectScript，再添加状态设置脚本
     // 这样状态设置脚本会先执行
 
-    // 先在当前页面设置状态，再注入脚本
-    // 这样可以避免脚本注入后状态还未设置的问题
+    // 注入录制器脚本到所有新页面
+    // 注意：这个会第二个执行（后添加的先执行）
+    await context.addInitScript(injectScript);
 
     // 设置录制会话激活标志（用于新页面）
-    // 这个会在 injectScript 之前执行
+    // 这个会第一个执行（后添加的先执行）
     // 注意：必须设置 xyzSessionId，否则 inject.js 会跳过初始化
     // 使用时间戳来确保只有最新的会话 ID 被设置
     const sessionIdTimestamp =
@@ -2363,14 +2365,38 @@ export class BrowserManager {
       `,
     });
 
-    // 注入录制器脚本到所有新页面
-    await context.addInitScript(injectScript);
+    // 在当前页面设置状态，再注入脚本
+    try {
+      await page.evaluate(`
+        // 只有当新的会话 ID 更新时才设置
+        const currentTimestamp = parseInt((window.xyzSessionId || '').replace('recorder-', '')) || 0;
+        const newTimestamp = ${sessionIdTimestamp};
+        if (newTimestamp > currentTimestamp) {
+          window.xyzActive = true;
+          window.xyzStopped = false;
+          window.xyzInited = false;
+          window.xyzSessionId = '${this.recorderSessionId}';
+        }
+      `);
+    } catch (e) {}
 
     // 在当前页面注入录制器脚本
     // 注意：这里需要手动注入，因为 addInitScript 只对新页面生效
+    // 使用 addScriptTag 来注入脚本，这样可以确保脚本被正确执行
     try {
-      await page.evaluate(injectScript);
-    } catch (e) {}
+      // 使用 addScriptTag 需要设置 type="module" 来避免 CSP 阻止
+      await page.addScriptTag({ content: injectScript, type: 'text/javascript' });
+    } catch (e) {
+      // 如果 addScriptTag 失败，尝试使用 evaluate
+      try {
+        await page.evaluate((scriptContent) => {
+          const script = document.createElement('script');
+          script.textContent = scriptContent;
+          script.type = 'text/javascript';
+          (document.head || document.documentElement).appendChild(script);
+        }, injectScript);
+      } catch (e2) {}
+    }
 
     // 处理导航事件（用于记录 back/forward）
     this.recorderNavigatedHandler = async (frame: Frame) => {

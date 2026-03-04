@@ -29,20 +29,23 @@ agent-browser snapshot -s "body" --attrs  # Include element attributes in refs
 
 ### Path and Attributes Options
 
-When you need element paths or attributes, use `--path` and `--attrs` with `--selector`:
+When you need element paths or attributes, use `--path` and `--attrs`:
 
 ```bash
-# Get xpath and cssPath for elements
+# Get xpath and cssPath for elements (can use without --selector)
+agent-browser snapshot --path
 agent-browser snapshot -s "body" --path
 
 # Get element attributes (id, class, href, etc.)
+agent-browser snapshot --attrs
 agent-browser snapshot -s "body" --attrs
 
 # Get both
+agent-browser snapshot --path --attrs
 agent-browser snapshot -s "body" --path --attrs
 ```
 
-**Note:** `--path` and `--attrs` require `--selector` to limit scope and prevent large responses.
+**Note:** Using `--selector` is optional but recommended to limit scope and prevent large responses.
 
 **Response example with --path --attrs:**
 ```json
@@ -80,6 +83,7 @@ agent-browser scroll down 500     # Scroll page (default: down 300px)
 agent-browser scrollintoview @e1  # Scroll element into view (alias: scrollinto)
 agent-browser drag @e1 @e2        # Drag and drop
 agent-browser upload @e1 file.pdf # Upload files
+agent-browser download @e1 ./file.pdf  # Download file by clicking element
 ```
 
 ### Human-like Mouse Movement
@@ -204,6 +208,21 @@ agent-browser find last ".item" click
 agent-browser find nth 2 "a" hover
 ```
 
+**Important:** `first`, `last`, `nth` are locators for the `find` command, NOT CSS selectors. Do NOT use them directly with `click`, `fill`, etc.
+
+```bash
+# WRONG - "first" is not a CSS selector
+agent-browser click "first .item"      # Will fail!
+
+# CORRECT - Use find command with first locator
+agent-browser find first ".item" click
+
+# ALTERNATIVE - Use CSS pseudo-class selectors
+agent-browser click ".item:first-of-type"
+agent-browser click ".item:last-of-type"
+agent-browser click ".item:nth-of-type(2)"
+```
+
 ## Browser Settings
 
 ```bash
@@ -244,7 +263,7 @@ agent-browser wait --request "api/users"       # Wait for matching request
 agent-browser wait --request "aweme/post" --timeout 30000  # With timeout
 ```
 
-## Tabs and Windows
+## Tabs
 
 ```bash
 agent-browser tab                 # List tabs
@@ -252,19 +271,13 @@ agent-browser tab new [url]       # New tab
 agent-browser tab 2               # Switch to tab by index
 agent-browser tab close           # Close current tab
 agent-browser tab close 2         # Close tab by index
-agent-browser window new          # New window
 ```
 
-## Frames
-
-```bash
-agent-browser frame "#iframe"     # Switch to iframe
-agent-browser frame main          # Back to main frame
-```
+Note: `window new` command exists but creates a new browser window context.
 
 ## Iframes (--in-frame option)
 
-Most commands support `--in-frame` to operate inside iframes:
+Use `--in-frame` option to operate inside iframes. There is no separate `frame` command.
 
 ```bash
 # Single iframe by ID or name
@@ -325,7 +338,19 @@ EOF
 
 ```bash
 agent-browser state save auth.json    # Save cookies, storage, auth state
-agent-browser state load auth.json    # Restore saved state
+agent-browser state load auth.json    # Set state path (loads at browser launch)
+```
+
+**Note:** State must be loaded at browser launch. Use `--state` flag or close browser first:
+
+```bash
+# Method 1: Use --state flag at launch
+agent-browser --state auth.json open https://app.example.com
+
+# Method 2: Set path, close, then launch
+agent-browser state load auth.json
+agent-browser close
+agent-browser open https://app.example.com
 ```
 
 ## Global Options
@@ -360,6 +385,77 @@ agent-browser errors --clear              # Clear errors
 agent-browser highlight @e1               # Highlight element
 agent-browser trace start                 # Start recording trace
 agent-browser trace stop trace.zip        # Stop and save trace
+```
+
+## Step Recorder
+
+Record user interactions as structured steps for LLM processing:
+
+```bash
+agent-browser recorder start                    # Start recording
+agent-browser recorder start https://site.com   # Start with navigation
+agent-browser recorder stop                     # Stop and output YAML
+agent-browser recorder stop --output session.yaml  # Save to file
+agent-browser recorder status                   # Show recording status
+agent-browser recorder replay                   # Replay most recent
+agent-browser recorder replay session.yaml      # Replay specific file
+```
+
+## Remote Viewing
+
+```bash
+agent-browser viewer           # Get viewer URL for browser session
+agent-browser viewer --json    # Get all URLs (HTTP + WebSocket)
+```
+
+Requires Stream Server to be running.
+
+## User Interaction
+
+```bash
+# Simple question
+agent-browser ask "What should I do next?"
+
+# Multiple choice question (JSON format)
+agent-browser ask '{"questions":[{"question":"Choose action","options":[{"label":"Login"},{"label":"Skip"}]}]}'
+
+# Multi-select question
+agent-browser ask '{"questions":[{"question":"Select items","multiSelect":true,"options":[{"label":"Item 1"},{"label":"Item 2"}]}]}'
+```
+
+Requires Stream Server with message bridge.
+
+## Session Management
+
+```bash
+agent-browser session          # Show current session name
+agent-browser session list     # List all active sessions
+agent-browser kill             # Kill all daemons and Stream Server
+```
+
+## Configuration
+
+```bash
+agent-browser config           # Show all AGENT_BROWSER_* settings
+agent-browser config --json    # JSON output
+```
+
+## Setup
+
+```bash
+agent-browser install          # Install browser binaries
+agent-browser install --with-deps  # Also install system dependencies (Linux)
+```
+
+## Diff Option (Page Change Detection)
+
+Show page changes after actions:
+
+```bash
+agent-browser click @e1 --diff           # Show changes 3 levels up from target
+agent-browser fill @e2 "text" --diff 5   # Show changes 5 levels up
+agent-browser click @e1 --diff full      # Show entire page changes
+agent-browser click @e1 --diff --selector "#content"  # Scope to selector
 ```
 
 ## Environment Variables

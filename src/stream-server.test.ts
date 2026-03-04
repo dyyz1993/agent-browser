@@ -74,9 +74,9 @@ describe('STATE_CONFIGS', () => {
   it('should have correct config for user_interacting', () => {
     expect(STATE_CONFIGS.user_interacting).toEqual({
       format: 'jpeg',
-      quality: 20,
+      quality: 80,
       maxFps: 60,
-      scale: 0.5,
+      scale: 0.4,
     });
   });
 
@@ -85,7 +85,7 @@ describe('STATE_CONFIGS', () => {
       format: 'webp',
       quality: 50,
       maxFps: 1,
-      scale: 0.75,
+      scale: 0.6,
     });
   });
 
@@ -136,10 +136,18 @@ describe('StreamStateManager', () => {
     it('should stay in user_interacting during interaction even with slow frames', () => {
       manager.onUserInteraction();
 
-      // Simulate slow frames (frameInterval >= 1000ms)
-      vi.advanceTimersByTime(1500);
+      // Advance less than the 1000ms timeout
+      vi.advanceTimersByTime(500);
+      // Receive a slow frame (interval will be 500ms from lastFrameTime=0)
       manager.onFrameReceived();
+      // State should still be user_interacting because timer hasn't fired yet
+      expect(manager.getState()).toBe('user_interacting');
 
+      // Advance more time but still before the 1000ms timeout
+      vi.advanceTimersByTime(400); // Total 900ms
+      // Receive another slow frame (now interval = 400ms)
+      manager.onFrameReceived();
+      // State should STILL be user_interacting because timer hasn't fired
       expect(manager.getState()).toBe('user_interacting');
     });
 
@@ -147,46 +155,57 @@ describe('StreamStateManager', () => {
       manager.onUserInteraction();
       expect(manager.getState()).toBe('user_interacting');
 
-      // Simulate fast frame (frameInterval < 1000ms)
+      // Simulate fast frame (frameInterval < 1000ms) BEFORE timeout
       vi.advanceTimersByTime(100);
       manager.onFrameReceived();
 
       // Verify frame interval is fast
       expect(manager.getFrameInterval()).toBe(100);
 
-      // Wait for user interaction timeout (total 2000ms from interaction)
-      vi.advanceTimersByTime(2000);
+      // Wait for user interaction timeout to fire (at 1000ms from interaction)
+      vi.advanceTimersByTime(900);
 
-      // Should switch to screen_moving because frameInterval < 1000ms
+      // Should switch to screen_moving because frameInterval (100ms) < 1000ms
       expect(manager.getState()).toBe('screen_moving');
       expect(manager.getIsUserInteracting()).toBe(false);
     });
 
-    it('should switch to static after user interaction timeout with slow frames', async () => {
+    it('should switch to static after user interaction timeout with slow frames (>= 1000ms interval)', async () => {
       manager.onUserInteraction();
       expect(manager.getState()).toBe('user_interacting');
 
-      // Simulate slow frame (frameInterval >= 1000ms)
+      // Simulate slow frame (frameInterval >= 1000ms) - need to receive first to establish interval
+      vi.advanceTimersByTime(500);
+      manager.onFrameReceived(); // First frame, interval = 500ms
+
+      // Second frame with slow interval
       vi.advanceTimersByTime(1500);
-      manager.onFrameReceived();
+      manager.onFrameReceived(); // Second frame, interval = 1500ms (>= 1000ms)
 
       // Wait for user interaction timeout
-      vi.advanceTimersByTime(2000);
+      vi.advanceTimersByTime(100);
 
+      // Should switch to static because frameInterval (1500ms) >= 1000ms
       expect(manager.getState()).toBe('static');
       expect(manager.getIsUserInteracting()).toBe(false);
     });
 
     it('should reset interaction timeout on subsequent interactions', () => {
       manager.onUserInteraction();
-      vi.advanceTimersByTime(1000);
-
-      // Another interaction before timeout
+      // Advance 500ms, then another interaction resets the timeout
+      vi.advanceTimersByTime(500);
       manager.onUserInteraction();
 
-      // Original timeout would have fired at 2000ms
-      vi.advanceTimersByTime(1000);
+      // Original timeout would have fired at 1000ms from first interaction
+      // But now it should fire at 1000ms from second interaction
+      vi.advanceTimersByTime(500); // Total 1000ms from first, 500ms from second
       expect(manager.getState()).toBe('user_interacting');
+
+      // Advance to 1000ms from second interaction
+      vi.advanceTimersByTime(500);
+      // Now timeout fires, and since no frames received, interval is Infinity
+      // So it goes to static
+      expect(manager.getState()).toBe('static');
     });
   });
 

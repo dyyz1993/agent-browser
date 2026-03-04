@@ -148,6 +148,12 @@ export function buildViewerScript(): string {
     const session = urlParams.get('session') || 'default';
     const wsParam = instanceId ? 'instanceId=' + instanceId : 'session=' + session;
     const wsUrl = wsProtocol + '//' + location.hostname + ':' + port + '?' + wsParam;
+
+    // Background management
+    let shouldReconnect = true;
+    let reconnectTimer = null;
+    let backgroundTimer = null;
+    const BACKGROUND_TIMEOUT = 60000; // 60 seconds
     
     const screen = document.getElementById('screen');
     const statusDot = document.getElementById('statusDot');
@@ -182,18 +188,23 @@ export function buildViewerScript(): string {
     function connect() {
       ws = new WebSocket(wsUrl);
       ws.binaryType = 'arraybuffer';
-      
+
       ws.onopen = () => {
         statusDot.classList.add('connected');
         statusText.textContent = 'Connected';
         connecting.style.display = 'none';
+        reconnectTimer = null;
       };
-      
+
       ws.onclose = () => {
         statusDot.classList.remove('connected');
         statusText.textContent = 'Disconnected';
         connecting.style.display = 'flex';
-        setTimeout(connect, 2000);
+
+        // Only reconnect if we should (page is visible)
+        if (shouldReconnect) {
+          reconnectTimer = setTimeout(connect, 2000);
+        }
       };
       
       ws.onerror = () => {
@@ -601,6 +612,35 @@ export function buildViewerScript(): string {
         safeSend(JSON.stringify({ id: 'recorder-start-' + Date.now(), action: 'recorder_start' }));
       }
     };
+
+    // Page visibility management
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        // Page going to background: stop reconnect attempts
+        shouldReconnect = false;
+
+        // Start background timer - disconnect after timeout
+        backgroundTimer = setTimeout(() => {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.close(1000, 'Page in background');
+          }
+        }, BACKGROUND_TIMEOUT);
+      } else {
+        // Page coming back to foreground
+        shouldReconnect = true;
+
+        // Clear background timer if page is visible again
+        if (backgroundTimer) {
+          clearTimeout(backgroundTimer);
+          backgroundTimer = null;
+        }
+
+        // Reconnect immediately if disconnected
+        if (!ws || ws.readyState === WebSocket.CLOSED) {
+          connect();
+        }
+      }
+    });
 
     focusHiddenInput();
     connect();

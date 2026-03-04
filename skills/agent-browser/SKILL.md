@@ -161,9 +161,8 @@ agent-browser click @e3
 agent-browser wait --url "**/dashboard"
 agent-browser state save auth.json
 
-# Reuse in future sessions
-agent-browser state load auth.json
-agent-browser open https://app.example.com/dashboard
+# Reuse in future sessions (use --state flag)
+agent-browser --state auth.json open https://app.example.com/dashboard
 ```
 
 ### Data Extraction
@@ -253,9 +252,9 @@ agent-browser -p ios --device "iPhone 16 Pro" open https://example.com
 
 # Same workflow as desktop - snapshot, interact, re-snapshot
 agent-browser -p ios snapshot -i
-agent-browser -p ios tap @e1          # Tap (alias for click)
+agent-browser -p ios click @e1          # Click/tap element
 agent-browser -p ios fill @e2 "text"
-agent-browser -p ios swipe up         # Mobile-specific gesture
+agent-browser -p ios scroll down 500    # Scroll gesture
 
 # Take screenshot
 agent-browser -p ios screenshot mobile.png
@@ -267,6 +266,8 @@ agent-browser -p ios close
 **Requirements:** macOS with Xcode, Appium (`npm install -g appium && appium driver install xcuitest`)
 
 **Real devices:** Works with physical iOS devices if pre-configured. Use `--device "<UDID>"` where UDID is from `xcrun xctrace list devices`.
+
+**Note:** iOS uses standard commands like `click`, `fill`, `scroll` instead of mobile-specific aliases like `tap` or `swipe`.
 
 ## Ref Lifecycle (Important)
 
@@ -281,6 +282,8 @@ agent-browser click @e5              # Navigates to new page
 agent-browser snapshot -i            # MUST re-snapshot
 agent-browser click @e1              # Use new refs
 ```
+
+**Important for Shell Scripts:** Refs are session-specific and cannot be used in standalone shell scripts. When converting interactive workflows to scripts, use semantic locators or CSS selectors instead. See [references/snapshot-refs.md](references/snapshot-refs.md#converting-to-shell-scripts) for details.
 
 ## Semantic Locators (Alternative to Refs)
 
@@ -305,26 +308,3 @@ agent-browser find testid "submit-btn" click
 | [references/authentication.md](references/authentication.md) | Login flows, OAuth, 2FA handling, state reuse |
 | [references/video-recording.md](references/video-recording.md) | Recording workflows for debugging and documentation |
 | [references/proxy-support.md](references/proxy-support.md) | Proxy configuration, geo-testing, rotating proxies |
-
-## Ready-to-Use Templates
-
-| Template | Description |
-|----------|-------------|
-| [templates/data-extraction.sh](templates/data-extraction.sh) | **Universal data extraction (DOM/JS/API/Scroll modes)** |
-| [templates/api-interception.sh](templates/api-interception.sh) | Passively capture API responses |
-| [templates/form-automation.sh](templates/form-automation.sh) | Form filling with validation |
-| [templates/authenticated-session.sh](templates/authenticated-session.sh) | Login once, reuse state |
-| [templates/capture-workflow.sh](templates/capture-workflow.sh) | Content extraction with screenshots |
-
-```bash
-# Data extraction examples
-./templates/data-extraction.sh https://example.com/products                    # DOM mode
-./templates/data-extraction.sh https://spa-app.com data.json js               # JS variables
-./templates/data-extraction.sh https://api-site.com output.json api "api/v1"  # API interception
-./templates/data-extraction.sh https://infinite-list.com items.json scroll    # Infinite scroll
-
-# Other templates
-./templates/form-automation.sh https://example.com/form
-./templates/authenticated-session.sh https://app.example.com/login
-./templates/capture-workflow.sh https://example.com ./output
-```

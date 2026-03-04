@@ -31,10 +31,7 @@ describe('diff E2E tests', () => {
     });
 
     it('should detect text input value change', async () => {
-      const snapshotBefore = await executeCommand(
-        parseCliArgs(['snapshot', '-i']),
-        browser
-      );
+      const snapshotBefore = await executeCommand(parseCliArgs(['snapshot', '-i']), browser);
       expect(snapshotBefore.success).toBe(true);
 
       const fillResult = await executeCommand(
@@ -42,7 +39,7 @@ describe('diff E2E tests', () => {
         browser
       );
       expect(fillResult.success).toBe(true);
-      
+
       if (isSuccessResponse<DiffActionData>(fillResult)) {
         expect(fillResult.data.diff).toBeDefined();
         expect(fillResult.data.diff).toContain('John Doe');
@@ -55,7 +52,7 @@ describe('diff E2E tests', () => {
         browser
       );
       expect(fillResult.success).toBe(true);
-      
+
       if (isSuccessResponse<DiffActionData>(fillResult)) {
         expect(fillResult.data.diff).toBeDefined();
       }
@@ -67,7 +64,7 @@ describe('diff E2E tests', () => {
         browser
       );
       expect(fillResult.success).toBe(true);
-      
+
       if (isSuccessResponse<DiffActionData>(fillResult)) {
         expect(fillResult.data.diff).toBeDefined();
       }
@@ -79,7 +76,7 @@ describe('diff E2E tests', () => {
         browser
       );
       expect(fillResult.success).toBe(true);
-      
+
       if (isSuccessResponse<DiffActionData>(fillResult)) {
         expect(fillResult.data.diff).toBeDefined();
       }
@@ -91,7 +88,7 @@ describe('diff E2E tests', () => {
         browser
       );
       expect(selectResult.success).toBe(true);
-      
+
       if (isSuccessResponse<DiffActionData>(selectResult)) {
         expect(selectResult.data.diff).toBeDefined();
       }
@@ -103,7 +100,7 @@ describe('diff E2E tests', () => {
         browser
       );
       expect(checkResult.success).toBe(true);
-      
+
       if (isSuccessResponse<DiffActionData>(checkResult)) {
         expect(checkResult.data.diff).toBeDefined();
       }
@@ -120,10 +117,7 @@ describe('diff E2E tests', () => {
     });
 
     it('should detect counter increment', async () => {
-      const snapshotBefore = await executeCommand(
-        parseCliArgs(['snapshot']),
-        browser
-      );
+      const snapshotBefore = await executeCommand(parseCliArgs(['snapshot']), browser);
       expect(snapshotBefore.success).toBe(true);
 
       const clickResult = await executeCommand(
@@ -131,7 +125,7 @@ describe('diff E2E tests', () => {
         browser
       );
       expect(clickResult.success).toBe(true);
-      
+
       if (isSuccessResponse<DiffActionData>(clickResult)) {
         expect(clickResult.data.diff).toBeDefined();
         expect(clickResult.data.diff).toContain('Counter:');
@@ -144,7 +138,7 @@ describe('diff E2E tests', () => {
         browser
       );
       expect(clickResult.success).toBe(true);
-      
+
       if (isSuccessResponse<DiffActionData>(clickResult)) {
         expect(clickResult.data.diff).toBeDefined();
         expect(clickResult.data.diff).toContain('Counter:');
@@ -154,13 +148,13 @@ describe('diff E2E tests', () => {
     it('should detect counter reset', async () => {
       await executeCommand(parseCliArgs(['click', '#increment']), browser);
       await executeCommand(parseCliArgs(['click', '#increment']), browser);
-      
+
       const clickResult = await executeCommand(
         parseCliArgs(['click', '#reset', '--diff']),
         browser
       );
       expect(clickResult.success).toBe(true);
-      
+
       if (isSuccessResponse<DiffActionData>(clickResult)) {
         expect(clickResult.data.diff).toBeDefined();
       }
@@ -172,7 +166,7 @@ describe('diff E2E tests', () => {
         browser
       );
       expect(clickResult.success).toBe(true);
-      
+
       if (isSuccessResponse<DiffActionData>(clickResult)) {
         expect(clickResult.data.diff).toBeDefined();
       }
@@ -194,7 +188,7 @@ describe('diff E2E tests', () => {
         browser
       );
       expect(clickResult.success).toBe(true);
-      
+
       if (isSuccessResponse<DiffActionData>(clickResult)) {
         expect(clickResult.data.diff).toBeDefined();
         expect(clickResult.data.diff).toContain('+ paragraph');
@@ -203,13 +197,13 @@ describe('diff E2E tests', () => {
 
     it('should detect hiding visible element', async () => {
       await executeCommand(parseCliArgs(['click', '#toggle']), browser);
-      
+
       const clickResult = await executeCommand(
         parseCliArgs(['click', '#toggle', '--diff']),
         browser
       );
       expect(clickResult.success).toBe(true);
-      
+
       if (isSuccessResponse<DiffActionData>(clickResult)) {
         expect(clickResult.data.diff).toBeDefined();
         expect(clickResult.data.diff).toContain('- paragraph');
@@ -217,12 +211,9 @@ describe('diff E2E tests', () => {
     });
 
     it('should detect adding element', async () => {
-      const clickResult = await executeCommand(
-        parseCliArgs(['click', '#add', '--diff']),
-        browser
-      );
+      const clickResult = await executeCommand(parseCliArgs(['click', '#add', '--diff']), browser);
       expect(clickResult.success).toBe(true);
-      
+
       if (isSuccessResponse<DiffActionData>(clickResult)) {
         expect(clickResult.data.diff).toBeDefined();
         expect(clickResult.data.diff).toContain('+');
@@ -231,13 +222,13 @@ describe('diff E2E tests', () => {
 
     it('should detect removing element', async () => {
       await executeCommand(parseCliArgs(['click', '#add']), browser);
-      
+
       const clickResult = await executeCommand(
         parseCliArgs(['click', '#remove', '--diff']),
         browser
       );
       expect(clickResult.success).toBe(true);
-      
+
       if (isSuccessResponse<DiffActionData>(clickResult)) {
         expect(clickResult.data.diff).toBeDefined();
         expect(clickResult.data.diff).toContain('-');
@@ -247,19 +238,13 @@ describe('diff E2E tests', () => {
     it('should detect multiple additions', async () => {
       await executeCommand(parseCliArgs(['click', '#add']), browser);
       await executeCommand(parseCliArgs(['click', '#add']), browser);
-      
-      const snapshotBefore = await executeCommand(
-        parseCliArgs(['snapshot']),
-        browser
-      );
+
+      const snapshotBefore = await executeCommand(parseCliArgs(['snapshot']), browser);
       expect(snapshotBefore.success).toBe(true);
 
-      const clickResult = await executeCommand(
-        parseCliArgs(['click', '#add', '--diff']),
-        browser
-      );
+      const clickResult = await executeCommand(parseCliArgs(['click', '#add', '--diff']), browser);
       expect(clickResult.success).toBe(true);
-      
+
       if (isSuccessResponse<DiffActionData>(clickResult)) {
         expect(clickResult.data.diff).toBeDefined();
       }
@@ -281,7 +266,7 @@ describe('diff E2E tests', () => {
         browser
       );
       expect(fillResult.success).toBe(true);
-      
+
       if (isSuccessResponse<DiffActionData>(fillResult)) {
         expect(fillResult.data.diff).toBeDefined();
       }
@@ -293,7 +278,7 @@ describe('diff E2E tests', () => {
         browser
       );
       expect(fillResult.success).toBe(true);
-      
+
       if (isSuccessResponse<DiffActionData>(fillResult)) {
         expect(fillResult.data.diff).toBeDefined();
       }
@@ -305,7 +290,7 @@ describe('diff E2E tests', () => {
         browser
       );
       expect(fillResult.success).toBe(true);
-      
+
       if (isSuccessResponse<DiffActionData>(fillResult)) {
         expect(fillResult.data.diff).toBeDefined();
       }
@@ -317,7 +302,7 @@ describe('diff E2E tests', () => {
         browser
       );
       expect(fillResult.success).toBe(true);
-      
+
       if (isSuccessResponse<DiffActionData>(fillResult)) {
         expect(fillResult.data.diff).toBeDefined();
       }
@@ -334,12 +319,9 @@ describe('diff E2E tests', () => {
     });
 
     it('should handle initializing 100 items', async () => {
-      const clickResult = await executeCommand(
-        parseCliArgs(['click', '#init', '--diff']),
-        browser
-      );
+      const clickResult = await executeCommand(parseCliArgs(['click', '#init', '--diff']), browser);
       expect(clickResult.success).toBe(true);
-      
+
       if (isSuccessResponse<DiffActionData>(clickResult)) {
         expect(clickResult.data.diff).toBeDefined();
       }
@@ -347,13 +329,13 @@ describe('diff E2E tests', () => {
 
     it('should handle adding 50 more items', async () => {
       await executeCommand(parseCliArgs(['click', '#init']), browser);
-      
+
       const clickResult = await executeCommand(
         parseCliArgs(['click', '#add-50', '--diff']),
         browser
       );
       expect(clickResult.success).toBe(true);
-      
+
       if (isSuccessResponse<DiffActionData>(clickResult)) {
         expect(clickResult.data.diff).toBeDefined();
       }
@@ -361,13 +343,13 @@ describe('diff E2E tests', () => {
 
     it('should handle removing half items', async () => {
       await executeCommand(parseCliArgs(['click', '#init']), browser);
-      
+
       const clickResult = await executeCommand(
         parseCliArgs(['click', '#remove-half', '--diff']),
         browser
       );
       expect(clickResult.success).toBe(true);
-      
+
       if (isSuccessResponse<DiffActionData>(clickResult)) {
         expect(clickResult.data.diff).toBeDefined();
       }
@@ -375,13 +357,13 @@ describe('diff E2E tests', () => {
 
     it('should handle clearing all items', async () => {
       await executeCommand(parseCliArgs(['click', '#init']), browser);
-      
+
       const clickResult = await executeCommand(
         parseCliArgs(['click', '#clear', '--diff']),
         browser
       );
       expect(clickResult.success).toBe(true);
-      
+
       if (isSuccessResponse<DiffActionData>(clickResult)) {
         expect(clickResult.data.diff).toBeDefined();
       }
@@ -403,7 +385,7 @@ describe('diff E2E tests', () => {
         browser
       );
       expect(clickResult.success).toBe(true);
-      
+
       if (isSuccessResponse<DiffActionData>(clickResult)) {
         expect(clickResult.data.diffScope).toBe('3 levels up');
       }
@@ -415,7 +397,7 @@ describe('diff E2E tests', () => {
         browser
       );
       expect(clickResult.success).toBe(true);
-      
+
       if (isSuccessResponse<DiffActionData>(clickResult)) {
         expect(clickResult.data.diffScope).toBe('full page');
       }
@@ -427,7 +409,7 @@ describe('diff E2E tests', () => {
         browser
       );
       expect(clickResult.success).toBe(true);
-      
+
       if (isSuccessResponse<DiffActionData>(clickResult)) {
         expect(clickResult.data.diffScope).toBe('5 levels up');
       }
@@ -439,7 +421,7 @@ describe('diff E2E tests', () => {
         browser
       );
       expect(clickResult.success).toBe(true);
-      
+
       if (isSuccessResponse<DiffActionData>(clickResult)) {
         expect(clickResult.data.diffScope).toBe('#counter');
       }
@@ -456,30 +438,21 @@ describe('diff E2E tests', () => {
     });
 
     it('should report no changes when clicking non-interactive element', async () => {
-      const snapshotResult = await executeCommand(
-        parseCliArgs(['snapshot', '-i']),
-        browser
-      );
+      const snapshotResult = await executeCommand(parseCliArgs(['snapshot', '-i']), browser);
       expect(snapshotResult.success).toBe(true);
 
-      const hoverResult = await executeCommand(
-        parseCliArgs(['hover', 'h1', '--diff']),
-        browser
-      );
+      const hoverResult = await executeCommand(parseCliArgs(['hover', 'h1', '--diff']), browser);
       expect(hoverResult.success).toBe(true);
-      
+
       if (isSuccessResponse<DiffActionData>(hoverResult)) {
         expect(hoverResult.data.diff).toBe('(no changes detected)');
       }
     });
 
     it('should report no changes when focusing input without typing', async () => {
-      const focusResult = await executeCommand(
-        parseCliArgs(['focus', '#name', '--diff']),
-        browser
-      );
+      const focusResult = await executeCommand(parseCliArgs(['focus', '#name', '--diff']), browser);
       expect(focusResult.success).toBe(true);
-      
+
       if (isSuccessResponse<DiffActionData>(focusResult)) {
         expect(focusResult.data.diff).toBe('(no changes detected)');
       }
@@ -495,7 +468,7 @@ describe('diff E2E tests', () => {
       expect(openResult.success).toBe(true);
     });
 
-    it.skip('should handle non-existent element gracefully', async () => {
+    it('should handle non-existent element gracefully', async () => {
       const clickResult = await executeCommand(
         parseCliArgs(['click', '#non-existent', '--diff']),
         browser

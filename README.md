@@ -1,5 +1,7 @@
 # agent-browser
 
+> **Fork of [vercel-labs/agent-browser](https://github.com/vercel-labs/agent-browser)** with additional enhancements and features.
+
 Headless browser automation CLI for AI agents. Fast Rust CLI with Node.js fallback.
 
 ## Installation
@@ -21,7 +23,7 @@ agent-browser install  # Download Chromium
 ### From Source
 
 ```bash
-git clone https://github.com/vercel-labs/agent-browser
+git clone https://github.com/xuyingzhou/agent-browser
 cd agent-browser
 pnpm install
 pnpm build
@@ -703,7 +705,7 @@ The `--help` output is comprehensive and most agents can figure it out from ther
 Add the skill to your AI coding assistant for richer context:
 
 ```bash
-npx skills add vercel-labs/agent-browser
+npx skills add xuyingzhou/agent-browser
 ```
 
 This works with Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot, Goose, OpenCode, and Windsurf.

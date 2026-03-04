@@ -84,8 +84,6 @@ describe('百度页面 snapshot --path 和 --attrs 验证', () => {
   });
 
   describe('百度搜索结果页测试', () => {
-    // 搜索结果页测试需要更长时间，跳过以避免 CI 超时
-    // 本地开发时可以取消 skip 进行验证
     beforeAll(async () => {
       // 执行搜索
       await executeCommand(parseCliArgs(['fill', '#kw', 'agent-browser testing']), browser);
@@ -93,31 +91,31 @@ describe('百度页面 snapshot --path 和 --attrs 验证', () => {
 
       // 等待搜索结果加载
       await new Promise((resolve) => setTimeout(resolve, 3000));
-    }, 60000);
+    }, 90000);
 
-    it.skip('应该成功获取搜索结果区域的 snapshot（跳过：需要较长等待时间）', async () => {
+    it('应该成功获取搜索结果区域的 snapshot', async () => {
       const result = await executeCommand(
         parseCliArgs(['snapshot', '--selector', '#content_left', '--path']),
         browser
       );
       expect(result.success).toBe(true);
-    });
+    }, 30000);
 
-    it.skip('应该获取搜索结果条目的属性（跳过：需要较长等待时间）', async () => {
+    it('应该获取搜索结果条目的属性', async () => {
       const result = await executeCommand(
         parseCliArgs(['snapshot', '-i', '--selector', '.result', '--attrs']),
         browser
       );
       expect(result.success).toBe(true);
-    });
+    }, 30000);
 
-    it.skip('应该处理搜索结果的链接元素（跳过：需要较长等待时间）', async () => {
+    it('应该处理搜索结果的链接元素', async () => {
       const result = await executeCommand(
         parseCliArgs(['snapshot', '-i', '--selector', '.c-container a', '--path', '--attrs']),
         browser
       );
       expect(result.success).toBe(true);
-    });
+    }, 30000);
   });
 
   describe('边界情况测试', () => {

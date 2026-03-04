@@ -48,12 +48,12 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/vercel-labs/agent-browser.git"
+    "url": "git+https://github.com/xuyingzhou/agent-browser.git"
   },
   "bugs": {
-    "url": "https://github.com/vercel-labs/agent-browser/issues"
+    "url": "https://github.com/xuyingzhou/agent-browser/issues"
   },
-  "homepage": "https://github.com/vercel-labs/agent-browser#readme",
+  "homepage": "https://github.com/xuyingzhou/agent-browser#readme",
   "dependencies": {
     "node-simctl": "^7.4.0",
     "playwright-core": "^1.57.0",

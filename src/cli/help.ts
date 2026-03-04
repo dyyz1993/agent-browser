@@ -491,13 +491,16 @@ Operations:
   start [url]              Start recording (optionally navigate to URL)
   stop [--output file]     Stop recording and output YAML
   status                   Show recording status
+  replay [file]            Replay recorded CLI commands from YAML
 
 Options:
-  --output <file>          Save YAML to file (default: stdout)
+  --output <file>          Save YAML to file (default: temp directory)
+  [file]                   YAML file to replay (default: most recent)
 
 Output Format:
   YAML with session info, pages visited, and recorded steps.
   Each step includes: action, selector, xpath, value, trajectory.
+  CLI Commands section contains executable commands for replay.
 
 Examples:
   agent-browser recorder start
@@ -505,6 +508,8 @@ Examples:
   agent-browser recorder stop
   agent-browser recorder stop --output session.yaml
   agent-browser recorder status
+  agent-browser recorder replay                  # Replay most recent
+  agent-browser recorder replay session.yaml     # Replay specific file
 `,
   trace: `
 agent-browser trace - Record execution trace
@@ -871,6 +876,7 @@ Find Elements:  agent-browser find <locator> <value> <action> [text]
 Mouse:  agent-browser mouse <action> [args]
   move <x> <y>, down [btn], up [btn], wheel <dy> [dx]
   wander <ms>                     Random mouse movement
+  trajectory "x:y:d;..."          Move along trajectory points
 
 Browser Settings:  agent-browser set <setting> [value]
   viewport <w> <h>, device <name>, geo <lat> <lng>
@@ -896,6 +902,7 @@ Debug:
   recorder start [url]       Start step recording
   recorder stop [--output]   Stop and output YAML
   recorder status            Show recording status
+  recorder replay [file]     Replay recorded commands
   console [--clear]          View console logs
   errors [--clear]           View page errors
   highlight <sel>            Highlight element

@@ -117,8 +117,12 @@ describe('IOSManager', () => {
 });
 
 describe('IOSManager integration', () => {
-  // These tests require Appium and iOS Simulator to be available
-  // They are skipped by default and can be run manually
+  // SKIP: These integration tests require the following external dependencies:
+  // 1. macOS operating system
+  // 2. Xcode with iOS Simulator installed
+  // 3. Appium server running with WebDriverAgent
+  // These tests cannot be mocked and should be run manually when testing iOS functionality.
+  // Run locally with: npx vitest run src/ios-manager.test.ts --reporter=verbose
   describe.skip('with real simulator', () => {
     let manager: IOSManager;
 

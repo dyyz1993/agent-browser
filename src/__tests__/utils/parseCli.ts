@@ -794,10 +794,15 @@ export function parseCliArgs(args: string[]): Command {
           const duration = remaining[1] ? parseInt(remaining[1], 10) : 2000;
           return { id, action: 'wander', duration, inFrame };
         }
+        case 'trajectory': {
+          // Format: mouse trajectory "x:y:delay;x:y:delay;..."
+          const data = remaining[1] || '';
+          return { id, action: 'mousetrajectory', data, inFrame };
+        }
         default:
           error(
             `Unknown mouse subcommand: ${subcmd}`,
-            'agent-browser mouse <move|down|up|wheel|wander> [args...] [--in-frame <path>]'
+            'agent-browser mouse <move|down|up|wheel|wander|trajectory> [args...] [--in-frame <path>]'
           );
       }
     }
@@ -1155,9 +1160,16 @@ export function parseCliArgs(args: string[]): Command {
         return { id, action: 'recorder_status' };
       }
 
+      if (subcmd === 'replay') {
+        const path = remaining[0];
+        const cmd: Command = { id, action: 'recorder_replay' };
+        if (path) cmd.path = path;
+        return cmd;
+      }
+
       error(
         'Unknown recorder command',
-        'agent-browser recorder <start|stop|status> [--output file]'
+        'agent-browser recorder <start|stop|status|replay> [--output file] [path]'
       );
     }
 

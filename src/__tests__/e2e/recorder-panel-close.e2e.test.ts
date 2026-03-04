@@ -34,11 +34,11 @@ describe('Recorder Panel Close E2E Tests', () => {
     if (!page) return false;
 
     return await page.evaluate(() => {
-      const panel = document.getElementById('recorder-panel');
-      const shadow = document.getElementById('recorder-shadow');
-      const toolbar = document.getElementById('recorder-toolbar');
-      const canvas = document.getElementById('recorder-canvas');
-      const markers = document.getElementById('recorder-markers');
+      const panel = document.getElementById('xyzPnl');
+      const shadow = document.getElementById('xyzSh');
+      const toolbar = document.getElementById('xyzTb');
+      const canvas = document.getElementById('xyzCv');
+      const markers = document.getElementById('xyzMk');
 
       return !!(panel || shadow || toolbar || canvas || markers);
     });
@@ -49,7 +49,7 @@ describe('Recorder Panel Close E2E Tests', () => {
     if (!page) return false;
 
     return await page.evaluate(() => {
-      return (window as any).__recorderInitialized === true;
+      return (window as any).xyzInited === true;
     });
   }
 
@@ -90,7 +90,7 @@ describe('Recorder Panel Close E2E Tests', () => {
       expect(hasPanel).toBe(false);
     });
 
-    it('should reset __recorderInitialized flag when panel closes', async () => {
+    it('should reset xyzInited flag when panel closes', async () => {
       await executeCommand(parseCliArgs(['recorder', 'start']), browser);
       await new Promise((resolve) => setTimeout(resolve, 100));
 
@@ -146,12 +146,12 @@ describe('Recorder Panel Close E2E Tests', () => {
 
       const elements = await page!.evaluate(() => {
         return {
-          panel: !!document.getElementById('recorder-panel'),
-          shadow: !!document.getElementById('recorder-shadow'),
-          toolbar: !!document.getElementById('recorder-toolbar'),
-          canvas: !!document.getElementById('recorder-canvas'),
-          markers: !!document.getElementById('recorder-markers'),
-          styles: !!document.getElementById('recorder-styles'),
+          panel: !!document.getElementById('xyzPnl'),
+          shadow: !!document.getElementById('xyzSh'),
+          toolbar: !!document.getElementById('xyzTb'),
+          canvas: !!document.getElementById('xyzCv'),
+          markers: !!document.getElementById('xyzMk'),
+          styles: !!document.getElementById('xyzSt'),
         };
       });
 
@@ -176,12 +176,12 @@ describe('Recorder Panel Close E2E Tests', () => {
 
       const elements = await page!.evaluate(() => {
         return {
-          panel: !!document.getElementById('recorder-panel'),
-          shadow: !!document.getElementById('recorder-shadow'),
-          toolbar: !!document.getElementById('recorder-toolbar'),
-          canvas: !!document.getElementById('recorder-canvas'),
-          markers: !!document.getElementById('recorder-markers'),
-          styles: !!document.getElementById('recorder-styles'),
+          panel: !!document.getElementById('xyzPnl'),
+          shadow: !!document.getElementById('xyzSh'),
+          toolbar: !!document.getElementById('xyzTb'),
+          canvas: !!document.getElementById('xyzCv'),
+          markers: !!document.getElementById('xyzMk'),
+          styles: !!document.getElementById('xyzSt'),
         };
       });
 

@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Page Visibility Test - Agent Browser Viewer</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      padding: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    h1 { color: #4ecca3; }
+    .test-section {
+      background: #16213e;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 15px 0;
+      border: 1px solid #0f3460;
+    }
+    .test-section h2 {
+      margin-top: 0;
+      color: #e94560;
+      font-size: 18px;
+    }
+    .status {
+      padding: 8px 12px;
+      border-radius: 4px;
+      margin: 5px 0;
+      font-family: monospace;
+      font-size: 14px;
+    }
+    .status.pass { background: #2d5a27; color: #a8e6cf; }
+    .status.fail { background: #5a2727; color: #e6a8a8; }
+    .status.info { background: #275a4f; color: #a8e6d6; }
+    .test-controls {
+      display: flex;
+      gap: 10px;
+      margin: 10px 0;
+    }
+    button {
+      background: #4ecca3;
+      color: #1a1a2e;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    button:hover { background: #3db892; }
+    button:disabled { background: #666; cursor: not-allowed; }
+    .log {
+      background: #0f0f1e;
+      padding: 10px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+      max-height: 200px;
+      overflow-y: auto;
+      margin-top: 10px;
+    }
+    .log-entry { margin: 2px 0; }
+    .log-entry.time { color: #888; }
+    .log-entry.info { color: #4ecca3; }
+    .log-entry.success { color: #a8e6cf; }
+    .log-entry.error { color: #e94560; }
+    .log-entry.warning { color: #f7b731; }
+  </style>
+</head>
+<body>
+  <h1>🔍 Page Visibility Management Test</h1>
+  <p>Test the viewer's page visibility management functionality.</p>
+
+  <div class="test-section">
+    <h2>1. Connection Status</h2>
+    <div id="connectionStatus" class="status info">Waiting...</div>
+    <div class="test-controls">
+      <button onclick="connectToStreamServer()">Connect</button>
+      <button onclick="disconnect()">Disconnect</button>
+    </div>
+  </div>
+
+  <div class="test-section">
+    <h2>2. Page Visibility</h2>
+    <div id="visibilityStatus" class="status info">Checking...</div>
+    <div class="test-controls">
+      <button onclick="simulateBackground()">Simulate Background (2s)</button>
+      <button onclick="simulateForeground()">Simulate Foreground</button>
+    </div>
+  </div>
+
+  <div class="test-section">
+    <h2>3. Test Results</h2>
+    <div id="testResults" class="status info">No tests run yet</div>
+    <div class="test-controls">
+      <button onclick="runAllTests()">Run All Tests</button>
+      <button onclick="clearResults()">Clear Results</button>
+    </div>
+  </div>
+
+  <div class="test-section">
+    <h2>4. Event Log</h2>
+    <div id="eventLog" class="log"></div>
+  </div>
+
+  <script type="module">
+    // Import viewer script components
+    const wsUrl = 'ws://localhost:5005?session=default';
+    let ws = null;
+    let testResults = [];
+
+    // Logging function
+    function log(message, type = 'info') {
+      const logDiv = document.getElementById('eventLog');
+      const time = new Date().toLocaleTimeString();
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      entry.textContent = `[${time}] ${message}`;
+      logDiv.appendChild(entry);
+      logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    // Update connection status
+    function updateConnectionStatus() {
+      const statusDiv = document.getElementById('connectionStatus');
+      if (!ws) {
+        statusDiv.textContent = 'Disconnected';
+        statusDiv.className = 'status fail';
+      } else if (ws.readyState === WebSocket.OPEN) {
+        statusDiv.textContent = 'Connected';
+        statusDiv.className = 'status pass';
+      } else if (ws.readyState === WebSocket.CONNECTING) {
+        statusDiv.textContent = 'Connecting...';
+        statusDiv.className = 'status info';
+      } else {
+        statusDiv.textContent = 'Disconnected';
+        statusDiv.className = 'status fail';
+      }
+    }
+
+    // Connect to stream server
+    window.connectToStreamServer = function() {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        log('Already connected', 'warning');
+        return;
+      }
+
+      log('Connecting to stream server...', 'info');
+      ws = new WebSocket(wsUrl);
+      ws.binaryType = 'arraybuffer';
+
+      ws.onopen = () => {
+        log('WebSocket connected', 'success');
+        updateConnectionStatus();
+      };
+
+      ws.onclose = (event) => {
+        log(`WebSocket closed: ${event.reason || 'No reason'} (${event.code})`, 'warning');
+        updateConnectionStatus();
+      };
+
+      ws.onerror = (error) => {
+        log('WebSocket error', 'error');
+        updateConnectionStatus();
+      };
+    };
+
+    // Disconnect
+    window.disconnect = function() {
+      if (ws) {
+        log('Disconnecting...', 'info');
+        ws.close(1000, 'Manual disconnect');
+        ws = null;
+        updateConnectionStatus();
+      }
+    };
+
+    // Simulate background
+    window.simulateBackground = function() {
+      log('Simulating page going to background...', 'info');
+      Object.defineProperty(document, 'hidden', { value: true, writable: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+      updateVisibilityStatus();
+      log('Page is now in background (will disconnect in 2s)', 'info');
+    };
+
+    // Simulate foreground
+    window.simulateForeground = function() {
+      log('Simulating page coming to foreground...', 'info');
+      Object.defineProperty(document, 'hidden', { value: false, writable: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+      updateVisibilityStatus();
+    };
+
+    // Update visibility status
+    function updateVisibilityStatus() {
+      const statusDiv = document.getElementById('visibilityStatus');
+      if (document.hidden) {
+        statusDiv.textContent = 'Hidden (Background)';
+        statusDiv.className = 'status warning';
+      } else {
+        statusDiv.textContent = 'Visible (Foreground)';
+        statusDiv.className = 'status pass';
+      }
+    }
+
+    // Run a single test
+    async function runTest(testName, testFn) {
+      log(`Running test: ${testName}`, 'info');
+      try {
+        const result = await testFn();
+        if (result.pass) {
+          log(`✓ ${testName}: PASSED`, 'success');
+          return { name: testName, pass: true, message: result.message };
+        } else {
+          log(`✗ ${testName}: FAILED - ${result.message}`, 'error');
+          return { name: testName, pass: false, message: result.message };
+        }
+      } catch (error) {
+        log(`✗ ${testName}: ERROR - ${error.message}`, 'error');
+        return { name: testName, pass: false, message: error.message };
+      }
+    }
+
+    // Test: Verify background disconnects after timeout
+    async function testBackgroundDisconnect() {
+      // Ensure connected
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        window.connectToStreamServer();
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        return { pass: false, message: 'Could not establish connection' };
+      }
+
+      // Go to background
+      window.simulateBackground();
+
+      // Wait for disconnect (2s timeout)
+      const startTime = Date.now();
+      while (ws.readyState === WebSocket.OPEN && Date.now() - startTime < 3000) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      const wasDisconnected = ws.readyState !== WebSocket.OPEN;
+
+      // Clean up
+      window.simulateForeground();
+
+      if (wasDisconnected) {
+        return { pass: true, message: `Disconnected after ${Date.now() - startTime}ms` };
+      } else {
+        return { pass: false, message: 'Connection did not disconnect after background timeout' };
+      }
+    }
+
+    // Test: Verify immediate reconnect on foreground
+    async function testImmediateReconnect() {
+      // Ensure connected
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        window.connectToStreamServer();
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+
+      // Go to background
+      window.simulateBackground();
+
+      // Wait for disconnect
+      await new Promise(resolve => setTimeout(resolve, 2500));
+
+      if (ws.readyState === WebSocket.OPEN) {
+        return { pass: false, message: 'Connection did not disconnect in background' };
+      }
+
+      // Come to foreground and measure reconnect time
+      const startTime = Date.now();
+      window.simulateForeground();
+
+      // Manually trigger reconnect (simulating viewer script behavior)
+      window.connectToStreamServer();
+
+      // Wait for reconnect
+      while (ws.readyState !== WebSocket.OPEN && Date.now() - startTime < 5000) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      const reconnectTime = Date.now() - startTime;
+
+      if (ws.readyState === WebSocket.OPEN) {
+        return { pass: true, message: `Reconnected in ${reconnectTime}ms` };
+      } else {
+        return { pass: false, message: 'Failed to reconnect within 5 seconds' };
+      }
+    }
+
+    // Test: Verify background timer cancellation
+    async function testBackgroundTimerCancellation() {
+      // Ensure connected
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        window.connectToStreamServer();
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+
+      // Go to background
+      window.simulateBackground();
+
+      // Wait less than timeout
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Come back to foreground
+      window.simulateForeground();
+
+      // Wait past original timeout
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      // Connection should still be active
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        return { pass: true, message: 'Connection remained active after early return from background' };
+      } else {
+        return { pass: false, message: 'Connection was closed even though page returned to foreground' };
+      }
+    }
+
+    // Run all tests
+    window.runAllTests = async function() {
+      clearResults();
+      log('Starting test suite...', 'info');
+
+      const results = [
+        await runTest('Background disconnects after timeout', testBackgroundDisconnect),
+        await runTest('Immediate reconnect on foreground', testImmediateReconnect),
+        await runTest('Background timer cancellation', testBackgroundTimerCancellation),
+      ];
+
+      const passed = results.filter(r => r.pass).length;
+      const total = results.length;
+
+      const resultsDiv = document.getElementById('testResults');
+      if (passed === total) {
+        resultsDiv.textContent = `All tests passed! (${passed}/${total})`;
+        resultsDiv.className = 'status pass';
+      } else {
+        resultsDiv.textContent = `Tests failed: ${total - passed}/${total}`;
+        resultsDiv.className = 'status fail';
+      }
+
+      log(`Test suite complete: ${passed}/${total} passed`, passed === total ? 'success' : 'error');
+    };
+
+    // Clear results
+    window.clearResults = function() {
+      testResults = [];
+      document.getElementById('testResults').textContent = 'No tests run yet';
+      document.getElementById('testResults').className = 'status info';
+      document.getElementById('eventLog').innerHTML = '';
+    };
+
+    // Initialize
+    updateConnectionStatus();
+    updateVisibilityStatus();
+
+    // Log initial state
+    log('Test page loaded', 'success');
+    log('Stream server URL: ' + wsUrl, 'info');
+    log('Tests ready to run', 'info');
+  </script>
+</body>
+</html>

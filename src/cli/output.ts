@@ -463,6 +463,14 @@ export function printResponse(resp: Response, jsonMode: boolean, action?: string
         console.log(
           `${successIndicator()} Recorded ${data.steps} steps, saved to ${green(data.path)}`
         );
+        // 显示 YAML 内容
+        if ('yaml' in data && typeof (data as any).yaml === 'string') {
+          console.log((data as any).yaml);
+        }
+        // 显示 tips（完整文件路径）
+        if ('tip' in data && typeof data.tip === 'string') {
+          console.log(dim(data.tip));
+        }
         break;
       default:
         console.log(`${successIndicator()} Saved to ${green(data.path)}`);

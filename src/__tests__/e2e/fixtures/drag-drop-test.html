@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Drag and Drop Test</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: 20px;
+      max-width: 900px;
+      margin: 0 auto;
+      background: #f8f9fa;
+    }
+    h1 { color: #333; border-bottom: 2px solid #007bff; padding-bottom: 10px; }
+    .section {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h2 { margin-top: 0; color: #555; font-size: 16px; }
+    .container {
+      display: flex;
+      gap: 40px;
+      flex-wrap: wrap;
+    }
+    .drag-source, .drop-target {
+      flex: 1;
+      min-width: 200px;
+    }
+    .draggable {
+      width: 120px;
+      height: 50px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 10px 0;
+      cursor: grab;
+      border-radius: 6px;
+      font-weight: 500;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      transition: transform 0.2s, box-shadow 0.2s;
+      user-select: none;
+    }
+    .draggable:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    }
+    .draggable:active {
+      cursor: grabbing;
+    }
+    .draggable.dragging {
+      opacity: 0.5;
+      transform: scale(0.95);
+    }
+    .draggable[data-color="blue"] {
+      background: linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%);
+    }
+    .draggable[data-color="green"] {
+      background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    }
+    .draggable[data-color="orange"] {
+      background: linear-gradient(135deg, #f2994a 0%, #f2c94c 100%);
+    }
+    .draggable[data-color="red"] {
+      background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+    }
+    .dropzone {
+      min-height: 180px;
+      border: 3px dashed #ccc;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 15px;
+      transition: all 0.3s;
+      background: #fafafa;
+    }
+    .dropzone h4 {
+      margin: 0 0 10px 0;
+      color: #666;
+    }
+    .dropzone.drag-over {
+      border-color: #007bff;
+      background: #e3f2fd;
+      transform: scale(1.02);
+    }
+    .dropzone.dropped {
+      border-color: #28a745;
+      border-style: solid;
+    }
+    .dropzone.error {
+      border-color: #dc3545;
+      background: #ffebee;
+    }
+    .dropzone .placeholder {
+      color: #999;
+      font-style: italic;
+    }
+    .status-panel {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-top: 15px;
+    }
+    .status-item {
+      background: #f0f0f0;
+      padding: 12px;
+      border-radius: 6px;
+      text-align: center;
+    }
+    .status-item strong {
+      display: block;
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 5px;
+    }
+    .status-item span {
+      font-size: 14px;
+      color: #333;
+    }
+    #event-log {
+      margin-top: 20px;
+      padding: 12px;
+      background: #1a1a2e;
+      color: #4ecca3;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+      max-height: 250px;
+      overflow-y: auto;
+    }
+    .result-item {
+      display: inline-flex;
+      align-items: center;
+      margin: 5px;
+      padding: 5px 10px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 4px;
+    }
+    .clear-btn {
+      background: #6c757d;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    .clear-btn:hover {
+      background: #5a6268;
+    }
+  </style>
+</head>
+<body>
+  <h1>Drag and Drop Test Page</h1>
+
+  <div class="section">
+    <h2>Drag and Drop Demo</h2>
+    <div class="container">
+      <!-- Drag Source Area -->
+      <div class="drag-source">
+        <h3>Draggable Items</h3>
+        <div id="item1" class="draggable" draggable="true" data-color="blue">Item 1</div>
+        <div id="item2" class="draggable" draggable="true" data-color="green">Item 2</div>
+        <div id="item3" class="draggable" draggable="true" data-color="orange">Item 3</div>
+        <div id="item4" class="draggable" draggable="true" data-color="red">Item 4</div>
+      </div>
+
+      <!-- Drop Target Area -->
+      <div class="drop-target">
+        <h3>Drop Zones</h3>
+        <div id="zone1" class="dropzone">
+          <h4>Zone A</h4>
+          <span class="placeholder">Drop items here</span>
+        </div>
+      </div>
+
+      <div class="drop-target">
+        <h3>More Drop Zones</h3>
+        <div id="zone2" class="dropzone">
+          <h4>Zone B</h4>
+          <span class="placeholder">Drop items here</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status Panel -->
+    <div class="status-panel">
+      <div class="status-item">
+        <strong>Current Action</strong>
+        <span id="current-action">Waiting...</span>
+      </div>
+      <div class="status-item">
+        <strong>Dragged Item</strong>
+        <span id="dragged-item">None</span>
+      </div>
+      <div class="status-item">
+        <strong>Drop Target</strong>
+        <span id="drop-target">None</span>
+      </div>
+      <div class="status-item">
+        <strong>Total Drops</strong>
+        <span id="drop-count">0</span>
+      </div>
+    </div>
+
+    <button class="clear-btn" id="clear-btn">Reset All</button>
+  </div>
+
+  <!-- Event Log -->
+  <div id="event-log">
+    <div>Event log:</div>
+  </div>
+
+  <script>
+    const eventLog = document.getElementById('event-log');
+    const currentAction = document.getElementById('current-action');
+    const draggedItem = document.getElementById('dragged-item');
+    const dropTargetEl = document.getElementById('drop-target');
+    const dropCount = document.getElementById('drop-count');
+    const clearBtn = document.getElementById('clear-btn');
+
+    let totalDrops = 0;
+    let currentDraggedElement = null;
+
+    function logEvent(type, detail) {
+      const entry = document.createElement('div');
+      entry.textContent = `[${new Date().toLocaleTimeString()}] ${type}: ${detail}`;
+      eventLog.appendChild(entry);
+      eventLog.scrollTop = eventLog.scrollHeight;
+    }
+
+    function updateStatus(action, item, target) {
+      currentAction.textContent = action || 'Waiting...';
+      draggedItem.textContent = item || 'None';
+      dropTargetEl.textContent = target || 'None';
+    }
+
+    // Initialize draggables
+    const draggables = document.querySelectorAll('.draggable');
+    const dropzones = document.querySelectorAll('.dropzone');
+
+    draggables.forEach(draggable => {
+      draggable.addEventListener('dragstart', (e) => {
+        currentDraggedElement = draggable;
+        draggable.classList.add('dragging');
+        e.dataTransfer.setData('text/plain', draggable.id);
+        e.dataTransfer.effectAllowed = 'move';
+
+        updateStatus('Dragging', draggable.id, '-');
+        logEvent('dragstart', `Started dragging ${draggable.id}`);
+      });
+
+      draggable.addEventListener('dragend', (e) => {
+        draggable.classList.remove('dragging');
+        currentDraggedElement = null;
+        updateStatus('Drag ended', draggable.id, '-');
+        logEvent('dragend', `Stopped dragging ${draggable.id}`);
+      });
+    });
+
+    dropzones.forEach(dropzone => {
+      dropzone.addEventListener('dragenter', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('drag-over');
+        logEvent('dragenter', `Entered ${dropzone.id}`);
+      });
+
+      dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        updateStatus('Dragging over', currentDraggedElement?.id || '-', dropzone.id);
+      });
+
+      dropzone.addEventListener('dragleave', (e) => {
+        dropzone.classList.remove('drag-over');
+        logEvent('dragleave', `Left ${dropzone.id}`);
+      });
+
+      dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('drag-over');
+        dropzone.classList.add('dropped');
+
+        const draggedId = e.dataTransfer.getData('text/plain');
+        const draggedEl = document.getElementById(draggedId);
+
+        if (draggedEl) {
+          // Remove placeholder if exists
+          const placeholder = dropzone.querySelector('.placeholder');
+          if (placeholder) placeholder.remove();
+
+          // Clone and add to dropzone
+          const clone = draggedEl.cloneNode(true);
+          clone.classList.remove('dragging');
+          clone.classList.add('result-item');
+          dropzone.appendChild(clone);
+
+          // Update counters
+          totalDrops++;
+          dropCount.textContent = totalDrops;
+
+          updateStatus('Dropped!', draggedId, dropzone.id);
+          logEvent('drop', `Dropped ${draggedId} into ${dropzone.id}`);
+
+          // Hide original
+          draggedEl.style.display = 'none';
+        }
+      });
+    });
+
+    // Reset button
+    clearBtn.addEventListener('click', () => {
+      // Reset dropzones
+      dropzones.forEach(zone => {
+        zone.classList.remove('dropped', 'error');
+        const items = zone.querySelectorAll('.result-item');
+        items.forEach(item => item.remove());
+
+        // Add placeholder back
+        if (!zone.querySelector('.placeholder')) {
+          const placeholder = document.createElement('span');
+          placeholder.className = 'placeholder';
+          placeholder.textContent = 'Drop items here';
+          zone.appendChild(placeholder);
+        }
+      });
+
+      // Reset draggables
+      draggables.forEach(d => {
+        d.style.display = '';
+        d.classList.remove('dragging');
+      });
+
+      // Reset counters
+      totalDrops = 0;
+      dropCount.textContent = '0';
+
+      updateStatus('Reset', '-', '-');
+      logEvent('reset', 'All items reset');
+    });
+
+    // Log all drag events for debugging
+    document.addEventListener('drag', (e) => {
+      // Too noisy, don't log continuous drag events
+    });
+  </script>
+</body>
+</html>

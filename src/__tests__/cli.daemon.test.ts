@@ -4,10 +4,13 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 
-const CLI_PATH = path.join(__dirname, '../../bin/cli.ts');
+const CLI_PATH = path.join(__dirname, '../cli.ts');
 const SESSION = `test-daemon-${Date.now()}`;
 
-function runCli(args: string[], timeout = 10000): Promise<{ stdout: string; stderr: string; code: number | null }> {
+function runCli(
+  args: string[],
+  timeout = 10000
+): Promise<{ stdout: string; stderr: string; code: number | null }> {
   return new Promise((resolve, reject) => {
     const proc = spawn('npx', ['tsx', CLI_PATH, ...args], {
       env: { ...process.env, AGENT_BROWSER_SESSION: SESSION },

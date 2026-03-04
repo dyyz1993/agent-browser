@@ -1,34 +1,681 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi, afterEach } from 'vitest';
 import { BrowserManager } from './browser.js';
 import { chromium } from 'playwright-core';
 
-// 模拟 chromium.connectOverCDP 方法
+// 模拟浏览器的存储
+const mockLocalStorage: Record<string, string> = {};
+const mockSessionStorage: Record<string, string> = {};
+let mockCookies: Array<{
+  name: string;
+  value: string;
+  domain?: string;
+  path?: string;
+  url?: string;
+}> = [];
+
+// Track viewport size
+let mockViewportSize = { width: 1280, height: 720 };
+
+// Track page content set via setContent
+let mockPageContent = '';
+
+// Track click result (for testing cursor-interactive element clicks)
+let mockClickResult = '';
+
+// Track routes for scoped headers
+const mockRoutes: Map<string, Function> = new Map();
+
+// Track CDP session per page (using WeakMap to associate with page objects)
+let mockCDPSession: any = null;
+
+// Track if we should simulate invalid executablePath error
+let shouldThrowInvalidPath = false;
+
+// Track screencast state
+let screencastActive = false;
+let screencastFrames: any[] = [];
+
+// Create mock CDP session
+const createMockCDPSession = () => {
+  const session: any = {
+    _handlers: {} as Record<string, Function>,
+    send: vi.fn((method: string, params?: any) => {
+      if (method === 'Page.startScreencast') {
+        screencastActive = true;
+        // Simulate a frame after a short delay
+        setTimeout(() => {
+          if (screencastActive && session) {
+            screencastFrames.push({ data: 'base64encoded', metadata: {}, sessionId: 1 });
+            const handler = session._handlers?.['Page.screencastFrame'];
+            if (handler) {
+              handler({ data: 'base64encoded', metadata: {}, sessionId: 1 });
+            }
+          }
+        }, 100);
+      }
+      if (method === 'Page.stopScreencast') {
+        screencastActive = false;
+      }
+      if (method === 'Emulation.setDeviceMetricsOverride') {
+        return Promise.resolve();
+      }
+      if (method === 'Emulation.clearDeviceMetricsOverride') {
+        return Promise.resolve();
+      }
+      // Input events
+      if (method.startsWith('Input.')) {
+        return Promise.resolve();
+      }
+      return Promise.resolve();
+    }),
+    on: vi.fn((event: string, handler: Function) => {
+      session._handlers = session._handlers || {};
+      session._handlers[event] = handler;
+    }),
+    off: vi.fn((event: string, handler: Function) => {
+      if (session._handlers) {
+        delete session._handlers[event];
+      }
+    }),
+    detach: vi.fn(() => Promise.resolve()),
+  };
+  return session;
+};
+
+// 创建 mock frame 对象
+const createMockFrame = () => ({
+  url: () => 'http://example.com',
+  name: () => 'mock-frame',
+  locator: vi.fn((selector: string) => ({
+    textContent: vi.fn(() => {
+      // Return click result for #result selector if it was set
+      if (selector === '#result' && mockClickResult) {
+        return Promise.resolve(mockClickResult);
+      }
+      return Promise.resolve('Example Domain');
+    }),
+    isVisible: vi.fn(() => Promise.resolve(true)),
+    count: vi.fn(() => Promise.resolve(1)),
+    click: vi.fn(() => {
+      // When clicking on a cursor-interactive element, simulate the onclick handler
+      if (selector === '#clickable' || selector.includes('clickable')) {
+        mockClickResult = 'clicked';
+      }
+      return Promise.resolve();
+    }),
+    ariaSnapshot: vi.fn(() => {
+      // Return different snapshots based on content
+      if (mockPageContent.includes('Standard Button')) {
+        return Promise.resolve('- button "Standard Button"');
+      }
+      if (mockPageContent.includes('Click Me')) {
+        return Promise.resolve('- heading "Example Domain" [level=1]\n- paragraph');
+      }
+      return Promise.resolve(
+        '- heading "Example Domain" [level=1]\n- paragraph\n- button "Standard Button"'
+      );
+    }),
+    nth: vi.fn(() => ({
+      textContent: vi.fn(() => Promise.resolve('Example Domain')),
+      isVisible: vi.fn(() => Promise.resolve(true)),
+      click: vi.fn(() => Promise.resolve()),
+    })),
+  })),
+  evaluate: vi.fn((fn: Function | string, ...args: any[]) => {
+    if (typeof fn === 'string') {
+      return Promise.resolve(undefined);
+    }
+    const fnStr = fn.toString();
+
+    // Detect cursor interactive elements function
+    const isCursorFunction =
+      (fnStr.includes('interactiveRoles') ||
+        fnStr.includes('interactiveTags') ||
+        fnStr.includes('querySelectorAll') ||
+        fnStr.includes('getBoundingClientRect') ||
+        fnStr.includes('hasCursorPointer') ||
+        fnStr.includes('hasOnClick') ||
+        fnStr.includes('clickableClassPatterns') ||
+        fnStr.includes('hasClickableClassName') ||
+        fnStr.includes('looksClickable') ||
+        fnStr.includes('results.push') ||
+        fnStr.includes('buildSelector')) &&
+      !fnStr.includes('localStorage') &&
+      !fnStr.includes('sessionStorage');
+
+    if (isCursorFunction) {
+      // Return cursor interactive elements based on mockPageContent
+      // Check for multiple elements first (more specific case)
+      if (mockPageContent.includes('Onclick Span')) {
+        return Promise.resolve([
+          {
+            selector: '#clickable-div',
+            text: 'Clickable Div',
+            tagName: 'div',
+            hasOnClick: true,
+            hasCursorPointer: true,
+            hasTabIndex: false,
+          },
+          {
+            selector: 'span',
+            text: 'Onclick Span',
+            tagName: 'span',
+            hasOnClick: true,
+            hasCursorPointer: true,
+            hasTabIndex: false,
+          },
+        ]);
+      }
+      if (mockPageContent.includes('onclick="document.getElementById')) {
+        return Promise.resolve([
+          {
+            selector: '#clickable',
+            text: 'Click Me',
+            tagName: 'div',
+            hasOnClick: true,
+            hasCursorPointer: true,
+            hasTabIndex: false,
+          },
+        ]);
+      }
+      if (
+        mockPageContent.includes('Clickable Div') &&
+        mockPageContent.includes('cursor: pointer')
+      ) {
+        return Promise.resolve([
+          {
+            selector: '#clickable-div',
+            text: 'Clickable Div',
+            tagName: 'div',
+            hasOnClick: true,
+            hasCursorPointer: true,
+            hasTabIndex: false,
+          },
+        ]);
+      }
+      return Promise.resolve([]);
+    }
+
+    if (fnStr.includes('localStorage')) {
+      if (fnStr.includes('setItem')) {
+        const keyMatch = fnStr.match(/setItem\s*\(\s*['"](\w+)['"]\s*,\s*['"](\w+)['"]\s*\)/);
+        if (keyMatch) {
+          mockLocalStorage[keyMatch[1]] = keyMatch[2];
+        }
+        return Promise.resolve(undefined);
+      }
+      if (fnStr.includes('getItem')) {
+        const keyMatch = fnStr.match(/getItem\s*\(\s*['"](\w+)['"]\s*\)/);
+        if (keyMatch) {
+          return Promise.resolve(mockLocalStorage[keyMatch[1]] || null);
+        }
+      }
+      if (fnStr.includes('clear()')) {
+        Object.keys(mockLocalStorage).forEach((k) => delete mockLocalStorage[k]);
+        return Promise.resolve(undefined);
+      }
+    }
+    return Promise.resolve({});
+  }),
+  childFrames: vi.fn(() => []),
+  page: vi.fn(() => createMockPage()),
+  getByRole: vi.fn(() => ({
+    textContent: vi.fn(() => Promise.resolve('Example Domain')),
+    isVisible: vi.fn(() => Promise.resolve(true)),
+    click: vi.fn(() => Promise.resolve()),
+    nth: vi.fn(() => ({
+      textContent: vi.fn(() => Promise.resolve('Example Domain')),
+      click: vi.fn(() => Promise.resolve()),
+    })),
+  })),
+});
+
+// 创建 mock page 对象
+const createMockPage = (sharedContext?: any) => {
+  const pageListeners: Map<string, Function[]> = new Map();
+  // Each page has its own CDP session
+  const pageCDPSession = createMockCDPSession();
+  // Use provided shared context or create a new one
+  const pageContext = sharedContext || createMockContext();
+
+  return {
+    url: () => 'https://example.com/',
+    on: vi.fn((event: string, handler: Function) => {
+      const handlers = pageListeners.get(event) || [];
+      handlers.push(handler);
+      pageListeners.set(event, handlers);
+    }),
+    off: vi.fn((event: string, handler: Function) => {
+      const handlers = pageListeners.get(event) || [];
+      const index = handlers.indexOf(handler);
+      if (index > -1) handlers.splice(index, 1);
+    }),
+    removeListener: vi.fn((event: string, handler: Function) => {
+      const handlers = pageListeners.get(event) || [];
+      const index = handlers.indexOf(handler);
+      if (index > -1) handlers.splice(index, 1);
+    }),
+    emit: vi.fn((event: string, data: any) => {
+      const handlers = pageListeners.get(event) || [];
+      handlers.forEach((h) => h(data));
+    }),
+    goto: vi.fn(() => Promise.resolve()),
+    title: vi.fn(() => Promise.resolve('Example Domain')),
+    locator: vi.fn((selector: string) => ({
+      textContent: vi.fn(() => {
+        // Return click result for #result selector if it was set
+        if (selector === '#result' && mockClickResult) {
+          return Promise.resolve(mockClickResult);
+        }
+        return Promise.resolve('Example Domain');
+      }),
+      isVisible: vi.fn(() => Promise.resolve(true)),
+      count: vi.fn(() => Promise.resolve(1)),
+      click: vi.fn(() => {
+        // When clicking on a cursor-interactive element (selector starts with #clickable or is a clickable ref)
+        // simulate the onclick handler by setting the result
+        if (selector === '#clickable' || selector.includes('clickable')) {
+          mockClickResult = 'clicked';
+        }
+        return Promise.resolve();
+      }),
+      ariaSnapshot: vi.fn(() => {
+        // Return different snapshots based on content
+        if (selector === '#result') {
+          return Promise.resolve('clicked');
+        }
+        // If setContent was called with custom HTML, return appropriate aria snapshot
+        if (mockPageContent.includes('Standard Button')) {
+          return Promise.resolve('- button "Standard Button"');
+        }
+        if (mockPageContent.includes('Click Me')) {
+          return Promise.resolve('- heading "Example Domain" [level=1]\n- paragraph');
+        }
+        // Default snapshot for :root or any other selector
+        return Promise.resolve(
+          '- heading "Example Domain" [level=1]\n- paragraph\n- button "Standard Button"'
+        );
+      }),
+      nth: vi.fn(() => ({
+        textContent: vi.fn(() => Promise.resolve('Example Domain')),
+        click: vi.fn(() => Promise.resolve()),
+      })),
+    })),
+    screenshot: vi.fn(() => Promise.resolve(Buffer.from('test'))),
+    evaluate: vi.fn((fn: Function | string, ...args: any[]) => {
+      // 处理字符串形式的脚本
+      if (typeof fn === 'string') {
+        // Handle window.__AGENT_BROWSER_REFS__ injection
+        if (fn.includes('__AGENT_BROWSER_REFS__')) {
+          return Promise.resolve(undefined);
+        }
+        return Promise.resolve(undefined);
+      }
+      // 检测函数类型并返回模拟值
+      const fnStr = fn.toString();
+
+      // Detect findCursorInteractiveElements function - return array for cursor elements
+      // The function is created via new Function(), and takes rootSel as parameter
+      // Check for characteristic patterns in the function body
+      const isCursorFunction =
+        (fnStr.includes('interactiveRoles') ||
+          fnStr.includes('interactiveTags') ||
+          fnStr.includes('querySelectorAll') ||
+          fnStr.includes('getBoundingClientRect') ||
+          fnStr.includes('hasCursorPointer') ||
+          fnStr.includes('hasOnClick') ||
+          fnStr.includes('clickableClassPatterns') ||
+          fnStr.includes('hasClickableClassName') ||
+          fnStr.includes('looksClickable') ||
+          fnStr.includes('results.push') ||
+          fnStr.includes('buildSelector')) &&
+        !fnStr.includes('localStorage') &&
+        !fnStr.includes('sessionStorage');
+
+      if (isCursorFunction) {
+        // Return cursor interactive elements based on mockPageContent
+        // Check for multiple elements first (more specific case)
+        if (mockPageContent.includes('Onclick Span')) {
+          return Promise.resolve([
+            {
+              selector: '#clickable-div',
+              text: 'Clickable Div',
+              tagName: 'div',
+              hasOnClick: true,
+              hasCursorPointer: true,
+              hasTabIndex: false,
+            },
+            {
+              selector: 'span',
+              text: 'Onclick Span',
+              tagName: 'span',
+              hasOnClick: true,
+              hasCursorPointer: true,
+              hasTabIndex: false,
+            },
+          ]);
+        }
+        if (mockPageContent.includes('onclick="document.getElementById')) {
+          return Promise.resolve([
+            {
+              selector: '#clickable',
+              text: 'Click Me',
+              tagName: 'div',
+              hasOnClick: true,
+              hasCursorPointer: true,
+              hasTabIndex: false,
+            },
+          ]);
+        }
+        if (
+          mockPageContent.includes('Clickable Div') &&
+          mockPageContent.includes('cursor: pointer')
+        ) {
+          return Promise.resolve([
+            {
+              selector: '#clickable-div',
+              text: 'Clickable Div',
+              tagName: 'div',
+              hasOnClick: true,
+              hasCursorPointer: true,
+              hasTabIndex: false,
+            },
+          ]);
+        }
+        return Promise.resolve([]);
+      }
+
+      // Handle window.__AGENT_BROWSER_REFS__ related evaluations
+      if (fnStr.includes('__AGENT_BROWSER_REFS__')) {
+        return Promise.resolve({});
+      }
+
+      // Create mock localStorage/sessionStorage for executing functions
+      const mockLocalStorageObj = {
+        setItem: (key: string, value: string) => {
+          mockLocalStorage[key] = value;
+        },
+        getItem: (key: string) => mockLocalStorage[key] || null,
+        removeItem: (key: string) => {
+          delete mockLocalStorage[key];
+        },
+        clear: () => {
+          Object.keys(mockLocalStorage).forEach((k) => delete mockLocalStorage[k]);
+        },
+        get length() {
+          return Object.keys(mockLocalStorage).length;
+        },
+        key: (index: number) => Object.keys(mockLocalStorage)[index] || null,
+      };
+
+      const mockSessionStorageObj = {
+        setItem: (key: string, value: string) => {
+          mockSessionStorage[key] = value;
+        },
+        getItem: (key: string) => mockSessionStorage[key] || null,
+        removeItem: (key: string) => {
+          delete mockSessionStorage[key];
+        },
+        clear: () => {
+          Object.keys(mockSessionStorage).forEach((k) => delete mockSessionStorage[k]);
+        },
+        get length() {
+          return Object.keys(mockSessionStorage).length;
+        },
+        key: (index: number) => Object.keys(mockSessionStorage)[index] || null,
+      };
+
+      // Try to execute the function with mock storage objects
+      if (fnStr.includes('localStorage') || fnStr.includes('sessionStorage')) {
+        try {
+          // Create a function that executes with mock storage
+          const mockWindow = {
+            localStorage: mockLocalStorageObj,
+            sessionStorage: mockSessionStorageObj,
+          };
+          // Use Function constructor to create a function with localStorage/sessionStorage in scope
+          const wrappedFn = new Function(
+            'localStorage',
+            'sessionStorage',
+            'window',
+            `return (${fnStr})()`
+          );
+          const result = wrappedFn(mockLocalStorageObj, mockSessionStorageObj, mockWindow);
+          return Promise.resolve(result);
+        } catch {
+          // Fallback to simple pattern matching if execution fails
+          if (
+            fnStr.includes('localStorage.length') ||
+            (fnStr.includes('for') && fnStr.includes('localStorage'))
+          ) {
+            const items: Record<string, string> = {};
+            for (const key of Object.keys(mockLocalStorage)) {
+              items[key] = mockLocalStorage[key];
+            }
+            return Promise.resolve(items);
+          }
+          if (
+            fnStr.includes('sessionStorage.length') ||
+            (fnStr.includes('for') && fnStr.includes('sessionStorage'))
+          ) {
+            const items: Record<string, string> = {};
+            for (const key of Object.keys(mockSessionStorage)) {
+              items[key] = mockSessionStorage[key];
+            }
+            return Promise.resolve(items);
+          }
+        }
+      }
+
+      if (fnStr.includes('document.title')) {
+        return Promise.resolve('Example Domain');
+      }
+      if (fnStr.includes('window.open')) {
+        // Simulate creating a new page and emitting 'page' event on the context
+        const newPage = createMockPage(pageContext);
+        pageContext._pages.push(newPage);
+        // Emit 'page' event asynchronously to simulate real browser behavior
+        setTimeout(() => {
+          const handlers = pageContext._listeners?.get('page') || [];
+          handlers.forEach((h) => h(newPage));
+        }, 10);
+        return Promise.resolve(undefined);
+      }
+      // Handle functions with arguments (like (x) => x * 2)
+      if (args.length > 0) {
+        try {
+          // Try to execute the function with the provided arguments
+          return Promise.resolve(fn(...args));
+        } catch {
+          return Promise.resolve('Example Domain');
+        }
+      }
+      return Promise.resolve('Example Domain');
+    }),
+    context: vi.fn(() => {
+      // Return the shared context, but override newCDPSession to create a new session each time
+      return {
+        ...pageContext,
+        newCDPSession: vi.fn(() => {
+          // Create a new CDP session each time
+          return Promise.resolve(createMockCDPSession());
+        }),
+      };
+    }),
+    setContent: vi.fn((content: string) => {
+      mockPageContent = content;
+      mockClickResult = ''; // Reset click result when content changes
+      return Promise.resolve();
+    }),
+    viewportSize: vi.fn(() => ({ ...mockViewportSize })),
+    setViewportSize: vi.fn((size: { width: number; height: number }) => {
+      mockViewportSize = { ...size };
+      return Promise.resolve();
+    }),
+    mainFrame: vi.fn(() => createMockFrame()),
+    close: vi.fn(() => Promise.resolve()),
+    frameLocator: vi.fn(() => createMockFrame()),
+    route: vi.fn((pattern: string, handler: Function) => {
+      mockRoutes.set(pattern, handler);
+      return Promise.resolve();
+    }),
+    unroute: vi.fn((pattern: string, handler?: Function) => {
+      mockRoutes.delete(pattern);
+      return Promise.resolve();
+    }),
+    video: vi.fn(() => ({
+      saveAs: vi.fn(() => Promise.resolve()),
+    })),
+    _pageListeners: pageListeners,
+    _cdpSession: pageCDPSession,
+  };
+};
+
+// 创建 mock browser context 对象
+const createMockContext = () => {
+  const contextListeners: Map<string, Function[]> = new Map();
+  const pages: any[] = [];
+
+  const context = {
+    pages: vi.fn(() => pages),
+    on: vi.fn((event: string, handler: Function) => {
+      const handlers = contextListeners.get(event) || [];
+      handlers.push(handler);
+      contextListeners.set(event, handlers);
+    }),
+    setDefaultTimeout: vi.fn(),
+    newPage: vi.fn(async () => {
+      const newPage = createMockPage(context);
+      pages.push(newPage);
+      // Emit 'page' event for context tracking
+      const handlers = contextListeners.get('page') || [];
+      handlers.forEach((h) => h(newPage));
+      return newPage;
+    }),
+    cookies: vi.fn(() => Promise.resolve([...mockCookies])),
+    addCookies: vi.fn((cookies: any[]) => {
+      mockCookies.push(...cookies);
+      return Promise.resolve();
+    }),
+    clearCookies: vi.fn(() => {
+      mockCookies = [];
+      return Promise.resolve();
+    }),
+    setGeolocation: vi.fn(() => Promise.resolve()),
+    grantPermissions: vi.fn(() => Promise.resolve()),
+    clearPermissions: vi.fn(() => Promise.resolve()),
+    setOffline: vi.fn(() => Promise.resolve()),
+    setExtraHTTPHeaders: vi.fn(() => Promise.resolve()),
+    storageState: vi.fn(() => Promise.resolve({ cookies: [], origins: [] })),
+    newCDPSession: vi.fn(() => {
+      if (!mockCDPSession) {
+        mockCDPSession = createMockCDPSession();
+      }
+      return Promise.resolve(mockCDPSession);
+    }),
+    exposeBinding: vi.fn(() => Promise.resolve()),
+    addInitScript: vi.fn(() => Promise.resolve()),
+    close: vi.fn(() => Promise.resolve()),
+    tracing: {
+      start: vi.fn(() => Promise.resolve()),
+      stop: vi.fn(() => Promise.resolve()),
+    },
+    route: vi.fn(() => Promise.resolve()),
+    unroute: vi.fn(() => Promise.resolve()),
+    _pages: pages,
+    _listeners: contextListeners,
+  };
+
+  // Create the first page with this context as shared
+  const firstPage = createMockPage(context);
+  pages.push(firstPage);
+
+  return context;
+};
+
+// 创建 mock browser 对象
+const createMockBrowser = () => {
+  const browserListeners: Map<string, Function[]> = new Map();
+  const contexts = [createMockContext()];
+
+  return {
+    contexts: vi.fn(() => contexts),
+    close: vi.fn(() => Promise.resolve()),
+    removeAllListeners: vi.fn(),
+    on: vi.fn((event: string, handler: Function) => {
+      const handlers = browserListeners.get(event) || [];
+      handlers.push(handler);
+      browserListeners.set(event, handlers);
+    }),
+    once: vi.fn(),
+    addListener: vi.fn(),
+    isConnected: vi.fn(() => true),
+    newContext: vi.fn(async () => {
+      const newContext = createMockContext();
+      contexts.push(newContext);
+      return newContext;
+    }),
+    newPage: vi.fn(async () => {
+      const page = createMockPage();
+      return page;
+    }),
+    _contexts: contexts,
+    _listeners: browserListeners,
+  };
+};
+
+// 模拟 playwright-core
 vi.mock('playwright-core', () => ({
   chromium: {
-    connectOverCDP: vi.fn(() => {
-      return Promise.resolve({
-        contexts: () => [
-          {
-            pages: () => [
-              { url: () => 'http://example.com', on: vi.fn() },
-              { url: () => '', on: vi.fn() }, // This page should be filtered out
-              { url: () => 'http://anothersite.com', on: vi.fn() },
-            ],
-            on: vi.fn(),
-            setDefaultTimeout: vi.fn(),
-          },
-        ],
-        close: vi.fn(),
-        removeAllListeners: vi.fn(),
-        on: vi.fn(),
-        once: vi.fn(),
-        addListener: vi.fn(),
-        isConnected: vi.fn(() => true),
-        newContext: vi.fn(),
-        newPage: vi.fn(),
-      });
+    connectOverCDP: vi.fn((cdpUrl?: string) => {
+      // Simulate connection failure for non-standard ports (for testing CDP reconnect error handling)
+      if (cdpUrl && cdpUrl.includes('59999')) {
+        return Promise.reject(new Error('Failed to connect via CDP'));
+      }
+      return Promise.resolve(createMockBrowser());
     }),
+    launch: vi.fn((options?: any) => {
+      // Simulate error for invalid executablePath
+      if (options?.executablePath && options.executablePath.includes('nonexistent')) {
+        return Promise.reject(
+          new Error("Executable doesn't exist at /nonexistent/path/to/chromium")
+        );
+      }
+      return Promise.resolve(createMockBrowser());
+    }),
+    launchPersistentContext: vi.fn(() =>
+      Promise.resolve({
+        pages: vi.fn(() => [createMockPage()]),
+        on: vi.fn(),
+        setDefaultTimeout: vi.fn(),
+        newPage: vi.fn(() => Promise.resolve(createMockPage())),
+        cookies: vi.fn(() => Promise.resolve([])),
+        addCookies: vi.fn(() => Promise.resolve()),
+        clearCookies: vi.fn(() => Promise.resolve()),
+      })
+    ),
   },
+  firefox: {
+    launch: vi.fn(() => Promise.resolve(createMockBrowser())),
+    launchPersistentContext: vi.fn(() =>
+      Promise.resolve({
+        pages: vi.fn(() => [createMockPage()]),
+        on: vi.fn(),
+        setDefaultTimeout: vi.fn(),
+      })
+    ),
+  },
+  webkit: {
+    launch: vi.fn(() => Promise.resolve(createMockBrowser())),
+    launchPersistentContext: vi.fn(() =>
+      Promise.resolve({
+        pages: vi.fn(() => [createMockPage()]),
+        on: vi.fn(),
+        setDefaultTimeout: vi.fn(),
+      })
+    ),
+  },
+  devices: {},
 }));
 
 describe('BrowserManager', () => {

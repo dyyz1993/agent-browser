@@ -3,433 +3,268 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Comprehensive Recorder Test Page</title>
+  <title>Comprehensive Test Page</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 20px; background: #f5f5f5; }
-    .section { margin-bottom: 30px; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-    .section h2 { margin-bottom: 15px; color: #333; }
-    .test-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
-    .test-item { padding: 15px; background: #f9f9f9; border-radius: 6px; }
-    .test-item label { display: block; margin-bottom: 8px; font-weight: 500; color: #555; }
-    input, button, select, textarea { margin: 5px 0; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
-    button { cursor: pointer; background: #007AFF; color: white; border: none; transition: all 0.2s; }
-    button:hover { background: #0056b3; transform: scale(1.02); }
-    button:active { transform: scale(0.98); }
-    .btn-primary { background: #007AFF; }
-    .btn-secondary { background: #6c757d; }
-    .btn-success { background: #28a745; }
-    .btn-danger { background: #dc3545; }
-    .btn-warning { background: #ffc107; color: #333; }
-    .checkbox-wrapper { display: flex; align-items: center; gap: 10px; }
-    input[type="checkbox"] { width: 20px; height: 20px; margin: 0; }
-    .drop-zone { border: 2px dashed #007AFF; padding: 30px; text-align: center; background: #f0f8ff; border-radius: 8px; transition: all 0.3s; }
-    .drop-zone.dragover { background: #e3f2ff; border-color: #0056b3; }
-    .drop-zone.dragleave { background: #f0f8ff; border-color: #007AFF; }
-    .drop-zone.dropped { background: #d4edda; border-color: #28a745; }
-    .drag-item { width: 60px; height: 60px; background: white; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: move; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-    .drag-item:active { cursor: grabbing; }
-    .scroll-container { height: 200px; overflow-y: scroll; border: 1px solid #ddd; padding: 10px; }
-    .scroll-content { height: 800px; }
-    .viewport-info { position: fixed; bottom: 10px; right: 10px; background: rgba(0,0,0,0.8); color: white; padding: 10px 15px; border-radius: 6px; font-size: 12px; }
-    .link-section a { display: block; padding: 8px 12px; margin: 5px 0; background: #e9ecef; color: #007AFF; text-decoration: none; border-radius: 4px; transition: all 0.2s; }
-    .link-section a:hover { background: #0056b3; transform: translateX(5px); }
-    .link-section a:visited { background: #6c757d; }
-    .iframe-container { border: 2px solid #ddd; border-radius: 8px; overflow: hidden; }
-    iframe { width: 100%; height: 200px; border: none; }
-    .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 1000; }
-    .modal-overlay.active { display: flex; }
-    .modal { background: white; padding: 30px; border-radius: 12px; max-width: 500px; width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
-    .modal h3 { margin-bottom: 20px; }
-    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+    .section { background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    h2 { margin-top: 0; color: #333; border-bottom: 2px solid #007bff; padding-bottom: 10px; }
+    input, select, textarea, button { margin: 5px; padding: 8px 12px; font-size: 14px; }
+    input[type="text"], input[type="email"], input[type="password"], input[type="number"] { border: 1px solid #ccc; border-radius: 4px; width: 200px; }
+    button { background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; padding: 10px 20px; }
+    button:hover { background: #0056b3; }
+    button.secondary { background: #6c757d; }
+    button.danger { background: #dc3545; }
+    button.success { background: #28a745; }
+    .checkbox-group label, .radio-group label { display: block; margin: 5px 0; }
+    textarea { width: 400px; height: 100px; border: 1px solid #ccc; border-radius: 4px; }
+    select { width: 220px; padding: 8px; }
+    .link-list a { display: block; margin: 5px 0; color: #007bff; }
+    .scrollable { height: 200px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px; background: #fafafa; }
+    .hover-box { width: 200px; height: 100px; background: #e9ecef; display: flex; align-items: center; justify-content: center; transition: all 0.3s; }
+    .hover-box:hover { background: #007bff; color: white; }
+    .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+    .grid button { width: 100%; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background: #007bff; color: white; }
+    tr:hover { background: #f5f5f5; }
   </style>
 </head>
 <body>
-  <h1 style="text-align: center; margin-bottom: 30px; color: #333;">Comprehensive Recorder Test Page</h1>
-  
-  <div class="viewport-info" id="viewportInfo">Viewport: Loading...</div>
+  <h1>Comprehensive Test Page for Recorder</h1>
+  <p>This page contains various interactive elements to test the recorder.</p>
 
-  <!-- Mouse Events -->
   <div class="section">
-    <h2>1. Mouse Events</h2>
-    <div class="test-grid">
-      <div class="test-item">
-        <label>Click</label>
-        <button id="click-btn" data-testid="click-btn">Click Me</button>
-        <button id="dblclick-btn" data-testid="dblclick-btn">Double Click</button>
-      </div>
-      <div class="test-item">
-        <label>Hover</label>
-        <button id="hover-btn" data-testid="hover-btn">Hover Over Me</button>
-        <div id="hover-result" style="margin-top: 10px; color: #666;">Hover result will appear here</div>
-      </div>
-      <div class="test-item">
-        <label>Right Click</label>
-        <button id="rightclick-btn" data-testid="rightclick-btn" oncontextmenu="event.preventDefault();">Right Click Me</button>
-      </div>
-    </div>
+    <h2>1. Text Inputs</h2>
+    <div><label>Username: <input type="text" id="username" placeholder="Enter username"></label></div>
+    <div><label>Email: <input type="email" id="email" placeholder="Enter email"></label></div>
+    <div><label>Password: <input type="password" id="password" placeholder="Enter password"></label></div>
+    <div><label>Number: <input type="number" id="number" value="0" min="0" max="100"></label></div>
+    <div><label>Search: <input type="text" id="search" placeholder="Search..."></label></div>
+    <!-- Additional test inputs -->
+    <div><label>Type Input: <input type="text" id="type-input" placeholder="Type test"></label></div>
+    <div><label>Email Input: <input type="email" id="email-input" placeholder="email@test.com"></label></div>
+    <div><label>Password Input: <input type="password" id="password-input" placeholder="password"></label></div>
   </div>
 
-  <!-- Keyboard Events -->
   <div class="section">
-    <h2>2. Keyboard Events</h2>
-    <div class="test-grid">
-      <div class="test-item">
-        <label>Type Input</label>
-        <input type="text" id="type-input" data-testid="type-input" placeholder="Type here...">
-      </div>
-      <div class="test-item">
-        <label>Password Input</label>
-        <input type="password" id="password-input" data-testid="password-input" placeholder="Password">
-      </div>
-      <div class="test-item">
-        <label>Email Input</label>
-        <input type="email" id="email-input" name="email" placeholder="email@example.com">
-      </div>
-      <div class="test-item">
-        <label>Textarea</label>
-        <textarea id="textarea" data-testid="textarea" rows="3" placeholder="Multi-line text..."></textarea>
-      </div>
-      <div class="test-item">
-        <label>Press Keys</label>
-        <div style="display: flex; gap: 10px;">
-          <button id="enter-btn" data-testid="enter-btn">Press Enter</button>
-          <button id="escape-btn" data-testid="escape-btn">Press Escape</button>
-          <button id="tab-btn" data-testid="tab-btn">Press Tab</button>
-        </div>
-      </div>
+    <h2>2. Buttons</h2>
+    <div class="grid">
+      <button id="btn1">Button 1</button>
+      <button id="btn2" class="secondary">Button 2</button>
+      <button id="btn3" class="danger">Button 3</button>
+      <button id="btn4" class="success">Button 4</button>
+      <button id="btn5">Button 5</button>
+      <button id="btn6">Button 6</button>
+      <button id="btn7">Button 7</button>
+      <button id="btn8">Button 8</button>
+      <button id="btn9">Button 9</button>
+      <button id="btn10">Button 10</button>
+    </div>
+    <!-- Additional test buttons for recorder-enhanced tests -->
+    <div style="margin-top: 10px;">
+      <button id="click-btn">Click Test</button>
+      <button id="dblclick-btn">Double Click Test</button>
+      <button id="rightclick-btn">Right Click Test</button>
+      <button id="submit-btn">Submit</button>
+      <button id="open-modal-btn">Open Modal</button>
     </div>
   </div>
 
-  <!-- Form Events -->
   <div class="section">
-    <h2>3. Form Events</h2>
-    <div class="test-grid">
-      <div class="test-item">
-        <label>Fill</label>
-        <input type="text" id="fill-input" data-testid="fill-input" placeholder="Fill test">
-      </div>
-      <div class="test-item">
-        <label>Select Dropdown</label>
-        <select id="select-dropdown" data-testid="select-dropdown" name="country">
-          <option value="">Select country</option>
-          <option value="us">United States</option>
-          <option value="uk">United Kingdom</option>
-          <option value="cn">China</option>
-          <option value="jp">Japan</option>
-        </select>
-      </div>
-      <div class="test-item">
-        <label>Multi Select</label>
-        <select id="select-multi" data-testid="select-multi" multiple size="3">
-          <option value="option1">Option 1</option>
-          <option value="option2">Option 2</option>
-          <option value="option3">Option 3</option>
-          <option value="option4">Option 4</option>
-        </select>
-      </div>
-      <div class="test-item">
-        <label>Checkbox</label>
-        <div class="checkbox-wrapper">
-          <input type="checkbox" id="checkbox-agree" data-testid="checkbox-agree">
-          <label for="checkbox-agree">I agree to terms</label>
-        </div>
-      </div>
-      <div class="test-item">
-        <label>Radio Buttons</label>
-        <div class="checkbox-wrapper">
-          <input type="radio" id="radio-option1" name="plan" value="basic" data-testid="radio-basic">
-          <label for="radio-option1">Basic Plan</label>
-          <input type="radio" id="radio-option2" name="plan" value="premium" data-testid="radio-premium">
-          <label for="radio-option2">Premium Plan</label>
-        </div>
-      </div>
-      <div class="test-item">
-        <label>Submit Form</label>
-        <button type="submit" id="submit-btn" data-testid="submit-btn">Submit</button>
-      </div>
+    <h2>3. Checkboxes</h2>
+    <div class="checkbox-group">
+      <label><input type="checkbox" id="cb1"> Option 1</label>
+      <label><input type="checkbox" id="cb2"> Option 2</label>
+      <label><input type="checkbox" id="cb3"> Option 3</label>
+      <label><input type="checkbox" id="cb4"> Option 4</label>
+      <label><input type="checkbox" id="cb5"> Option 5</label>
+      <!-- Additional test checkbox -->
+      <label><input type="checkbox" id="checkbox-agree"> I agree to terms</label>
+    </div>
+    <h2>4. Radio Buttons</h2>
+    <div class="radio-group">
+      <label><input type="radio" name="choice" value="1"> Choice 1</label>
+      <label><input type="radio" name="choice" value="2"> Choice 2</label>
+      <label><input type="radio" name="choice" value="3"> Choice 3</label>
+      <label><input type="radio" name="choice" value="4"> Choice 4</label>
+      <!-- Additional test radios -->
+      <label><input type="radio" name="plan" value="basic" data-testid="radio-basic"> Basic Plan</label>
+      <label><input type="radio" name="plan" value="pro" data-testid="radio-pro"> Pro Plan</label>
     </div>
   </div>
 
-  <!-- Wheel Events -->
   <div class="section">
-    <h2>4. Wheel Events</h2>
-    <div class="test-item">
-      <label>Scroll with Wheel</label>
-      <div id="wheel-container" class="scroll-container">
-        <div class="scroll-content">
-          <p>Scroll this area with mouse wheel...</p>
-          <div style="height: 200px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin: 20px 0; border-radius: 8px;"></div>
-          <p>More content to scroll...</p>
-          <div style="height: 200px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); margin: 20px 0; border-radius: 8px;"></div>
-          <p>Even more content...</p>
-          <div style="height: 200px; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); margin: 20px 0; border-radius: 8px;"></div>
-        </div>
-      </div>
-    </div>
+    <h2>5. Select Dropdowns</h2>
+    <div><label>Country: <select id="country"><option value="">Select</option><option value="us">US</option><option value="uk">UK</option><option value="cn">China</option><option value="jp">Japan</option></select></label></div>
+    <div><label>City: <select id="city"><option value="">Select</option><option value="ny">NY</option><option value="ld">London</option><option value="bj">Beijing</option></select></label></div>
+    <!-- Additional test select -->
+    <div><label>Select Dropdown: <select id="select-dropdown"><option value="">Select</option><option value="us">US</option><option value="uk">UK</option><option value="cn">China</option></select></label></div>
   </div>
 
-  <!-- Drag and Drop -->
   <div class="section">
-    <h2>5. Drag and Drop</h2>
-    <div class="test-grid">
-      <div class="test-item">
-        <label>Drag Items</label>
-        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-          <div class="drag-item" id="drag-item1" data-testid="drag-item1" draggable="true">Item 1</div>
-          <div class="drag-item" id="drag-item2" data-testid="drag-item2" draggable="true">Item 2</div>
-          <div class="drag-item" id="drag-item3" data-testid="drag-item3" draggable="true">Item 3</div>
-        </div>
-      </div>
-      <div class="test-item">
-        <label>Drop Zone</label>
-        <div id="drop-zone" class="drop-zone" data-testid="drop-zone">
-          Drop items here
-        </div>
-      </div>
-    </div>
+    <h2>6. Textarea</h2>
+    <div><label>Message:<br><textarea id="message" placeholder="Type message..."></textarea></label></div>
+    <div><label>Notes:<br><textarea id="notes" placeholder="Notes..."></textarea></label></div>
+    <!-- Additional test textarea -->
+    <div><label>Textarea:<br><textarea id="textarea" placeholder="Test textarea..."></textarea></label></div>
   </div>
 
-  <!-- File Upload -->
   <div class="section">
-    <h2>6. File Upload</h2>
-    <div class="test-item">
-      <label>Upload File</label>
-      <input type="file" id="file-upload" data-testid="file-upload" accept="image/*,.pdf,.doc,.doc,.txt">
+    <h2>7. Links</h2>
+    <div class="link-list">
+      <a href="#section1" id="link1">Link 1</a>
+      <a href="#section2" id="link2">Link 2</a>
+      <a href="#top" id="link3">Back to Top</a>
+      <!-- Additional test links -->
+      <a href="#anchor" id="anchor-link">Anchor Link</a>
+      <a href="https://example.com" id="external-link" target="_blank">External Link</a>
     </div>
   </div>
 
-  <!-- Scroll Events -->
   <div class="section">
-    <h2>7. Scroll Events</h2>
-    <div class="test-item">
-      <label>Vertical Scroll</label>
-      <div id="scroll-container" class="scroll-container">
-        <div class="scroll-content">
-          <p>Scroll down to see more content...</p>
-          <div style="height: 300px; background: #e94560; margin: 20px 0; border-radius: 8px; padding: 20px;">
-            <button id="scrolled-btn" data-testid="scrolled-button" style="margin-top: 20px;">Button After Scroll</button>
-          </div>
-          <p>More content below...</p>
-          <div style="height: 300px; background: #0f3460; margin: 20px 0; border-radius: 8px; padding: 20px;">
-            <p>Keep scrolling...</p>
-          </div>
-          <p>End of scrollable area</p>
-        </div>
-      </div>
+    <h2>8. Scrollable Area</h2>
+    <div class="scrollable" id="scrollArea">
+      <p>Line 1</p><p>Line 2</p><p>Line 3</p><p>Line 4</p><p>Line 5</p>
+      <p>Line 6</p><p>Line 7</p><p>Line 8</p><p>Line 9</p><p>Line 10</p>
+      <p>Line 11</p><p>Line 12</p><p>Line 13</p><p>Line 14</p><p>Line 15</p>
+    </div>
+    <!-- Additional scroll container -->
+    <div class="scrollable" id="scroll-container" style="margin-top: 10px;">
+      <p>Scroll Line 1</p><p>Scroll Line 2</p><p>Scroll Line 3</p><p>Scroll Line 4</p><p>Scroll Line 5</p>
+      <p>Scroll Line 6</p><p>Scroll Line 7</p><p>Scroll Line 8</p><p>Scroll Line 9</p><p>Scroll Line 10</p>
     </div>
   </div>
 
-  <!-- Navigation Events -->
   <div class="section">
-    <h2>8. Navigation Events</h2>
-    <div class="test-grid">
-      <div class="test-item">
-        <label>Links</label>
-        <div class="link-section">
-          <a href="#section1" id="anchor-link" data-testid="anchor-link">Anchor Link (Same Page)</a>
-          <a href="https://example.com" target="_blank" id="external-link" data-testid="external-link">External Link (New Tab)</a>
-          <a href="javascript:void(0)" id="js-link" data-testid="js-link">JavaScript Link</a>
-        </div>
-      </div>
-      <div class="test-item">
-        <label>Navigation Buttons</label>
-        <div style="display: flex; gap: 10px;">
-          <button id="nav-back" data-testid="nav-back">Back</button>
-          <button id="nav-forward" data-testid="nav-forward">Forward</button>
-          <button id="nav-reload" data-testid="nav-reload">Reload</button>
-        </div>
-      </div>
-    </div>
+    <h2>9. Hover Area</h2>
+    <div class="hover-box" id="hoverBox">Hover me!</div>
   </div>
 
-  <div id="section1" style="margin-top: 500px; padding: 50px; background: #fff3cd; border-radius: 8px;">
-    <h3>Anchor Target Section</h3>
-    <p>This is the target of the anchor link above.</p>
-  </div>
-
-  <!-- Iframe (Same Origin) -->
   <div class="section">
-    <h2>9. Iframe (Same Origin)</h2>
-    <div class="iframe-container">
-      <iframe id="same-origin-iframe" data-testid="same-origin-iframe" srcdoc="
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <style>
-            body { font-family: sans-serif; padding: 20px; background: #fff8e1; }
-            button { padding: 10px 20px; margin: 5px; background: #007AFF; color: white; border: none; border-radius: 4px; cursor: pointer; }
-            input { padding: 8px; margin: 5px 0; border: 1px solid #ddd; border-radius: 4px; }
-          </style>
-        </head>
-        <body>
-          <h3>Iframe Content (Same Origin)</h3>
-          <button id='iframe-btn-1'>Click Me</button>
-          <input type='text' id='iframe-input-1' placeholder='Type here'>
-        </body>
-        </html>
-      "></iframe>
-    </div>
+    <h2>10. Table</h2>
+    <table id="dataTable">
+      <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Alice</td><td>alice@test.com</td><td>Active</td></tr>
+        <tr><td>2</td><td>Bob</td><td>bob@test.com</td><td>Inactive</td></tr>
+        <tr><td>3</td><td>Charlie</td><td>charlie@test.com</td><td>Active</td></tr>
+      </tbody>
+    </table>
   </div>
 
-  <!-- Iframe (Cross Origin - using data URL) -->
   <div class="section">
-    <h2>10. Iframe (Cross Origin Simulation)</h2>
-    <div class="iframe-container">
-      <iframe id="cross-origin-iframe" data-testid="cross-origin-iframe" srcdoc="
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <style>
-            body { font-family: sans-serif; padding: 20px; background: #ffeaa7; }
-            button { padding: 10px 20px; margin: 5px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; }
-            input { padding: 8px; margin: 5px 0; border: 1px solid #ddd; border-radius: 4px; }
-          </style>
-        </head>
-        <body>
-          <h3>Iframe Content (Cross Origin)</h3>
-          <button id='iframe-btn-2'>Click Me</button>
-          <input type='text' id='iframe-input-2' placeholder='Type here'>
-        </body>
-        </html>
-      "></iframe>
-    </div>
+    <h2>11. More Buttons Grid</h2>
+    <div class="grid" id="buttonGrid"></div>
   </div>
 
-  <!-- Iframe (Real Cross Origin - Baidu) -->
   <div class="section">
-    <h2>11. Iframe (Real Cross Origin - Baidu)</h2>
-    <div class="iframe-container">
-      <iframe id="baidu-iframe" data-testid="baidu-iframe" src="https://www.baidu.com" width="100%" height="300" style="border: 1px solid #ddd; border-radius: 8px;"></iframe>
-    </div>
-    <p style="margin-top: 10px; color: #666; font-size: 12px;">Note: Real cross-origin iframe (baidu.com) - recording may be limited due to browser security policies</p>
+    <h2>12. Form</h2>
+    <form id="testForm">
+      <div><label>First Name: <input type="text" id="firstName"></label></div>
+      <div><label>Last Name: <input type="text" id="lastName"></label></div>
+      <div><label>Phone: <input type="tel" id="phone"></label></div>
+      <button type="submit" id="submitForm">Submit</button>
+      <button type="reset" id="resetForm">Reset</button>
+    </form>
   </div>
 
-  <!-- Modal Dialog -->
   <div class="section">
-    <h2>11. Modal Dialog</h2>
-    <div class="test-grid">
-      <div class="test-item">
-        <label>Open Modal</label>
-        <button id="open-modal-btn" data-testid="open-modal-btn">Open Modal</button>
-      </div>
-    </div>
+    <h2>13. Content Editable</h2>
+    <div contenteditable="true" id="editable" style="border: 1px solid #ccc; padding: 10px; min-height: 50px;">Edit this text...</div>
   </div>
 
-  <div class="modal-overlay" id="modal-overlay">
-    <div class="modal">
-      <h3>Test Modal</h3>
-      <p>This is a modal dialog for testing recorder.</p>
-      <div class="modal-actions">
-        <button id="modal-confirm" data-testid="modal-confirm">Confirm</button>
-        <button id="modal-cancel" data-testid="modal-cancel" class="btn-secondary">Cancel</button>
-      </div>
-    </div>
+  <!-- Modal Dialog for testing -->
+  <div id="modal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border: 1px solid #ccc; z-index: 1000;">
+    <h3>Modal Title</h3>
+    <p>Modal content here</p>
+    <button id="modal-confirm">Confirm</button>
+    <button id="modal-cancel" onclick="document.getElementById('modal').style.display='none'">Cancel</button>
+  </div>
+
+  <!-- Iframe for testing -->
+  <div class="section">
+    <h2>14. Iframe (Same Origin)</h2>
+    <iframe id="same-origin-iframe" src="about:blank" width="400" height="200" style="border: 1px solid #ccc;"></iframe>
   </div>
 
   <script>
-    // Update viewport info
-    function updateViewportInfo() {
-      const info = document.getElementById('viewportInfo');
-      if (info) {
-        info.textContent = `Viewport: ${window.innerWidth}x${window.innerHeight} | Scroll: ${window.scrollX},${window.scrollY}`;
-      }
+    // Generate more buttons dynamically
+    const grid = document.getElementById('buttonGrid');
+    for (let i = 1; i <= 25; i++) {
+      const btn = document.createElement('button');
+      btn.textContent = 'B' + i;
+      btn.id = 'gridBtn' + i;
+      grid.appendChild(btn);
     }
-    window.addEventListener('resize', updateViewportInfo);
-    window.addEventListener('scroll', updateViewportInfo);
-    updateViewportInfo();
 
-    // Hover effect
-    const hoverBtn = document.getElementById('hover-btn');
-    const hoverResult = document.getElementById('hover-result');
-    hoverBtn.addEventListener('mouseenter', () => {
-      hoverResult.textContent = 'Hovered! ✓';
-      hoverResult.style.color = '#28a745';
-    });
-    hoverBtn.addEventListener('mouseleave', () => {
-      hoverResult.textContent = 'Hover result will appear here';
-      hoverResult.style.color = '#666';
+    // Modal open handler
+    document.getElementById('open-modal-btn').addEventListener('click', () => {
+      document.getElementById('modal').style.display = 'block';
     });
 
-    // Drag and drop
-    const dragItems = document.querySelectorAll('.drag-item');
-    const dropZone = document.getElementById('drop-zone');
+    // Modal confirm handler
+    document.getElementById('modal-confirm').addEventListener('click', () => {
+      document.getElementById('modal').style.display = 'none';
+    });
 
-    dragItems.forEach(item => {
-      item.addEventListener('dragstart', (e) => {
-        e.dataTransfer.setData('text/plain', item.id);
-        item.style.opacity = '0.5';
+    // Setup iframe content
+    const iframe = document.getElementById('same-origin-iframe');
+    iframe.addEventListener('load', function() {
+      const doc = iframe.contentDocument || iframe.contentWindow.document;
+      doc.body.innerHTML = '<div style="padding: 10px;"><h4>Iframe Content</h4><button id="iframe-btn-1">Iframe Button</button><input id="iframe-input-1" type="text" placeholder="Iframe input"></div>';
+    });
+    // Trigger load for about:blank
+    setTimeout(() => {
+      const doc = iframe.contentDocument || iframe.contentWindow.document;
+      doc.body.innerHTML = '<div style="padding: 10px;"><h4>Iframe Content</h4><button id="iframe-btn-1">Iframe Button</button><input id="iframe-input-1" type="text" placeholder="Iframe input"></div>';
+    }, 100);
+
+    // Log interactions
+    document.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => console.log('Clicked:', btn.id || btn.textContent));
+    });
+    document.querySelectorAll('a').forEach(a => {
+      a.addEventListener('click', e => { e.preventDefault(); console.log('Link:', a.id); });
+    });
+    document.getElementById('testForm').addEventListener('submit', e => { e.preventDefault(); console.log('Form submitted'); });
+  </script>
+
+  <!-- 轨迹测试区域 -->
+  <section id="trajectory-section">
+    <h2>Trajectory Test Area</h2>
+    <div id="trajectory-area" style="width: 500px; height: 300px; border: 2px dashed #ccc; position: relative; background: #f9f9f9;">
+      <div id="start-point" style="position: absolute; left: 50px; top: 50px; width: 40px; height: 40px; background: #4CAF50; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;">Start</div>
+      <div id="mid-point" style="position: absolute; left: 230px; top: 130px; width: 40px; height: 40px; background: #2196F3; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;">Mid</div>
+      <div id="end-point" style="position: absolute; left: 410px; top: 230px; width: 40px; height: 40px; background: #f44336; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px;">End</div>
+    </div>
+
+    <!-- 坐标显示 -->
+    <div id="coord-display" data-testid="coord-display" style="margin-top: 10px; padding: 10px; background: #eee; font-family: monospace;">
+      x: 0, y: 0
+    </div>
+
+    <!-- 轨迹记录按钮 -->
+    <button id="record-trajectory-btn" data-testid="record-trajectory-btn">Record Trajectory</button>
+  </section>
+
+  <script>
+    // 轨迹测试区域的鼠标跟踪
+    const trajectoryArea = document.getElementById('trajectory-area');
+    const coordDisplay = document.getElementById('coord-display');
+
+    if (trajectoryArea && coordDisplay) {
+      trajectoryArea.addEventListener('mousemove', (e) => {
+        const rect = trajectoryArea.getBoundingClientRect();
+        const x = Math.round(e.clientX - rect.left);
+        const y = Math.round(e.clientY - rect.top);
+        coordDisplay.textContent = `x: ${x}, y: ${y}`;
       });
-      item.addEventListener('dragend', () => {
-        item.style.opacity = '1';
+
+      trajectoryArea.addEventListener('mouseleave', () => {
+        coordDisplay.textContent = 'x: 0, y: 0';
       });
-    });
-
-    dropZone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      dropZone.classList.add('dragover');
-    });
-
-    dropZone.addEventListener('dragleave', () => {
-      dropZone.classList.remove('dragover');
-      dropZone.classList.remove('dragleave');
-    });
-
-    dropZone.addEventListener('dragenter', () => {
-      dropZone.classList.add('dragleave');
-    });
-
-    dropZone.addEventListener('drop', (e) => {
-      e.preventDefault();
-      dropZone.classList.remove('dragover');
-      dropZone.classList.remove('dragleave');
-      dropZone.classList.add('dropped');
-      dropZone.textContent = `Dropped: ${e.dataTransfer.getData('text/plain')}`;
-      setTimeout(() => {
-        dropZone.classList.remove('dropped');
-        dropZone.textContent = 'Drop items here';
-      }, 2000);
-    });
-
-    // Modal
-    const modalOverlay = document.getElementById('modal-overlay');
-    const openModalBtn = document.getElementById('open-modal-btn');
-    const modalConfirm = document.getElementById('modal-confirm');
-    const modalCancel = document.getElementById('modal-cancel');
-
-    openModalBtn.addEventListener('click', () => {
-      modalOverlay.classList.add('active');
-    });
-
-    modalConfirm.addEventListener('click', () => {
-      modalOverlay.classList.remove('active');
-      alert('Modal confirmed!');
-    });
-
-    modalCancel.addEventListener('click', () => {
-      modalOverlay.classList.remove('active');
-    });
-
-    modalOverlay.addEventListener('click', (e) => {
-      if (e.target === modalOverlay) {
-        modalOverlay.classList.remove('active');
-      }
-    });
-
-    // Navigation
-    document.getElementById('nav-back').addEventListener('click', () => {
-      window.history.back();
-    });
-
-    document.getElementById('nav-forward').addEventListener('click', () => {
-      window.history.forward();
-    });
-
-    document.getElementById('nav-reload').addEventListener('click', () => {
-      window.location.reload();
-    });
-
-    console.log('[Test Page] All interactive elements initialized');
+    }
   </script>
 </body>
 </html>

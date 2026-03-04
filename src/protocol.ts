@@ -435,6 +435,11 @@ const recorderStatusSchema = baseCommandSchema.extend({
   action: z.literal('recorder_status'),
 });
 
+const recorderReplaySchema = baseCommandSchema.extend({
+  action: z.literal('recorder_replay'),
+  path: z.string().optional(),
+});
+
 const traceStartSchema = baseCommandSchema.extend({
   action: z.literal('trace_start'),
   screenshots: z.boolean().optional(),
@@ -696,6 +701,12 @@ const wanderSchema = baseCommandSchema.extend({
       pathType: z.enum(['bezier', 'arc', 'random', 'linear']),
     })
     .optional(),
+});
+
+const mouseTrajectorySchema = baseCommandSchema.extend({
+  action: z.literal('mousetrajectory'),
+  data: z.string().min(1),
+  human: humanConfigSchema.optional(),
 });
 
 const bringToFrontSchema = baseCommandSchema.extend({
@@ -1008,6 +1019,7 @@ const commandSchema = z.discriminatedUnion('action', [
   recorderStartSchema,
   recorderStopSchema,
   recorderStatusSchema,
+  recorderReplaySchema,
   traceStartSchema,
   traceStopSchema,
   harStartSchema,
@@ -1050,6 +1062,7 @@ const commandSchema = z.discriminatedUnion('action', [
   mouseDownSchema,
   mouseUpSchema,
   wanderSchema,
+  mouseTrajectorySchema,
   bringToFrontSchema,
   waitForFunctionSchema,
   scrollIntoViewSchema,
