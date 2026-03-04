@@ -2377,6 +2377,8 @@ export class BrowserManager {
           window.xyzStopped = false;
           window.xyzInited = false;
           window.xyzSessionId = '${this.recorderSessionId}';
+          // 清空旧的录制队列，避免状态干扰
+          window.xyzQueue = [];
         }
       `);
     } catch (e) {}
