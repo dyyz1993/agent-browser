@@ -205,6 +205,10 @@
   });
 
   document.addEventListener('mousemove', (e) => {
+    // 检查录制会话是否仍然活跃
+    // 注意：xyzActive 可能是 undefined（在 iframe 中），所以只检查明确为 false 的情况
+    if (window.xyzActive === false || window.xyzStopped) return;
+    
     const now = Date.now();
     if (now - lastTime > TRAJECTORY_INTERVAL) {
       mousePath.push({ x: e.clientX, y: e.clientY, t: now });
@@ -842,7 +846,8 @@
   // ============ 录制核心逻辑 ============
   function recordStep(action, data) {
     // 检查是否暂停录制或已停止
-    if (window.xyzPaused || window.xyzStopped) return;
+    // 注意：xyzActive 可能是 undefined（在 iframe 中），所以只检查明确为 false 的情况
+    if (window.xyzActive === false || window.xyzPaused || window.xyzStopped) return;
 
     const step = {
       id: 'step-' + Date.now() + '-' + Math.random().toString(36).substr(2, 10),
