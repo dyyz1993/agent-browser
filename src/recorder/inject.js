@@ -25,14 +25,31 @@
     return;
   }
 
+  // 解析会话 ID 中的时间戳
+  const thisTimestamp = parseInt(thisSessionId.replace('recorder-', '')) || 0;
+  const currentTimestamp = parseInt((window.xyzSessionId || '').replace('recorder-', '')) || 0;
+
+  // 检查是否有更新的会话 ID
+  // 如果 window.xyzSessionId 存在且时间戳比当前脚本的新，说明有更新的会话
+  // 这种情况下，旧的脚本应该跳过初始化
+  // 注意：window.xyzSessionId 是由 addInitScript 的状态设置脚本设置的
+  // 由于 addInitScript 是累积的，我们需要检查最新的会话 ID
+  if (currentTimestamp > thisTimestamp) {
+    // 旧脚本，跳过初始化
+    return;
+  }
+
   // 检查录制会话是否有效
-  // 如果 xyzStopped 为 true，说明录制已停止
-  if (window.xyzStopped) {
+  // 注意：只有当会话 ID 匹配时，才检查 xyzStopped
+  // 如果会话 ID 不匹配，说明这是旧脚本，应该跳过
+  // 如果 xyzStopped 为 true 且没有新的会话 ID，说明录制已停止
+  if (window.xyzStopped && (!window.xyzSessionId || window.xyzSessionId === thisSessionId)) {
     return;
   }
 
   // 如果已经初始化且会话 ID 相同，跳过
-  if (window.xyzInited && window.xyzInitializedSessionId === thisSessionId) {
+  // 注意：如果 xyzInited 为 false，说明需要重新初始化
+  if (window.xyzInited === true && window.xyzInitializedSessionId === thisSessionId) {
     return;
   }
 
@@ -843,6 +860,13 @@
       delete step.selector;
       delete step.xpath;
       delete step.elementInfo;
+      // 复制键盘事件相关属性
+      step.key = data.key;
+      step.code = data.code;
+      step.ctrlKey = data.ctrlKey;
+      step.metaKey = data.metaKey;
+      step.altKey = data.altKey;
+      step.shiftKey = data.shiftKey;
     }
 
     syncStep(step);
@@ -978,6 +1002,7 @@
 
   document.addEventListener('keydown', (e) => {
     const element = document.activeElement;
+    console.log('[Recorder] keydown event:', e.key, 'target:', e.target, 'activeElement:', element?.tagName);
     if (isInPanel(element)) return;
 
     const specialKeys = ['Enter', 'Tab', 'Escape', 'Backspace', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
@@ -987,6 +1012,7 @@
         return;
       }
 
+      console.log('[Recorder] Recording keyboard step:', e.key);
       recordStep('keyboard', {
         key: e.key,
         code: e.code,

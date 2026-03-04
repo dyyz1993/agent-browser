@@ -2212,8 +2212,9 @@ export class BrowserManager {
     const injectScriptPath = path.join(__dirname, 'recorder', 'inject.js');
     let script = readFileSync(injectScriptPath, 'utf-8');
     // 在脚本开头注入配置（使用 xyz 前缀）
-    // 注意：xyzSessionId 必须在脚本开头设置，以便 inject.js 可以读取它
-    const config = `window.xyzHide = ${hide}; window.xyzBindingName = '${bindingName}'; window.xyzSessionId = '${sessionId || ''}'; window.xyzInjectedSessionId = '${sessionId || ''}';`;
+    // 注意：xyzInjectedSessionId 必须在脚本开头设置，以便 inject.js 可以读取它
+    // 使用 window.xyzInjectedSessionId = 'xxx' 的形式，让 inject.js 可以读取
+    const config = `window.xyzHide = ${hide}; window.xyzBindingName = '${bindingName}'; window.xyzInjectedSessionId = '${sessionId || ''}';`;
     return config + '\n' + script;
   }
 
@@ -2323,32 +2324,53 @@ export class BrowserManager {
     // 在当前页面设置录制会话激活标志
     // 使用 xyz 前缀
     try {
-      await page.evaluate(() => {
+      await page.evaluate((sessionId) => {
         (window as any).xyzActive = true;
         // 清除停止标志（允许重新开始录制）
         (window as any).xyzStopped = false;
         // 清除已初始化标志（允许重新注入脚本）
         (window as any).xyzInited = false;
-      });
-    } catch (e) {}
-
-    // 在当前页面注入录制器脚本
-    try {
-      await page.evaluate(injectScript);
+        // 设置当前会话 ID
+        (window as any).xyzSessionId = sessionId;
+      }, this.recorderSessionId);
     } catch (e) {}
 
     // 设置录制会话激活标志（用于新页面）
     // 注意：addInitScript 执行顺序是后添加的先执行
     // 所以我们先添加 injectScript，再添加状态设置脚本
     // 这样状态设置脚本会先执行
-    await context.addInitScript(injectScript);
+
+    // 先在当前页面设置状态，再注入脚本
+    // 这样可以避免脚本注入后状态还未设置的问题
 
     // 设置录制会话激活标志（用于新页面）
     // 这个会在 injectScript 之前执行
     // 注意：必须设置 xyzSessionId，否则 inject.js 会跳过初始化
+    // 使用时间戳来确保只有最新的会话 ID 被设置
+    const sessionIdTimestamp =
+      parseInt(this.recorderSessionId.replace('recorder-', '')) || Date.now();
     await context.addInitScript({
-      content: `window.xyzActive = true; window.xyzStopped = false; window.xyzInited = false; window.xyzSessionId = '${this.recorderSessionId}';`,
+      content: `
+        // 只有当新的会话 ID 更新时才设置
+        const currentTimestamp = parseInt((window.xyzSessionId || '').replace('recorder-', '')) || 0;
+        const newTimestamp = ${sessionIdTimestamp};
+        if (newTimestamp > currentTimestamp) {
+          window.xyzActive = true;
+          window.xyzStopped = false;
+          window.xyzInited = false;
+          window.xyzSessionId = '${this.recorderSessionId}';
+        }
+      `,
     });
+
+    // 注入录制器脚本到所有新页面
+    await context.addInitScript(injectScript);
+
+    // 在当前页面注入录制器脚本
+    // 注意：这里需要手动注入，因为 addInitScript 只对新页面生效
+    try {
+      await page.evaluate(injectScript);
+    } catch (e) {}
 
     // 处理导航事件（用于记录 back/forward）
     this.recorderNavigatedHandler = async (frame: Frame) => {
@@ -2447,6 +2469,18 @@ export class BrowserManager {
 
         await newPage.waitForLoadState('domcontentloaded').catch(() => {});
 
+        // 注入录制器脚本到新页面
+        try {
+          const injectScript = this.getRecorderInjectScript(
+            false,
+            'xyzTrack',
+            this.recorderSessionId
+          );
+          await newPage.evaluate(injectScript);
+        } catch (e) {
+          console.log('[recorderPageHandler] Error injecting script:', e);
+        }
+
         await newPage
           .evaluate((steps) => {
             (window as any).__recorderSteps = steps;
@@ -2494,6 +2528,10 @@ export class BrowserManager {
           const win = window as any;
           win.xyzActive = false;
           win.xyzStopped = true;
+          // 重置初始化标志，允许新的录制会话重新初始化
+          win.xyzInited = false;
+          win.xyzInitializedSessionId = undefined;
+          win.xyzSessionId = undefined;
           const hasPanel = !!document.getElementById('xyzPnl');
           const hasCloseFunc = typeof win.xyzClose === 'function';
           const hasFlushFunc = typeof win.xyzFlushPending === 'function';

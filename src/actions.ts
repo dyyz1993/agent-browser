@@ -704,6 +704,41 @@ async function handlePress(command: PressCommand, browser: BrowserManager): Prom
         await page.keyboard.press(command.key);
       }
     }
+
+    // 触发 keydown 事件供录制器捕获
+    // Playwright 的 press 方法不会触发 JavaScript 层面的 keydown 事件
+    // 需要手动触发事件以便录制器能够捕获按键操作
+    await page.evaluate((key) => {
+      const specialKeys = [
+        'Enter',
+        'Tab',
+        'Escape',
+        'Backspace',
+        'ArrowUp',
+        'ArrowDown',
+        'ArrowLeft',
+        'ArrowRight',
+      ];
+      const keyParts = key.split('+');
+      const mainKey = keyParts[keyParts.length - 1];
+      const hasCtrl = keyParts.includes('Control') || keyParts.includes('Ctrl');
+      const hasMeta = keyParts.includes('Meta') || keyParts.includes('Command');
+      const hasAlt = keyParts.includes('Alt');
+      const hasShift = keyParts.includes('Shift');
+
+      if (specialKeys.includes(mainKey) || hasCtrl || hasMeta || hasAlt) {
+        const event = new KeyboardEvent('keydown', {
+          key: mainKey,
+          code: mainKey.length === 1 ? `Key${mainKey.toUpperCase()}` : mainKey,
+          ctrlKey: hasCtrl,
+          metaKey: hasMeta,
+          altKey: hasAlt,
+          shiftKey: hasShift,
+          bubbles: true,
+        });
+        document.activeElement?.dispatchEvent(event);
+      }
+    }, command.key);
   });
 
   const result: Record<string, unknown> = { pressed: true };

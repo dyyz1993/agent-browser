@@ -228,8 +228,6 @@ describe('Recorder Replay E2E Test', { sequential: true }, () => {
     if (yamlPath && fs.existsSync(yamlPath)) {
       const yaml = fs.readFileSync(yamlPath, 'utf-8');
       expect(yaml).toContain('agent-browser click');
-    } else {
-      console.log('YAML path not returned, skipping content verification');
     }
 
     // Open fresh page
