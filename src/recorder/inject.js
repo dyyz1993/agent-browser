@@ -209,6 +209,12 @@
     // 注意：xyzActive 可能是 undefined（在 iframe 中），所以只检查明确为 false 的情况
     if (window.xyzActive === false || window.xyzStopped) return;
     
+    // 检查当前会话是否是最新的
+    // 由于 addInitScript 是累积的，旧的监听器可能会继续工作
+    // 通过比较时间戳来确保只有最新的会话记录事件
+    const currentTimestamp = parseInt((window.xyzSessionId || '').replace('recorder-', '')) || 0;
+    if (thisTimestamp > 0 && currentTimestamp > thisTimestamp) return;
+    
     const now = Date.now();
     if (now - lastTime > TRAJECTORY_INTERVAL) {
       mousePath.push({ x: e.clientX, y: e.clientY, t: now });
@@ -220,6 +226,15 @@
   }, true);
 
   function getTrajectory() {
+    // 检查当前会话是否是最新的
+    // 由于 addInitScript 是累积的，旧的监听器可能会继续工作
+    // 通过比较时间戳来确保只有最新的会话记录事件
+    const currentTimestamp = parseInt((window.xyzSessionId || '').replace('recorder-', '')) || 0;
+    if (thisTimestamp > 0 && currentTimestamp > thisTimestamp) {
+      mousePath = [];
+      return [];
+    }
+    
     const points = mousePath.slice(-4);
     mousePath = [];
     return points;
@@ -848,6 +863,12 @@
     // 检查是否暂停录制或已停止
     // 注意：xyzActive 可能是 undefined（在 iframe 中），所以只检查明确为 false 的情况
     if (window.xyzActive === false || window.xyzPaused || window.xyzStopped) return;
+
+    // 检查当前会话是否是最新的
+    // 由于 addInitScript 是累积的，旧的监听器可能会继续工作
+    // 通过比较时间戳来确保只有最新的会话记录事件
+    const currentTimestamp = parseInt((window.xyzSessionId || '').replace('recorder-', '')) || 0;
+    if (thisTimestamp > 0 && currentTimestamp > thisTimestamp) return;
 
     const step = {
       id: 'step-' + Date.now() + '-' + Math.random().toString(36).substr(2, 10),

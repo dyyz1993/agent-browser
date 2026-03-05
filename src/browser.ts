@@ -2629,7 +2629,9 @@ export class BrowserManager {
           // 重置初始化标志，允许新的录制会话重新初始化
           win.xyzInited = false;
           win.xyzInitializedSessionId = undefined;
-          win.xyzSessionId = undefined;
+          // 注意：不要清除 xyzSessionId，因为旧的监听器需要用它来检查是否应该跳过
+          // 新的录制会话会设置新的 xyzSessionId，旧的监听器会检测到时间戳更新并跳过
+          // win.xyzSessionId = undefined;
 
           if (hasCloseFunc) {
             win.xyzClose();
