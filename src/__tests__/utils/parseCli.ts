@@ -1,3 +1,4 @@
+import fs from 'fs';
 import type { LooseCommand } from '../../types.js';
 
 export type Command = LooseCommand;
@@ -14,6 +15,17 @@ export class CliError extends Error {
 
 export function error(message: string, usage?: string): never {
   throw new CliError(message, usage);
+}
+
+export function readStdin(): string {
+  const fd = process.stdin.fd;
+  const buffer = Buffer.allocUnsafe(1024);
+  const chunks: Buffer[] = [];
+  let bytesRead: number;
+  while ((bytesRead = fs.readSync(fd, buffer, 0, buffer.length, null)) > 0) {
+    chunks.push(Buffer.from(buffer.subarray(0, bytesRead)));
+  }
+  return Buffer.concat(chunks).toString('utf8');
 }
 
 export function parseInFrame(args: string[]): { inFrame?: string; remaining: string[] } {
@@ -455,15 +467,7 @@ export function parseCliArgs(args: string[]): Command {
         }
         if (!file) error('Missing file path', 'agent-browser eval -f <path> [--in-frame <path>]');
       } else if (remaining.includes('--stdin')) {
-        const fd = process.stdin.fd;
-        const buffer = Buffer.allocUnsafe(1024);
-        const chunks: Buffer[] = [];
-        let bytesRead: number;
-        const fs = require('fs');
-        while ((bytesRead = fs.readSync(fd, buffer, 0, buffer.length)) > 0) {
-          chunks.push(Buffer.from(buffer.subarray(0, bytesRead)));
-        }
-        script = Buffer.concat(chunks).toString('utf8');
+        script = readStdin();
       } else if (remaining.includes('-b') || remaining.includes('--base64')) {
         const bIdx = remaining.includes('-b')
           ? remaining.indexOf('-b')

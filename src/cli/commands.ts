@@ -1,3 +1,4 @@
+import fs from 'fs';
 import { Command } from './connection.js';
 import { Flags } from './flags.js';
 
@@ -422,9 +423,8 @@ export function parseCommand(args: string[], flags: Flags): Command {
         const fd = process.stdin.fd;
         const buffer = Buffer.allocUnsafe(1024);
         const chunks: Buffer[] = [];
-        const fs = require('fs');
         let bytesRead: number;
-        while ((bytesRead = fs.readSync(fd, buffer, 0, buffer.length)) > 0) {
+        while ((bytesRead = fs.readSync(fd, buffer, 0, buffer.length, null)) > 0) {
           chunks.push(Buffer.from(buffer.subarray(0, bytesRead)));
         }
         script = Buffer.concat(chunks).toString('utf8');
