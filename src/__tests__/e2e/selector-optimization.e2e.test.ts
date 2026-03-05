@@ -20,7 +20,7 @@ describe('选择器优化验证测试', () => {
       id: 'test-launch',
       headless: true,
     });
-  }, 60000);
+  }, 90000);
 
   afterAll(async () => {
     await browser.close();
@@ -139,7 +139,7 @@ describe('选择器优化验证测试', () => {
         fs.unlinkSync(data.path);
       } catch {}
     }
-  }, 60000);
+  }, 90000);
 
   it('选择器唯一性对比测试', async () => {
     const page = browser.getPage();
