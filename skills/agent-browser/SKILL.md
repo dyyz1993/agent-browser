@@ -27,6 +27,30 @@ agent-browser wait --load networkidle
 agent-browser snapshot -i  # Check result
 ```
 
+### Recording & Replaying Workflows
+
+For test automation and workflow capture:
+
+```bash
+# Start recording
+agent-browser recorder start --session my-test
+
+# Perform workflow
+agent-browser open https://example.com/form
+agent-browser snapshot -i
+agent-browser fill @e1 "user@example.com"
+agent-browser fill @e2 "password123"
+agent-browser click @e3
+
+# Stop and save
+agent-browser recorder stop --output test-workflow.yaml
+
+# Replay later
+agent-browser recorder replay test-workflow.yaml
+```
+
+See [recorder.md](references/recorder.md) for detailed recording workflows.
+
 ## Working with Iframes
 
 Use `--in-frame` to operate inside iframes. The path uses iframe name/id or index:
@@ -92,6 +116,14 @@ agent-browser wait @e1                # Wait for element
 agent-browser wait --load networkidle # Wait for network idle
 agent-browser wait --url "**/page"    # Wait for URL pattern
 agent-browser wait 2000               # Wait milliseconds
+
+# Network monitoring
+agent-browser network requests                 # View network requests
+agent-browser network requests --filter "**/api/**"  # Filter requests
+agent-browser network requests --clear         # Clear history
+agent-browser network route "**/api/**" --abort  # Block requests
+agent-browser network route "**/api/**" --body '{}'  # Mock response
+agent-browser network unroute "**/api/**"     # Remove routes
 
 # Capture
 agent-browser screenshot              # Screenshot to temp dir
@@ -212,6 +244,32 @@ wait
 jq '.body.aweme_list[:10] | map({id, desc, stats})' /tmp/douyin.json
 ```
 
+### Network Monitoring & API Mocking
+
+Monitor, filter, and mock network requests for testing and debugging.
+
+```bash
+# View all network requests
+agent-browser network requests
+
+# Filter requests by pattern
+agent-browser network requests --filter "**/api/**"
+
+# Clear request history
+agent-browser network requests --clear
+
+# Mock API responses
+agent-browser network route "**/api/users" --body '{"users": []}'
+
+# Block unwanted requests (ads, tracking)
+agent-browser network route "**/ads/**" --abort
+
+# Remove routes
+agent-browser network unroute "**/api/users"
+```
+
+See [network-monitoring.md](references/network-monitoring.md) for detailed network monitoring patterns.
+
 ### Parallel Sessions
 
 ```bash
@@ -297,6 +355,33 @@ agent-browser find placeholder "Search" type "query"
 agent-browser find testid "submit-btn" click
 ```
 
+## Proxy Configuration
+
+Configure proxy for geo-testing, rate limiting avoidance, and corporate environments:
+
+```bash
+# Basic proxy via global option
+agent-browser --proxy http://proxy.example.com:8080 open https://example.com
+
+# HTTPS proxy
+agent-browser --proxy https://proxy.example.com:8080 open https://example.com
+
+# SOCKS5 proxy
+agent-browser --proxy socks5://proxy.example.com:1080 open https://example.com
+
+# Authenticated proxy
+agent-browser --proxy http://user:pass@proxy.example.com:8080 open https://example.com
+
+# Proxy with bypass list
+agent-browser --proxy http://proxy.example.com:8080 --proxy-bypass "localhost,*.internal.com" open https://example.com
+
+# Verify proxy is working (check IP)
+agent-browser --proxy http://proxy.example.com:8080 open https://httpbin.org/ip
+agent-browser get text body
+```
+
+**Proxy Validation:** The proxy setting is actively enforced - if you specify an unreachable proxy server, navigation will fail with a connection error, confirming the proxy configuration is being used (not just ignored).
+
 ## Deep-Dive Documentation
 
 | Reference | When to Use |
@@ -306,5 +391,7 @@ agent-browser find testid "submit-btn" click
 | [references/snapshot-refs.md](references/snapshot-refs.md) | Ref lifecycle, invalidation rules, troubleshooting |
 | [references/session-management.md](references/session-management.md) | Parallel sessions, state persistence, concurrent scraping |
 | [references/authentication.md](references/authentication.md) | Login flows, OAuth, 2FA handling, state reuse |
-| [references/video-recording.md](references/video-recording.md) | Recording workflows for debugging and documentation |
+| [references/video-recording.md](references/video-recording.md) | Video recording for debugging |
+| [references/recorder.md](references/recorder.md) | **Action recording & replay for test automation** |
 | [references/proxy-support.md](references/proxy-support.md) | Proxy configuration, geo-testing, rotating proxies |
+| [references/network-monitoring.md](references/network-monitoring.md) | **Network request monitoring, API mocking, request blocking** |

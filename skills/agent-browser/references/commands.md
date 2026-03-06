@@ -363,6 +363,7 @@ agent-browser --full ...              # Full page screenshot (-f)
 agent-browser --cdp <port> ...        # Connect via Chrome DevTools Protocol
 agent-browser -p <provider> ...       # Cloud browser provider (--provider)
 agent-browser --proxy <url> ...       # Use proxy server
+agent-browser --proxy-bypass <list>   # Comma-separated bypass list for proxy
 agent-browser --headers <json> ...    # HTTP headers scoped to URL's origin
 agent-browser --executable-path <p>   # Custom browser executable
 agent-browser --extension <path> ...  # Load browser extension (repeatable)
@@ -468,4 +469,6 @@ AGENT_BROWSER_PROVIDER="browserbase"         # Cloud browser provider
 AGENT_BROWSER_STREAM_PORT="9223"             # WebSocket streaming port
 AGENT_BROWSER_HOME="/path/to/agent-browser"  # Custom install location
 AGENT_BROWSER_HUMAN="1"                      # Enable human-like mouse movement (1, bezier, arc, random, linear)
+AGENT_BROWSER_PROXY="http://proxy:8080"      # Proxy server URL
+AGENT_BROWSER_PROXY_BYPASS="localhost,*"     # Proxy bypass hosts
 ```
