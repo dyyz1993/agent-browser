@@ -1880,34 +1880,70 @@
       createRecorderOverlay();
     }, 0);
 
-    // 监听页面变化
-    let lastUrl = window.location.href;
-    _checkPanelInterval = setInterval(() => {
-      if (window.xyzStopped) {
-        console.log('[Panel] Session was stopped, removing panel');
-        if (typeof window.xyzClose === 'function') {
-          window.xyzClose();
+    // ============ 鵘化版面板恢复机制 (使用 MutationObserver) ============
+
+    // 使用 MutationObserver 替代 setInterval 来实时检测面板是否消失
+    // 这比轮询更高效， 可以立即恢复面板， 不占用主线程
+    let panelObserver = null;
+
+    function startPanelObserver() {
+      if (panelObserver) {
+        panelObserver.disconnect();
+      }
+
+      // 监听 document.body 的子元素变化
+      panelObserver = new MutationObserver((mutations) => {
+        // 检查录制会话是否已停止
+        if (window.xyzStopped) {
+          console.log('[Panel] Session was stopped, removing observer');
+          if (typeof window.xyzClose === 'function') {
+            window.xyzClose();
+          }
+          if (panelObserver) {
+            panelObserver.disconnect();
+            panelObserver = null;
+          }
+          return;
         }
-        clearInterval(_checkPanelInterval);
-        _checkPanelInterval = null;
+
+        // 检查录制会话是否激活
+        if (!window.xyzActive) {
+          console.log('[Panel] Session not active, skipping panel check');
+          return;
+        }
+
+        // 检查面板是否存在
+        const panel = document.getElementById('xyzPnl');
+        const style = document.getElementById('xyzSt');
+        if (document.body && (!panel || !style)) {
+          console.log('[Panel] Panel or style missing, recreating...');
+          createRecorderOverlay();
+        }
+      });
+
+      // 启动观察器
+      panelObserver.observe(document.body, {
+        childList: true,
+        subtree: false
+      });
+
+      console.log('[Panel] MutationObserver started, watching for panel removal');
+    }
+
+    // 延迟创建面板（保持与原逻辑兼容）
+    setTimeout(() => {
+      if (window.xyzStopped) {
+        console.log('[Panel] Session was stopped during init, skipping panel creation');
         return;
       }
-
       if (!window.xyzActive) {
-        clearInterval(_checkPanelInterval);
-        _checkPanelInterval = null;
+        console.log('[Panel] Session not active during init, skipping panel creation');
         return;
       }
+      createRecorderOverlay();
+    }, 0);
 
-      if (window.location.href !== lastUrl) {
-        lastUrl = window.location.href;
-      }
-
-      const panel = document.getElementById('xyzPnl');
-      const style = document.getElementById('xyzSt');
-      if (document.body && (!panel || !style)) {
-        createRecorderOverlay();
-      }
-    }, 1000);
+    // 启动 MutationObserver
+    startPanelObserver();
   }
 })();

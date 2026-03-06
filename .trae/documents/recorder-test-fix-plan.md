@@ -1,163 +1,216 @@
-# Recorder 测试失败修复方案
+# Recorder 测试失败修复计划
 
-## 问题概述
+## 问题分析
 
-当前有 11 个测试失败，分为三类问题：
+### 现象
+1. 两个测试单独运行时都通过，但在完整测试套件中失败
+2. 错误信息指向的行号与实际测试不匹配（错误指向 Test 3 的代码，但实际失败的是 Test 4）
+3. 测试日志显示 Test 4 的部分断言通过了，但 `expect(cb1Checked).toBe(true)` 失败
 
-| 类别 | 失败测试数 | 根因 |
-|------|-----------|------|
-| 键盘事件录制 | 6 | `handlePress` 未触发 JavaScript 层面的 `keydown` 事件 |
-| 标签页操作录制 | 4 | 新标签页创建后录制面板未正确注入/显示 |
-| iframe 事件录制 | 1 | iframe 内的事件未被正确捕获 |
+### 根本原因
 
----
+经过深入调研，发现以下问题：
 
-## 问题一：键盘事件录制失败
+#### 1. Vitest Source Map 问题
+错误堆栈指向的行号（第 297 行）是 Test 3 的代码，但实际失败的是 Test 4。这是 vitest 的 source map 问题，导致错误行号不正确。
 
-### 失败测试
-- `should record Enter key press`
-- `should record Tab key press`
-- `should record Escape key press`
-- `should record arrow key presses`
-- `should record modifier key combinations`
-- `should record form interaction with keyboard submit`
+#### 2. Test 4 录制时记录了额外的操作（关键发现！）
+从录制的 YAML 文件来看，Test 4 录制了 **9 个步骤**，而不是预期的 2 个操作（fill + click）：
+- 4 个 trajectory + click 组合（都是点击 #cb1）
+- 1 个 fill #username "recovery_user"
 
-### 根因分析
-`handlePress` 函数使用 Playwright 的 `page.keyboard.press()` 方法，该方法在操作系统层面模拟按键，不会触发 JavaScript 层面的 `keydown` 事件。而 `inject.js` 中的录制器监听的是 JavaScript 的 `keydown` 事件。
+但 Test 4 的代码只执行了：
+```typescript
+await executeCommand(parseCliArgs(['fill', '#username', 'recovery_user']), browser);
+await executeCommand(parseCliArgs(['click', '#cb1']), browser);
+```
 
-### 修复方案
-在 `handlePress` 函数中，按键操作后手动触发 `keydown` 事件：
+**这说明录制器在 Test 4 开始录制时，仍然记录了 Test 3 遗留的鼠标移动事件！**
 
-**文件**: `src/actions.ts`
+#### 3. 根本原因：addInitScript 累积导致事件监听器泄漏
+
+问题出在 `browser.ts` 的 `startRecorder` 方法中：
 
 ```typescript
-async function handlePress(command: PressCommand, browser: BrowserManager): Promise<Response> {
-  const page = browser.getPage();
-  let locator = page.locator('body');
+// 注入录制器脚本到所有新页面
+await context.addInitScript(injectScript);
+```
 
-  if (command.inFrame && command.selector) {
-    const frameLocator = browser.getFrame(command.inFrame);
-    locator = frameLocator.locator(command.selector);
-  } else if (command.selector) {
-    locator = page.locator(command.selector);
-  }
+**`addInitScript` 是累积的**，每次调用 `startRecorder` 都会添加新的脚本，但不会移除旧的脚本。
 
-  const diffResult = await performDiff(locator, command.diffScope, async () => {
-    if (command.inFrame && command.selector) {
-      const frameLocator = browser.getFrame(command.inFrame);
-      await frameLocator.locator(command.selector).press(command.key);
-    } else {
-      if (command.selector) {
-        await page.press(command.selector, command.key);
-      } else {
-        await page.keyboard.press(command.key);
-      }
-    }
-    
-    // 触发 keydown 事件供录制器捕获
-    await page.evaluate((key) => {
-      const specialKeys = ['Enter', 'Tab', 'Escape', 'Backspace', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
-      const keyParts = key.split('+');
-      const mainKey = keyParts[keyParts.length - 1];
-      const hasCtrl = keyParts.includes('Control') || keyParts.includes('Ctrl');
-      const hasMeta = keyParts.includes('Meta') || keyParts.includes('Command');
-      const hasAlt = keyParts.includes('Alt');
-      const hasShift = keyParts.includes('Shift');
-      
-      if (specialKeys.includes(mainKey) || hasCtrl || hasMeta || hasAlt) {
-        const event = new KeyboardEvent('keydown', {
-          key: mainKey,
-          code: mainKey.length === 1 ? `Key${mainKey.toUpperCase()}` : mainKey,
-          ctrlKey: hasCtrl,
-          metaKey: hasMeta,
-          altKey: hasAlt,
-          shiftKey: hasShift,
-          bubbles: true
-        });
-        document.activeElement?.dispatchEvent(event);
-      }
-    }, command.key);
-  });
+这导致：
+1. Test 3 录制时，注入了 inject.js 脚本，添加了 `mousemove` 事件监听器
+2. Test 3 停止录制时，设置了 `window.xyzStopped = true`，但事件监听器仍然存在
+3. Test 4 开始录制时：
+   - 设置 `window.xyzStopped = false`
+   - 添加了新的 inject.js 脚本
+   - **旧的 `mousemove` 监听器又开始工作**，因为它检查的是 `window.xyzStopped`
+4. Test 4 录制时，旧的监听器记录了 Test 3 遗留的鼠标位置
 
-  // ... rest of function
+#### 4. inject.js 中的 mousePath 问题
+
+在 `inject.js` 中：
+```javascript
+// 鼠标轨迹
+let mousePath = [];  // 闭包变量
+
+document.addEventListener('mousemove', (e) => {
+  if (window.xyzActive === false || window.xyzStopped) return;
+  
+  mousePath.push({ x: e.clientX, y: e.clientY, t: now });
+  // ...
+}, true);
+```
+
+当 `xyzStopped` 从 true 变为 false 时，旧的监听器又开始记录鼠标移动，但 `mousePath` 中可能已经有旧的数据。
+
+#### 5. Test 4 的 checkbox 断言失败
+从日志来看：
+```
+[Test 4] Username after recovery: recovery_user
+[stopRecorder] No active recording session
+```
+
+缺少 `[Test 4] Checkbox after recovery: true` 和 `[Test 4] Test completed successfully` 日志，说明 Test 4 在 `expect(cb1Checked).toBe(true)` 这一行失败了。
+
+## 修复方案
+
+### 方案 1：在 inject.js 中使用会话时间戳验证（推荐）
+
+修改 `inject.js`，让事件监听器检查会话时间戳是否是最新的：
+
+**修改 `src/recorder/inject.js`：**
+
+1. 在脚本开头保存当前会话的时间戳：
+```javascript
+// 当前脚本的会话 ID（在脚本注入时设置）
+const thisSessionId = window.xyzInjectedSessionId;
+const thisSessionTimestamp = parseInt(thisSessionId.replace('recorder-', '')) || 0;
+```
+
+2. 在 `mousemove` 监听器中检查时间戳：
+```javascript
+document.addEventListener('mousemove', (e) => {
+  // 检查录制会话是否仍然活跃
+  if (window.xyzActive === false || window.xyzStopped) return;
+  
+  // 检查当前会话是否是最新的
+  const currentSessionTimestamp = parseInt((window.xyzSessionId || '').replace('recorder-', '')) || 0;
+  if (thisSessionTimestamp < currentSessionTimestamp) return;
+  
+  // ... rest of the code ...
+}, true);
+```
+
+3. 在 `recordStep` 函数中也添加同样的检查：
+```javascript
+function recordStep(action, data) {
+  // 检查是否暂停录制或已停止
+  if (window.xyzActive === false || window.xyzPaused || window.xyzStopped) return;
+  
+  // 检查当前会话是否是最新的
+  const currentSessionTimestamp = parseInt((window.xyzSessionId || '').replace('recorder-', '')) || 0;
+  if (thisSessionTimestamp < currentSessionTimestamp) return;
+  
+  // ... rest of the code ...
 }
 ```
 
----
+### 方案 2：在 startRecorder 时设置全局时间戳（补充方案）
 
-## 问题二：标签页操作录制失败
+修改 `browser.ts`，在开始录制时设置一个全局时间戳：
 
-### 失败测试
-- `should record tab_new action when opening new tab and show panel`
-- `should record tab_switch action when switching tabs and show panel`
-- `should record tab_close action when closing tab and show panel`
-- `should record complete tab workflow and show panel`
+**修改 `src/browser.ts`：**
 
-### 根因分析
-1. 新标签页创建后，录制器脚本需要注入到新页面
-2. 切换标签页时，录制面板需要在当前活动页面显示
-3. `recorderPageHandler` 中的脚本注入可能存在时序问题
+```typescript
+async startRecorder(url?: string, hide: boolean = false): Promise<{ started: boolean; sessionId: string }> {
+  // ... existing code ...
+  
+  // 在当前页面设置状态，再注入脚本
+  try {
+    await page.evaluate(`
+      // 设置当前会话 ID
+      window.xyzSessionId = '${this.recorderSessionId}';
+      window.xyzActive = true;
+      window.xyzStopped = false;
+      window.xyzInited = false;
+      // 清空旧的录制队列，避免状态干扰
+      window.xyzQueue = [];
+    `);
+  } catch (e) {}
+  
+  // ... rest of the code ...
+}
+```
 
-### 修复方案
-检查并修复 `browser.ts` 中的 `recorderPageHandler`：
+### 方案 3：修改测试的 beforeEach 清理逻辑（临时方案）
 
-**文件**: `src/browser.ts`
+修改 `recorder-integration.e2e.test.ts` 的 `beforeEach`，确保彻底清理：
 
-1. 确保新标签页创建时正确注入录制器脚本和面板
-2. 确保标签页切换时面板正确显示
-3. 增加等待时间确保脚本执行完成
-
----
-
-## 问题三：iframe 事件录制失败
-
-### 失败测试
-- `should record click inside same-origin iframe`
-
-### 根因分析
-当使用 `--in-frame` 参数在 iframe 内执行操作时，事件在 iframe 内部触发，但 `inject.js` 中的事件监听器可能未正确捕获 iframe 内的事件。
-
-### 修复方案
-1. 确保 iframe 内的录制器脚本正确注入
-2. 在 `handleClick` 和 `handleFill` 中，对于 iframe 操作，手动触发事件
-
----
+```typescript
+beforeEach(async () => {
+  // Stop any active recording first
+  await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
+  
+  // Wait for cleanup
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  
+  // Reset browser page state completely
+  const page = browser.getPage();
+  if (page) {
+    try {
+      await page.evaluate(() => {
+        const win = window as any;
+        // Reset all recorder-related state
+        win.xyzActive = false;
+        win.xyzStopped = true;
+        win.xyzInited = false;
+        win.xyzInitializedSessionId = undefined;
+        win.xyzSessionId = undefined;
+        win.xyzQueue = [];
+        win.xyzPaused = false;
+      });
+    } catch (e) {}
+  }
+  
+  // Wait longer for cleanup
+  await new Promise((resolve) => setTimeout(resolve, 800));
+  
+  // Open fresh page
+  const openResult = await executeCommand(
+    parseCliArgs(['open', getFixturePath('comprehensive-test.html')]),
+    browser
+  );
+  if (!openResult.success) {
+    throw new Error('Failed to open test page');
+  }
+  
+  await new Promise((resolve) => setTimeout(resolve, 300));
+});
+```
 
 ## 实施步骤
 
-### 步骤 1：修复键盘事件录制
-1. 修改 `src/actions.ts` 中的 `handlePress` 函数
-2. 在按键操作后触发 `keydown` 事件
-3. 运行测试验证
+1. **修复 inject.js（方案 1）**
+   - 在 `mousemove` 监听器中添加会话时间戳检查
+   - 在 `recordStep` 函数中添加会话时间戳检查
+   - 在 `getTrajectory` 函数中添加会话时间戳检查
 
-### 步骤 2：修复标签页操作录制
-1. 检查 `src/browser.ts` 中的 `recorderPageHandler`
-2. 确保新标签页创建时正确注入录制器脚本
-3. 确保标签页切换时面板正确显示
-4. 运行测试验证
+2. **修复 browser.ts（方案 2）**
+   - 在 `startRecorder` 中确保正确设置 `xyzSessionId`
+   - 在 `stopRecorder` 中确保正确清理状态
 
-### 步骤 3：修复 iframe 事件录制
-1. 检查 iframe 内的事件捕获逻辑
-2. 在 iframe 操作时手动触发事件
-3. 运行测试验证
+3. **修复测试文件（方案 3）**
+   - 修改 `beforeEach` 中的清理逻辑
+   - 移除 `beforeEach` 中的断言，改为检查并抛出错误
 
-### 步骤 4：运行完整测试套件
-1. 运行所有 recorder 相关测试
-2. 确保所有测试通过
-3. 提交代码
-
----
-
-## 风险评估
-
-| 风险 | 影响 | 缓解措施 |
-|------|------|---------|
-| 键盘事件触发可能影响现有功能 | 中 | 只在录制会话激活时触发事件 |
-| 标签页操作可能影响性能 | 低 | 使用异步注入，不阻塞主流程 |
-| iframe 操作可能影响跨域安全 | 中 | 只对同源 iframe 进行处理 |
-
----
+4. **运行测试验证**
+   - 单独运行每个失败的测试
+   - 运行完整的测试套件
+   - 运行所有 recorder 相关的测试
 
 ## 预期结果
 
-修复后，所有 15 个 `recorder-missing-features.e2e.test.ts` 测试应该通过。
+修复后，所有测试应该通过，包括：
+- `should recover from trajectory failure` (recorder-integration.e2e.test.ts)
+- `should use most recent recording when replay has no path` (recorder-replay.e2e.test.ts)
