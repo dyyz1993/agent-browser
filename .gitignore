@@ -58,3 +58,11 @@ scripts/
 output/
 export/
 export_data/*
+
+# Test files
+test-pages/
+test-recordings/
+
+# Test files
+test-pages/
+test-recordings/
