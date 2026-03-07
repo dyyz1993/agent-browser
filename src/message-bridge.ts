@@ -34,11 +34,20 @@ export class MessageBridge {
   }
 
   async push(question: string, sessionId?: string): Promise<string> {
+    // 尝试解析 question 字符串为 JSON 对象
+    let parsedQuestion: unknown;
+    try {
+      parsedQuestion = JSON.parse(question);
+    } catch {
+      // 如果解析失败，保持原字符串
+      parsedQuestion = question;
+    }
+
     const response = await fetch(`${this.baseUrl}/push`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        question,
+        question: parsedQuestion,
         session_id: sessionId,
       }),
       dispatcher: this.proxyAgent || this.timeoutAgent,

@@ -756,35 +756,37 @@ Question Formats:
    agent-browser ask "What should I do next?"
 
 2. Structured JSON (for multiple choice):
-   The question can be a JSON string with options for the user to select.
+   **IMPORTANT**: The question field must be an OBJECT containing a questions array.
 
    Structure:
    {
-     "questions": [
-       {
-         "header": "Section Title (optional)",
-         "question": "Your question here",
-         "multiSelect": false,
-         "options": [
-           { "label": "Option 1", "description": "Optional description" },
-           { "label": "Option 2" }
-         ]
-       }
-     ]
+     "question": {
+       "questions": [
+         {
+           "header": "Section Title (optional)",
+           "question": "Your question here",
+           "multiSelect": false,
+           "options": [
+             { "label": "Option 1", "description": "Optional description" },
+             { "label": "Option 2" }
+           ]
+         }
+       ]
+     }
    }
 
 Examples:
   # Simple question
   agent-browser ask "What should I do next?"
-  
-  # Multiple choice question
-  agent-browser ask '{"questions":[{"question":"Choose an action","options":[{"label":"Login"},{"label":"Skip"}]}]}'
-  
+
+  # Multiple choice question (correct format)
+  agent-browser ask '{"question":{"questions":[{"question":"Choose an action","options":[{"label":"Login"},{"label":"Skip"}]}]}}'
+
   # Multi-select question
-  agent-browser ask '{"questions":[{"question":"Select items","multiSelect":true,"options":[{"label":"Item 1"},{"label":"Item 2"}]}]}'
-  
+  agent-browser ask '{"question":{"questions":[{"question":"Select items","multiSelect":true,"options":[{"label":"Item 1"},{"label":"Item 2"}]}]}}'
+
   # With header and descriptions
-  agent-browser ask '{"questions":[{"header":"Authentication","question":"How would you like to login?","options":[{"label":"Email","description":"Login with email and password"},{"label":"Google","description":"Login with Google account"}]}]}'
+  agent-browser ask '{"question":{"questions":[{"header":"Authentication","question":"How would you like to login?","options":[{"label":"Email","description":"Login with email and password"},{"label":"Google","description":"Login with Google account"}]}]}}'
 
 Output:
   answer    User's response (string or selected option(s))
