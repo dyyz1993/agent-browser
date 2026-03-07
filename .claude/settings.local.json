@@ -30,5 +30,6 @@
       "Bash(agent-browser:*)",
       "Bash(bin/agent-browser-darwin-arm64 --version)"
     ]
-  }
+  },
+  "prefersReducedMotion": true
 }
