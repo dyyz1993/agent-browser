@@ -63,6 +63,5 @@ export_data/*
 test-pages/
 test-recordings/
 
-# Test files
-test-pages/
-test-recordings/
+# Trae temp files
+.trae/
