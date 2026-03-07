@@ -43,13 +43,24 @@ export class MessageBridge {
       parsedQuestion = question;
     }
 
+    // 构建请求体
+    // 如果 parsedQuestion 已经是包含 question 字段的对象，直接使用
+    // 否则包装在 question 字段里
+    const body =
+      typeof parsedQuestion === 'object' && parsedQuestion !== null && 'question' in parsedQuestion
+        ? JSON.stringify({
+            ...parsedQuestion,
+            session_id: sessionId,
+          })
+        : JSON.stringify({
+            question: parsedQuestion,
+            session_id: sessionId,
+          });
+
     const response = await fetch(`${this.baseUrl}/push`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        question: parsedQuestion,
-        session_id: sessionId,
-      }),
+      body,
       dispatcher: this.proxyAgent || this.timeoutAgent,
     });
 
