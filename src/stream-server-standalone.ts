@@ -178,6 +178,59 @@ class StreamServerStandalone {
           return;
         }
 
+        // HTTP API: Help - list available commands
+        if (req.url === '/api/help' && req.method === 'GET') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(
+            JSON.stringify({
+              title: 'agent-browser HTTP API',
+              version: '0.9.2',
+              endpoints: {
+                'POST /api/command': {
+                  description: 'Execute a browser command',
+                  example: { id: '1', action: 'navigate', url: 'https://example.com' },
+                },
+                'GET /api/help': { description: 'Show this help message' },
+                'GET /api/openapi.json': { description: 'OpenAPI 3.0 specification' },
+                'GET /api/docs': { description: 'Swagger UI documentation' },
+                'GET /health': { description: 'Health check' },
+                'GET /sessions': { description: 'List active sessions' },
+              },
+              availableActions: [
+                { action: 'launch', description: 'Launch browser', required: [] },
+                { action: 'navigate', description: 'Navigate to URL', required: ['url'] },
+                { action: 'click', description: 'Click element', required: ['selector'] },
+                { action: 'fill', description: 'Fill form field', required: ['selector', 'value'] },
+                { action: 'type', description: 'Type text', required: ['selector', 'text'] },
+                { action: 'snapshot', description: 'Get page snapshot', required: [] },
+                { action: 'screenshot', description: 'Take screenshot', required: [] },
+                { action: 'evaluate', description: 'Execute JavaScript', required: ['script'] },
+                { action: 'wait', description: 'Wait for element/condition', required: [] },
+                { action: 'scroll', description: 'Scroll page', required: [] },
+                { action: 'hover', description: 'Hover element', required: ['selector'] },
+                { action: 'press', description: 'Press key', required: ['key'] },
+                {
+                  action: 'select',
+                  description: 'Select dropdown option',
+                  required: ['selector', 'values'],
+                },
+                { action: 'back', description: 'Go back', required: [] },
+                { action: 'forward', description: 'Go forward', required: [] },
+                { action: 'reload', description: 'Reload page', required: [] },
+                { action: 'close', description: 'Close browser', required: [] },
+                { action: 'url', description: 'Get current URL', required: [] },
+                { action: 'title', description: 'Get page title', required: [] },
+                { action: 'cookies_get', description: 'Get cookies', required: [] },
+                { action: 'cookies_set', description: 'Set cookie', required: ['cookies'] },
+                { action: 'state_save', description: 'Save browser state', required: ['path'] },
+                { action: 'state_load', description: 'Load browser state', required: ['path'] },
+              ],
+              docs: 'See http://localhost:5005/api/docs for interactive documentation',
+            })
+          );
+          return;
+        }
+
         res.writeHead(404, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Not found' }));
       });

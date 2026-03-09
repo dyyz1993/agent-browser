@@ -160,6 +160,31 @@ export const openApiSpec: OpenApiSpec = {
         },
       },
     },
+    '/api/help': {
+      get: {
+        summary: 'API Help',
+        description: 'Returns available endpoints, actions, and quick reference for the HTTP API',
+        responses: {
+          '200': {
+            description: 'API help information',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    title: { type: 'string' },
+                    version: { type: 'string' },
+                    endpoints: { type: 'object' },
+                    availableActions: { type: 'array', items: { type: 'object' } },
+                    docs: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
   },
   components: {
     schemas: {
