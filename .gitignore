@@ -53,6 +53,8 @@ docs/package-lock.json
 .pnpm-store/
 acne-products-detail/
 *.sh
+!skills/**/*.sh
+!skills/**/*.sh
 *.csv
 scripts/
 output/
