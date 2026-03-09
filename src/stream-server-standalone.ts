@@ -5,6 +5,8 @@ import * as http from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { getViewerHtml } from './viewer-html.js';
 import { getSocketDir, getAppDir } from './daemon.js';
+import { openApiSpec } from './openapi.js';
+import { getSwaggerUiHtml } from './swagger-ui.js';
 
 const DEFAULT_STREAM_PORT = parseInt(process.env.AGENT_BROWSER_STREAM_PORT || '5005', 10);
 const STREAM_SERVER_PID_FILE = 'stream-server.pid';
@@ -87,14 +89,14 @@ class StreamServerStandalone {
 
   async start(): Promise<void> {
     const portAvailable = await this.checkPortAvailable(this.port);
-    
+
     if (!portAvailable) {
       console.error(`[StreamServer] Port ${this.port} already in use, exiting`);
       process.exit(1);
     }
 
     this.writePidFile();
-    
+
     try {
       await this.startServer();
       await this.startIpcServer();
@@ -122,11 +124,13 @@ class StreamServerStandalone {
 
         if (req.url === '/health' && req.method === 'GET') {
           res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ 
-            status: 'ok', 
-            sessions: Array.from(this.sessions.keys()),
-            clients: this.getTotalClientCount()
-          }));
+          res.end(
+            JSON.stringify({
+              status: 'ok',
+              sessions: Array.from(this.sessions.keys()),
+              clients: this.getTotalClientCount(),
+            })
+          );
           return;
         }
 
@@ -142,25 +146,66 @@ class StreamServerStandalone {
           return;
         }
 
+        // HTTP API: Execute command
+        if (req.url === '/api/command' && req.method === 'POST') {
+          let body = '';
+          req.on('data', (chunk) => (body += chunk));
+          req.on('end', async () => {
+            try {
+              const response = await this.sendCommandToDaemon(body);
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(response);
+            } catch (err) {
+              const error = err instanceof Error ? err.message : String(err);
+              res.writeHead(500, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ id: 'unknown', success: false, error }));
+            }
+          });
+          return;
+        }
+
+        // HTTP API: OpenAPI specification
+        if (req.url === '/api/openapi.json' && req.method === 'GET') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(openApiSpec));
+          return;
+        }
+
+        // HTTP API: Swagger UI
+        if (req.url === '/api/docs' && req.method === 'GET') {
+          res.setHeader('Content-Type', 'text/html; charset=utf-8');
+          res.end(getSwaggerUiHtml());
+          return;
+        }
+
         res.writeHead(404, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Not found' }));
       });
 
       this.wss = new WebSocketServer({
         server: this.httpServer,
-        verifyClient: (info: { origin: string; secure: boolean; req: import('http').IncomingMessage }) => {
+        verifyClient: (info: {
+          origin: string;
+          secure: boolean;
+          req: import('http').IncomingMessage;
+        }) => {
           const origin = info.origin;
           if (!origin) return true;
           if (origin.startsWith('file://')) return true;
           try {
             const url = new URL(origin);
             const host = url.hostname;
-            if (host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]') {
+            if (
+              host === 'localhost' ||
+              host === '127.0.0.1' ||
+              host === '::1' ||
+              host === '[::1]'
+            ) {
               return true;
             }
           } catch {}
           return false;
-        }
+        },
       });
 
       this.wss.on('connection', (ws, req) => {
@@ -169,8 +214,8 @@ class StreamServerStandalone {
 
       this.wss.on('error', reject);
 
-      this.httpServer.listen(this.port, '127.0.0.1', () => {
-        console.log(`[StreamServer] Server listening on port ${this.port}`);
+      this.httpServer.listen(this.port, '0.0.0.0', () => {
+        console.log(`[StreamServer] Server listening on port ${this.port} (HTTP API enabled)`);
         resolve();
       });
 
@@ -219,9 +264,9 @@ class StreamServerStandalone {
 
     // 如果这是该 session 的第一个客户端，通知 daemon 启动 screencast
     if (wasEmpty && this.daemonSockets.has(session)) {
-      this.daemonSockets.get(session)?.write(
-        JSON.stringify({ type: 'client_connected', session }) + '\n'
-      );
+      this.daemonSockets
+        .get(session)
+        ?.write(JSON.stringify({ type: 'client_connected', session }) + '\n');
     }
 
     if (this.sessions.has(session) && !this.daemonSockets.has(session)) {
@@ -244,9 +289,9 @@ class StreamServerStandalone {
         this.clients.delete(session);
         // 如果该 session 没有客户端了，通知 daemon 停止 screencast
         if (this.daemonSockets.has(session)) {
-          this.daemonSockets.get(session)?.write(
-            JSON.stringify({ type: 'client_disconnected', session }) + '\n'
-          );
+          this.daemonSockets
+            .get(session)
+            ?.write(JSON.stringify({ type: 'client_disconnected', session }) + '\n');
         }
       }
     });
@@ -265,20 +310,23 @@ class StreamServerStandalone {
 
     const forwardableTypes = [
       'input_mouse',
-      'input_keyboard', 
+      'input_keyboard',
       'input_touch',
       'input_text',
       'user_activity',
       'keyboard_down',
       'keyboard_up',
-      'keyboard_insert_text'
+      'keyboard_insert_text',
     ];
-    
+
     if (forwardableTypes.includes(message.type)) {
       try {
         daemonSocket.write(JSON.stringify(message) + '\n');
       } catch (error) {
-        console.error(`[StreamServer] Failed to send message to daemon for session ${session}:`, error);
+        console.error(
+          `[StreamServer] Failed to send message to daemon for session ${session}:`,
+          error
+        );
       }
     }
   }
@@ -286,7 +334,7 @@ class StreamServerStandalone {
   private async startIpcServer(): Promise<void> {
     return new Promise((resolve, reject) => {
       const ipcPath = this.getIpcPath();
-      
+
       if (fs.existsSync(ipcPath)) {
         try {
           fs.unlinkSync(ipcPath);
@@ -349,11 +397,13 @@ class StreamServerStandalone {
     switch (message.type) {
       case 'register':
         if (message.session && message.socketPath && message.instanceId) {
-          console.log(`[StreamServer] Session registered: ${message.session}, instanceId: ${message.instanceId}`);
+          console.log(
+            `[StreamServer] Session registered: ${message.session}, instanceId: ${message.instanceId}`
+          );
           this.sessions.set(message.session, {
             socketPath: message.socketPath,
             lastSeen: Date.now(),
-            instanceId: message.instanceId
+            instanceId: message.instanceId,
           });
           this.instanceIdToSession.set(message.instanceId, message.session);
           this.daemonSockets.set(message.session, socket);
@@ -397,7 +447,7 @@ class StreamServerStandalone {
     if (!sessionInfo) return;
 
     const socketPath = sessionInfo.socketPath;
-    
+
     const socket = net.createConnection({ path: socketPath }, () => {
       console.log(`[StreamServer] Connected to daemon for session: ${session}`);
       this.daemonSockets.set(session, socket);
@@ -415,7 +465,7 @@ class StreamServerStandalone {
   private broadcastFrame(message: StreamMessage): void {
     const session = message.session!;
     const clients = this.clients.get(session);
-    
+
     if (!clients || clients.size === 0) return;
 
     const headerMessage = {
@@ -423,14 +473,14 @@ class StreamServerStandalone {
       metadata: message.metadata,
       format: message.format,
       fps: message.fps,
-      state: message.state
+      state: message.state,
     };
 
     // 保存最新帧
     if (message.data) {
       this.latestFrames.set(session, {
         header: JSON.stringify(headerMessage),
-        data: Buffer.from(message.data, 'base64')
+        data: Buffer.from(message.data, 'base64'),
       });
     }
 
@@ -451,7 +501,7 @@ class StreamServerStandalone {
     const message = {
       type: 'status',
       connected,
-      screencasting: connected
+      screencasting: connected,
     };
 
     for (const client of clients) {
@@ -467,7 +517,7 @@ class StreamServerStandalone {
       type: 'status',
       connected,
       screencasting: connected,
-      session
+      session,
     };
 
     if (ws.readyState === WebSocket.OPEN) {
@@ -481,6 +531,75 @@ class StreamServerStandalone {
       total += clients.size;
     }
     return total;
+  }
+
+  /**
+   * Send a command to the daemon via Unix socket and return the response
+   */
+  private async sendCommandToDaemon(commandJson: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      // Get the daemon socket path from the first available session
+      // or use the default socket path
+      let socketPath: string | undefined;
+
+      // Try to find an active session's socket path
+      for (const [session, info] of this.sessions) {
+        socketPath = info.socketPath;
+        break;
+      }
+
+      if (!socketPath) {
+        // Fallback to default socket path
+        socketPath = path.join(getSocketDir(), 'default.sock');
+      }
+
+      const socket = net.createConnection({ path: socketPath }, () => {
+        socket.write(commandJson + '\n');
+      });
+
+      let response = '';
+      let resolved = false;
+      const timeout = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          socket.destroy();
+          reject(new Error('Command timeout'));
+        }
+      }, 30000); // 30 second timeout
+
+      socket.on('data', (data) => {
+        response += data.toString();
+        // Check if we have a complete JSON response
+        try {
+          JSON.parse(response);
+          // If we can parse it, we have the complete response
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(timeout);
+            resolve(response);
+            socket.end();
+          }
+        } catch {
+          // Not complete yet, keep reading
+        }
+      });
+
+      socket.on('end', () => {
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timeout);
+          resolve(response);
+        }
+      });
+
+      socket.on('error', (err) => {
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timeout);
+          reject(err);
+        }
+      });
+    });
   }
 
   private getPidFile(): string {
@@ -517,7 +636,7 @@ class StreamServerStandalone {
   private setupShutdownHandlers(): void {
     const shutdown = () => {
       console.log('[StreamServer] Shutting down...');
-      
+
       for (const clients of this.clients.values()) {
         for (const client of clients) {
           client.close();
@@ -587,7 +706,10 @@ export function getStreamServerIpcPath(): string {
 
 export { StreamServerStandalone };
 
-if (process.argv[1]?.endsWith('stream-server-standalone.js') || process.env.AGENT_BROWSER_STREAM_SERVER === '1') {
+if (
+  process.argv[1]?.endsWith('stream-server-standalone.js') ||
+  process.env.AGENT_BROWSER_STREAM_SERVER === '1'
+) {
   const server = new StreamServerStandalone();
   server.start().catch((err) => {
     console.error('[StreamServer] Failed to start:', err);
