@@ -9,6 +9,7 @@ import {
   type Frame,
   type Dialog,
   type Request,
+  type Response,
   type Route,
   type Locator,
   type CDPSession,
@@ -17,7 +18,7 @@ import {
 } from 'playwright-core';
 import path from 'node:path';
 import os from 'node:os';
-import { existsSync, mkdirSync, rmSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, readFileSync, writeFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -55,6 +56,12 @@ interface TrackedRequest {
   headers: Record<string, string>;
   timestamp: number;
   resourceType: string;
+  // Response data (captured when captureResponse is enabled)
+  status?: number;
+  statusText?: string;
+  responseHeaders?: Record<string, string>;
+  responseBody?: string | object;
+  contentType?: string;
 }
 
 interface ConsoleMessage {
@@ -86,6 +93,13 @@ export class BrowserManager {
   private activePageIndex: number = 0;
   private dialogHandler: ((dialog: Dialog) => Promise<void>) | null = null;
   private trackedRequests: TrackedRequest[] = [];
+  private isRequestTrackingEnabled: boolean = false;
+  private isResponseCaptureEnabled: boolean = false;
+  // Map to track requests for response matching (instance variable for cross-listener access)
+  private pendingRequests: Map<string, TrackedRequest> = new Map();
+  // Store request listener references for proper cleanup
+  private requestListener: ((request: Request) => void) | null = null;
+  private responseListener: ((response: Response) => Promise<void>) | null = null;
   private routes: Map<string, (route: Route) => Promise<void>> = new Map();
   private consoleMessages: ConsoleMessage[] = [];
   private pageErrors: PageError[] = [];
@@ -356,28 +370,118 @@ export class BrowserManager {
 
   /**
    * Start tracking requests
+   * @param captureResponse - Whether to capture response body (default: false for backward compatibility)
    */
-  startRequestTracking(): void {
+  startRequestTracking(captureResponse = false): void {
     const page = this.getPage();
-    page.on('request', (request: Request) => {
-      this.trackedRequests.push({
+
+    // If already tracking with the same captureResponse setting, do nothing
+    if (this.isRequestTrackingEnabled && this.isResponseCaptureEnabled === captureResponse) {
+      return;
+    }
+
+    // Remove existing listeners if any
+    if (this.requestListener) {
+      page.off('request', this.requestListener);
+    }
+    if (this.responseListener) {
+      page.off('response', this.responseListener);
+    }
+
+    // Update flags
+    this.isRequestTrackingEnabled = true;
+    this.isResponseCaptureEnabled = captureResponse;
+
+    // Create request listener
+    this.requestListener = (request: Request) => {
+      const trackedRequest: TrackedRequest = {
         url: request.url(),
         method: request.method(),
         headers: request.headers(),
         timestamp: Date.now(),
         resourceType: request.resourceType(),
-      });
-    });
+      };
+
+      // Store the request
+      this.trackedRequests.push(trackedRequest);
+
+      // Store for response matching
+      const key = `${request.url()}:${trackedRequest.timestamp}`;
+      this.pendingRequests.set(key, trackedRequest);
+    };
+
+    page.on('request', this.requestListener);
+
+    // Listen for response event (more reliable than request.response())
+    if (captureResponse) {
+      this.responseListener = async (response: Response) => {
+        const request = response.request();
+        const url = request.url();
+
+        // Find the matching tracked request
+        for (const [key, trackedRequest] of this.pendingRequests.entries()) {
+          if (key.startsWith(url + ':')) {
+            trackedRequest.status = response.status();
+            trackedRequest.statusText = response.statusText();
+            trackedRequest.responseHeaders = response.headers();
+            trackedRequest.contentType = response.headers()['content-type'] || '';
+
+            // Try to get response body
+            try {
+              const body = await response.text();
+              // Try to parse as JSON if content-type indicates JSON
+              if (
+                trackedRequest.contentType.includes('application/json') ||
+                trackedRequest.contentType.includes('text/json')
+              ) {
+                try {
+                  trackedRequest.responseBody = JSON.parse(body);
+                } catch {
+                  trackedRequest.responseBody = body;
+                }
+              } else {
+                trackedRequest.responseBody = body;
+              }
+            } catch {
+              // Response body not available (e.g., for binary data or failed requests)
+              trackedRequest.responseBody = undefined;
+            }
+
+            // Remove from pending after processing
+            this.pendingRequests.delete(key);
+            break;
+          }
+        }
+      };
+
+      page.on('response', this.responseListener);
+    } else {
+      this.responseListener = null;
+    }
   }
 
   /**
    * Get tracked requests
+   * @param filter - URL pattern to filter
+   * @param type - Filter by response type (e.g., 'json')
    */
-  getRequests(filter?: string): TrackedRequest[] {
+  getRequests(filter?: string, type?: 'json'): TrackedRequest[] {
+    let requests = this.trackedRequests;
+
+    // Filter by URL pattern
     if (filter) {
-      return this.trackedRequests.filter((r) => r.url.includes(filter));
+      requests = requests.filter((r) => r.url.includes(filter));
     }
-    return this.trackedRequests;
+
+    // Filter by response type
+    if (type === 'json') {
+      requests = requests.filter((r) => {
+        const contentType = r.contentType || '';
+        return contentType.includes('application/json') || contentType.includes('text/json');
+      });
+    }
+
+    return requests;
   }
 
   /**
@@ -385,6 +489,103 @@ export class BrowserManager {
    */
   clearRequests(): void {
     this.trackedRequests = [];
+  }
+
+  /**
+   * Save tracked requests to a directory
+   * @param outputDir - Directory path to save requests
+   * @param filter - URL pattern to filter
+   * @param type - Filter by response type (e.g., 'json')
+   * @returns Object with saved count and output path
+   */
+  saveRequestsToDir(
+    outputDir: string,
+    filter?: string,
+    type?: 'json'
+  ): { savedCount: number; outputPath: string; indexPath: string } {
+    // Get filtered requests
+    const requests = this.getRequests(filter, type);
+
+    // Resolve to absolute path
+    const absolutePath = path.resolve(outputDir);
+
+    // Check if path looks like a file (has extension and not already a directory)
+    const hasExtension = path.extname(absolutePath) !== '';
+    const isExistingDirectory = existsSync(absolutePath) && statSync(absolutePath).isDirectory();
+
+    // If path looks like a file and doesn't exist as directory, use parent directory
+    let targetPath = absolutePath;
+    let warningMessage: string | undefined;
+
+    if (hasExtension && !isExistingDirectory) {
+      // User specified a file path, use parent directory instead
+      targetPath = path.dirname(absolutePath);
+      warningMessage = `Warning: "${outputDir}" looks like a file path. Using directory: "${targetPath}"`;
+      console.warn(warningMessage);
+    }
+
+    // Create output directory if not exists
+    if (!existsSync(targetPath)) {
+      mkdirSync(targetPath, { recursive: true });
+    }
+
+    // Build index data
+    const indexData = {
+      capturedAt: new Date().toISOString(),
+      totalRequests: requests.length,
+      requests: [] as Array<{
+        index: number;
+        file: string;
+        url: string;
+        method: string;
+        status?: number;
+        contentType?: string;
+        timestamp: number;
+      }>,
+    };
+
+    // Save each request to a separate file
+    requests.forEach((request, index) => {
+      const fileIndex = String(index + 1).padStart(3, '0');
+      // Generate filename from URL or use index
+      const urlObj = new URL(request.url);
+      const pathParts = urlObj.pathname.split('/').filter(Boolean);
+      const baseName = pathParts.length > 0 ? pathParts.join('_').substring(0, 50) : 'request';
+      const fileName = `${fileIndex}_${baseName}.json`;
+      const filePath = path.join(targetPath, fileName);
+
+      // Save individual request file
+      const requestData = {
+        url: request.url,
+        method: request.method,
+        status: request.status,
+        contentType: request.contentType,
+        timestamp: request.timestamp,
+        body: request.responseBody,
+      };
+      writeFileSync(filePath, JSON.stringify(requestData, null, 2), 'utf-8');
+
+      // Add to index
+      indexData.requests.push({
+        index: index + 1,
+        file: fileName,
+        url: request.url,
+        method: request.method,
+        status: request.status,
+        contentType: request.contentType,
+        timestamp: request.timestamp,
+      });
+    });
+
+    // Save index file
+    const indexPath = path.join(targetPath, 'index.json');
+    writeFileSync(indexPath, JSON.stringify(indexData, null, 2), 'utf-8');
+
+    return {
+      savedCount: requests.length,
+      outputPath: targetPath,
+      indexPath,
+    };
   }
 
   /**
@@ -3012,6 +3213,25 @@ export class BrowserManager {
         this.recorderPageHandler = null;
       }
     }
+
+    // Clean up network tracking state and listeners
+    if (page) {
+      if (this.requestListener) {
+        page.off('request', this.requestListener);
+        this.requestListener = null;
+      }
+      if (this.responseListener) {
+        page.off('response', this.responseListener);
+        this.responseListener = null;
+      }
+    }
+    this.trackedRequests = [];
+    this.pendingRequests.clear();
+    this.isRequestTrackingEnabled = false;
+    this.isResponseCaptureEnabled = false;
+    this.routes.clear();
+    this.consoleMessages = [];
+    this.pageErrors = [];
 
     // Clean up navigation state
     this.navigationHistory = [];

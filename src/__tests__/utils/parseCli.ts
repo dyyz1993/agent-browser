@@ -923,7 +923,12 @@ export function parseCliArgs(args: string[]): Command {
           const clear = remaining.includes('--clear');
           const filterIdx = remaining.indexOf('--filter');
           const filter = filterIdx !== -1 ? remaining[filterIdx + 1] : undefined;
-          return { id, action: 'requests', clear, filter, inFrame };
+          const captureResponse = remaining.includes('--capture-response');
+          const typeIdx = remaining.indexOf('--type');
+          const type = typeIdx !== -1 ? (remaining[typeIdx + 1] as 'json') : undefined;
+          const outputIdx = remaining.indexOf('--output');
+          const output = outputIdx !== -1 ? remaining[outputIdx + 1] : undefined;
+          return { id, action: 'requests', clear, filter, captureResponse, type, output, inFrame };
         }
         default:
           error(

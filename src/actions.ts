@@ -1,4 +1,4 @@
-import type { Page, Frame } from 'playwright-core';
+import type { Page, Frame, Locator } from 'playwright-core';
 import { mkdirSync, readFileSync, existsSync, writeFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import type { BrowserManager, ScreencastFrame } from './browser.js';
@@ -192,6 +192,29 @@ export function getEventCallbacks(): BrowserEventCallbacks {
 interface SnapshotData {
   snapshot: string;
   refs?: Record<string, { role: string; name?: string }>;
+}
+
+/**
+ * Quick check if element exists before performing action.
+ * This avoids waiting for timeout when element is clearly not present.
+ */
+async function assertElementExists(
+  locator: Locator,
+  selector: string,
+  isRef: boolean
+): Promise<void> {
+  const count = await locator.count();
+  if (count === 0) {
+    if (isRef) {
+      throw new Error(
+        `Element ref "${selector}" not found. ` + `Run 'snapshot' to get updated element refs.`
+      );
+    } else {
+      throw new Error(
+        `No element matches selector "${selector}". ` + `Run 'snapshot' to see available elements.`
+      );
+    }
+  }
 }
 
 /**
@@ -574,6 +597,10 @@ async function handleNavigate(
 
 async function handleClick(command: ClickCommand, browser: BrowserManager): Promise<Response> {
   const locator = browser.getLocator(command.selector, command.inFrame);
+  const isRef = browser.isRef(command.selector);
+
+  // Quick check: fail fast if element doesn't exist
+  await assertElementExists(locator, command.selector, isRef);
 
   if (command.human?.enabled) {
     const diffResult = await performDiff(locator, command.diffScope, async () => {
@@ -627,6 +654,10 @@ async function handleClick(command: ClickCommand, browser: BrowserManager): Prom
 
 async function handleType(command: TypeCommand, browser: BrowserManager): Promise<Response> {
   const locator = browser.getLocator(command.selector, command.inFrame);
+  const isRef = browser.isRef(command.selector);
+
+  // Quick check: fail fast if element doesn't exist
+  await assertElementExists(locator, command.selector, isRef);
 
   if (command.human?.enabled) {
     const diffResult = await performDiff(locator, command.diffScope, async () => {
@@ -990,6 +1021,10 @@ async function handleScroll(command: ScrollCommand, browser: BrowserManager): Pr
 async function handleSelect(command: SelectCommand, browser: BrowserManager): Promise<Response> {
   const values = Array.isArray(command.values) ? command.values : [command.values];
   const locator = browser.getLocator(command.selector, command.inFrame);
+  const isRef = browser.isRef(command.selector);
+
+  // Quick check: fail fast if element doesn't exist
+  await assertElementExists(locator, command.selector, isRef);
 
   const diffResult = await performDiff(locator, command.diffScope, async () => {
     try {
@@ -1010,6 +1045,10 @@ async function handleSelect(command: SelectCommand, browser: BrowserManager): Pr
 
 async function handleHover(command: HoverCommand, browser: BrowserManager): Promise<Response> {
   const locator = browser.getLocator(command.selector, command.inFrame);
+  const isRef = browser.isRef(command.selector);
+
+  // Quick check: fail fast if element doesn't exist
+  await assertElementExists(locator, command.selector, isRef);
 
   if (command.human?.enabled) {
     const diffResult = await performDiff(locator, command.diffScope, async () => {
@@ -1135,6 +1174,10 @@ async function handleWindowNew(
 
 async function handleFill(command: FillCommand, browser: BrowserManager): Promise<Response> {
   const locator = browser.getLocator(command.selector, command.inFrame);
+  const isRef = browser.isRef(command.selector);
+
+  // Quick check: fail fast if element doesn't exist
+  await assertElementExists(locator, command.selector, isRef);
 
   if (command.human?.enabled) {
     const diffResult = await performDiff(locator, command.diffScope, async () => {
@@ -1196,6 +1239,10 @@ async function handleFill(command: FillCommand, browser: BrowserManager): Promis
 
 async function handleCheck(command: CheckCommand, browser: BrowserManager): Promise<Response> {
   const locator = browser.getLocator(command.selector, command.inFrame);
+  const isRef = browser.isRef(command.selector);
+
+  // Quick check: fail fast if element doesn't exist
+  await assertElementExists(locator, command.selector, isRef);
 
   const diffResult = await performDiff(locator, command.diffScope, async () => {
     try {
@@ -1218,6 +1265,10 @@ async function handleCheck(command: CheckCommand, browser: BrowserManager): Prom
 
 async function handleUncheck(command: UncheckCommand, browser: BrowserManager): Promise<Response> {
   const locator = browser.getLocator(command.selector, command.inFrame);
+  const isRef = browser.isRef(command.selector);
+
+  // Quick check: fail fast if element doesn't exist
+  await assertElementExists(locator, command.selector, isRef);
 
   const diffResult = await performDiff(locator, command.diffScope, async () => {
     try {
@@ -1240,6 +1291,11 @@ async function handleUncheck(command: UncheckCommand, browser: BrowserManager): 
 
 async function handleUpload(command: UploadCommand, browser: BrowserManager): Promise<Response> {
   const locator = browser.getLocator(command.selector, command.inFrame);
+  const isRef = browser.isRef(command.selector);
+
+  // Quick check: fail fast if element doesn't exist
+  await assertElementExists(locator, command.selector, isRef);
+
   const files = Array.isArray(command.files) ? command.files : [command.files];
   try {
     await locator.setInputFiles(files);
@@ -1254,6 +1310,10 @@ async function handleDoubleClick(
   browser: BrowserManager
 ): Promise<Response> {
   const locator = browser.getLocator(command.selector, command.inFrame);
+  const isRef = browser.isRef(command.selector);
+
+  // Quick check: fail fast if element doesn't exist
+  await assertElementExists(locator, command.selector, isRef);
 
   if (command.human?.enabled) {
     const diffResult = await performDiff(locator, command.diffScope, async () => {
@@ -1300,6 +1360,10 @@ async function handleDoubleClick(
 
 async function handleFocus(command: FocusCommand, browser: BrowserManager): Promise<Response> {
   const locator = browser.getLocator(command.selector, command.inFrame);
+  const isRef = browser.isRef(command.selector);
+
+  // Quick check: fail fast if element doesn't exist
+  await assertElementExists(locator, command.selector, isRef);
 
   const diffResult = await performDiff(locator, command.diffScope, async () => {
     try {
@@ -1320,6 +1384,13 @@ async function handleFocus(command: FocusCommand, browser: BrowserManager): Prom
 async function handleDrag(command: DragCommand, browser: BrowserManager): Promise<Response> {
   const sourceLocator = browser.getLocator(command.source, command.inFrame);
   const targetLocator = browser.getLocator(command.target, command.inFrame);
+
+  // Quick check: fail fast if elements don't exist
+  const isSourceRef = browser.isRef(command.source);
+  const isTargetRef = browser.isRef(command.target);
+  await assertElementExists(sourceLocator, command.source, isSourceRef);
+  await assertElementExists(targetLocator, command.target, isTargetRef);
+
   await sourceLocator.dragTo(targetLocator);
   return successResponse(command.id, { dragged: true });
 }
@@ -1535,10 +1606,21 @@ async function handleRequests(
     return successResponse(command.id, { cleared: true });
   }
 
-  // Start tracking if not already
-  browser.startRequestTracking();
+  // Start tracking if not already (with response capture if requested)
+  browser.startRequestTracking(command.captureResponse);
 
-  const requests = browser.getRequests(command.filter);
+  // If output directory is specified, save to directory
+  if (command.output) {
+    const result = browser.saveRequestsToDir(command.output, command.filter, command.type);
+    return successResponse(command.id, {
+      saved: true,
+      savedCount: result.savedCount,
+      outputPath: result.outputPath,
+      indexPath: result.indexPath,
+    });
+  }
+
+  const requests = browser.getRequests(command.filter, command.type);
   return successResponse(command.id, { requests });
 }
 

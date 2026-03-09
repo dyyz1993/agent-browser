@@ -252,6 +252,9 @@ export interface RequestsCommand extends BaseCommand {
   action: 'requests';
   filter?: string; // URL pattern to filter
   clear?: boolean;
+  captureResponse?: boolean; // Capture response body
+  type?: 'json'; // Filter by response type (currently only 'json' supported)
+  output?: string; // Output directory path for saving requests
 }
 
 // Download handling

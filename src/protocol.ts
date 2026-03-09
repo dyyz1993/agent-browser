@@ -280,6 +280,9 @@ const requestsSchema = baseCommandSchema.extend({
   action: z.literal('requests'),
   filter: z.string().optional(),
   clear: z.boolean().optional(),
+  captureResponse: z.boolean().optional(),
+  type: z.enum(['json']).optional(),
+  output: z.string().optional(),
 });
 
 const downloadSchema = baseCommandSchema.extend({

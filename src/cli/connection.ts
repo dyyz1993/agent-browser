@@ -97,6 +97,12 @@ function cleanupStaleFiles(session: string): void {
     if (fs.existsSync(pidPath)) fs.unlinkSync(pidPath);
   } catch {}
 
+  // Clean up lock file
+  const lockPath = getLockPath(session);
+  try {
+    if (fs.existsSync(lockPath)) fs.unlinkSync(lockPath);
+  } catch {}
+
   if (isWindows) {
     const portPath = getPortPath(session);
     try {
@@ -698,6 +704,35 @@ export async function killAll(): Promise<{ daemons: string[]; streamServer: bool
   }
 
   const killedStreamServer = await killStreamServer();
+
+  // Clean up stale lock files and other residual files
+  const socketDir = getSocketDir();
+  if (fs.existsSync(socketDir)) {
+    const entries = fs.readdirSync(socketDir);
+    for (const name of entries) {
+      // Clean up lock files
+      if (name.endsWith('.lock')) {
+        try {
+          fs.unlinkSync(path.join(socketDir, name));
+        } catch {}
+      }
+      // Clean up stale pid files (process not running)
+      if (name.endsWith('.pid') && name !== STREAM_SERVER_PID_FILE) {
+        const pidPath = path.join(socketDir, name);
+        try {
+          const pid = parseInt(fs.readFileSync(pidPath, 'utf8').trim(), 10);
+          if (!isProcessRunning(pid)) {
+            fs.unlinkSync(pidPath);
+          }
+        } catch {
+          // If we can't read the pid, just remove the file
+          try {
+            fs.unlinkSync(pidPath);
+          } catch {}
+        }
+      }
+    }
+  }
 
   return {
     daemons: killedDaemons,

@@ -350,6 +350,12 @@ export function printResponse(resp: Response, jsonMode: boolean, action?: string
     return;
   }
 
+  if (data.saved === true) {
+    console.log(`${successIndicator()} Saved ${data.savedCount} requests to ${data.outputPath}`);
+    console.log(`${dim('Index:')} ${data.indexPath}`);
+    return;
+  }
+
   if (data.box) {
     console.log(JSON.stringify(data.box, null, 2));
     return;

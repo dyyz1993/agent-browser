@@ -99,6 +99,7 @@ describe('Scenario 6: Network Request Interception Tests', () => {
       browser = new BrowserManager();
       const launchOptions: Partial<LaunchCommand> = {
         headless: true,
+        ignoreHTTPSErrors: true,
       };
       await browser.launch(launchOptions as LaunchCommand);
 
@@ -138,6 +139,7 @@ describe('Scenario 6: Network Request Interception Tests', () => {
       browser = new BrowserManager();
       const launchOptions: Partial<LaunchCommand> = {
         headless: true,
+        ignoreHTTPSErrors: true,
       };
       await browser.launch(launchOptions as LaunchCommand);
 

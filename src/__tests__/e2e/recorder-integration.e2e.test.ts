@@ -136,6 +136,7 @@ describe('Recorder Integration E2E Test', { sequential: true }, () => {
 
     // Additional fill
     await executeCommand(parseCliArgs(['fill', '#email', 'test@integration.com']), browser);
+    await new Promise((resolve) => setTimeout(resolve, 500)); // 增加等待时间确保 fill 完成
     console.log('[Test 1] Additional fill performed');
 
     // Wait for actions to be recorded
@@ -239,6 +240,9 @@ describe('Recorder Integration E2E Test', { sequential: true }, () => {
 
     // Stop recording
     const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
+    if (!isSuccessResponse(stopResult)) {
+      console.log('[Test 2] Stop result:', JSON.stringify(stopResult, null, 2));
+    }
     expect(isSuccessResponse(stopResult)).toBe(true);
 
     const data = stopResult.data as any;
@@ -283,7 +287,7 @@ describe('Recorder Integration E2E Test', { sequential: true }, () => {
     // Start recording
     const startResult = await executeCommand(parseCliArgs(['recorder', 'start']), browser);
     expect(isSuccessResponse(startResult)).toBe(true);
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    await new Promise((resolve) => setTimeout(resolve, 500)); // 增加等待时间
 
     const page = browser.getPage();
 

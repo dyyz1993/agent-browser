@@ -341,10 +341,15 @@ Subcommands:
   requests [options]         List captured requests
     --clear                  Clear request log
     --filter <pattern>       Filter by URL
+    --capture-response       Capture response body
+    --type <json>            Filter by response type
+    --output <dir>           Save requests to directory
 
 Examples:
   agent-browser network route "**/api/*" --abort
   agent-browser network requests
+  agent-browser network requests --capture-response
+  agent-browser network requests --output ./captures/ --type json --filter "comment"
 `,
   cookies: `
 agent-browser cookies - Manage browser cookies

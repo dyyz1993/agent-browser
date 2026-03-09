@@ -22,6 +22,28 @@ import {
 } from './cli/output.js';
 import { spawn } from 'child_process';
 import { getHumanConfigFromEnv } from './human-mouse.js';
+import path from 'node:path';
+
+/**
+ * Resolve relative paths in command to absolute paths based on current working directory
+ * This ensures paths are correct when sent to the daemon (which may have a different cwd)
+ */
+function resolveCommandPaths(cmd: Command): Command {
+  const cwd = process.cwd();
+  const cmdAny = cmd as Record<string, unknown>;
+
+  // Handle 'output' field for requests command
+  if (cmd.action === 'requests' && typeof cmdAny.output === 'string') {
+    cmdAny.output = path.resolve(cwd, cmdAny.output);
+  }
+
+  // Handle 'path' field for various commands
+  if (typeof cmdAny.path === 'string') {
+    cmdAny.path = path.resolve(cwd, cmdAny.path);
+  }
+
+  return cmd;
+}
 
 function parseProxy(proxyStr: string): Record<string, unknown> {
   const protocolEnd = proxyStr.indexOf('://');
@@ -430,6 +452,8 @@ async function main(): Promise<void> {
   }
 
   try {
+    // Resolve relative paths to absolute paths based on current working directory
+    cmd = resolveCommandPaths(cmd);
     const resp = await sendCommand(cmd, flags.session);
     const action = cmd.action as string | undefined;
     printResponse(resp, flags.json, action);

@@ -836,7 +836,12 @@ export function parseCommand(args: string[], flags: Flags): Command {
           const clear = rest.includes('--clear');
           const filterIdx = rest.indexOf('--filter');
           const filter = filterIdx !== -1 ? rest[filterIdx + 1] : undefined;
-          return { id, action: 'requests', clear, filter };
+          const captureResponse = rest.includes('--capture-response');
+          const typeIdx = rest.indexOf('--type');
+          const type = typeIdx !== -1 ? (rest[typeIdx + 1] as 'json') : undefined;
+          const outputIdx = rest.indexOf('--output');
+          const output = outputIdx !== -1 ? rest[outputIdx + 1] : undefined;
+          return { id, action: 'requests', clear, filter, captureResponse, type, output };
         }
         default:
           error(
