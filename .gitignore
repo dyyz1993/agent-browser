@@ -57,6 +57,7 @@ acne-products-detail/
 !skills/**/*.sh
 *.csv
 scripts/
+!scripts/test-cli-help.sh
 output/
 export/
 export_data/*
