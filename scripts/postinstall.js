@@ -145,40 +145,14 @@ async function fixGlobalInstallBin() {
 
 /**
  * Fix npm symlink on Mac/Linux global installs.
- * Replace the symlink to the JS wrapper with a symlink to the native binary.
+ * Keep the symlink pointing to dist/cli.js for full CLI functionality.
  */
 async function fixUnixSymlink() {
-  // Get npm's global bin directory (npm prefix -g + /bin)
-  let npmBinDir;
-  try {
-    const prefix = execSync('npm prefix -g', { encoding: 'utf8' }).trim();
-    npmBinDir = join(prefix, 'bin');
-  } catch {
-    return; // npm not available
-  }
-
-  const symlinkPath = join(npmBinDir, 'agent-browser');
-
-  // Check if symlink exists (indicates global install)
-  try {
-    const stat = lstatSync(symlinkPath);
-    if (!stat.isSymbolicLink()) {
-      return; // Not a symlink, don't touch it
-    }
-  } catch {
-    return; // Symlink doesn't exist, not a global install
-  }
-
-  // Replace symlink to point directly to native binary
-  try {
-    unlinkSync(symlinkPath);
-    symlinkSync(binaryPath, symlinkPath);
-    console.log('✓ Optimized: symlink points to native binary (zero overhead)');
-  } catch (err) {
-    // Permission error or other issue - not critical, JS wrapper still works
-    console.log(`⚠ Could not optimize symlink: ${err.message}`);
-    console.log('  CLI will work via Node.js wrapper (slightly slower startup)');
-  }
+  // Skip symlink replacement - keep pointing to dist/cli.js
+  // This ensures all CLI features work (including --help for all commands)
+  // The native binary is still available at bin/agent-browser-{platform}-{arch}
+  // for users who prefer faster startup
+  console.log('✓ Using Node.js CLI (full feature support)');
 }
 
 /**

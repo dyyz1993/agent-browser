@@ -1662,6 +1662,142 @@ Examples:
 "##
         }
 
+        // === Remote Commands ===
+        "viewer" | "preview" => {
+            r##"
+agent-browser viewer - Get viewer URL for browser session
+
+Usage: agent-browser viewer
+
+Returns URLs for viewing the browser session remotely.
+Requires Stream Server to be running.
+
+Output (JSON mode):
+  url         HTTP viewer URL (e.g., http://localhost:5005/view?instanceId=xxx)
+  wsUrl       WebSocket URL (e.g., ws://localhost:5005?instanceId=xxx)
+  streamPort  Stream server port (default: 5005)
+
+Note: In normal mode, only the HTTP viewer URL is printed.
+Use --json to see all fields.
+
+Examples:
+  agent-browser viewer
+  agent-browser viewer --json
+"##
+        }
+        "ask" => {
+            r##"
+agent-browser ask - Ask user a question
+
+Usage: agent-browser ask <question>
+
+Sends a question to the user and waits for a response.
+Requires Stream Server with message bridge.
+
+Question Formats:
+
+1. Simple String:
+   agent-browser ask "What should I do next?"
+
+2. Structured JSON (for multiple choice):
+   **IMPORTANT**: The question field must be an OBJECT containing a questions array.
+
+   Structure:
+   {
+     "question": {
+       "questions": [
+         {
+           "header": "Section Title (optional)",
+           "question": "Your question here",
+           "multiSelect": false,
+           "options": [
+             { "label": "Option 1", "description": "Optional description" },
+             { "label": "Option 2" }
+           ]
+         }
+       ]
+     }
+   }
+
+Examples:
+  # Simple question
+  agent-browser ask "What should I do next?"
+
+  # Multiple choice question (correct format)
+  agent-browser ask '{"question":{"questions":[{"question":"Choose an action","options":[{"label":"Login"},{"label":"Skip"}]}]}}'
+
+  # Multi-select question
+  agent-browser ask '{"question":{"questions":[{"question":"Select items","multiSelect":true,"options":[{"label":"Item 1"},{"label":"Item 2"}]}]}}'
+
+Output:
+  answer    User's response (string or selected option(s))
+"##
+        }
+        "config" => {
+            r##"
+agent-browser config - Show current configuration
+
+Usage: agent-browser config [--json]
+
+Displays all AGENT_BROWSER_* environment variables and their current values.
+
+Options:
+  --json    Output in JSON format
+
+Examples:
+  agent-browser config           # Show all settings
+  agent-browser config --json    # JSON output
+
+Output Fields:
+  session             Session name (AGENT_BROWSER_SESSION)
+  executablePath      Custom browser path
+  provider            Cloud browser provider
+  headed              Show browser window
+  profile             Persistent profile directory
+  extensions          Browser extensions
+  proxy               Proxy server URL
+  human               Human mode settings (runtime)
+
+Note: Most settings only take effect at browser startup.
+Use "export AGENT_BROWSER_XXX=value" before starting.
+Only AGENT_BROWSER_HUMAN takes effect at runtime.
+"##
+        }
+        "recorder" => {
+            r##"
+agent-browser recorder - Record user interactions as steps
+
+Usage: agent-browser recorder <operation> [options]
+
+Records user interactions (clicks, inputs, scrolls, etc.) as structured
+steps that can be exported as YAML for LLM processing.
+
+Operations:
+  start [url]              Start recording (optionally navigate to URL)
+  stop [--output file]     Stop recording and output YAML
+  status                   Show recording status
+  replay [file]            Replay recorded CLI commands from YAML
+
+Options:
+  --output <file>          Save YAML to file (default: temp directory)
+  [file]                   YAML file to replay (default: most recent)
+
+Output Format:
+  YAML with session info, pages visited, and recorded steps.
+  Each step includes: action, selector, xpath, value, trajectory.
+  CLI Commands section contains executable commands for replay.
+
+Examples:
+  agent-browser recorder start
+  agent-browser recorder start https://example.com
+  agent-browser recorder stop
+  agent-browser recorder stop --output session.yaml
+  agent-browser recorder status
+  agent-browser recorder replay                  # Replay most recent
+  agent-browser recorder replay session.yaml     # Replay specific file
+"##
+        }
+
         _ => return false,
     };
     println!("{}", help.trim());

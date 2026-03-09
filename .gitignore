@@ -58,6 +58,10 @@ acne-products-detail/
 *.csv
 scripts/
 !scripts/test-cli-help.sh
+!scripts/postinstall.js
+!scripts/sync-version.js
+!scripts/copy-recorder.js
+!scripts/copy-native.js
 output/
 export/
 export_data/*
