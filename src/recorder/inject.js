@@ -156,7 +156,7 @@
     }
 
     if (element.closest) {
-      const recorderEl = element.closest('.xyzPnl, .xyzTb, .xyzSh, .xyzMk');
+      const recorderEl = element.closest('.xyzPnl, .xyzSh, .xyzMk');
       if (recorderEl) {
         highlightCache.set(element, { time: now, result: false });
         return false;
@@ -248,11 +248,6 @@
       panelElement = document.querySelector('.xyzPnl');
     }
     if (panelElement && (element === panelElement || panelElement.contains(element))) {
-      return true;
-    }
-
-    const toolbar = document.querySelector('.xyzTb');
-    if (toolbar && (element === toolbar || toolbar.contains(element))) {
       return true;
     }
 
@@ -1087,7 +1082,6 @@
   if (!isInIframe && !HIDE_UI) {
     let _animationFrameId = null;
     let _highlightRafId = null;
-    let _toolbarHideTimeout = null;
     let _pollInterval = null;
     let _checkPanelInterval = null;
 
@@ -1102,8 +1096,6 @@
         cancelAnimationFrame(_highlightRafId);
         _highlightRafId = null;
       }
-
-      clearTimeout(_toolbarHideTimeout);
 
       if (_pollInterval) {
         clearInterval(_pollInterval);
@@ -1120,7 +1112,6 @@
         document.getElementById('xyzMk'),
         document.getElementById('xyzCv'),
         document.getElementById('xyzSh'),
-        document.getElementById('xyzTb'),
         document.getElementById('xyzSt')
       ];
 
@@ -1148,8 +1139,6 @@
     }
 
     let uiElements = {};
-    let toolbarHideTimeout = null;
-    let isOverToolbar = false;
     let currentElement = null;
     let mouseX = 0, mouseY = 0, currentEdge = null;
     const EDGE_THRESHOLD = 30;
@@ -1232,19 +1221,6 @@
         .xyzSh.login { border-color: #2196F3; background: rgba(33, 150, 243, 0.1); }
         .xyzSh.data { border-color: #FF9800; background: rgba(255, 152, 0, 0.1); }
         .xyzSh.pagination { border-color: #9C27B0; background: rgba(156, 39, 176, 0.1); }
-        .xyzTb { position: absolute; z-index: 2147483647; background: white; border-radius: 6px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); padding: 4px; display: flex; gap: 2px; pointer-events: auto; }
-        .xyzTb.horizontal { flex-direction: row; }
-        .xyzTb.vertical { flex-direction: column; }
-        .xyzTb button { padding: 5px 8px; border: none; border-radius: 3px; cursor: pointer; font-size: 11px; white-space: nowrap; pointer-events: auto; }
-        .xyzTb button:hover { transform: scale(1.02); }
-        .xyzTb .btn-login { background: #E3F2FD; color: #1976D2; }
-        .xyzTb .btn-data { background: #FFF3E0; color: #F57C00; }
-        .xyzTb .btn-page { background: #F3E5F5; color: #7B1FA2; }
-        .xyzTb .btn-note { background: #E8F5E9; color: #388E3C; }
-        .xyzTb .btn-wait { background: #FFF8E1; color: #F9A825; }
-        .xyzTb .btn-container { background: #E0F7FA; color: #00838F; }
-        .xyzTb .btn-item { background: #FFF3E0; color: #F57C00; }
-        .xyzTb .btn-check { background: #E8F5E9; color: #2E7D32; }
         .xyzMk { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2147483645; }
         .xyzMrk { position: absolute; pointer-events: none; border: 2px solid rgba(76, 175, 80, 0.6); border-radius: 4px; transition: all 0.2s ease-out; }
         .xyzMrk.login { border-color: rgba(33, 150, 243, 0.8); }
@@ -1419,23 +1395,7 @@
       shadowBox.setAttribute('aria-hidden', 'true');
       document.body.appendChild(shadowBox);
 
-      const toolbar = document.createElement('div');
-      toolbar.className = 'xyzTb';
-      toolbar.id = 'xyzTb';
-      toolbar.setAttribute('aria-hidden', 'true');
-      toolbar.innerHTML = `
-        <button class="btn-wait" data-type="wait_element">⏳ Wait</button>
-        <button class="btn-container" data-type="data_container">📦 Container</button>
-        <button class="btn-item" data-type="data_item">📊 Item</button>
-        <button class="btn-page" data-type="pagination">📄 Page</button>
-        <button class="btn-login" data-type="login_check">🔐 Login</button>
-        <button class="btn-check" data-type="checkpoint">✅ Check</button>
-        <button class="btn-note" data-type="custom">📝 Note</button>
-      `;
-      toolbar.style.display = 'none';
-      document.body.appendChild(toolbar);
-
-      uiElements = { panel, markersContainer, canvas, shadowBox, toolbar, style };
+      uiElements = { panel, markersContainer, canvas, shadowBox, style };
 
       function updateUI() {
         const container = document.getElementById('xyzSteps');
@@ -1646,55 +1606,6 @@
         shadowBox.className = 'xyzSh' + (annotation ? ' ' + annotation.type : '');
       }
 
-      function calculateToolbarPosition(rect) {
-        const GAP = 10;
-        const TOOLBAR_W = 280;
-        const TOOLBAR_H = 32;
-        const scrollX = window.scrollX, scrollY = window.scrollY;
-
-        let left = mouseX + GAP;
-        let top = mouseY + GAP;
-
-        if (left + TOOLBAR_W > window.innerWidth - 10) {
-          left = mouseX - TOOLBAR_W - GAP;
-        }
-        if (top + TOOLBAR_H > window.innerHeight - 10) {
-          top = mouseY - TOOLBAR_H - GAP;
-        }
-
-        left = Math.max(10, Math.min(window.innerWidth - TOOLBAR_W - 10, left));
-        top = Math.max(10, Math.min(window.innerHeight - TOOLBAR_H - 10, top));
-
-        return { left: left + scrollX, top: top + scrollY, orientation: 'horizontal' };
-      }
-
-      function updateToolbar(element) {
-        if (!element) {
-          toolbar.style.display = 'none';
-          return;
-        }
-        const rect = element.getBoundingClientRect();
-        const pos = calculateToolbarPosition(rect);
-        toolbar.style.left = pos.left + 'px';
-        toolbar.style.top = pos.top + 'px';
-        toolbar.className = 'xyzTb ' + pos.orientation;
-        toolbar.style.display = 'flex';
-      }
-
-      function showToolbar() {
-        clearTimeout(toolbarHideTimeout);
-        toolbar.style.display = 'flex';
-      }
-
-      function hideToolbarDelayed() {
-        clearTimeout(toolbarHideTimeout);
-        toolbarHideTimeout = setTimeout(() => {
-          if (!isOverToolbar) {
-            toolbar.style.display = 'none';
-          }
-        }, TOOLBAR_HIDE_DELAY);
-      }
-
       function annotateElement(element, type) {
         if (!element) return;
         const selector = getSelector(element);
@@ -1748,23 +1659,6 @@
         updateShadowBox(element);
       }
 
-      toolbar.addEventListener('mouseenter', () => {
-        isOverToolbar = true;
-        showToolbar();
-      });
-
-      toolbar.addEventListener('mouseleave', () => {
-        isOverToolbar = false;
-        hideToolbarDelayed();
-      });
-
-      toolbar.querySelectorAll('button').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          annotateElement(currentElement, btn.dataset.type);
-        });
-      });
-
       let lastHighlightTime = 0;
 
       function throttledHighlight(element) {
@@ -1777,20 +1671,17 @@
             highlightRafId = requestAnimationFrame(() => {
               highlightRafId = null;
               updateShadowBox(pendingHighlightElement);
-              updateToolbar(pendingHighlightElement);
             });
           }
         }
       }
 
       document.addEventListener('mousemove', (e) => {
-        if (isOverToolbar) return;
-
         const element = e.composedPath()[0] || e.target;
         mouseX = e.clientX;
         mouseY = e.clientY;
 
-        if (element === shadowBox || element === toolbar || toolbar.contains(element)) return;
+        if (element === shadowBox) return;
         if (isInPanel(element)) {
           throttledHighlight(null);
           return;

@@ -92,6 +92,40 @@ async function verifyRecorderPanelVisible(
   }
 }
 
+/**
+ * 双重校验面板可见性 - 确保面板持续可见，不是短暂出现后消失
+ * @param browser BrowserManager 实例
+ * @param context 测试上下文名称，用于错误日志
+ * @returns 面板可见性结果
+ */
+async function verifyPanelWithDoubleCheck(
+  browser: BrowserManager,
+  context: string = ''
+): Promise<{ visible: boolean; stepCount: number; error?: string }> {
+  const prefix = context ? `[${context}] ` : '';
+
+  // 第一次校验：立即校验
+  const firstCheck = await verifyRecorderPanelVisible(browser);
+  if (!firstCheck.visible) {
+    console.log(`${prefix}First check failed: ${firstCheck.error}`);
+    return firstCheck;
+  }
+  console.log(`${prefix}First check passed, stepCount: ${firstCheck.stepCount}`);
+
+  // 等待 1 秒后再次校验
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+
+  // 第二次校验：确保面板持续可见
+  const secondCheck = await verifyRecorderPanelVisible(browser);
+  if (!secondCheck.visible) {
+    console.log(`${prefix}Second check failed (panel disappeared): ${secondCheck.error}`);
+    return { ...secondCheck, error: `Panel disappeared after 1s: ${secondCheck.error}` };
+  }
+  console.log(`${prefix}Second check passed, stepCount: ${secondCheck.stepCount}`);
+
+  return secondCheck;
+}
+
 describe('Comprehensive Recorder E2E Tests', () => {
   let browser: BrowserManager;
 
@@ -120,18 +154,16 @@ describe('Comprehensive Recorder E2E Tests', () => {
     it('should record single click and show panel', async () => {
       await executeCommand(parseCliArgs(['recorder', 'start']), browser);
 
-      // Verify panel is visible after starting recorder
+      // 双重校验: 启动后面板可见
       await new Promise((resolve) => setTimeout(resolve, 200));
-      const panelBefore = await verifyRecorderPanelVisible(browser);
+      const panelBefore = await verifyPanelWithDoubleCheck(browser, 'before click');
       expect(panelBefore.visible).toBe(true);
 
       const clickResult = await executeCommand(parseCliArgs(['click', '#click-btn']), browser);
       expect(clickResult.success).toBe(true);
 
-      await new Promise((resolve) => setTimeout(resolve, 400));
-
-      // Verify panel is still visible after click
-      const panelAfter = await verifyRecorderPanelVisible(browser);
+      // 双重校验: 点击后面板仍可见
+      const panelAfter = await verifyPanelWithDoubleCheck(browser, 'after click');
       expect(panelAfter.visible).toBe(true);
       expect(panelAfter.stepCount).toBeGreaterThan(0);
 
@@ -151,9 +183,9 @@ describe('Comprehensive Recorder E2E Tests', () => {
     it('should record double click and show panel', async () => {
       await executeCommand(parseCliArgs(['recorder', 'start']), browser);
 
-      // Verify panel is visible
+      // 双重校验: 启动后面板可见
       await new Promise((resolve) => setTimeout(resolve, 200));
-      const panelBefore = await verifyRecorderPanelVisible(browser);
+      const panelBefore = await verifyPanelWithDoubleCheck(browser, 'before dblclick');
       expect(panelBefore.visible).toBe(true);
 
       const dblclickResult = await executeCommand(
@@ -162,10 +194,8 @@ describe('Comprehensive Recorder E2E Tests', () => {
       );
       expect(dblclickResult.success).toBe(true);
 
-      await new Promise((resolve) => setTimeout(resolve, 400));
-
-      // Verify panel is still visible
-      const panelAfter = await verifyRecorderPanelVisible(browser);
+      // 双重校验: 双击后面板仍可见
+      const panelAfter = await verifyPanelWithDoubleCheck(browser, 'after dblclick');
       expect(panelAfter.visible).toBe(true);
 
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
@@ -183,9 +213,9 @@ describe('Comprehensive Recorder E2E Tests', () => {
     it('should record right click (context menu) and show panel', async () => {
       await executeCommand(parseCliArgs(['recorder', 'start']), browser);
 
-      // Verify panel is visible
+      // 双重校验: 启动后面板可见
       await new Promise((resolve) => setTimeout(resolve, 200));
-      const panelBefore = await verifyRecorderPanelVisible(browser);
+      const panelBefore = await verifyPanelWithDoubleCheck(browser, 'before rightclick');
       expect(panelBefore.visible).toBe(true);
 
       await executeCommand(
@@ -193,10 +223,8 @@ describe('Comprehensive Recorder E2E Tests', () => {
         browser
       );
 
-      await new Promise((resolve) => setTimeout(resolve, 400));
-
-      // Verify panel is still visible
-      const panelAfter = await verifyRecorderPanelVisible(browser);
+      // 双重校验: 右键点击后面板仍可见
+      const panelAfter = await verifyPanelWithDoubleCheck(browser, 'after rightclick');
       expect(panelAfter.visible).toBe(true);
 
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
@@ -416,17 +444,15 @@ describe('Comprehensive Recorder E2E Tests', () => {
     it('should record reload and show panel', async () => {
       await executeCommand(parseCliArgs(['recorder', 'start']), browser);
 
-      // Verify panel is visible before reload
+      // 双重校验: 启动后面板可见
       await new Promise((resolve) => setTimeout(resolve, 200));
-      const panelBefore = await verifyRecorderPanelVisible(browser);
+      const panelBefore = await verifyPanelWithDoubleCheck(browser, 'before reload');
       expect(panelBefore.visible).toBe(true);
 
       await executeCommand(parseCliArgs(['reload']), browser);
 
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // Verify panel is still visible after reload
-      const panelAfter = await verifyRecorderPanelVisible(browser);
+      // 双重校验: 刷新后面板仍可见 (关键测试点)
+      const panelAfter = await verifyPanelWithDoubleCheck(browser, 'after reload');
       expect(panelAfter.visible).toBe(true);
 
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
@@ -442,9 +468,9 @@ describe('Comprehensive Recorder E2E Tests', () => {
       // Start recorder (page already opened by beforeEach)
       await executeCommand(parseCliArgs(['recorder', 'start']), browser);
 
-      // Verify panel is visible before navigation
+      // 双重校验: 启动后面板可见
       await new Promise((resolve) => setTimeout(resolve, 200));
-      const panelBefore = await verifyRecorderPanelVisible(browser);
+      const panelBefore = await verifyPanelWithDoubleCheck(browser, 'before navigation');
       expect(panelBefore.visible).toBe(true);
 
       // First action before navigation
@@ -456,16 +482,16 @@ describe('Comprehensive Recorder E2E Tests', () => {
       await page.goto('https://example.com', { waitUntil: 'load' });
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      // Verify panel is visible after navigation
-      const panelAfterNav = await verifyRecorderPanelVisible(browser);
+      // 双重校验: 导航后面板仍可见 (关键测试点 - 跨域导航)
+      const panelAfterNav = await verifyPanelWithDoubleCheck(browser, 'after navigation');
       expect(panelAfterNav.visible).toBe(true);
 
       // Continue actions after navigation - click on the h1 element
       await page.locator('h1').click();
       await new Promise((resolve) => setTimeout(resolve, 500));
 
-      // Verify panel is still visible after click
-      const panelAfterClick = await verifyRecorderPanelVisible(browser);
+      // 双重校验: 点击后面板仍可见
+      const panelAfterClick = await verifyPanelWithDoubleCheck(browser, 'after click on new page');
       expect(panelAfterClick.visible).toBe(true);
 
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);

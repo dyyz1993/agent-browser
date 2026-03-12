@@ -87,6 +87,40 @@ async function verifyRecorderPanelVisible(
   }
 }
 
+/**
+ * 双重校验面板可见性 - 确保面板持续可见，不是短暂出现后消失
+ * @param browser BrowserManager 实例
+ * @param context 测试上下文名称，用于错误日志
+ * @returns 面板可见性结果
+ */
+async function verifyPanelWithDoubleCheck(
+  browser: BrowserManager,
+  context: string = ''
+): Promise<{ visible: boolean; stepCount: number; error?: string }> {
+  const prefix = context ? `[${context}] ` : '';
+
+  // 第一次校验：立即校验
+  const firstCheck = await verifyRecorderPanelVisible(browser);
+  if (!firstCheck.visible) {
+    console.log(`${prefix}First check failed: ${firstCheck.error}`);
+    return firstCheck;
+  }
+  console.log(`${prefix}First check passed, stepCount: ${firstCheck.stepCount}`);
+
+  // 等待 1 秒后再次校验
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+
+  // 第二次校验：确保面板持续可见
+  const secondCheck = await verifyRecorderPanelVisible(browser);
+  if (!secondCheck.visible) {
+    console.log(`${prefix}Second check failed (panel disappeared): ${secondCheck.error}`);
+    return { ...secondCheck, error: `Panel disappeared after 1s: ${secondCheck.error}` };
+  }
+  console.log(`${prefix}Second check passed, stepCount: ${secondCheck.stepCount}`);
+
+  return secondCheck;
+}
+
 describe('Recorder Missing Features Tests', () => {
   let browser: BrowserManager;
 
@@ -115,18 +149,16 @@ describe('Recorder Missing Features Tests', () => {
     it('should record tab_new action when opening new tab and show panel', async () => {
       await executeCommand(parseCliArgs(['recorder', 'start']), browser);
 
-      // Verify panel is visible before tab operation
+      // 双重校验: 启动后面板可见
       await new Promise((resolve) => setTimeout(resolve, 200));
-      const panelBefore = await verifyRecorderPanelVisible(browser);
+      const panelBefore = await verifyPanelWithDoubleCheck(browser, 'before tab_new');
       expect(panelBefore.visible).toBe(true);
 
       const tabResult = await executeCommand(parseCliArgs(['tab', 'new']), browser);
       expect(tabResult.success).toBe(true);
 
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // Verify panel is visible after tab operation
-      const panelAfter = await verifyRecorderPanelVisible(browser);
+      // 双重校验: 新标签页后面板可见
+      const panelAfter = await verifyPanelWithDoubleCheck(browser, 'after tab_new');
       expect(panelAfter.visible).toBe(true);
 
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
@@ -145,9 +177,9 @@ describe('Recorder Missing Features Tests', () => {
 
       await executeCommand(parseCliArgs(['recorder', 'start']), browser);
 
-      // Verify panel is visible before tab switch
+      // 双重校验: 启动后面板可见
       await new Promise((resolve) => setTimeout(resolve, 200));
-      const panelBefore = await verifyRecorderPanelVisible(browser);
+      const panelBefore = await verifyPanelWithDoubleCheck(browser, 'before tab_switch');
       expect(panelBefore.visible).toBe(true);
 
       const switchResult = await executeCommand(parseCliArgs(['tab', '0']), browser);
@@ -156,13 +188,8 @@ describe('Recorder Missing Features Tests', () => {
       // Panel may need time to be recreated in the switched tab
       await new Promise((resolve) => setTimeout(resolve, 800));
 
-      // Verify panel is visible after tab switch (with retry)
-      let panelAfter = await verifyRecorderPanelVisible(browser);
-      if (!panelAfter.visible) {
-        // Wait a bit more and retry
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        panelAfter = await verifyRecorderPanelVisible(browser);
-      }
+      // 双重校验: 切换标签页后面板可见 (面板需要重新创建)
+      const panelAfter = await verifyPanelWithDoubleCheck(browser, 'after tab_switch');
       expect(panelAfter.visible).toBe(true);
 
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
@@ -182,18 +209,16 @@ describe('Recorder Missing Features Tests', () => {
 
       await executeCommand(parseCliArgs(['recorder', 'start']), browser);
 
-      // Verify panel is visible before tab close
+      // 双重校验: 启动后面板可见
       await new Promise((resolve) => setTimeout(resolve, 200));
-      const panelBefore = await verifyRecorderPanelVisible(browser);
+      const panelBefore = await verifyPanelWithDoubleCheck(browser, 'before tab_close');
       expect(panelBefore.visible).toBe(true);
 
       const closeResult = await executeCommand(parseCliArgs(['tab', 'close', '1']), browser);
       expect(closeResult.success).toBe(true);
 
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // Verify panel is visible after tab close
-      const panelAfter = await verifyRecorderPanelVisible(browser);
+      // 双重校验: 关闭标签页后面板可见
+      const panelAfter = await verifyPanelWithDoubleCheck(browser, 'after tab_close');
       expect(panelAfter.visible).toBe(true);
 
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
@@ -234,31 +259,19 @@ describe('Recorder Missing Features Tests', () => {
 
       await executeCommand(parseCliArgs(['recorder', 'start']), browser);
 
-      // Verify panel is visible at start
+      // 双重校验: 启动后面板可见
       await new Promise((resolve) => setTimeout(resolve, 200));
-      const panelStart = await verifyRecorderPanelVisible(browser);
+      const panelStart = await verifyPanelWithDoubleCheck(browser, 'tab sequence start');
       expect(panelStart.visible).toBe(true);
 
       await executeCommand(parseCliArgs(['tab', 'new']), browser);
-      await new Promise((resolve) => setTimeout(resolve, 300));
-
-      // Verify panel after tab new (with retry)
-      let panelAfterNew = await verifyRecorderPanelVisible(browser);
-      if (!panelAfterNew.visible) {
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        panelAfterNew = await verifyRecorderPanelVisible(browser);
-      }
+      // 双重校验: 新标签页后面板可见
+      const panelAfterNew = await verifyPanelWithDoubleCheck(browser, 'after tab_new');
       expect(panelAfterNew.visible).toBe(true);
 
       await executeCommand(parseCliArgs(['tab', '0']), browser);
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // Verify panel after tab switch (with retry, may need more time for panel recreation)
-      let panelAfterSwitch = await verifyRecorderPanelVisible(browser);
-      if (!panelAfterSwitch.visible) {
-        await new Promise((resolve) => setTimeout(resolve, 800));
-        panelAfterSwitch = await verifyRecorderPanelVisible(browser);
-      }
+      // 双重校验: 切换标签页后面板可见
+      const panelAfterSwitch = await verifyPanelWithDoubleCheck(browser, 'after tab_switch');
       expect(panelAfterSwitch.visible).toBe(true);
 
       await executeCommand(parseCliArgs(['tab', 'close', '1']), browser);
@@ -293,18 +306,16 @@ describe('Recorder Missing Features Tests', () => {
 
       await executeCommand(parseCliArgs(['recorder', 'start']), browser);
 
-      // Verify panel is visible before back
+      // 双重校验: 启动后面板可见
       await new Promise((resolve) => setTimeout(resolve, 200));
-      const panelBefore = await verifyRecorderPanelVisible(browser);
+      const panelBefore = await verifyPanelWithDoubleCheck(browser, 'before back');
       expect(panelBefore.visible).toBe(true);
 
       const backResult = await executeCommand(parseCliArgs(['back']), browser);
       expect(backResult.success).toBe(true);
 
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // Verify panel is visible after back
-      const panelAfter = await verifyRecorderPanelVisible(browser);
+      // 双重校验: 后退后面板仍可见
+      const panelAfter = await verifyPanelWithDoubleCheck(browser, 'after back');
       expect(panelAfter.visible).toBe(true);
 
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
@@ -329,18 +340,16 @@ describe('Recorder Missing Features Tests', () => {
 
       await executeCommand(parseCliArgs(['recorder', 'start']), browser);
 
-      // Verify panel is visible before forward
+      // 双重校验: 启动后面板可见
       await new Promise((resolve) => setTimeout(resolve, 200));
-      const panelBefore = await verifyRecorderPanelVisible(browser);
+      const panelBefore = await verifyPanelWithDoubleCheck(browser, 'before forward');
       expect(panelBefore.visible).toBe(true);
 
       const forwardResult = await executeCommand(parseCliArgs(['forward']), browser);
       expect(forwardResult.success).toBe(true);
 
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // Verify panel is visible after forward
-      const panelAfter = await verifyRecorderPanelVisible(browser);
+      // 双重校验: 前进后面板仍可见
+      const panelAfter = await verifyPanelWithDoubleCheck(browser, 'after forward');
       expect(panelAfter.visible).toBe(true);
 
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
@@ -356,18 +365,16 @@ describe('Recorder Missing Features Tests', () => {
     it('should record reload action when reloading page and show panel', async () => {
       await executeCommand(parseCliArgs(['recorder', 'start']), browser);
 
-      // Verify panel is visible before reload
+      // 双重校验: 启动后面板可见
       await new Promise((resolve) => setTimeout(resolve, 200));
-      const panelBefore = await verifyRecorderPanelVisible(browser);
+      const panelBefore = await verifyPanelWithDoubleCheck(browser, 'before reload');
       expect(panelBefore.visible).toBe(true);
 
       const reloadResult = await executeCommand(parseCliArgs(['reload']), browser);
       expect(reloadResult.success).toBe(true);
 
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // Verify panel is visible after reload
-      const panelAfter = await verifyRecorderPanelVisible(browser);
+      // 双重校验: 刷新后面板仍可见 (关键测试点)
+      const panelAfter = await verifyPanelWithDoubleCheck(browser, 'after reload');
       expect(panelAfter.visible).toBe(true);
 
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
@@ -380,7 +387,7 @@ describe('Recorder Missing Features Tests', () => {
       }
     });
 
-    it('should record complete navigation workflow', async () => {
+    it('should record complete navigation workflow with panel persistence', async () => {
       await executeCommand(parseCliArgs(['open', 'https://example.com']), browser);
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
@@ -389,14 +396,25 @@ describe('Recorder Missing Features Tests', () => {
 
       await executeCommand(parseCliArgs(['recorder', 'start']), browser);
 
+      // 双重校验: 启动后面板可见
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      const panelStart = await verifyPanelWithDoubleCheck(browser, 'start');
+      expect(panelStart.visible).toBe(true);
+
       await executeCommand(parseCliArgs(['back']), browser);
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // 双重校验: 后退后面板可见
+      const panelAfterBack = await verifyPanelWithDoubleCheck(browser, 'after back');
+      expect(panelAfterBack.visible).toBe(true);
 
       await executeCommand(parseCliArgs(['forward']), browser);
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // 双重校验: 前进后面板可见
+      const panelAfterForward = await verifyPanelWithDoubleCheck(browser, 'after forward');
+      expect(panelAfterForward.visible).toBe(true);
 
       await executeCommand(parseCliArgs(['reload']), browser);
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // 双重校验: 刷新后面板可见
+      const panelAfterReload = await verifyPanelWithDoubleCheck(browser, 'after reload');
+      expect(panelAfterReload.visible).toBe(true);
 
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
       expect(stopResult.success).toBe(true);

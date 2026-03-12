@@ -36,11 +36,10 @@ describe('Recorder Panel Close E2E Tests', () => {
     return await page.evaluate(() => {
       const panel = document.getElementById('xyzPnl');
       const shadow = document.getElementById('xyzSh');
-      const toolbar = document.getElementById('xyzTb');
       const canvas = document.getElementById('xyzCv');
       const markers = document.getElementById('xyzMk');
 
-      return !!(panel || shadow || toolbar || canvas || markers);
+      return !!(panel || shadow || canvas || markers);
     });
   }
 
@@ -53,6 +52,36 @@ describe('Recorder Panel Close E2E Tests', () => {
     });
   }
 
+  /**
+   * 双重校验面板存在 - 确保面板持续存在，不是短暂出现后消失
+   * @param context 测试上下文名称，用于错误日志
+   * @returns 面板是否存在
+   */
+  async function checkPanelWithDoubleCheck(context: string = ''): Promise<boolean> {
+    const prefix = context ? `[${context}] ` : '';
+
+    // 第一次校验：立即校验
+    const firstCheck = await checkPanelExists();
+    if (!firstCheck) {
+      console.log(`${prefix}First check failed: panel not found`);
+      return false;
+    }
+    console.log(`${prefix}First check passed: panel exists`);
+
+    // 等待 1 秒后再次校验
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    // 第二次校验：确保面板持续存在
+    const secondCheck = await checkPanelExists();
+    if (!secondCheck) {
+      console.log(`${prefix}Second check failed: panel disappeared after 1s`);
+      return false;
+    }
+    console.log(`${prefix}Second check passed: panel still exists`);
+
+    return true;
+  }
+
   describe('Panel Lifecycle', () => {
     it('should have no panel before recording starts', async () => {
       const hasPanel = await checkPanelExists();
@@ -63,9 +92,8 @@ describe('Recorder Panel Close E2E Tests', () => {
       const startResult = await executeCommand(parseCliArgs(['recorder', 'start']), browser);
       expect(startResult.success).toBe(true);
 
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      const hasPanel = await checkPanelExists();
+      // 双重校验: 面板创建后持续存在
+      const hasPanel = await checkPanelWithDoubleCheck('after start');
       expect(hasPanel).toBe(true);
 
       const isInitialized = await checkRecorderInitialized();
@@ -113,9 +141,8 @@ describe('Recorder Panel Close E2E Tests', () => {
       const startResult = await executeCommand(parseCliArgs(['recorder', 'start']), browser);
       expect(startResult.success).toBe(true);
 
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      const hasPanel = await checkPanelExists();
+      // 双重校验: 重新启动后面板持续存在
+      const hasPanel = await checkPanelWithDoubleCheck('after restart');
       expect(hasPanel).toBe(true);
 
       await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
@@ -125,11 +152,16 @@ describe('Recorder Panel Close E2E Tests', () => {
       await executeCommand(parseCliArgs(['recorder', 'start']), browser);
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      let hasPanel = await checkPanelExists();
+      // 双重校验: 启动后面板存在
+      let hasPanel = await checkPanelWithDoubleCheck('before navigate');
       expect(hasPanel).toBe(true);
 
       await executeCommand(parseCliArgs(['open', getFixturePath('basic.html')]), browser);
       await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // 双重校验: 导航后面板应保持存在 (关键测试点)
+      hasPanel = await checkPanelWithDoubleCheck('after navigate');
+      expect(hasPanel).toBe(true);
 
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
       expect(stopResult.success).toBe(true);
@@ -148,7 +180,6 @@ describe('Recorder Panel Close E2E Tests', () => {
         return {
           panel: !!document.getElementById('xyzPnl'),
           shadow: !!document.getElementById('xyzSh'),
-          toolbar: !!document.getElementById('xyzTb'),
           canvas: !!document.getElementById('xyzCv'),
           markers: !!document.getElementById('xyzMk'),
           styles: !!document.getElementById('xyzSt'),
@@ -157,7 +188,6 @@ describe('Recorder Panel Close E2E Tests', () => {
 
       expect(elements.panel).toBe(true);
       expect(elements.shadow).toBe(true);
-      expect(elements.toolbar).toBe(true);
       expect(elements.canvas).toBe(true);
       expect(elements.markers).toBe(true);
       expect(elements.styles).toBe(true);
@@ -178,7 +208,6 @@ describe('Recorder Panel Close E2E Tests', () => {
         return {
           panel: !!document.getElementById('xyzPnl'),
           shadow: !!document.getElementById('xyzSh'),
-          toolbar: !!document.getElementById('xyzTb'),
           canvas: !!document.getElementById('xyzCv'),
           markers: !!document.getElementById('xyzMk'),
           styles: !!document.getElementById('xyzSt'),
@@ -187,7 +216,6 @@ describe('Recorder Panel Close E2E Tests', () => {
 
       expect(elements.panel).toBe(false);
       expect(elements.shadow).toBe(false);
-      expect(elements.toolbar).toBe(false);
       expect(elements.canvas).toBe(false);
       expect(elements.markers).toBe(false);
       expect(elements.styles).toBe(false);
