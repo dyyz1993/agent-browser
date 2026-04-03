@@ -24,6 +24,13 @@ export interface ViewerState {
     deviceHeight: number;
     pageScaleFactor: number;
     format: string;
+    element?: {
+      selector: string;
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    };
   };
   userActivityTimeout: ReturnType<typeof setTimeout> | null;
   pendingBinary: boolean;
@@ -146,8 +153,11 @@ export function buildViewerScript(): string {
     const urlParams = new URLSearchParams(location.search);
     const instanceId = urlParams.get('instanceId');
     const session = urlParams.get('session') || 'default';
+    const rawSelector = urlParams.get('selector');
+    const selector = rawSelector ? decodeURIComponent(rawSelector) : undefined;
     const wsParam = instanceId ? 'instanceId=' + instanceId : 'session=' + session;
-    const wsUrl = wsProtocol + '//' + location.hostname + ':' + port + '?' + wsParam;
+
+    const wsUrl = wsProtocol + '//' + location.hostname + ':' + port + '?' + wsParam + (selector ? '&selector=' + encodeURIComponent(selector) : '');
 
     // Background management
     let shouldReconnect = true;
@@ -172,7 +182,13 @@ export function buildViewerScript(): string {
     hiddenInput.setAttribute('autocapitalize', 'off');
     hiddenInput.setAttribute('spellcheck', 'false');
     document.body.appendChild(hiddenInput);
-    
+
+    const degradedToast = document.createElement('div');
+    degradedToast.id = 'degraded-toast';
+    degradedToast.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);background:rgba(255,200,0,0.9);color:#000;padding:10px 20px;border-radius:4px;font-family:sans-serif;font-size:14px;z-index:9999;display:none;pointer-events:none;';
+    degradedToast.textContent = 'Element not found, showing full page';
+    document.body.appendChild(degradedToast);
+
     let ws = null;
     let metadata = { deviceWidth: 1280, deviceHeight: 720, pageScaleFactor: 1, format: 'jpeg' };
     let userActivityTimeout = null;
@@ -248,7 +264,11 @@ export function buildViewerScript(): string {
         switch (msg.type) {
           case 'frame':
             pendingBinary = true;
+            const prevElement = metadata.element;
             metadata = msg.metadata;
+            if (prevElement && !metadata.element) {
+              metadata.element = prevElement;
+            }
             if (msg.format) metadata.format = msg.format;
             if (msg.state) {
               qualityBadge.textContent = msg.state;
@@ -266,6 +286,15 @@ export function buildViewerScript(): string {
               if (msg.viewportWidth) {
                 metadata.deviceWidth = msg.viewportWidth;
                 metadata.deviceHeight = msg.viewportHeight;
+              }
+              if (msg.element) {
+                metadata.element = msg.element;
+              } else {
+                metadata.element = undefined;
+                // 如果期望 element 模式但收到 undefined，说明降级了
+                if (selector && msg.degraded) {
+                  showDegradedMessage();
+                }
               }
             }
             break;
@@ -309,11 +338,11 @@ export function buildViewerScript(): string {
       screen.onerror = cleanup;
       screen.src = url;
       
-      if (!fixedSize) {
-        screen.style.width = metadata.deviceWidth + 'px';
-        screen.style.height = metadata.deviceHeight + 'px';
-        fixedSize = true;
-      }
+      const targetWidth = metadata.element ? metadata.element.width : metadata.deviceWidth;
+      const targetHeight = metadata.element ? metadata.element.height : metadata.deviceHeight;
+      screen.style.width = targetWidth + 'px';
+      screen.style.height = targetHeight + 'px';
+      fixedSize = true;
     }
     
     function safeSend(data) {
@@ -335,9 +364,18 @@ export function buildViewerScript(): string {
     
     function screenToPage(screenX, screenY) {
       const rect = screen.getBoundingClientRect();
+
+      if (metadata.element) {
+        const scaleX = metadata.element.width / rect.width;
+        const scaleY = metadata.element.height / rect.height;
+        return {
+          x: Math.round((screenX - rect.left) * scaleX) + metadata.element.x,
+          y: Math.round((screenY - rect.top) * scaleY) + metadata.element.y
+        };
+      }
+
       const scaleX = metadata.deviceWidth / rect.width;
       const scaleY = metadata.deviceHeight / rect.height;
-      
       return {
         x: Math.round((screenX - rect.left) * scaleX),
         y: Math.round((screenY - rect.top) * scaleY)
@@ -351,7 +389,14 @@ export function buildViewerScript(): string {
       if (e.metaKey) modifiers |= 4;
       if (e.shiftKey) modifiers |= 8;
     }
-    
+
+    function showDegradedMessage() {
+      degradedToast.style.display = 'block';
+      setTimeout(() => {
+        degradedToast.style.display = 'none';
+      }, 3000);
+    }
+
     function focusHiddenInput() {
       hiddenInput.focus();
       hiddenInput.select();

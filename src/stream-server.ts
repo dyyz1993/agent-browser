@@ -20,9 +20,9 @@ export interface StreamStateConfig {
 }
 
 export const STATE_CONFIGS: Record<StreamState, StreamStateConfig> = {
-  user_interacting: { format: 'jpeg', quality: 80, maxFps: 60, scale: 0.4 },
-  screen_moving: { format: 'webp', quality: 50, maxFps: 1, scale: 0.6 },
-  static: { format: 'webp', quality: 80, maxFps: 0.5, scale: 1 },
+  user_interacting: { format: 'jpeg', quality: 80, maxFps: 60, scale: 0.6 },
+  screen_moving: { format: 'jpeg', quality: 75, maxFps: 8, scale: 0.8 },
+  static: { format: 'jpeg', quality: 80, maxFps: 2, scale: 1 },
 };
 
 export type StateChangeCallback = (newState: StreamState, previousState: StreamState) => void;
@@ -157,20 +157,49 @@ export class FrameRateController {
   }
 }
 
+export interface CropConfig {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export class FrameProcessor {
+  private readonly screencastFormat: 'jpeg' | 'png' = 'jpeg';
+  private readonly screencastQuality: number = 80;
+
   async process(
     data: string,
     config: StreamStateConfig,
     viewportWidth?: number,
-    viewportHeight?: number
+    viewportHeight?: number,
+    cropConfig?: CropConfig
   ): Promise<Buffer> {
     const buffer = Buffer.from(data, 'base64');
 
+    const needsResize = config.scale < 1 && viewportWidth && viewportHeight;
+    const needsCrop = !!cropConfig;
+    const needsReencode =
+      config.format !== this.screencastFormat || config.quality !== this.screencastQuality;
+
+    if (!needsResize && !needsCrop && !needsReencode) {
+      return buffer;
+    }
+
     let processed: sharp.Sharp = sharp(buffer);
 
-    if (config.scale < 1 && viewportWidth && viewportHeight) {
-      const newWidth = Math.round(viewportWidth * config.scale);
-      const newHeight = Math.round(viewportHeight * config.scale);
+    if (cropConfig) {
+      processed = processed.extract({
+        left: Math.round(cropConfig.x),
+        top: Math.round(cropConfig.y),
+        width: Math.round(cropConfig.width),
+        height: Math.round(cropConfig.height),
+      });
+    }
+
+    if (needsResize) {
+      const newWidth = Math.round(viewportWidth! * config.scale);
+      const newHeight = Math.round(viewportHeight! * config.scale);
       processed = processed.resize(newWidth, newHeight);
     }
 
@@ -275,6 +304,15 @@ export interface StatusMessage {
   viewportHeight?: number;
   fps?: number;
   state?: StreamState;
+  element?: {
+    selector: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+  degraded?: boolean;
+  version?: string;
 }
 
 export interface ErrorMessage {
@@ -328,9 +366,17 @@ function isCommandMessage(msg: StreamMessage): msg is Command {
   return 'id' in msg && 'action' in msg && !('type' in msg);
 }
 
+export interface ClientState {
+  selector?: string;
+  elementBox?: { x: number; y: number; width: number; height: number };
+  degraded?: boolean;
+  lastElementCheckTime?: number;
+  elementCheckTimer?: ReturnType<typeof setInterval>;
+}
+
 export class StreamServer {
   private wss: WebSocketServer | null = null;
-  private clients: Set<WebSocket> = new Set();
+  private clients: Map<WebSocket, ClientState> = new Map();
   private browser: BrowserManager;
   private port: number;
   private isScreencasting: boolean = false;
@@ -371,7 +417,7 @@ export class StreamServer {
           state: newState,
         };
 
-        for (const client of this.clients) {
+        for (const [client, _state] of this.clients) {
           if (client.readyState === WebSocket.OPEN) {
             client.send(JSON.stringify(headerMessage));
             client.send(processedBuffer);
@@ -401,8 +447,8 @@ export class StreamServer {
           },
         });
 
-        this.wss.on('connection', (ws) => {
-          this.handleConnection(ws);
+        this.wss.on('connection', (ws, req) => {
+          this.handleConnection(ws as WebSocket, req as import('http').IncomingMessage);
         });
 
         this.wss.on('error', (error) => {
@@ -450,7 +496,7 @@ export class StreamServer {
     setScreencastFrameCallback(null);
     setEventCallbacks({});
 
-    for (const client of this.clients) {
+    for (const [client, _state] of this.clients) {
       client.close();
     }
     this.clients.clear();
@@ -465,11 +511,61 @@ export class StreamServer {
     }
   }
 
-  private handleConnection(ws: WebSocket): void {
-    console.log('[StreamServer] Client connected');
-    this.clients.add(ws);
+  private handleConnection(ws: WebSocket, req: import('http').IncomingMessage): void {
+    const clientState: ClientState = {};
+    try {
+      const url = new URL(req.url || '/', 'http://localhost');
+      const rawSelector = url.searchParams.get('selector');
+      if (rawSelector) {
+        clientState.selector = decodeURIComponent(rawSelector);
+      }
+    } catch {
+      // Invalid URL, ignore
+    }
 
-    this.sendStatus(ws);
+    this.clients.set(ws, clientState);
+
+    if (clientState.selector) {
+      clientState.elementCheckTimer = setInterval(() => {
+        if (!clientState.selector) return;
+        this.getElementBox(clientState.selector)
+          .then((newBox) => {
+            if (!newBox) {
+              if (clientState.elementBox || !clientState.degraded) {
+                clientState.elementBox = undefined;
+                clientState.degraded = true;
+                const statusMsg: StatusMessage = {
+                  type: 'status',
+                  connected: true,
+                  screencasting: this.isScreencasting,
+                  degraded: true,
+                };
+                if (ws.readyState === WebSocket.OPEN) {
+                  ws.send(JSON.stringify(statusMsg));
+                }
+              }
+            } else {
+              clientState.elementBox = newBox;
+              clientState.degraded = false;
+            }
+          })
+          .catch(() => {});
+      }, 2500);
+    }
+
+    this.sendStatus(ws, clientState);
+
+    this.refreshElementBox(ws, clientState)
+      .then(async () => {
+        this.sendStatus(ws, clientState);
+        if (this.isScreencasting && this.lastFrameData && this.lastFrameMetadata) {
+          await new Promise((r) => setTimeout(r, 100));
+          this.replayLastFrame(ws, clientState);
+        }
+      })
+      .catch((err) => {
+        console.error('[StreamServer] Failed to refresh element box:', err);
+      });
 
     if (this.clients.size === 1 && !this.isScreencasting) {
       this.startScreencast().catch((error) => {
@@ -488,7 +584,10 @@ export class StreamServer {
     });
 
     ws.on('close', () => {
-      console.log('[StreamServer] Client disconnected');
+      if (clientState.elementCheckTimer) {
+        clearInterval(clientState.elementCheckTimer);
+        clientState.elementCheckTimer = undefined;
+      }
       this.clients.delete(ws);
 
       if (this.clients.size === 0 && this.isScreencasting) {
@@ -576,7 +675,15 @@ export class StreamServer {
           break;
 
         case 'status':
-          this.sendStatus(ws);
+          const cs = this.clients.get(ws);
+          if (cs?.selector) {
+            this.sendStatus(ws, cs);
+            this.refreshElementBox(ws, cs).catch(() => {});
+          } else if (cs) {
+            this.sendStatus(ws, cs);
+          } else {
+            this.sendStatus(ws);
+          }
           break;
       }
     } catch (error) {
@@ -596,31 +703,90 @@ export class StreamServer {
       return;
     }
 
-    let processedBuffer: Buffer;
-    try {
-      processedBuffer = await this.frameProcessor.process(
-        frame.data,
-        config,
-        frame.metadata.deviceWidth,
-        frame.metadata.deviceHeight
-      );
-    } catch {
-      processedBuffer = Buffer.from(frame.data, 'base64');
-    }
+    for (const [client, clientState] of this.clients) {
+      if (client.readyState !== WebSocket.OPEN) {
+        continue;
+      }
 
-    const headerMessage: FrameMessage = {
-      type: 'frame',
-      metadata: frame.metadata,
-      format: config.format,
-      fps: this.frameRateController.getCurrentFps(),
-      state: this.stateManager.getState(),
-    };
+      try {
+        let processedBuffer: Buffer;
+        let metadata = { ...frame.metadata };
 
-    for (const client of this.clients) {
-      if (client.readyState === WebSocket.OPEN) {
+        if (clientState.selector && clientState.elementBox) {
+          processedBuffer = await this.frameProcessor.process(
+            frame.data,
+            config,
+            clientState.elementBox.width,
+            clientState.elementBox.height,
+            clientState.elementBox
+          );
+          metadata.deviceWidth = clientState.elementBox.width;
+          metadata.deviceHeight = clientState.elementBox.height;
+        } else {
+          processedBuffer = await this.frameProcessor.process(
+            frame.data,
+            config,
+            frame.metadata.deviceWidth,
+            frame.metadata.deviceHeight
+          );
+        }
+
+        const headerMessage: FrameMessage = {
+          type: 'frame',
+          metadata,
+          format: config.format,
+          fps: this.frameRateController.getCurrentFps(),
+          state: this.stateManager.getState(),
+        };
+
         client.send(JSON.stringify(headerMessage));
         client.send(processedBuffer);
+      } catch (err) {
+        console.error('[StreamServer] Failed to process frame for client:', err);
       }
+    }
+  }
+
+  private async replayLastFrame(ws: WebSocket, clientState: ClientState): Promise<void> {
+    if (!this.lastFrameData || !this.lastFrameMetadata) return;
+    if (ws.readyState !== WebSocket.OPEN) return;
+
+    try {
+      const config = this.stateManager.getConfig();
+      let processedBuffer: Buffer;
+      let metadata = { ...this.lastFrameMetadata };
+
+      if (clientState.selector && clientState.elementBox) {
+        processedBuffer = await this.frameProcessor.process(
+          this.lastFrameData,
+          config,
+          clientState.elementBox.width,
+          clientState.elementBox.height,
+          clientState.elementBox
+        );
+        metadata.deviceWidth = clientState.elementBox.width;
+        metadata.deviceHeight = clientState.elementBox.height;
+      } else {
+        processedBuffer = await this.frameProcessor.process(
+          this.lastFrameData,
+          config,
+          this.lastFrameMetadata.deviceWidth,
+          this.lastFrameMetadata.deviceHeight
+        );
+      }
+
+      const headerMessage: FrameMessage = {
+        type: 'frame',
+        metadata,
+        format: config.format,
+        fps: this.frameRateController.getCurrentFps(),
+        state: this.stateManager.getState(),
+      };
+
+      ws.send(JSON.stringify(headerMessage));
+      ws.send(processedBuffer);
+    } catch (err) {
+      console.error('[StreamServer] Failed to replay last frame:', err);
     }
   }
 
@@ -629,14 +795,36 @@ export class StreamServer {
   ): void {
     const payload = JSON.stringify(message);
 
-    for (const client of this.clients) {
+    for (const [client, _state] of this.clients) {
       if (client.readyState === WebSocket.OPEN) {
         client.send(payload);
       }
     }
   }
 
-  private sendStatus(ws: WebSocket): void {
+  private async getElementBox(
+    selector: string
+  ): Promise<{ x: number; y: number; width: number; height: number } | undefined> {
+    try {
+      const page = this.browser.getPage();
+      const box = await page.evaluate((sel) => {
+        const el = document.querySelector(sel);
+        if (!el) return null;
+        const rect = el.getBoundingClientRect();
+        return {
+          x: rect.x,
+          y: rect.y,
+          width: rect.width,
+          height: rect.height,
+        };
+      }, selector);
+      return box ?? undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private sendStatus(ws: WebSocket, clientState?: ClientState): void {
     let viewportWidth: number | undefined;
     let viewportHeight: number | undefined;
 
@@ -645,9 +833,7 @@ export class StreamServer {
       const viewport = page.viewportSize();
       viewportWidth = viewport?.width;
       viewportHeight = viewport?.height;
-    } catch {
-      // Browser not launched yet
-    }
+    } catch {}
 
     const message: StatusMessage = {
       type: 'status',
@@ -657,10 +843,48 @@ export class StreamServer {
       viewportHeight,
       fps: this.frameRateController.getCurrentFps(),
       state: this.stateManager.getState(),
+      version: process.env.npm_package_version || '0.9.5',
     };
+
+    if (clientState?.elementBox) {
+      message.element = {
+        selector: clientState.selector!,
+        x: clientState.elementBox.x,
+        y: clientState.elementBox.y,
+        width: clientState.elementBox.width,
+        height: clientState.elementBox.height,
+      };
+      message.viewportWidth = clientState.elementBox.width;
+      message.viewportHeight = clientState.elementBox.height;
+    }
+
+    if (clientState?.degraded) {
+      message.degraded = true;
+    }
 
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(message));
+    }
+  }
+
+  private async refreshElementBox(ws: WebSocket, clientState: ClientState): Promise<void> {
+    if (!clientState.selector) return;
+    const box = await this.getElementBox(clientState.selector);
+    if (box) {
+      clientState.elementBox = box;
+      clientState.degraded = false;
+    } else if (!clientState.degraded) {
+      clientState.elementBox = undefined;
+      clientState.degraded = true;
+      const message: StatusMessage = {
+        type: 'status',
+        connected: true,
+        screencasting: this.isScreencasting,
+        degraded: true,
+      };
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(message));
+      }
     }
   }
 
@@ -684,17 +908,42 @@ export class StreamServer {
         throw new Error('Browser not launched');
       }
 
-      await this.browser.startScreencast((frame) => this.broadcastFrame(frame), {
-        format: 'jpeg',
-        quality: 80,
-        maxWidth: 1280,
-        maxHeight: 720,
-        everyNthFrame: 1,
-      });
-
-      for (const client of this.clients) {
-        this.sendStatus(client);
+      try {
+        await this.browser.startScreencast((frame) => this.broadcastFrame(frame), {
+          format: 'jpeg',
+          quality: 80,
+          maxWidth: 1280,
+          maxHeight: 720,
+          everyNthFrame: 1,
+        });
+      } catch (startError) {
+        if (startError instanceof Error && startError.message === 'Screencast already active') {
+          await this.browser.stopScreencast();
+          await this.browser.startScreencast((frame) => this.broadcastFrame(frame), {
+            format: 'jpeg',
+            quality: 80,
+            maxWidth: 1280,
+            maxHeight: 720,
+            everyNthFrame: 1,
+          });
+        } else {
+          throw startError;
+        }
       }
+
+      for (const [client, state] of this.clients) {
+        this.sendStatus(client, state);
+      }
+
+      try {
+        const page = this.browser.getPage();
+        await page.evaluate(() => {
+          document.body.style.opacity = '0.999';
+          requestAnimationFrame(() => {
+            document.body.style.opacity = '';
+          });
+        });
+      } catch {}
     } catch (error) {
       this.isScreencasting = false;
       throw error;
@@ -703,12 +952,12 @@ export class StreamServer {
 
   private async stopScreencast(): Promise<void> {
     if (!this.isScreencasting) return;
-
-    await this.browser.stopScreencast();
     this.isScreencasting = false;
 
-    for (const client of this.clients) {
-      this.sendStatus(client);
+    await this.browser.stopScreencast();
+
+    for (const [client, state] of this.clients) {
+      this.sendStatus(client, state);
     }
   }
 
@@ -851,6 +1100,20 @@ export class StreamServerProxy {
           break;
         case 'client_disconnected':
           this.handleClientDisconnected(message.session as string);
+          break;
+        case 'request_element_box':
+          (async () => {
+            const box = await this.getElementBox(message.selector as string);
+            const response: Record<string, unknown> = {
+              type: 'selector_element',
+              session: message.session ?? this.session,
+              selector: message.selector as string,
+            };
+            if (box) {
+              response.elementBox = box;
+            }
+            this.send(response);
+          })();
           break;
       }
     } catch (error) {
@@ -1015,6 +1278,44 @@ export class StreamServerProxy {
   private send(message: object): void {
     if (this.ipcSocket && !this.ipcSocket.destroyed) {
       this.ipcSocket.write(JSON.stringify(message) + '\n');
+    }
+  }
+
+  sendSelectorElement(
+    selector: string,
+    elementBox: { x: number; y: number; width: number; height: number }
+  ): void {
+    this.send({
+      type: 'selector_element',
+      session: this.session,
+      selector,
+      elementBox,
+    });
+  }
+
+  private async getElementBox(
+    selector: string
+  ): Promise<{ x: number; y: number; width: number; height: number } | undefined> {
+    try {
+      const page = this.browser.getPage();
+      if (!page) {
+        return undefined;
+      }
+      const box = await page.evaluate((sel) => {
+        const el = document.querySelector(sel);
+        if (!el) return null;
+        const rect = el.getBoundingClientRect();
+        return {
+          x: rect.x,
+          y: rect.y,
+          width: rect.width,
+          height: rect.height,
+        };
+      }, selector);
+      return box ?? undefined;
+    } catch (err) {
+      console.error('[StreamServerProxy] getElementBox error:', err);
+      return undefined;
     }
   }
 

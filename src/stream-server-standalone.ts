@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as http from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
+import sharp from 'sharp';
 import { getViewerHtml } from './viewer-html.js';
 import { getSocketDir, getAppDir } from './daemon.js';
 import { openApiSpec } from './openapi.js';
@@ -22,12 +23,21 @@ interface SessionInfo {
   instanceId: string;
 }
 
+interface ClientState {
+  selector?: string;
+  elementBox?: { x: number; y: number; width: number; height: number };
+  degraded?: boolean;
+  elementCheckTimer?: ReturnType<typeof setInterval>;
+}
+
 interface StreamMessage {
   type: string;
   session?: string;
   instanceId?: string;
   socketPath?: string;
   data?: string;
+  selector?: string;
+  elementBox?: { x: number; y: number; width: number; height: number };
   metadata?: {
     offsetTop: number;
     pageScaleFactor: number;
@@ -53,6 +63,7 @@ class StreamServerStandalone {
   private frameBuffers: Map<string, { header: string; data: Buffer }[]> = new Map();
   private instanceIdToSession: Map<string, string> = new Map();
   private latestFrames: Map<string, { header: string; data: Buffer }> = new Map();
+  private clientStates: Map<WebSocket, ClientState> = new Map();
 
   constructor(port: number = DEFAULT_STREAM_PORT) {
     this.port = port;
@@ -184,7 +195,7 @@ class StreamServerStandalone {
           res.end(
             JSON.stringify({
               title: 'agent-browser HTTP API',
-              version: '0.9.2',
+              version: '0.9.5',
               endpoints: {
                 'POST /api/command': {
                   description: 'Execute a browser command',
@@ -280,42 +291,50 @@ class StreamServerStandalone {
     const url = new URL(req.url || '/', `http://localhost:${this.port}`);
     const sessionParam = url.searchParams.get('session') || 'default';
     const instanceIdParam = url.searchParams.get('instanceId');
+    const rawSelector = url.searchParams.get('selector');
 
-    // 优先使用 instanceId 查找 session
+    const clientState: ClientState = {};
+    if (rawSelector) {
+      clientState.selector = decodeURIComponent(rawSelector);
+    }
+
     let session: string;
+    let connected = false;
     if (instanceIdParam) {
       const foundSession = this.instanceIdToSession.get(instanceIdParam);
       if (foundSession) {
         session = foundSession;
+        connected = true;
       } else {
-        // instanceId 不存在，返回错误
-        console.log(`[StreamServer] Invalid instanceId: ${instanceIdParam}`);
-        ws.send(JSON.stringify({ type: 'status', connected: false, error: 'Invalid instanceId' }));
-        ws.close();
-        return;
+        session = sessionParam;
       }
     } else {
       session = sessionParam;
     }
-
-    console.log(`[StreamServer] WebSocket client connected for session: ${session}`);
 
     if (!this.clients.has(session)) {
       this.clients.set(session, new Set());
     }
     const wasEmpty = this.clients.get(session)!.size === 0;
     this.clients.get(session)!.add(ws);
+    this.clientStates.set(ws, clientState);
 
-    this.sendStatus(ws, session);
+    if (clientState.selector) {
+      this.requestElementBox(session, clientState.selector);
 
-    // 如果有最新帧，立即发送给新客户端
-    const latestFrame = this.latestFrames.get(session);
-    if (latestFrame) {
-      ws.send(latestFrame.header);
-      ws.send(latestFrame.data);
+      clientState.elementCheckTimer = setInterval(() => {
+        if (!clientState.selector) return;
+        this.requestElementBox(session, clientState.selector);
+      }, 2500);
     }
 
-    // 如果这是该 session 的第一个客户端，通知 daemon 启动 screencast
+    this.sendStatus(ws, session, clientState);
+
+    const latestFrame = this.latestFrames.get(session);
+    if (latestFrame) {
+      this.sendCroppedFrame(ws, latestFrame, clientState);
+    }
+
     if (wasEmpty && this.daemonSockets.has(session)) {
       this.daemonSockets
         .get(session)
@@ -329,18 +348,28 @@ class StreamServerStandalone {
     ws.on('message', (data) => {
       try {
         const message = JSON.parse(data.toString()) as StreamMessage;
-        this.handleClientMessage(session, message);
+        if (message.type === 'status') {
+          this.sendStatus(ws, session, clientState);
+          if (clientState.selector) {
+            this.requestElementBox(session, clientState.selector);
+          }
+        } else {
+          this.handleClientMessage(session, message);
+        }
       } catch (error) {
         console.error('[StreamServer] Failed to parse client message:', error);
       }
     });
 
     ws.on('close', () => {
-      console.log(`[StreamServer] WebSocket client disconnected for session: ${session}`);
+      if (clientState.elementCheckTimer) {
+        clearInterval(clientState.elementCheckTimer);
+        clientState.elementCheckTimer = undefined;
+      }
       this.clients.get(session)?.delete(ws);
+      this.clientStates.delete(ws);
       if (this.clients.get(session)?.size === 0) {
         this.clients.delete(session);
-        // 如果该 session 没有客户端了，通知 daemon 停止 screencast
         if (this.daemonSockets.has(session)) {
           this.daemonSockets
             .get(session)
@@ -350,8 +379,12 @@ class StreamServerStandalone {
     });
 
     ws.on('error', (error) => {
-      console.error(`[StreamServer] WebSocket error for session ${session}:`, error);
+      if (clientState.elementCheckTimer) {
+        clearInterval(clientState.elementCheckTimer);
+        clientState.elementCheckTimer = undefined;
+      }
       this.clients.get(session)?.delete(ws);
+      this.clientStates.delete(ws);
     });
   }
 
@@ -381,6 +414,93 @@ class StreamServerStandalone {
           error
         );
       }
+    }
+  }
+
+  private requestElementBox(session: string, selector: string): void {
+    if (!this.daemonSockets.has(session)) {
+      console.log(`[StreamServer] requestElementBox: no daemon socket for session ${session}`);
+      return;
+    }
+    const daemonSocket = this.daemonSockets.get(session);
+    if (daemonSocket) {
+      console.log(`[StreamServer] requestElementBox: session=${session} selector=${selector}`);
+      daemonSocket.write(
+        JSON.stringify({
+          type: 'request_element_box',
+          session,
+          selector,
+        }) + '\n'
+      );
+    }
+  }
+
+  private async sendCroppedFrame(
+    ws: WebSocket,
+    frame: { header: string; data: Buffer },
+    clientState: ClientState
+  ): Promise<void> {
+    if (clientState.selector && clientState.elementBox && ws.readyState === WebSocket.OPEN) {
+      try {
+        const box = clientState.elementBox;
+        const header = JSON.parse(frame.header);
+        const meta = header.metadata;
+
+        let left = Math.round(box.x);
+        let top = Math.round(box.y);
+        let w = Math.round(box.width);
+        let h = Math.round(box.height);
+
+        if (meta?.deviceWidth && meta?.deviceHeight) {
+          const imgInfo = await sharp(frame.data).metadata();
+          const actualW = imgInfo.width || meta.deviceWidth;
+          const actualH = imgInfo.height || meta.deviceHeight;
+          const scaleX = actualW / meta.deviceWidth;
+          const scaleY = actualH / meta.deviceHeight;
+
+          if (scaleX !== 1 || scaleY !== 1) {
+            left = Math.round(box.x * scaleX);
+            top = Math.round(box.y * scaleY);
+            w = Math.round(box.width * scaleX);
+            h = Math.round(box.height * scaleY);
+          }
+
+          left = Math.max(0, Math.min(left, actualW - 1));
+          top = Math.max(0, Math.min(top, actualH - 1));
+          w = Math.min(w, actualW - left);
+          h = Math.min(h, actualH - top);
+        }
+
+        if (w <= 0 || h <= 0) {
+          ws.send(frame.header);
+          ws.send(frame.data);
+          return;
+        }
+
+        const buf = await sharp(frame.data)
+          .extract({ left, top, width: w, height: h })
+          .jpeg({ quality: 80 })
+          .toBuffer();
+
+        if (ws.readyState !== WebSocket.OPEN) return;
+        const croppedHeader = {
+          ...header,
+          metadata: {
+            ...header.metadata,
+            deviceWidth: box.width,
+            deviceHeight: box.height,
+          },
+        };
+        ws.send(JSON.stringify(croppedHeader));
+        ws.send(buf);
+      } catch {
+        if (ws.readyState !== WebSocket.OPEN) return;
+        ws.send(frame.header);
+        ws.send(frame.data);
+      }
+    } else {
+      ws.send(frame.header);
+      ws.send(frame.data);
     }
   }
 
@@ -438,7 +558,6 @@ class StreamServerStandalone {
         if (s === socket) {
           console.log(`[StreamServer] Daemon disconnected for session: ${session}`);
           this.daemonSockets.delete(session);
-          this.sessions.delete(session);
           this.broadcastStatus(session, false);
           break;
         }
@@ -446,7 +565,7 @@ class StreamServerStandalone {
     });
   }
 
-  private handleIpcMessage(socket: net.Socket, message: StreamMessage): void {
+  private async handleIpcMessage(socket: net.Socket, message: StreamMessage): Promise<void> {
     switch (message.type) {
       case 'register':
         if (message.session && message.socketPath && message.instanceId) {
@@ -489,7 +608,35 @@ class StreamServerStandalone {
       case 'frame':
         if (message.session) {
           this.sessions.get(message.session)!.lastSeen = Date.now();
-          this.broadcastFrame(message);
+          await this.broadcastFrame(message);
+        }
+        break;
+
+      case 'selector_element':
+        if (message.session && message.selector) {
+          console.log(
+            `[StreamServer] Received selector_element: session=${message.session} selector=${message.selector} box=${message.elementBox ? JSON.stringify(message.elementBox) : 'null'}`
+          );
+          const clients = this.clients.get(message.session);
+          if (clients) {
+            for (const client of clients) {
+              const state = this.clientStates.get(client);
+              if (state?.selector === message.selector) {
+                if (message.elementBox) {
+                  state.elementBox = message.elementBox;
+                  state.degraded = false;
+                } else if (!state.degraded) {
+                  state.elementBox = undefined;
+                  state.degraded = true;
+                }
+                this.sendStatus(client, message.session, state);
+              } else {
+                console.log(
+                  `[StreamServer] selector_element mismatch: state.selector="${state?.selector}" vs message.selector="${message.selector}"`
+                );
+              }
+            }
+          }
         }
         break;
     }
@@ -504,8 +651,17 @@ class StreamServerStandalone {
     const socket = net.createConnection({ path: socketPath }, () => {
       console.log(`[StreamServer] Connected to daemon for session: ${session}`);
       this.daemonSockets.set(session, socket);
-    });
 
+      const sessionClients = this.clients.get(session);
+      if (sessionClients) {
+        for (const client of sessionClients) {
+          const state = this.clientStates.get(client);
+          if (state?.selector) {
+            this.requestElementBox(session, state.selector);
+          }
+        }
+      }
+    });
     socket.on('error', (error) => {
       console.error(`[StreamServer] Failed to connect to daemon for session ${session}:`, error);
     });
@@ -515,35 +671,131 @@ class StreamServerStandalone {
     });
   }
 
-  private broadcastFrame(message: StreamMessage): void {
+  private async broadcastFrame(message: StreamMessage): Promise<void> {
     const session = message.session!;
     const clients = this.clients.get(session);
 
     if (!clients || clients.size === 0) return;
 
-    const headerMessage = {
-      type: 'frame',
-      metadata: message.metadata,
-      format: message.format,
-      fps: message.fps,
-      state: message.state,
-    };
-
-    // 保存最新帧
-    if (message.data) {
-      this.latestFrames.set(session, {
-        header: JSON.stringify(headerMessage),
-        data: Buffer.from(message.data, 'base64'),
-      });
-    }
+    const frameData = message.data ? Buffer.from(message.data, 'base64') : null;
 
     for (const client of clients) {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify(headerMessage));
-        if (message.data) {
-          client.send(Buffer.from(message.data, 'base64'));
+      if (client.readyState !== WebSocket.OPEN) continue;
+
+      const clientState = this.clientStates.get(client);
+      let metadata: Record<string, unknown> | undefined = message.metadata as
+        | Record<string, unknown>
+        | undefined;
+      let dataToSend = frameData;
+
+      const hasSelector = !!clientState?.selector;
+      const hasBox = !!clientState?.elementBox;
+      const hasFrame = !!frameData;
+
+      if (hasSelector && hasBox && hasFrame) {
+        try {
+          const box = clientState.elementBox!;
+          const meta = message.metadata;
+
+          let left = Math.round(box.x);
+          let top = Math.round(box.y);
+          let w = Math.round(box.width);
+          let h = Math.round(box.height);
+
+          if (meta?.deviceWidth && meta?.deviceHeight) {
+            const imgInfo = await sharp(frameData).metadata();
+            const actualW = imgInfo.width || meta.deviceWidth;
+            const actualH = imgInfo.height || meta.deviceHeight;
+            const scaleX = actualW / meta.deviceWidth;
+            const scaleY = actualH / meta.deviceHeight;
+
+            if (scaleX !== 1 || scaleY !== 1) {
+              left = Math.round(box.x * scaleX);
+              top = Math.round(box.y * scaleY);
+              w = Math.round(box.width * scaleX);
+              h = Math.round(box.height * scaleY);
+            }
+
+            left = Math.max(0, Math.min(left, actualW - 1));
+            top = Math.max(0, Math.min(top, actualH - 1));
+            w = Math.min(w, actualW - left);
+            h = Math.min(h, actualH - top);
+          }
+
+          if (w <= 0 || h <= 0) {
+            dataToSend = frameData;
+          } else {
+            const cropped = await sharp(frameData)
+              .extract({ left, top, width: w, height: h })
+              .jpeg({ quality: 80 })
+              .toBuffer();
+
+            dataToSend = Buffer.from(cropped);
+            if (metadata) {
+              metadata = {
+                ...metadata,
+                deviceWidth: box.width,
+                deviceHeight: box.height,
+                element: {
+                  selector: clientState!.selector!,
+                  x: box.x,
+                  y: box.y,
+                  width: box.width,
+                  height: box.height,
+                },
+              };
+            }
+          }
+        } catch (error) {
+          const errMsg = error instanceof Error ? error.message : String(error);
+          const box = clientState.elementBox!;
+          metadata = {
+            ...(metadata || {}),
+            _cropError: errMsg,
+            _cropBox: {
+              left: Math.round(box.x),
+              top: Math.round(box.y),
+              width: Math.round(box.width),
+              height: Math.round(box.height),
+            },
+            _selector: clientState?.selector,
+          };
+          dataToSend = frameData;
         }
+      } else if (hasSelector) {
+        metadata = {
+          ...(metadata || {}),
+          _skipCrop: `hasBox=${hasBox} hasFrame=${hasFrame}`,
+          _selector: clientState?.selector,
+        };
       }
+
+      const headerMessage = {
+        type: 'frame',
+        metadata,
+        format: message.format,
+        fps: message.fps,
+        state: message.state,
+      };
+
+      client.send(JSON.stringify(headerMessage));
+      if (dataToSend) {
+        client.send(dataToSend);
+      }
+    }
+
+    // 保存最新帧（原始）
+    if (frameData) {
+      this.latestFrames.set(session, {
+        header: JSON.stringify({
+          type: 'frame',
+          metadata: message.metadata,
+          format: message.format,
+          fps: message.fps,
+          state: message.state,
+        }),
+        data: frameData,
+      });
     }
   }
 
@@ -551,27 +803,60 @@ class StreamServerStandalone {
     const clients = this.clients.get(session);
     if (!clients) return;
 
-    const message = {
-      type: 'status',
-      connected,
-      screencasting: connected,
-    };
-
     for (const client of clients) {
       if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify(message));
+        const state = this.clientStates.get(client);
+        const msg: Record<string, unknown> = {
+          type: 'status',
+          connected,
+          screencasting: connected,
+          session,
+          version: '0.9.5',
+        };
+        if (state?.selector && state.elementBox) {
+          msg.element = {
+            selector: state.selector,
+            x: state.elementBox.x,
+            y: state.elementBox.y,
+            width: state.elementBox.width,
+            height: state.elementBox.height,
+          };
+          msg.viewportWidth = state.elementBox.width;
+          msg.viewportHeight = state.elementBox.height;
+        }
+        if (state?.degraded) {
+          msg.degraded = true;
+        }
+        client.send(JSON.stringify(msg));
       }
     }
   }
 
-  private sendStatus(ws: WebSocket, session: string): void {
+  private sendStatus(ws: WebSocket, session: string, clientState?: ClientState): void {
     const connected = this.sessions.has(session);
-    const message = {
+    const message: Record<string, unknown> = {
       type: 'status',
       connected,
       screencasting: connected,
       session,
+      version: '0.9.5',
     };
+
+    if (clientState?.selector && clientState?.elementBox) {
+      message.element = {
+        selector: clientState.selector,
+        x: clientState.elementBox.x,
+        y: clientState.elementBox.y,
+        width: clientState.elementBox.width,
+        height: clientState.elementBox.height,
+      };
+      message.viewportWidth = clientState.elementBox.width;
+      message.viewportHeight = clientState.elementBox.height;
+    }
+
+    if (clientState?.degraded) {
+      message.degraded = true;
+    }
 
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(message));

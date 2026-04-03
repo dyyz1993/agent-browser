@@ -1415,16 +1415,15 @@ export class BrowserManager {
       : [];
 
     // Add anti-detection args
+    const isHeaded = hasExtensions || options.headless === false;
     const antiDetectionArgs = [
       '--disable-blink-features=AutomationControlled',
       '--disable-dev-shm-usage',
       '--no-sandbox',
-      '--disable-gpu',
-      '--disable-software-rasterizer',
+      ...(isHeaded ? [] : ['--disable-gpu']),
       '--enable-features=WebGL',
       '--ignore-gpu-blacklist',
-      '--use-gl=desktop',
-      '--enable-gpu-compositing',
+      ...(isHeaded ? ['--use-gl=desktop', '--enable-gpu-compositing'] : []),
     ];
 
     const baseArgs = options.args

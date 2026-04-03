@@ -1,0 +1,73 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Element Selector E2E Test</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="repaint-forcer"
+      style="position: fixed; top: 0; left: 0; width: 1px; height: 1px; opacity: 0.999"
+    ></div>
+    <div
+      id="target-element"
+      style="
+        width: 400px;
+        height: 200px;
+        background: #4285f4;
+        color: white;
+        padding: 10px;
+        margin: 50px 0 0 50px;
+      "
+    >
+      <p>Target Element</p>
+      <button id="click-btn">Click Me</button>
+      <span id="click-log"></span>
+    </div>
+
+    <div style="margin-left: 50px; margin-top: 10px">
+      <div class="multi-item" data-idx="0" style="width: 100px; height: 40px; background: #0f0">
+        First
+      </div>
+      <div class="multi-item" data-idx="1" style="width: 100px; height: 40px; background: #0a0">
+        Second
+      </div>
+      <div class="multi-item" data-idx="2" style="width: 100px; height: 40px; background: #050">
+        Third
+      </div>
+    </div>
+
+    <div
+      id="degrade-target"
+      style="width: 150px; height: 80px; background: #f0f; margin: 10px 0 0 50px"
+    >
+      Degrade Target 1
+    </div>
+    <div
+      id="degrade-target-2"
+      style="width: 150px; height: 80px; background: #ff0; margin: 10px 0 0 50px"
+    >
+      Degrade Target 2
+    </div>
+    <script>
+      (function forceRepaint() {
+        var el = document.getElementById('repaint-forcer');
+        function tick() {
+          el.style.opacity = el.style.opacity === '0.999' ? '1' : '0.999';
+          requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+      })();
+    </script>
+  </body>
+</html>
