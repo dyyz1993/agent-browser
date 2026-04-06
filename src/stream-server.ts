@@ -213,6 +213,25 @@ export class FrameProcessor {
   }
 }
 
+function isPrivateIP(hostname: string): boolean {
+  if (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '::1' ||
+    hostname === '[::1]'
+  ) {
+    return true;
+  }
+  const parts = hostname.split('.').map(Number);
+  if (parts.length === 4 && parts.every((p) => !isNaN(p))) {
+    const [a, b] = parts;
+    if (a === 10) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+  }
+  return false;
+}
+
 export function isAllowedOrigin(origin: string | undefined): boolean {
   if (!origin) {
     return true;
@@ -222,8 +241,7 @@ export function isAllowedOrigin(origin: string | undefined): boolean {
   }
   try {
     const url = new URL(origin);
-    const host = url.hostname;
-    if (host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]') {
+    if (isPrivateIP(url.hostname)) {
       return true;
     }
   } catch {
@@ -296,6 +314,17 @@ export interface KeyboardInsertTextMessage {
   text: string;
 }
 
+export interface InputFillMessage {
+  type: 'input_fill';
+  selector?: string;
+  text?: string;
+}
+
+export interface InputBlurElementMessage {
+  type: 'input_blur_element';
+  selector?: string;
+}
+
 export interface StatusMessage {
   type: 'status';
   connected: boolean;
@@ -344,6 +373,24 @@ export interface UserActivityMessage {
   type: 'user_activity';
 }
 
+export interface InputFocusedMessage {
+  type: 'input_focused';
+  tag: string;
+  inputType: string;
+  value: string;
+  placeholder: string;
+  id: string;
+}
+
+export interface InputValueMessage {
+  type: 'input_value';
+  text: string;
+}
+
+export interface InputBlurMessage {
+  type: 'input_blur';
+}
+
 export type StreamMessage =
   | FrameMessage
   | InputMouseMessage
@@ -353,6 +400,9 @@ export type StreamMessage =
   | KeyboardDownMessage
   | KeyboardUpMessage
   | KeyboardInsertTextMessage
+  | InputFocusedMessage
+  | InputValueMessage
+  | InputBlurMessage
   | StatusMessage
   | ErrorMessage
   | TabCreatedMessage
@@ -670,6 +720,18 @@ export class StreamServer {
           await this.browser.getPage().keyboard.insertText(message.text);
           break;
 
+        case 'input_focused':
+        case 'input_value':
+        case 'input_blur':
+          for (const [ws] of this.clients.entries()) {
+            if (ws.readyState === WebSocket.OPEN) {
+              try {
+                ws.send(JSON.stringify(message));
+              } catch (_) {}
+            }
+          }
+          break;
+
         case 'user_activity':
           this.stateManager.onUserInteraction();
           break;
@@ -936,6 +998,20 @@ export class StreamServer {
       }
 
       try {
+        await this.browser.injectFocusListener((data) => {
+          for (const [ws] of this.clients.entries()) {
+            if (ws.readyState === WebSocket.OPEN) {
+              try {
+                ws.send(JSON.stringify(data));
+              } catch (_) {}
+            }
+          }
+        });
+      } catch (e) {
+        console.error('[StreamServer] Failed to inject focus listener:', e);
+      }
+
+      try {
         const page = this.browser.getPage();
         await page.evaluate(() => {
           document.body.style.opacity = '0.999';
@@ -996,6 +1072,11 @@ export class StreamServerProxy {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private lastFrameData: string | null = null;
   private lastFrameMetadata: ScreencastFrame['metadata'] | null = null;
+  private inputFillDebounceMap = new Map<
+    string,
+    { timer: ReturnType<typeof setTimeout>; text: string; selector: string }
+  >();
+  private static readonly INPUT_FILL_DEBOUNCE_MS = 60;
 
   constructor(browser: BrowserManager) {
     this.browser = browser;
@@ -1092,6 +1173,8 @@ export class StreamServerProxy {
         case 'keyboard_down':
         case 'keyboard_up':
         case 'keyboard_insert_text':
+        case 'input_fill':
+        case 'input_blur_element':
         case 'user_activity':
           this.handleInputMessage(message as unknown as InputMouseMessage);
           break;
@@ -1114,6 +1197,11 @@ export class StreamServerProxy {
             }
             this.send(response);
           })();
+          break;
+        case 'input_focused':
+        case 'input_value':
+        case 'input_blur':
+          this.send(message);
           break;
       }
     } catch (error) {
@@ -1152,6 +1240,8 @@ export class StreamServerProxy {
       | KeyboardDownMessage
       | KeyboardUpMessage
       | KeyboardInsertTextMessage
+      | InputFillMessage
+      | InputBlurElementMessage
       | UserActivityMessage
   ): Promise<void> {
     try {
@@ -1207,6 +1297,24 @@ export class StreamServerProxy {
         case 'keyboard_insert_text':
           this.stateManager.onUserInteraction();
           await this.browser.getPage().keyboard.insertText(message.text);
+          break;
+
+        case 'input_fill': {
+          const sel = (message as { selector?: string; text?: string }).selector || '';
+          const txt = (message as { selector?: string; text?: string }).text || '';
+          const key = sel || '__global__';
+          const prev = this.inputFillDebounceMap.get(key);
+          if (prev) clearTimeout(prev.timer);
+          const timer = setTimeout(async () => {
+            this.inputFillDebounceMap.delete(key);
+            await this.browser.fillValue(sel, txt);
+          }, StreamServerProxy.INPUT_FILL_DEBOUNCE_MS);
+          this.inputFillDebounceMap.set(key, { timer, text: txt, selector: sel });
+          break;
+        }
+
+        case 'input_blur_element':
+          await this.browser.blurElement((message as { selector?: string }).selector || '');
           break;
 
         case 'user_activity':

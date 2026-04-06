@@ -816,6 +816,24 @@ const inputTouchSchema = baseCommandSchema.extend({
   modifiers: z.number().optional(),
 });
 
+const inputFocusedSchema = z.object({
+  type: z.literal('input_focused'),
+  tag: z.string(),
+  inputType: z.string(),
+  value: z.string(),
+  placeholder: z.string(),
+  id: z.string(),
+});
+
+const inputTextSchema = z.object({
+  type: z.literal('input_value'),
+  text: z.string(),
+});
+
+const inputBlurSchema = z.object({
+  type: z.literal('input_blur'),
+});
+
 // iOS-specific schemas
 const swipeSchema = baseCommandSchema.extend({
   action: z.literal('swipe'),

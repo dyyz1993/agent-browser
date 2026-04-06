@@ -333,7 +333,7 @@ export async function ensureStreamServer(): Promise<boolean> {
 
   const streamServer = spawn('node', [streamServerPath], {
     detached: true,
-    stdio: 'ignore',
+    stdio: ['ignore', 'pipe', 'pipe'], // Capture stderr for diagnostics
     env,
   });
 

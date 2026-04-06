@@ -12,7 +12,6 @@ export interface ViewerElements {
   statusText: HTMLSpanElement;
   urlDisplay: HTMLInputElement;
   qualityBadge: HTMLDivElement;
-  tabsContainer: HTMLDivElement;
   connecting: HTMLDivElement;
   hiddenInput: HTMLInputElement;
 }
@@ -110,21 +109,40 @@ export function sendUserActivity(
   qualityBadge.textContent = 'interacting';
 }
 
+export interface ScreenToPageRect {
+  width: number;
+  height: number;
+  left: number;
+  top: number;
+}
+
+export interface ElementBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export function screenToPage(
   screenX: number,
   screenY: number,
-  screenWidth: number,
-  screenHeight: number,
+  rect: ScreenToPageRect,
   deviceWidth: number,
-  deviceHeight: number
+  deviceHeight: number,
+  element?: ElementBox | null
 ): { x: number; y: number } {
-  const scaleX = deviceWidth / screenWidth;
-  const scaleY = deviceHeight / screenHeight;
+  if (rect.width <= 0 || rect.height <= 0) return { x: 0, y: 0 };
 
-  return {
-    x: Math.round(screenX * scaleX),
-    y: Math.round(screenY * scaleY),
-  };
+  const scaleX = deviceWidth / rect.width;
+  const scaleY = deviceHeight / rect.height;
+  let pageX = Math.round((screenX - rect.left) * scaleX);
+  let pageY = Math.round((screenY - rect.top) * scaleY);
+
+  if (element) {
+    pageX += element.x;
+    pageY += element.y;
+  }
+  return { x: pageX, y: pageY };
 }
 
 export function updateModifiers(e: MouseEvent | KeyboardEvent): number {
@@ -170,18 +188,22 @@ export function buildViewerScript(): string {
     const statusText = document.getElementById('statusText');
     const urlDisplay = document.getElementById('urlDisplay');
     const qualityBadge = document.getElementById('qualityBadge');
-    const tabsContainer = document.getElementById('tabs');
     const connecting = document.getElementById('connecting');
-    
+
+    const ua = (navigator.userAgent || '').toLowerCase();
+    const isTouchDevice = /iphone|ipod|android(?=.*mobile)|mobile|tablet|ipad/i.test(ua);
+
     const hiddenInput = document.createElement('input');
     hiddenInput.type = 'text';
-    hiddenInput.style.cssText = 'position:fixed;right:8px;bottom:8px;opacity:0.01;width:1px;height:1px;border:none;outline:none;padding:0;margin:0;';
+    hiddenInput.style.cssText = 'position:fixed;right:8px;bottom:80px;opacity:0.01;width:1px;height:1px;border:none;outline:none;padding:0;margin:0;font-size:16px;pointer-events:none;';
     hiddenInput.id = 'hidden-input';
     hiddenInput.setAttribute('autocomplete', 'off');
     hiddenInput.setAttribute('autocorrect', 'off');
     hiddenInput.setAttribute('autocapitalize', 'off');
     hiddenInput.setAttribute('spellcheck', 'false');
-    document.body.appendChild(hiddenInput);
+    if (!isTouchDevice) {
+      document.body.appendChild(hiddenInput);
+    }
 
     const degradedToast = document.createElement('div');
     degradedToast.id = 'degraded-toast';
@@ -200,7 +222,8 @@ export function buildViewerScript(): string {
     let lastInputValue = '';
     let fixedSize = false;
     let isRecording = false;
-    
+    var _inputPollRaf = null;
+
     function connect() {
       ws = new WebSocket(wsUrl);
       ws.binaryType = 'arraybuffer';
@@ -269,6 +292,10 @@ export function buildViewerScript(): string {
             if (prevElement && !metadata.element) {
               metadata.element = prevElement;
             }
+            if (metadata.element) {
+              metadata.deviceWidth = metadata.element.width;
+              metadata.deviceHeight = metadata.element.height;
+            }
             if (msg.format) metadata.format = msg.format;
             if (msg.state) {
               qualityBadge.textContent = msg.state;
@@ -291,10 +318,12 @@ export function buildViewerScript(): string {
                 metadata.element = msg.element;
               } else {
                 metadata.element = undefined;
-                // 如果期望 element 模式但收到 undefined，说明降级了
                 if (selector && msg.degraded) {
                   showDegradedMessage();
                 }
+              }
+              if (screen.src && metadata.deviceWidth && metadata.deviceHeight) {
+                fitImageToContainer();
               }
             }
             break;
@@ -304,16 +333,24 @@ export function buildViewerScript(): string {
             document.title = msg.data.title + ' - Agent Browser Viewer';
             break;
 
-          case 'tab_created':
-            addTab(msg.data.index, msg.data.url, msg.data.title, false);
+          case 'input_focused':
+            if (inputMode) return;
+            if (!isTouchDevice) return;
+            var sel = msg.selector || (msg.id ? '#' + msg.id : '');
+            enterInputMode(msg.value || '', msg.inputType || msg.tag || '', msg.placeholder || '', sel);
             break;
 
-          case 'tab_closed':
-            removeTab(msg.data.index);
+          case 'input_value':
+            if (!inputMode) {
+              var field = document.getElementById('input-field');
+              if (field && typeof msg.text === 'string') {
+                field.value = msg.text;
+              }
+            }
             break;
 
-          case 'tab_switched':
-            setActiveTab(msg.data.toIndex);
+          case 'input_blur':
+            exitInputMode();
             break;
         }
       };
@@ -322,27 +359,53 @@ export function buildViewerScript(): string {
     function handleBinary(data) {
       if (!pendingBinary) return;
       pendingBinary = false;
-      
+
       const blob = new Blob([data], {
         type: metadata.format === 'webp' ? 'image/webp' : 'image/jpeg'
       });
       const url = URL.createObjectURL(blob);
-      
+
       const cleanup = () => {
         URL.revokeObjectURL(url);
         connecting.style.display = 'none';
         screen.style.display = 'block';
+        fitImageToContainer();
+        if (!cursorInitialized && isTouchDevice) {
+          cursorInitialized = true;
+          setTimeout(initCursor, 50);
+        }
       };
-      
+
       screen.onload = cleanup;
       screen.onerror = cleanup;
       screen.src = url;
-      
-      const targetWidth = metadata.element ? metadata.element.width : metadata.deviceWidth;
-      const targetHeight = metadata.element ? metadata.element.height : metadata.deviceHeight;
-      screen.style.width = targetWidth + 'px';
-      screen.style.height = targetHeight + 'px';
-      fixedSize = true;
+    }
+
+    function fitImageToContainer() {
+      if (!metadata.deviceWidth || !metadata.deviceHeight) return;
+      var container = screen.parentElement;
+      if (!container) return;
+      var cw = container.clientWidth;
+      var ch = container.clientHeight;
+      if (cw <= 0 || ch <= 0) return;
+
+      var imgW = metadata.deviceWidth;
+      var imgH = metadata.deviceHeight;
+      var imgRatio = imgW / imgH;
+      var contRatio = cw / ch;
+
+      var dw, dh;
+      if (imgRatio > contRatio) {
+        dw = cw;
+        dh = cw / imgRatio;
+      } else {
+        dh = ch;
+        dw = ch * imgRatio;
+      }
+
+      screen.style.width = Math.round(dw) + 'px';
+      screen.style.height = Math.round(dh) + 'px';
+
     }
     
     function safeSend(data) {
@@ -364,22 +427,19 @@ export function buildViewerScript(): string {
     
     function screenToPage(screenX, screenY) {
       const rect = screen.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return { x: 0, y: 0 };
+
+      var scaleX = metadata.deviceWidth / rect.width;
+      var scaleY = metadata.deviceHeight / rect.height;
+      var pageX = Math.round((screenX - rect.left) * scaleX);
+      var pageY = Math.round((screenY - rect.top) * scaleY);
 
       if (metadata.element) {
-        const scaleX = metadata.element.width / rect.width;
-        const scaleY = metadata.element.height / rect.height;
-        return {
-          x: Math.round((screenX - rect.left) * scaleX) + metadata.element.x,
-          y: Math.round((screenY - rect.top) * scaleY) + metadata.element.y
-        };
+        pageX += metadata.element.x;
+        pageY += metadata.element.y;
       }
 
-      const scaleX = metadata.deviceWidth / rect.width;
-      const scaleY = metadata.deviceHeight / rect.height;
-      return {
-        x: Math.round((screenX - rect.left) * scaleX),
-        y: Math.round((screenY - rect.top) * scaleY)
-      };
+      return { x: pageX, y: pageY };
     }
     
     function updateModifiers(e) {
@@ -405,7 +465,7 @@ export function buildViewerScript(): string {
     screen.addEventListener('dragstart', (e) => e.preventDefault());
     
     screen.addEventListener('click', () => {
-      focusHiddenInput();
+      if (!isTouchDevice) focusHiddenInput();
     });
     
     screen.addEventListener('mousemove', (e) => {
@@ -551,7 +611,10 @@ export function buildViewerScript(): string {
           return;
         }
       }
-      
+
+      const mobileInputField = document.getElementById('input-field');
+      if (mobileInputField && e.target === mobileInputField) return;
+
       if (isComposing) return;
       
       sendUserActivity();
@@ -569,6 +632,8 @@ export function buildViewerScript(): string {
     document.addEventListener('keyup', (e) => {
       console.log('[Viewer] keyup, key:', e.key);
       if (isComposing && e.target === hiddenInput) return;
+      const mobileInputField = document.getElementById('input-field');
+      if (mobileInputField && e.target === mobileInputField) return;
       
       safeSend(JSON.stringify({
         type: 'keyboard_up',
@@ -576,74 +641,649 @@ export function buildViewerScript(): string {
       }));
     });
     
-    screen.addEventListener('touchstart', (e) => {
-      sendUserActivity();
-      focusHiddenInput();
-      const touchPoints = Array.from(e.touches).map(t => {
-        const pos = screenToPage(t.clientX, t.clientY);
-        return { x: pos.x, y: pos.y, id: t.identifier };
-      });
-      safeSend(JSON.stringify({
-        type: 'input_touch',
-        eventType: 'touchStart',
-        touchPoints: touchPoints
-      }));
-      e.preventDefault();
-    }, { passive: false });
-    
-    screen.addEventListener('touchmove', (e) => {
-      const touchPoints = Array.from(e.touches).map(t => {
-        const pos = screenToPage(t.clientX, t.clientY);
-        return { x: pos.x, y: pos.y, id: t.identifier };
-      });
-      safeSend(JSON.stringify({
-        type: 'input_touch',
-        eventType: 'touchMove',
-        touchPoints: touchPoints
-      }));
-      e.preventDefault();
-    }, { passive: false });
-    
-    screen.addEventListener('touchend', (e) => {
-      const touchPoints = Array.from(e.changedTouches).map(t => {
-        const pos = screenToPage(t.clientX, t.clientY);
-        return { x: pos.x, y: pos.y, id: t.identifier };
-      });
-      safeSend(JSON.stringify({
-        type: 'input_touch',
-        eventType: 'touchEnd',
-        touchPoints: touchPoints
-      }));
-      e.preventDefault();
-    }, { passive: false });
-    
-    function addTab(index, url, title, active) {
-      let tab = document.getElementById('tab-' + index);
-      if (!tab) {
-        tab = document.createElement('button');
-        tab.id = 'tab-' + index;
-        tab.className = 'tab';
-        tab.onclick = () => {
-          safeSend(JSON.stringify({ id: 'tab-' + Date.now(), action: 'tab_switch', index }));
-        };
-        tabsContainer.appendChild(tab);
+    const cursor = document.getElementById('cursor');
+    const touchpad = document.getElementById('touchpad');
+    const screenContainer = document.getElementById('screenContainer');
+
+    // Ensure touchpad is hidden on non-touch devices
+    if (touchpad && !isTouchDevice) {
+      touchpad.style.display = 'none';
+    }
+
+    let cursorPos = { x: 0, y: 0 };
+    let dragMode = false;
+    let isMouseDown = false;
+    let lastTouchPos = null;
+    let touchMoved = false;
+    let twoFingerStartPos = null;
+    let longPressTimer = null;
+    let longPressHintTimer = null;
+    let cursorInitialized = false;
+
+    const CURSOR_SENSITIVITY = 1.5;
+    const WHEEL_SENSITIVITY = 2.0;
+    const LONG_PRESS_MS = 800;
+    const COOLDOWN_MS = 200;
+    const MOVE_THRESHOLD = 5;
+    const ACCELERATION = 0.8;
+    const ACCEL_MAX_VELOCITY = 3.0;
+
+    let lastMoveTime = 0;
+
+    function computeAcceleration(dx, dy) {
+      const now = Date.now();
+      const dt = now - lastMoveTime;
+      lastMoveTime = now;
+      if (dt <= 0 || dt > 200) return CURSOR_SENSITIVITY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const velocity = Math.min(dist / dt, ACCEL_MAX_VELOCITY);
+      return CURSOR_SENSITIVITY * (1 + ACCELERATION * velocity);
+    }
+
+    function computeWheelAccel(dx, dy) {
+      const now = Date.now();
+      const dt = now - lastMoveTime;
+      lastMoveTime = now;
+      if (dt <= 0 || dt > 200) return WHEEL_SENSITIVITY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const velocity = Math.min(dist / dt, ACCEL_MAX_VELOCITY);
+      return WHEEL_SENSITIVITY * (1 + ACCELERATION * velocity);
+    }
+
+    let screenRect = null;
+    let moveAllowed = false;
+    var inputMode = false;
+    let moveCooldownUntil = 0;
+    let lastWheelDeltaX = 0;
+    let lastWheelDeltaY = 0;
+    let momentumActive = false;
+    let keyboardVvHandler = null;
+    let _scrollGuard = null;
+
+    function updateScreenRect() {
+      screenRect = screen.getBoundingClientRect();
+    }
+
+    function enterInputMode(initialValue, inputType, placeholder, selector) {
+      if (inputMode) return;
+      inputMode = true;
+
+      cursor.style.display = 'none';
+
+      const ip = document.getElementById('input-panel');
+      const tp = document.getElementById('touchpad');
+      
+      if (ip) {
+        ip.style.display = 'flex';
+        ip.style.bottom = '0px';
       }
-      tab.textContent = title || url || 'New Tab';
-      tab.title = url;
-      tab.classList.toggle('active', active);
+      if (tp) tp.style.display = 'none';
+
+      var labelParts = [];
+      if (inputType) labelParts.push(inputType);
+      if (placeholder && placeholder !== initialValue) labelParts.push(placeholder);
+      var targetEl = document.getElementById('input-target');
+      if (targetEl) targetEl.textContent = labelParts.length > 0 ? labelParts.join(' | ') : 'input';
+
+      // Record target selector for fillValue calls
+      window._currentTargetSelector = selector || '';
+
+      var field = document.getElementById('input-field');
+      if (field) {
+        field.value = initialValue || '';
+        field.dataset.lastSent = initialValue || '';
+      }
+
+      // Anti-scroll: force scroll to top BEFORE focus (reference demo technique)
+      window.scrollTo(0, 0);
+      document.body.scrollTop = 0;
+      document.documentElement.scrollTop = 0;
+
+      // Lock touch action
+      document.body.style.touchAction = 'none';
+      document.documentElement.style.touchAction = 'none';
+
+      // Delay: wait for panel to render before capturing viewport & focusing
+      setTimeout(function() {
+        if (!field) return;
+
+        // Capture original viewport height AFTER panel is visible, BEFORE focus
+        var origVh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+
+        // Register visualViewport listener for keyboard detection
+        if (window.visualViewport) {
+          var kbTolerance = Math.floor(window.innerHeight * 0.1);
+
+          keyboardVvHandler = function() {
+            if (!inputMode || !ip) return;
+            var currentH = window.visualViewport.height;
+            var kbHeight = Math.max(0, origVh - currentH);
+            // Fallback: use innerHeight difference
+            if (kbHeight < kbTolerance) {
+              kbHeight = Math.max(kbHeight, Math.max(0, window.innerHeight - currentH));
+            }
+            if (kbHeight > kbTolerance) {
+              ip.style.bottom = kbHeight + 'px';
+            } else {
+              ip.style.bottom = '0px';
+            }
+          };
+          window.visualViewport.addEventListener('resize', keyboardVvHandler);
+        }
+
+        // Focus input to trigger soft keyboard
+        field.focus();
+
+        // Anti-scroll again after focus (browser may auto-scroll on focus)
+        window.scrollTo(0, 0);
+        document.body.scrollTop = 0;
+        document.documentElement.scrollTop = 0;
+
+        // Delayed check: wait for keyboard animation to complete (~300ms)
+        setTimeout(function() {
+          if (keyboardVvHandler) keyboardVvHandler();
+          window.scrollTo(0, 0);
+          document.body.scrollTop = 0;
+          document.documentElement.scrollTop = 0;
+        }, 350);
+
+        // Scroll guard interval: continuously fight iOS auto-scroll (reference demo)
+        if (!_scrollGuard) {
+          _scrollGuard = setInterval(function() {
+            if (!inputMode) return;
+            if (window.scrollY > 0 || document.body.scrollTop > 0 ||
+                document.documentElement.scrollTop > 0) {
+              window.scrollTo(0, 0);
+              document.body.scrollTop = 0;
+              document.documentElement.scrollTop = 0;
+            }
+          }, 100);
+        }
+
+        // RAF poll: reliable value-change detection for IME/CJK/clipboard/paste
+        var _pollField = field;
+        var _lastPolled = _pollField.value || '';
+        window._fieldComposing = false;
+
+        _pollField.addEventListener('compositionstart', function() {
+          window._fieldComposing = true;
+        });
+        _pollField.addEventListener('compositionend', function() {
+          window._fieldComposing = false;
+          // Double-RAF: yields current frame + next paint cycle.
+          // On mobile browsers (iOS Safari, Android WebView), .value may
+          // not be updated until 1-2 frames after compositionend fires.
+          requestAnimationFrame(function() {
+            requestAnimationFrame(function() {
+              syncInputToRemote(_pollField);
+            });
+          });
+        });
+
+        (function startPoll() {
+          function poll() {
+            if (!inputMode || !_pollField) { _inputPollRaf = null; return; }
+            var cur = _pollField.value;
+            if (cur !== _lastPolled) {
+              _lastPolled = cur;
+              if (!window._fieldComposing) {
+                syncInputToRemote(_pollField);
+              }
+            }
+            _inputPollRaf = requestAnimationFrame(poll);
+          }
+          _inputPollRaf = requestAnimationFrame(poll);
+        })();
+      }, 100);
+    }
+
+    function exitInputMode() {
+      if (!inputMode) return;
+      inputMode = false;
+
+      if (_inputPollRaf) { cancelAnimationFrame(_inputPollRaf); _inputPollRaf = null; }
+      window._fieldComposing = false;
+
+      cursor.style.display = 'block';
+
+      const field = document.getElementById('input-field');
+      if (field) { field.value = ''; field.blur(); delete field.dataset.lastSent; }
+
+      const ip = document.getElementById('input-panel');
+      const tp = document.getElementById('touchpad');
+      
+      if (ip) {
+        ip.style.display = 'none';
+        ip.style.bottom = '0px';
+      }
+      if (tp) tp.style.display = isTouchDevice ? 'flex' : 'none';
+
+      // Cleanup visualViewport handler
+      if (keyboardVvHandler && window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', keyboardVvHandler);
+        keyboardVvHandler = null;
+      }
+
+      // Cleanup scroll guard
+      if (_scrollGuard) {
+        clearInterval(_scrollGuard);
+        _scrollGuard = null;
+      }
+
+      // Restore touch action
+      document.body.style.touchAction = '';
+      document.documentElement.style.touchAction = '';
+
+      safeSend(JSON.stringify({
+        type: 'input_blur_element',
+        selector: window._currentTargetSelector || ''
+      }));
+    }
+
+    var _syncDebounceTimer = null;
+    function syncInputToRemote(field) {
+      if (!field || !inputMode) return;
+      var current = field.value;
+      var lastSent = field.dataset.lastSent || '';
+      if (current === lastSent) return;
+
+      var isFirstSync = !field.dataset.lastSent;
+      function doSend() {
+        safeSend(JSON.stringify({
+          type: 'input_fill',
+          text: current,
+          selector: window._currentTargetSelector || ''
+        }));
+        field.dataset.lastSent = current;
+      }
+
+      if (isFirstSync) {
+        doSend();
+      } else {
+        clearTimeout(_syncDebounceTimer);
+        _syncDebounceTimer = setTimeout(doSend, 30);
+      }
+    }
+
+    function sendInputText() {
+      const field = document.getElementById('input-field');
+      if (!field || !field.value.trim()) return;
+      
+      var finalText = field.value;
+      var sel = window._currentTargetSelector || '';
+      
+      // Send final text via input_fill + Enter key
+      safeSend(JSON.stringify({
+        type: 'input_fill',
+        text: finalText,
+        selector: sel
+      }));
+      safeSend(JSON.stringify({
+        type: 'input_keyboard',
+        eventType: 'keyDown',
+        key: 'Enter',
+        code: 'Enter',
+        modifiers: 0,
+        selector: sel
+      }));
+      safeSend(JSON.stringify({
+        type: 'input_keyboard',
+        eventType: 'keyUp',
+        key: 'Enter',
+        code: 'Enter',
+        modifiers: 0,
+        selector: sel
+      }));
+      
+      field.value = '';
+      exitInputMode();
+    }
+
+    function startMomentum() {
+      momentumActive = true;
+      var frame = function() {
+        if (!momentumActive) return;
+        lastWheelDeltaX *= 0.92;
+        lastWheelDeltaY *= 0.92;
+        if (Math.abs(lastWheelDeltaX) < 0.5 && Math.abs(lastWheelDeltaY) < 0.5) {
+          momentumActive = false;
+          return;
+        }
+        var pagePos = screenToPage(cursorPos.x, cursorPos.y);
+        safeSend(JSON.stringify({
+          type: 'input_mouse',
+          eventType: 'mouseWheel',
+          x: pagePos.x,
+          y: pagePos.y,
+          deltaX: lastWheelDeltaX,
+          deltaY: lastWheelDeltaY,
+          modifiers: 0
+        }));
+        requestAnimationFrame(frame);
+      };
+      requestAnimationFrame(frame);
+    }
+
+    function initCursor() {
+      updateScreenRect();
+      cursorPos = { x: screenRect.left + screenRect.width / 2, y: screenRect.top + screenRect.height / 2 };
+      updateCursor();
+      cursor.style.display = 'block';
+    }
+
+    function updateCursor() {
+      cursor.style.left = cursorPos.x + 'px';
+      cursor.style.top = cursorPos.y + 'px';
+    }
+
+    function clampCursor(val, min, max) {
+      return Math.max(min, Math.min(max, val));
+    }
+
+    function setCursorMode(mode) {
+      cursor.className = '';
+      if (mode === 'move') cursor.classList.add('cursor-move');
+      else if (mode === 'drag') cursor.classList.add('cursor-drag');
+      else if (mode === 'longpress') cursor.classList.add('cursor-longpress');
+    }
+
+    function showModeBadge(text, color) {
+      var badge = document.getElementById('modeBadge');
+      if (!badge) return;
+      badge.textContent = text;
+      badge.style.background = color;
+      badge.style.display = 'block';
+    }
+
+    function hideModeBadge() {
+      var badge = document.getElementById('modeBadge');
+      if (!badge) return;
+      badge.style.display = 'none';
+    }
+
+    if (isTouchDevice) {
+      // On touch devices, touchpad is at bottom of screen (CSS clamp + dvh height)
+      // Input panel floats above it (position:fixed overlay)
+      touchpad.style.display = 'flex';
+      touchpad.style.position = 'relative';
+      touchpad.style.background = 'linear-gradient(180deg, #1a1a2e 0%, #16213e 100%)';
+      touchpad.style.borderTop = '2px solid #4ecca3';
+      touchpad.style.justifyContent = 'flex-end';
+      touchpad.style.zIndex = '10';
+
+      touchpad.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        sendUserActivity();
+
+        if (e.touches.length === 2) {
+          clearTimeout(longPressTimer);
+          longPressTimer = null;
+          dragMode = false;
+          moveAllowed = false;
+          lastTouchPos = null;
+          momentumActive = false;
+          setCursorMode(null);
+          hideModeBadge();
+          const t0 = e.touches[0];
+          const t1 = e.touches[1];
+          twoFingerStartPos = {
+            lastMidX: (t0.clientX + t1.clientX) / 2,
+            lastMidY: (t0.clientY + t1.clientY) / 2,
+          };
+          lastMoveTime = Date.now();
+          return;
+        }
+
+        if (e.touches.length === 1) {
+          if (Date.now() < moveCooldownUntil) return;
+          moveAllowed = true;
+          setCursorMode('move');
+          showModeBadge('MOVE', 'rgba(68, 140, 255, 0.7)');
+          const t = e.touches[0];
+          lastTouchPos = { x: t.clientX, y: t.clientY };
+          lastMoveTime = Date.now();
+          touchMoved = false;
+
+          clearTimeout(longPressTimer);
+          clearTimeout(longPressHintTimer);
+          longPressTimer = setTimeout(() => {
+            longPressTimer = null;
+            longPressHintTimer = null;
+            dragMode = true;
+            isMouseDown = true;
+            touchMoved = true;
+            setCursorMode('drag');
+            showModeBadge('DRAG', 'rgba(255, 165, 0, 0.8)');
+            const pagePos = screenToPage(cursorPos.x, cursorPos.y);
+            safeSend(JSON.stringify({
+              type: 'input_mouse',
+              eventType: 'mousePressed',
+              x: pagePos.x,
+              y: pagePos.y,
+              button: 'left',
+              clickCount: 1,
+              modifiers: 0
+            }));
+          }, LONG_PRESS_MS);
+        }
+      }, { passive: false });
+
+      touchpad.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        clearTimeout(longPressTimer);
+        clearTimeout(longPressHintTimer);
+        if (e.touches.length === 0) {
+          if (twoFingerStartPos) {
+            moveCooldownUntil = Date.now() + COOLDOWN_MS;
+            if (Math.abs(lastWheelDeltaX) > 2 || Math.abs(lastWheelDeltaY) > 2) {
+              startMomentum();
+            }
+          }
+          moveAllowed = false;
+          setCursorMode(null);
+          hideModeBadge();
+          if (dragMode) {
+            const pagePos = screenToPage(cursorPos.x, cursorPos.y);
+            safeSend(JSON.stringify({
+              type: 'input_mouse',
+              eventType: 'mouseReleased',
+              x: pagePos.x,
+              y: pagePos.y,
+              button: 'left',
+              clickCount: 1,
+              modifiers: 0
+            }));
+            dragMode = false;
+            isMouseDown = false;
+          } else if (!touchMoved) {
+            // Single tap/click: send click event, then attempt focus
+            const pagePos = screenToPage(cursorPos.x, cursorPos.y);
+            
+            safeSend(JSON.stringify({
+              type: 'input_mouse',
+              eventType: 'mousePressed',
+              x: pagePos.x,
+              y: pagePos.y,
+              button: 'left',
+              clickCount: 1,
+              modifiers: 0
+            }));
+            safeSend(JSON.stringify({
+              type: 'input_mouse',
+              eventType: 'mouseReleased',
+              x: pagePos.x,
+              y: pagePos.y,
+              button: 'left',
+              clickCount: 1,
+              modifiers: 0
+            }));
+
+
+          }
+          lastTouchPos = null;
+          twoFingerStartPos = null;
+          touchMoved = false;
+        }
+      }, { passive: false });
+
+      touchpad.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+
+        if (e.touches.length === 2 && twoFingerStartPos) {
+          clearTimeout(longPressTimer);
+          longPressTimer = null;
+          dragMode = false;
+          moveAllowed = false;
+          lastTouchPos = null;
+          const t0 = e.touches[0];
+          const t1 = e.touches[1];
+          const midX = (t0.clientX + t1.clientX) / 2;
+          const midY = (t0.clientY + t1.clientY) / 2;
+          const rawDX = midX - twoFingerStartPos.lastMidX;
+          const rawDY = midY - twoFingerStartPos.lastMidY;
+          const wMult = computeWheelAccel(rawDX, rawDY);
+          const deltaX = rawDX * wMult;
+          const deltaY = rawDY * wMult;
+          lastWheelDeltaX = deltaX;
+          lastWheelDeltaY = deltaY;
+          const pagePos = screenToPage(cursorPos.x, cursorPos.y);
+          safeSend(JSON.stringify({
+            type: 'input_mouse',
+            eventType: 'mouseWheel',
+            x: pagePos.x,
+            y: pagePos.y,
+            deltaX: deltaX,
+            deltaY: deltaY,
+            modifiers: 0
+          }));
+          twoFingerStartPos.lastMidX = midX;
+          twoFingerStartPos.lastMidY = midY;
+          return;
+        }
+
+        if (e.touches.length === 1 && lastTouchPos && moveAllowed) {
+          const t = e.touches[0];
+          const dx = t.clientX - lastTouchPos.x;
+          const dy = t.clientY - lastTouchPos.y;
+
+          if (!touchMoved && Math.sqrt(dx * dx + dy * dy) > MOVE_THRESHOLD) {
+            touchMoved = true;
+            clearTimeout(longPressTimer);
+            clearTimeout(longPressHintTimer);
+            longPressTimer = null;
+            longPressHintTimer = null;
+            setCursorMode('move');
+            showModeBadge('MOVE', 'rgba(68, 140, 255, 0.7)');
+          }
+
+          lastTouchPos = { x: t.clientX, y: t.clientY };
+
+          if (touchMoved) {
+            sendUserActivity();
+            if (!screenRect) updateScreenRect();
+            const accel = computeAcceleration(dx, dy);
+            cursorPos.x = clampCursor(cursorPos.x + dx * accel, screenRect.left, screenRect.right);
+            cursorPos.y = clampCursor(cursorPos.y + dy * accel, screenRect.top, screenRect.bottom);
+            updateCursor();
+
+            const pagePos = screenToPage(cursorPos.x, cursorPos.y);
+            var dbg = document.getElementById('debug-overlay');
+            if (dbg && (!window._moveDebugCount)) window._moveDebugCount = 0;
+            if (dbg && window._moveDebugCount < 8) {
+              window._moveDebugCount++;
+              dbg.textContent += ' | cur:' + Math.round(cursorPos.x) + ',' + Math.round(cursorPos.y)
+                + ' -> page:' + pagePos.x + ',' + pagePos.y;
+            }
+
+            safeSend(JSON.stringify({
+              type: 'input_mouse',
+              eventType: 'mouseMoved',
+              x: pagePos.x,
+              y: pagePos.y,
+              button: dragMode ? 'left' : 'none',
+              clickCount: 1,
+              modifiers: 0
+            }));
+          }
+        }
+      }, { passive: false });
+
+      touchpad.addEventListener('touchcancel', () => {
+        clearTimeout(longPressTimer);
+        clearTimeout(longPressHintTimer);
+        momentumActive = false;
+        if (dragMode) {
+          const pagePos = screenToPage(cursorPos.x, cursorPos.y);
+          safeSend(JSON.stringify({
+            type: 'input_mouse',
+            eventType: 'mouseReleased',
+            x: pagePos.x,
+            y: pagePos.y,
+            button: 'left',
+            clickCount: 1,
+            modifiers: 0
+          }));
+        }
+        dragMode = false;
+        isMouseDown = false;
+        moveAllowed = false;
+        setCursorMode(null);
+        hideModeBadge();
+        moveCooldownUntil = twoFingerStartPos ? Date.now() + COOLDOWN_MS : 0;
+        lastTouchPos = null;
+        twoFingerStartPos = null;
+        touchMoved = false;
+      }, { passive: false });
     }
     
-    function removeTab(index) {
-      const tab = document.getElementById('tab-' + index);
-      if (tab) tab.remove();
-    }
-    
-    function setActiveTab(index) {
-      document.querySelectorAll('.tab').forEach((t, i) => {
-        t.classList.toggle('active', t.id === 'tab-' + index);
+    var inputSendBtn = document.getElementById('input-send');
+    var inputCancelBtn = document.getElementById('input-cancel');
+    if (inputSendBtn) inputSendBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      sendInputText();
+    });
+    if (inputCancelBtn) inputCancelBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      exitInputMode();
+    });
+
+    var inputField = document.getElementById('input-field');
+    if (inputField) {
+      inputField.addEventListener('input', function(e) {
+        if (window._fieldComposing) return;
+        syncInputToRemote(inputField);
+      });
+      inputField.addEventListener('compositionend', function(e) {
+        window._fieldComposing = false;
+        requestAnimationFrame(function() {
+          requestAnimationFrame(function() {
+            syncInputToRemote(inputField);
+          });
+        });
+      });
+      inputField.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          sendInputText();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          exitInputMode();
+        } else if (e.key === 'Backspace' || e.key === 'Delete') {
+          // Let it fall through - the field value will change,
+          // then syncInputToRemote will pick up the change and send input_fill
+        }
       });
     }
     
+    // Image sizing: re-fit on container resize (phone rotation, window resize)
+    var resizeTimer = null;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(fitImageToContainer, 100);
+    });
+
     // Recorder functionality
     const recordBtn = document.getElementById('recordBtn');
     const recordText = document.getElementById('recordText');
@@ -687,7 +1327,7 @@ export function buildViewerScript(): string {
       }
     });
 
-    focusHiddenInput();
+    if (!isTouchDevice) focusHiddenInput();
     connect();
 `;
 }

@@ -1029,5 +1029,5 @@ iOS Simulator (requires Xcode and Appium):
 }
 
 export function printVersion(): void {
-  console.log('agent-browser 0.9.5');
+  console.log('agent-browser 0.10.0');
 }

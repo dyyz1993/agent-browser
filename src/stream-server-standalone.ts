@@ -1,13 +1,19 @@
 import * as net from 'net';
 import * as fs from 'fs';
+const LOG_FILE = '/tmp/standalone-diag.log';
+function logDiag(msg: string) {
+  fs.appendFileSync(LOG_FILE, new Date().toISOString().substring(11, 23) + ' ' + msg + '\n');
+}
 import * as path from 'path';
 import * as http from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import sharp from 'sharp';
 import { getViewerHtml } from './viewer-html.js';
+import { isAllowedOrigin } from './stream-server.js';
 import { getSocketDir, getAppDir } from './daemon.js';
 import { openApiSpec } from './openapi.js';
 import { getSwaggerUiHtml } from './swagger-ui.js';
+import { BrowserManager } from './browser.js';
 
 const DEFAULT_STREAM_PORT = parseInt(process.env.AGENT_BROWSER_STREAM_PORT || '5005', 10);
 const STREAM_SERVER_PID_FILE = 'stream-server.pid';
@@ -50,6 +56,10 @@ interface StreamMessage {
   format?: 'jpeg' | 'webp';
   fps?: number;
   state?: string;
+  x?: number;
+  y?: number;
+  focused?: boolean;
+  tag?: string;
 }
 
 class StreamServerStandalone {
@@ -60,10 +70,12 @@ class StreamServerStandalone {
   private sessions: Map<string, SessionInfo> = new Map();
   private clients: Map<string, Set<WebSocket>> = new Map();
   private daemonSockets: Map<string, net.Socket> = new Map();
+  private outboundSockets: Map<string, net.Socket> = new Map();
   private frameBuffers: Map<string, { header: string; data: Buffer }[]> = new Map();
   private instanceIdToSession: Map<string, string> = new Map();
   private latestFrames: Map<string, { header: string; data: Buffer }> = new Map();
   private clientStates: Map<WebSocket, ClientState> = new Map();
+  browser?: BrowserManager;
 
   constructor(port: number = DEFAULT_STREAM_PORT) {
     this.port = port;
@@ -195,7 +207,7 @@ class StreamServerStandalone {
           res.end(
             JSON.stringify({
               title: 'agent-browser HTTP API',
-              version: '0.9.5',
+              version: '0.10.0',
               endpoints: {
                 'POST /api/command': {
                   description: 'Execute a browser command',
@@ -253,22 +265,7 @@ class StreamServerStandalone {
           secure: boolean;
           req: import('http').IncomingMessage;
         }) => {
-          const origin = info.origin;
-          if (!origin) return true;
-          if (origin.startsWith('file://')) return true;
-          try {
-            const url = new URL(origin);
-            const host = url.hostname;
-            if (
-              host === 'localhost' ||
-              host === '127.0.0.1' ||
-              host === '::1' ||
-              host === '[::1]'
-            ) {
-              return true;
-            }
-          } catch {}
-          return false;
+          return isAllowedOrigin(info.origin);
         },
       });
 
@@ -335,13 +332,26 @@ class StreamServerStandalone {
       this.sendCroppedFrame(ws, latestFrame, clientState);
     }
 
+    logDiag(
+      '[WSCONN] viewer session=' +
+        session +
+        ' instanceId=' +
+        instanceIdParam +
+        ' sessions.has=' +
+        this.sessions.has(session) +
+        ' daemonSockets.has=' +
+        this.daemonSockets.has(session) +
+        ' clients before=' +
+        wasEmpty
+    );
+
     if (wasEmpty && this.daemonSockets.has(session)) {
       this.daemonSockets
         .get(session)
         ?.write(JSON.stringify({ type: 'client_connected', session }) + '\n');
     }
 
-    if (this.sessions.has(session) && !this.daemonSockets.has(session)) {
+    if (this.sessions.has(session)) {
       this.connectToDaemon(session);
     }
 
@@ -389,8 +399,21 @@ class StreamServerStandalone {
   }
 
   private handleClientMessage(session: string, message: StreamMessage): void {
+    const msgType = (message as any).type;
+    if (msgType === 'input_fill') {
+      logDiag(
+        '[CM] input_fill SESSION=' +
+          session +
+          ' socket_exists=' +
+          !!this.daemonSockets.get(session) +
+          ' text=' +
+          ((message as any).text || '')
+      );
+    }
+
     const daemonSocket = this.daemonSockets.get(session);
     if (!daemonSocket) {
+      logDiag('[CM] NO DAEMON SOCKET for session=' + session);
       return;
     }
 
@@ -403,11 +426,19 @@ class StreamServerStandalone {
       'keyboard_down',
       'keyboard_up',
       'keyboard_insert_text',
+      'input_focused',
+      'input_value',
+      'input_blur',
+      'input_fill',
+      'input_blur_element',
     ];
 
     if (forwardableTypes.includes(message.type)) {
       try {
         daemonSocket.write(JSON.stringify(message) + '\n');
+        if (msgType === 'input_fill') {
+          logDiag('[CM] input_fill WRITTEN TO SOCKET');
+        }
       } catch (error) {
         console.error(
           `[StreamServer] Failed to send message to daemon for session ${session}:`,
@@ -479,6 +510,7 @@ class StreamServerStandalone {
 
         const buf = await sharp(frame.data)
           .extract({ left, top, width: w, height: h })
+          .resize(box.width, box.height)
           .jpeg({ quality: 80 })
           .toBuffer();
 
@@ -489,6 +521,13 @@ class StreamServerStandalone {
             ...header.metadata,
             deviceWidth: box.width,
             deviceHeight: box.height,
+            element: {
+              selector: clientState!.selector!,
+              x: box.x,
+              y: box.y,
+              width: box.width,
+              height: box.height,
+            },
           },
         };
         ws.send(JSON.stringify(croppedHeader));
@@ -569,9 +608,7 @@ class StreamServerStandalone {
     switch (message.type) {
       case 'register':
         if (message.session && message.socketPath && message.instanceId) {
-          console.log(
-            `[StreamServer] Session registered: ${message.session}, instanceId: ${message.instanceId}`
-          );
+          logDiag('[REGISTER] session=' + message.session + ' instanceId=' + message.instanceId);
           this.sessions.set(message.session, {
             socketPath: message.socketPath,
             lastSeen: Date.now(),
@@ -625,6 +662,10 @@ class StreamServerStandalone {
                 if (message.elementBox) {
                   state.elementBox = message.elementBox;
                   state.degraded = false;
+                  const latestFrameForElem = this.latestFrames.get(message.session);
+                  if (latestFrameForElem) {
+                    this.sendCroppedFrame(client, latestFrameForElem, state);
+                  }
                 } else if (!state.degraded) {
                   state.elementBox = undefined;
                   state.degraded = true;
@@ -639,18 +680,34 @@ class StreamServerStandalone {
           }
         }
         break;
+
+      case 'input_focused':
+      case 'input_value':
+      case 'input_blur':
+        logDiag('[IPC] ' + String((message as any).type) + ' clients=' + this.clients.size);
+        for (const [, clients] of this.clients) {
+          for (const client of clients) {
+            if (client.readyState === WebSocket.OPEN) {
+              try {
+                client.send(JSON.stringify(message));
+              } catch (_) {}
+            }
+          }
+        }
+        break;
     }
   }
 
   private connectToDaemon(session: string): void {
+    if (this.outboundSockets.has(session)) return;
+
     const sessionInfo = this.sessions.get(session);
     if (!sessionInfo) return;
 
     const socketPath = sessionInfo.socketPath;
 
-    const socket = net.createConnection({ path: socketPath }, () => {
+    const socket = net.createConnection({ path: socketPath }, async () => {
       console.log(`[StreamServer] Connected to daemon for session: ${session}`);
-      this.daemonSockets.set(session, socket);
 
       const sessionClients = this.clients.get(session);
       if (sessionClients) {
@@ -664,10 +721,88 @@ class StreamServerStandalone {
     });
     socket.on('error', (error) => {
       console.error(`[StreamServer] Failed to connect to daemon for session ${session}:`, error);
+      this.outboundSockets.delete(session);
     });
 
     socket.on('close', () => {
-      this.daemonSockets.delete(session);
+      logDiag('[CTD] socket close session=' + session);
+      this.outboundSockets.delete(session);
+    });
+
+    this.outboundSockets.set(session, socket);
+
+    // Send inject_focus_listener command to daemon via this outbound connection
+    logDiag('[CTD] sending inject_focus_listener to daemon for session=' + session);
+    try {
+      socket.write(
+        JSON.stringify({ id: 'inject-fl-' + Date.now(), action: 'inject_focus_listener' }) + '\n'
+      );
+    } catch (e) {
+      console.error('[StreamServer] Failed to send inject_focus_listener:', e);
+    }
+
+    // Data handler: receive focus events from daemon's injectFocusListener callback
+    socket.on('data', (data: Buffer) => {
+      const raw = data.toString();
+      logDiag(
+        '[CTD DATA] session=' +
+          session +
+          ' rawLen=' +
+          raw.length +
+          ' firstLine=' +
+          raw.substring(0, 100).replace(/\n/g, '|')
+      );
+      const lines = raw.split('\n');
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const msg = JSON.parse(line);
+
+          // Handle inject_focus_listener response — retry on "Browser not launched"
+          if (msg.id && String(msg.id).startsWith('inject-fl-')) {
+            if (msg.success === false && msg.error && msg.error.includes('Browser not launched')) {
+              logDiag('[CTD] inject_focus_listener failed: ' + msg.error + ' — retrying in 2s');
+              setTimeout(() => {
+                try {
+                  socket.write(
+                    JSON.stringify({
+                      id: 'inject-fl-retry-' + Date.now(),
+                      action: 'inject_focus_listener',
+                    }) + '\n'
+                  );
+                } catch (_) {}
+              }, 2000);
+            }
+            continue;
+          }
+
+          if (
+            msg.type === 'input_focused' ||
+            msg.type === 'input_value' ||
+            msg.type === 'input_blur'
+          ) {
+            const clients = this.clients.get(session);
+            logDiag(
+              '[CTD DATA] broadcasting ' +
+                msg.type +
+                ' to ' +
+                (clients?.size || 0) +
+                ' viewer clients'
+            );
+            if (clients) {
+              for (const client of clients) {
+                if (client.readyState === WebSocket.OPEN) {
+                  try {
+                    client.send(JSON.stringify(msg));
+                  } catch (_) {}
+                }
+              }
+            }
+          }
+        } catch (_) {
+          // Ignore parse errors (might be partial data or non-JSON responses)
+        }
+      }
     });
   }
 
@@ -727,6 +862,7 @@ class StreamServerStandalone {
           } else {
             const cropped = await sharp(frameData)
               .extract({ left, top, width: w, height: h })
+              .resize(box.width, box.height)
               .jpeg({ quality: 80 })
               .toBuffer();
 
@@ -811,7 +947,7 @@ class StreamServerStandalone {
           connected,
           screencasting: connected,
           session,
-          version: '0.9.5',
+          version: '0.10.0',
         };
         if (state?.selector && state.elementBox) {
           msg.element = {
@@ -839,7 +975,7 @@ class StreamServerStandalone {
       connected,
       screencasting: connected,
       session,
-      version: '0.9.5',
+      version: '0.10.0',
     };
 
     if (clientState?.selector && clientState?.elementBox) {

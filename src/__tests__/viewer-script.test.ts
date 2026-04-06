@@ -4,6 +4,7 @@ import {
   buildWebSocketUrl,
   safeSend,
   screenToPage,
+  ScreenToPageRect,
   updateModifiers,
   shouldSendText,
   buildViewerScript,
@@ -89,14 +90,16 @@ describe('viewer-script', () => {
 
   describe('screenToPage', () => {
     it('should convert screen coordinates to page coordinates', () => {
-      const result = screenToPage(100, 50, 500, 250, 1000, 500);
+      const rect: ScreenToPageRect = { width: 500, height: 250, left: 0, top: 0 };
+      const result = screenToPage(100, 50, rect, 1000, 500);
 
       expect(result.x).toBe(200);
       expect(result.y).toBe(100);
     });
 
     it('should handle different scale factors', () => {
-      const result = screenToPage(50, 25, 100, 100, 200, 400);
+      const rect: ScreenToPageRect = { width: 100, height: 100, left: 0, top: 0 };
+      const result = screenToPage(50, 25, rect, 200, 400);
 
       expect(result.x).toBe(100);
       expect(result.y).toBe(100);
@@ -206,21 +209,24 @@ describe('viewer-script', () => {
 describe('element selector mode', () => {
   describe('screenToPage with element mode', () => {
     it('should convert coordinates relative to element top-left (element mode)', () => {
-      const result = screenToPage(100, 50, 200, 100, 400, 200);
+      const rect: ScreenToPageRect = { width: 200, height: 100, left: 0, top: 0 };
+      const result = screenToPage(100, 50, rect, 400, 200);
 
       expect(result.x).toBe(200);
       expect(result.y).toBe(100);
     });
 
     it('should handle element coordinates correctly', () => {
-      const result = screenToPage(0, 0, 100, 50, 200, 100);
+      const rect: ScreenToPageRect = { width: 100, height: 50, left: 0, top: 0 };
+      const result = screenToPage(0, 0, rect, 200, 100);
 
       expect(result.x).toBe(0);
       expect(result.y).toBe(0);
     });
 
     it('should scale coordinates within element bounds', () => {
-      const result = screenToPage(50, 25, 100, 50, 200, 100);
+      const rect: ScreenToPageRect = { width: 100, height: 50, left: 0, top: 0 };
+      const result = screenToPage(50, 25, rect, 200, 100);
 
       expect(result.x).toBe(100);
       expect(result.y).toBe(50);
@@ -316,33 +322,34 @@ describe('buildViewerScript', () => {
       expect(script).toContain('decodeURIComponent');
     });
 
-    it('should include element mode coordinate conversion', () => {
+    it('should include element mode support (element offset in coordinates)', () => {
       const script = buildViewerScript();
 
       expect(script).toContain('metadata.element');
-      expect(script).toContain('element.width');
-      expect(script).toContain('element.height');
+      expect(script).toContain('pageX += metadata.element.x');
+      expect(script).toContain('pageY += metadata.element.y');
     });
 
-    it('should have screenToPage function with element mode logic', () => {
+    it('should have screenToPage function with simplified linear mapping', () => {
       const script = buildViewerScript();
 
       expect(script).toContain('function screenToPage(screenX, screenY)');
       expect(script).toContain('if (metadata.element)');
-      expect(script).toContain('element.width / rect.width');
-      expect(script).toContain('element.height / rect.height');
-      expect(script).toContain('+ metadata.element.x');
-      expect(script).toContain('+ metadata.element.y');
+      expect(script).toContain('deviceWidth / rect.width');
+      expect(script).toContain('deviceHeight / rect.height');
+      expect(script).toContain('pageX += metadata.element.x');
+      expect(script).toContain('pageY += metadata.element.y');
     });
 
-    it('should fallback to full screen mode when no element', () => {
+    it('should have element branch before element offset addition', () => {
       const script = buildViewerScript();
 
-      const elementModeIndex = script.indexOf('if (metadata.element)');
-      const fullScreenLogicIndex = script.indexOf('metadata.deviceWidth / rect.width');
+      const elementIfIndex = script.indexOf('if (metadata.element)');
+      const elementOffsetIndex = script.indexOf('pageX += metadata.element.x');
 
-      expect(elementModeIndex).toBeGreaterThan(0);
-      expect(fullScreenLogicIndex).toBeGreaterThan(elementModeIndex);
+      expect(elementIfIndex).toBeGreaterThan(0);
+      expect(elementOffsetIndex).toBeGreaterThan(0);
+      expect(elementOffsetIndex).toBeGreaterThan(elementIfIndex);
     });
 
     it('should include status message handler for element info', () => {

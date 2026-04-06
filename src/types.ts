@@ -609,6 +609,10 @@ export interface ConfigCommand extends BaseCommand {
   json?: boolean;
 }
 
+export interface InjectFocusListenerCommand extends BaseCommand {
+  action: 'inject_focus_listener';
+}
+
 export interface ViewerData {
   url: string;
   wsUrl: string;
@@ -1087,7 +1091,8 @@ export type Command =
   | DeviceListCommand
   | ViewerCommand
   | AskCommand
-  | ConfigCommand;
+  | ConfigCommand
+  | InjectFocusListenerCommand;
 
 export interface LooseCommand {
   id: string;

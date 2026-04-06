@@ -2101,6 +2101,189 @@ export class BrowserManager {
     await cdp.send('Input.insertText', { text });
   }
 
+  private _lastFillSelector = '';
+  private _lastFillValue = '';
+  private _fillFocusedSelector = '';
+
+  async fillValue(selector: string, value: string): Promise<void> {
+    const page = this.getPage();
+    if (!page) return;
+
+    if (!selector || value === undefined) return;
+
+    if (value === this._lastFillValue && selector === this._lastFillSelector) return;
+
+    this._lastFillSelector = selector;
+    this._lastFillValue = value;
+
+    const needsFocus = !this._fillFocusedSelector || this._fillFocusedSelector !== selector;
+
+    await page.evaluate(
+      ({ selector, value, needsFocus }) => {
+        const el = document.querySelector(selector) as
+          | HTMLInputElement
+          | HTMLTextAreaElement
+          | HTMLElement
+          | null;
+        if (!el) return { ok: false, reason: 'not_found' };
+
+        const isContentEditable =
+          el instanceof HTMLElement &&
+          (el.isContentEditable || el.getAttribute('contenteditable') === 'true');
+
+        if (needsFocus && !isContentEditable) {
+          el.focus();
+        }
+
+        if (isContentEditable) {
+          if (needsFocus) el.focus();
+          document.execCommand('selectAll', false, undefined);
+          document.execCommand('insertText', false, value);
+          return { ok: true, method: 'contenteditable' };
+        }
+
+        const tag = el.tagName.toLowerCase();
+        const isInput = tag === 'input';
+        const isTextarea = tag === 'textarea';
+
+        if (!isInput && !isTextarea) {
+          return { ok: false, reason: 'not_input' };
+        }
+
+        const proto = isInput
+          ? window.HTMLInputElement.prototype
+          : window.HTMLTextAreaElement.prototype;
+
+        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+
+        if (nativeInputValueSetter) {
+          nativeInputValueSetter.call(el, value);
+        } else {
+          (el as HTMLInputElement | HTMLTextAreaElement).value = value;
+        }
+
+        el.dispatchEvent(
+          new InputEvent('input', {
+            bubbles: true,
+            cancelable: true,
+            inputType: 'insertReplacementText',
+            data: value,
+          })
+        );
+
+        return { ok: true, method: 'native_setter' };
+      },
+      { selector, value, needsFocus }
+    );
+
+    if (needsFocus) {
+      this._fillFocusedSelector = selector;
+    }
+  }
+
+  clearFillState(selector?: string): void {
+    if (selector && this._fillFocusedSelector === selector) {
+      this._fillFocusedSelector = '';
+    }
+    if (!selector) {
+      this._fillFocusedSelector = '';
+      this._lastFillSelector = '';
+      this._lastFillValue = '';
+    }
+  }
+
+  async blurElement(selector: string): Promise<void> {
+    const page = this.getPage();
+    if (!page) return;
+    await page.evaluate((sel) => {
+      const el = document.querySelector(sel) as HTMLElement | null;
+      if (el) el.blur();
+    }, selector);
+  }
+
+  /**
+   * Press a key on the page via Playwright.
+   */
+  async pressKey(key: string): Promise<void> {
+    const page = this.getPage();
+    if (!page) return;
+    await page.keyboard.press(key);
+  }
+
+  /**
+   * Inject focus/input/blur event listeners into the remote page.
+   * Uses Playwright exposeFunction + addInitScript so the
+   * injected script can call back to Node.js when input elements are focused.
+   */
+  async injectFocusListener(
+    onEvent: (data: { type: string; [key: string]: unknown }) => void
+  ): Promise<void> {
+    const page = this.getPage();
+    if (!page) return;
+
+    try {
+      await page.exposeFunction('__agentBrowserInputEvent', (data: unknown) => {
+        onEvent(data as { type: string; [key: string]: unknown });
+      });
+    } catch {
+      // Already registered from previous injection - safe to continue
+    }
+
+    const injectScript = `
+      (function() {
+        if (window.__agentBrowserListenerInjected) return;
+        window.__agentBrowserListenerInjected = true;
+
+        document.addEventListener('focus', function(e) {
+          var el = e.target;
+          if (!el) return;
+          var tag = el.tagName;
+          if (tag !== 'INPUT' && tag !== 'TEXTAREA' && !el.isContentEditable) return;
+          try {
+            window.__agentBrowserInputEvent({
+              type: 'input_focused',
+              tag: tag,
+              inputType: el.type || '',
+              value: typeof el.value === 'string' ? el.value : '',
+              placeholder: el.placeholder || '',
+              id: el.id || '',
+              selector: (function() {
+                if (el.id) return '#' + el.id;
+                if (el.name && el.name) return '[name="' + el.name + '"]';
+                return el.tagName.toLowerCase();
+              })()
+            });
+          } catch(ex) {}
+        }, true);
+
+        document.addEventListener('input', function(e) {
+          var el = e.target;
+          if (!el) return;
+          var tag = el.tagName;
+          if (tag !== 'INPUT' && tag !== 'TEXTAREA' && !el.isContentEditable) return;
+          try {
+            window.__agentBrowserInputEvent({
+              type: 'input_value',
+              text: typeof el.value === 'string' ? el.value : ''
+            });
+          } catch(ex) {}
+        }, true);
+
+        document.addEventListener('blur', function() {
+          try {
+            window.__agentBrowserInputEvent({ type: 'input_blur' });
+          } catch(ex) {}
+        }, true);
+      })();
+    `;
+
+    // Inject into future navigations
+    await page.addInitScript(injectScript);
+
+    // Also inject into current page (already loaded)
+    await page.evaluate(injectScript);
+  }
+
   /**
    * Check if video recording is currently active
    */

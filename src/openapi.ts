@@ -20,7 +20,7 @@ export const openApiSpec: OpenApiSpec = {
   openapi: '3.0.0',
   info: {
     title: 'agent-browser API',
-    version: '0.9.5',
+    version: '0.10.0',
     description:
       'Browser automation HTTP API for AI agents. Execute browser commands via REST API.',
   },

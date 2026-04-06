@@ -45,6 +45,15 @@ describe('isAllowedOrigin', () => {
       expect(isAllowedOrigin('http://[::1]')).toBe(true);
       expect(isAllowedOrigin('http://[::1]:3000')).toBe(true);
     });
+
+    it('should allow private IP origins (LAN)', () => {
+      expect(isAllowedOrigin('http://192.168.0.4:5005')).toBe(true);
+      expect(isAllowedOrigin('http://192.168.1.100:3000')).toBe(true);
+      expect(isAllowedOrigin('http://10.0.0.1')).toBe(true);
+      expect(isAllowedOrigin('http://10.255.255.255:8080')).toBe(true);
+      expect(isAllowedOrigin('http://172.16.0.1:5005')).toBe(true);
+      expect(isAllowedOrigin('http://172.31.255.255')).toBe(true);
+    });
   });
 
   describe('rejected origins', () => {
@@ -67,6 +76,13 @@ describe('isAllowedOrigin', () => {
       expect(isAllowedOrigin('not-a-url')).toBe(false);
       expect(isAllowedOrigin('://missing-scheme')).toBe(false);
     });
+
+    it('should reject public IP origins', () => {
+      expect(isAllowedOrigin('http://8.8.8.8')).toBe(false);
+      expect(isAllowedOrigin('http://172.15.0.1')).toBe(false);
+      expect(isAllowedOrigin('http://172.32.0.1')).toBe(false);
+      expect(isAllowedOrigin('http://192.169.0.1')).toBe(false);
+    });
   });
 });
 
@@ -76,24 +92,24 @@ describe('STATE_CONFIGS', () => {
       format: 'jpeg',
       quality: 80,
       maxFps: 60,
-      scale: 0.4,
+      scale: 0.6,
     });
   });
 
   it('should have correct config for screen_moving', () => {
     expect(STATE_CONFIGS.screen_moving).toEqual({
-      format: 'webp',
-      quality: 50,
-      maxFps: 1,
-      scale: 0.6,
+      format: 'jpeg',
+      quality: 75,
+      maxFps: 8,
+      scale: 0.8,
     });
   });
 
   it('should have correct config for static', () => {
     expect(STATE_CONFIGS.static).toEqual({
-      format: 'webp',
+      format: 'jpeg',
       quality: 80,
-      maxFps: 0.5,
+      maxFps: 2,
       scale: 1,
     });
   });

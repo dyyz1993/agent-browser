@@ -5,7 +5,7 @@ import * as os from 'os';
 import { randomUUID } from 'crypto';
 import { BrowserManager } from './browser.js';
 import { IOSManager } from './ios-manager.js';
-import { parseCommand, serializeResponse, errorResponse } from './protocol.js';
+import { parseCommand, serializeResponse, errorResponse, successResponse } from './protocol.js';
 import { executeCommand } from './actions.js';
 import { executeIOSCommand } from './ios-actions.js';
 import { StreamServerProxy, getStreamServerIpcPath } from './stream-server.js';
@@ -20,6 +20,46 @@ let currentInstanceId = randomUUID().substring(0, 8);
 let streamServerProxy: StreamServerProxy | null = null;
 
 const STREAM_SERVER_PID_FILE = 'stream-server.pid';
+
+const INPUT_FILL_DEBOUNCE_MS = 60;
+const inputFillDebounceMap = new Map<
+  string,
+  { timer: ReturnType<typeof setTimeout>; text: string; id: string }
+>();
+
+function debounceInputFill(
+  socket: net.Socket,
+  manager: BrowserManager,
+  id: string,
+  selector: string,
+  text: string
+): void {
+  const key = selector || '__global__';
+  const existing = inputFillDebounceMap.get(key);
+
+  if (existing) {
+    clearTimeout(existing.timer);
+    existing.text = text;
+    existing.id = id;
+  }
+
+  const entry = existing ?? { timer: null as unknown as ReturnType<typeof setTimeout>, text, id };
+  entry.timer = setTimeout(async () => {
+    inputFillDebounceMap.delete(key);
+    try {
+      await manager.fillValue(selector, entry.text);
+      socket.write(
+        serializeResponse(successResponse(entry.id, { filled: true, selector, text: entry.text })) +
+          '\n'
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      socket.write(serializeResponse(errorResponse(entry.id, message)) + '\n');
+    }
+  }, INPUT_FILL_DEBOUNCE_MS);
+
+  inputFillDebounceMap.set(key, entry);
+}
 
 /**
  * Set the current session
@@ -273,6 +313,123 @@ export async function startDaemon(options?: { provider?: string }): Promise<void
 
         if (!line.trim()) continue;
 
+        // Handle custom actions before schema validation (not in standard Zod union)
+        // Viewer sends messages with 'type' field, standalone commands use 'action' field.
+        // Normalize to support both.
+        if (line.trim()) {
+          try {
+            const quickParse = JSON.parse(line);
+            const action = quickParse.action || quickParse.type;
+            if (
+              quickParse &&
+              action === 'inject_focus_listener' &&
+              manager instanceof BrowserManager
+            ) {
+              try {
+                await manager.injectFocusListener((data) => {
+                  try {
+                    socket.write(JSON.stringify(data) + '\n');
+                  } catch (_) {}
+                });
+                socket.write(
+                  serializeResponse(successResponse(quickParse.id, { injected: true })) + '\n'
+                );
+              } catch (err) {
+                const message = err instanceof Error ? err.message : String(err);
+                socket.write(serializeResponse(errorResponse(quickParse.id, message)) + '\n');
+              }
+              continue;
+            }
+
+            if (quickParse && action === 'input_fill' && manager instanceof BrowserManager) {
+              const selector = quickParse.selector || '';
+              const text = quickParse.text || '';
+              debounceInputFill(socket, manager, String(quickParse.id), selector, text);
+              continue;
+            }
+
+            if (
+              quickParse &&
+              (action === 'blur_element' || action === 'input_blur_element') &&
+              manager instanceof BrowserManager
+            ) {
+              try {
+                const selector = quickParse.selector || '';
+                await manager.blurElement(selector);
+                socket.write(
+                  serializeResponse(successResponse(quickParse.id, { blurred: true, selector })) +
+                    '\n'
+                );
+              } catch (err) {
+                const message = err instanceof Error ? err.message : String(err);
+                socket.write(serializeResponse(errorResponse(quickParse.id, message)) + '\n');
+              }
+              continue;
+            }
+
+            if (quickParse && action === 'input_mouse' && manager instanceof BrowserManager) {
+              try {
+                await manager.injectMouseEvent({
+                  type: quickParse.eventType,
+                  x: quickParse.x ?? 0,
+                  y: quickParse.y ?? 0,
+                  button: quickParse.button,
+                  clickCount: quickParse.clickCount,
+                  deltaX: quickParse.deltaX,
+                  deltaY: quickParse.deltaY,
+                  modifiers: quickParse.modifiers,
+                });
+                socket.write(
+                  serializeResponse(successResponse(quickParse.id, { injected: true })) + '\n'
+                );
+              } catch (err) {
+                const message = err instanceof Error ? err.message : String(err);
+                socket.write(serializeResponse(errorResponse(quickParse.id, message)) + '\n');
+              }
+              continue;
+            }
+
+            if (quickParse && action === 'input_keyboard' && manager instanceof BrowserManager) {
+              try {
+                await manager.injectKeyboardEvent({
+                  type: quickParse.eventType,
+                  key: quickParse.key,
+                  code: quickParse.code,
+                  text: quickParse.text,
+                  modifiers: quickParse.modifiers,
+                });
+                socket.write(
+                  serializeResponse(successResponse(quickParse.id, { injected: true })) + '\n'
+                );
+              } catch (err) {
+                const message = err instanceof Error ? err.message : String(err);
+                socket.write(serializeResponse(errorResponse(quickParse.id, message)) + '\n');
+              }
+              continue;
+            }
+
+            if (
+              quickParse &&
+              action === 'keyboard_insert_text' &&
+              manager instanceof BrowserManager
+            ) {
+              try {
+                const text = quickParse.text || '';
+                await manager.insertText(text);
+                socket.write(
+                  serializeResponse(successResponse(quickParse.id, { inserted: true })) + '\n'
+                );
+              } catch (err) {
+                const message = err instanceof Error ? err.message : String(err);
+                socket.write(serializeResponse(errorResponse(quickParse.id, message)) + '\n');
+              }
+              continue;
+            }
+          } catch (_) {
+            /* not JSON, fall through to normal parsing */
+          }
+        }
+
         try {
           const parseResult = parseCommand(line);
 
@@ -385,6 +542,30 @@ export async function startDaemon(options?: { provider?: string }): Promise<void
               }, 100);
             }
             return;
+          }
+
+          // Handle inject_focus_listener: set up focus event bridge to stream-server
+          if (
+            parseResult.command.action === 'inject_focus_listener' &&
+            manager instanceof BrowserManager
+          ) {
+            try {
+              await manager.injectFocusListener((data) => {
+                try {
+                  socket.write(JSON.stringify(data) + '\n');
+                } catch (_) {}
+              });
+              socket.write(
+                serializeResponse(successResponse(parseResult.command.id, { injected: true })) +
+                  '\n'
+              );
+            } catch (err) {
+              const message = err instanceof Error ? err.message : String(err);
+              socket.write(
+                serializeResponse(errorResponse(parseResult.command.id, message)) + '\n'
+              );
+            }
+            continue;
           }
 
           // Execute command with appropriate handler
