@@ -109,19 +109,17 @@ export function getViewerHtml(): string {
       50% { opacity: 0.3; }
     }
     .viewport {
-      flex: 1;
       display: flex;
       align-items: flex-start;
       justify-content: center;
       overflow: hidden;
       position: relative;
       background: #111;
-      min-height: 0;
+      flex-shrink: 0;
     }
     .screen-container {
       position: relative;
       width: 100%;
-      height: 100%;
       display: flex;
       align-items: flex-start;
       justify-content: center;
@@ -206,9 +204,8 @@ export function getViewerHtml(): string {
       to { transform: rotate(360deg); }
     }
     #touchpad {
-      flex: 0 0 auto;
-      height: clamp(100px, 38dvh, 280px);
-      max-height: 35dvh;
+      flex: 1 1 auto;
+      min-height: 80px;
       background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
       border-top: 2px solid #4ecca3;
       position: relative;
@@ -269,13 +266,14 @@ export function getViewerHtml(): string {
     </div>
   </div>
 
-  <div id="input-panel" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:9999;padding:10px 15px;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px));background:rgba(255,255,255,0.95);border-top:1px solid #eee;box-sizing:border-box;">
-    <div id="input-target" style="color:#999;font-size:11px;margin-bottom:4px;">target: --</div>
-    <div style="display:flex;gap:8px;align-items:center;">
-      <input id="input-field" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="输入内容..."
-        style="flex:1;height:42px;border:1px solid #dcdcdc;border-radius:24px;padding:0 18px;font-size:16px;outline:none;background:#fff;color:#333;" />
-      <button id="input-send" style="height:42px;padding:0 20px;background:#4285F4;color:#fff;border:none;border-radius:24px;font-size:14px;font-weight:600;cursor:pointer;">Send</button>
-      <button id="input-cancel" style="height:42px;padding:0 16px;background:#f0f0f0;color:#666;border:none;border-radius:24px;font-size:14px;cursor:pointer;">Cancel</button>
+  <div id="input-panel" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:9999;padding:6px 12px;padding-bottom:calc(6px + env(safe-area-inset-bottom,0px));background:rgba(255,255,255,0.95);border-top:1px solid #eee;box-sizing:border-box;flex-direction:column;">
+    <div id="input-target" style="color:#999;font-size:11px;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">target: --</div>
+    <div style="display:flex;gap:8px;align-items:center;width:100%;">
+      <input id="input-field" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="..."
+        style="flex:1;min-width:0;height:36px;border:1px solid #dcdcdc;border-radius:18px;padding:0 14px;font-size:16px;outline:none;background:#fff;color:#333;" />
+      <button id="input-send" style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:#4285F4;color:#fff;border:none;border-radius:50%;cursor:pointer;padding:0;flex-shrink:0;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
     </div>
   </div>
   

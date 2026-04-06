@@ -1008,7 +1008,7 @@ export function buildViewerScript(): string {
       touchpad.style.position = 'relative';
       touchpad.style.background = 'linear-gradient(180deg, #1a1a2e 0%, #16213e 100%)';
       touchpad.style.borderTop = '2px solid #4ecca3';
-      touchpad.style.justifyContent = 'flex-end';
+      touchpad.style.justifyContent = 'center';
       touchpad.style.zIndex = '10';
 
       touchpad.addEventListener('touchstart', (e) => {
@@ -1237,16 +1237,18 @@ export function buildViewerScript(): string {
     }
     
     var inputSendBtn = document.getElementById('input-send');
-    var inputCancelBtn = document.getElementById('input-cancel');
     if (inputSendBtn) inputSendBtn.addEventListener('click', function(e) {
       e.preventDefault();
       e.stopPropagation();
       sendInputText();
     });
-    if (inputCancelBtn) inputCancelBtn.addEventListener('click', function(e) {
-      e.preventDefault();
-      e.stopPropagation();
-      exitInputMode();
+
+    document.addEventListener('pointerdown', function(e) {
+      if (!inputMode) return;
+      var panel = document.getElementById('input-panel');
+      if (panel && !panel.contains(e.target)) {
+        exitInputMode();
+      }
     });
 
     var inputField = document.getElementById('input-field');
