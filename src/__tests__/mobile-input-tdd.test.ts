@@ -152,7 +152,7 @@ describe('Mobile input message format - TDD', () => {
       expect(exMatch).not.toBeNull();
       const block = exMatch![0];
       expect(block).toMatch(
-        /tp\.style\.display\s*=\s*isTouchDevice\s*\?\s*['"]flex['"]\s*:\s*['"]none['"]/
+        /tp\.style\.display\s*=\s*DeviceMode\.current\s*===\s*['"]mobile['"]\s*\?\s*['"]flex['"]\s*:\s*['"]none['"]/
       );
     });
 

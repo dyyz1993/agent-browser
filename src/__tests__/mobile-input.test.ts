@@ -308,7 +308,7 @@ describe('Mobile input mode - injected focus listener', () => {
     expect(viewerHtml).toContain('position:fixed');
     expect(viewerHtml).toContain('z-index:9999');
     // Capsule-style rounded input like reference demo
-    expect(viewerHtml).toContain('border-radius:24px');
+    expect(viewerHtml).toContain('border-radius:18px');
     // White background like reference demo
     expect(viewerHtml).toContain('rgba(255,255,255,0.95)');
   });
