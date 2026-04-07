@@ -191,19 +191,68 @@ export function buildViewerScript(): string {
     const connecting = document.getElementById('connecting');
 
     const ua = (navigator.userAgent || '').toLowerCase();
-    const isTouchDevice = /iphone|ipod|android(?=.*mobile)|mobile|tablet|ipad/i.test(ua);
 
-    const hiddenInput = document.createElement('input');
-    hiddenInput.type = 'text';
-    hiddenInput.style.cssText = 'position:fixed;right:8px;bottom:80px;opacity:0.01;width:1px;height:1px;border:none;outline:none;padding:0;margin:0;font-size:16px;pointer-events:none;';
-    hiddenInput.id = 'hidden-input';
-    hiddenInput.setAttribute('autocomplete', 'off');
-    hiddenInput.setAttribute('autocorrect', 'off');
-    hiddenInput.setAttribute('autocapitalize', 'off');
-    hiddenInput.setAttribute('spellcheck', 'false');
-    if (!isTouchDevice) {
-      document.body.appendChild(hiddenInput);
+    function detectDeviceMode() {
+      var uaMatch = /iphone|ipod|android(?=.*mobile)|mobile|tablet|ipad/i.test(ua);
+      var hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      return uaMatch || hasTouch ? 'mobile' : 'desktop';
     }
+
+    var _deviceCurrent = detectDeviceMode();
+
+    const DeviceMode = {
+      _current: _deviceCurrent,
+      _listeners: [],
+      get current() { return this._current; },
+      onModeChange: function(fn) { this._listeners.push(fn); },
+      switchTo: function(mode) {
+        if (mode === this._current) return;
+        var prev = this._current;
+        this._current = mode;
+        if (mode === 'desktop') {
+          MobileModule.detach();
+          DesktopModule.attach();
+        } else {
+          DesktopModule.detach();
+          MobileModule.attach();
+        }
+        this._listeners.forEach(function(fn) { fn(mode, prev); });
+      }
+    };
+
+    var hiddenInput = null;
+
+    const DesktopModule = {
+      attach: function() {
+        if (hiddenInput && hiddenInput.parentNode) return;
+        hiddenInput = document.createElement('input');
+        hiddenInput.type = 'text';
+        hiddenInput.style.cssText = 'position:fixed;right:8px;bottom:80px;opacity:0.01;width:1px;height:1px;border:none;outline:none;padding:0;margin:0;font-size:16px;pointer-events:none;';
+        hiddenInput.id = 'hidden-input';
+        hiddenInput.setAttribute('autocomplete', 'off');
+        hiddenInput.setAttribute('autocorrect', 'off');
+        hiddenInput.setAttribute('autocapitalize', 'off');
+        hiddenInput.setAttribute('spellcheck', 'false');
+        document.body.appendChild(hiddenInput);
+        focusHiddenInput();
+      },
+      detach: function() {
+        if (hiddenInput) { hiddenInput.blur(); if (hiddenInput.parentNode) hiddenInput.parentNode.removeChild(hiddenInput); hiddenInput = null; }
+      }
+    };
+
+    const MobileModule = {
+      attach: function() {
+        if (touchpad) { touchpad.style.display = 'flex'; touchpad.style.position = 'relative'; touchpad.style.background = 'linear-gradient(180deg, #1a1a2e 0%, #16213e 100%)'; touchpad.style.borderTop = '2px solid #4ecca3'; touchpad.style.justifyContent = 'center'; touchpad.style.zIndex = '10'; }
+        setupToolbar();
+        if (!cursorInitialized) { cursorInitialized = true; setTimeout(initCursor, 50); }
+      },
+      detach: function() {
+        var ip = document.getElementById('input-panel');
+        if (ip) { ip.style.display = 'none'; ip.style.bottom = '0px'; }
+        if (cursor) cursor.style.display = 'block';
+      }
+    };
 
     const degradedToast = document.createElement('div');
     degradedToast.id = 'degraded-toast';
@@ -335,7 +384,7 @@ export function buildViewerScript(): string {
 
           case 'input_focused':
             if (inputMode) return;
-            if (!isTouchDevice) return;
+            if (DeviceMode.current !== 'mobile') return;
             var sel = msg.selector || (msg.id ? '#' + msg.id : '');
             enterInputMode(msg.value || '', msg.inputType || msg.tag || '', msg.placeholder || '', sel);
             break;
@@ -370,7 +419,7 @@ export function buildViewerScript(): string {
         connecting.style.display = 'none';
         screen.style.display = 'block';
         fitImageToContainer();
-        if (!cursorInitialized && isTouchDevice) {
+        if (!cursorInitialized && DeviceMode.current === 'mobile') {
           cursorInitialized = true;
           setTimeout(initCursor, 50);
         }
@@ -465,7 +514,7 @@ export function buildViewerScript(): string {
     screen.addEventListener('dragstart', (e) => e.preventDefault());
     
     screen.addEventListener('click', () => {
-      if (!isTouchDevice) focusHiddenInput();
+      if (DeviceMode.current === 'desktop') focusHiddenInput();
     });
     
     screen.addEventListener('mousemove', (e) => {
@@ -645,9 +694,11 @@ export function buildViewerScript(): string {
     const touchpad = document.getElementById('touchpad');
     const screenContainer = document.getElementById('screenContainer');
 
-    // Ensure touchpad is hidden on non-touch devices
-    if (touchpad && !isTouchDevice) {
-      touchpad.style.display = 'none';
+    // Initialize modules based on detected mode
+    if (DeviceMode.current === 'desktop') {
+      DesktopModule.attach();
+    } else {
+      MobileModule.attach();
     }
 
     let cursorPos = { x: 0, y: 0 };
@@ -850,7 +901,7 @@ export function buildViewerScript(): string {
         ip.style.display = 'none';
         ip.style.bottom = '0px';
       }
-      if (tp) tp.style.display = isTouchDevice ? 'flex' : 'none';
+      if (tp) tp.style.display = DeviceMode.current === 'mobile' ? 'flex' : 'none';
 
       // Cleanup visualViewport handler
       if (keyboardVvHandler && window.visualViewport) {
@@ -995,16 +1046,11 @@ export function buildViewerScript(): string {
       badge.style.display = 'none';
     }
 
-    if (isTouchDevice) {
-      // On touch devices, touchpad is at bottom of screen (CSS clamp + dvh height)
-      // Input panel floats above it (position:fixed overlay)
-      touchpad.style.display = 'flex';
-      touchpad.style.position = 'relative';
-      touchpad.style.background = 'linear-gradient(180deg, #1a1a2e 0%, #16213e 100%)';
-      touchpad.style.borderTop = '2px solid #4ecca3';
-      touchpad.style.justifyContent = 'center';
-      touchpad.style.zIndex = '10';
-
+    // Touchpad toolbar setup (always available when mobile module is active)
+    var _toolbarSetupDone = false;
+    function setupToolbar() {
+      if (_toolbarSetupDone) return;
+      _toolbarSetupDone = true;
       var toolbar = document.getElementById('touchpadToolbar');
       if (toolbar) {
         toolbar.addEventListener('click', function(e) {
@@ -1024,9 +1070,12 @@ export function buildViewerScript(): string {
         if (expandBtn) expandBtn.addEventListener('click', function(e) { e.stopPropagation(); toolbar.classList.remove('collapsed'); });
         if (collapseBtn) collapseBtn.addEventListener('click', function(e) { e.stopPropagation(); toolbar.classList.add('collapsed'); });
       }
+    }
 
-      touchpad.addEventListener('touchstart', (e) => {
-        e.preventDefault();
+    // Touch event handlers (always registered; guarded by DeviceMode.current)
+    touchpad.addEventListener('touchstart', (e) => {
+      if (DeviceMode.current !== 'mobile') return;
+      e.preventDefault();
         sendUserActivity();
 
         if (e.touches.length === 2) {
@@ -1083,7 +1132,8 @@ export function buildViewerScript(): string {
       }, { passive: false });
 
       touchpad.addEventListener('touchend', (e) => {
-        e.preventDefault();
+      if (DeviceMode.current !== 'mobile') return;
+      e.preventDefault();
         clearTimeout(longPressTimer);
         clearTimeout(longPressHintTimer);
         if (e.touches.length === 0) {
@@ -1141,6 +1191,7 @@ export function buildViewerScript(): string {
       }, { passive: false });
 
       touchpad.addEventListener('touchmove', (e) => {
+        if (DeviceMode.current !== 'mobile') return;
         e.preventDefault();
 
         if (e.touches.length === 2 && twoFingerStartPos) {
@@ -1223,6 +1274,7 @@ export function buildViewerScript(): string {
       }, { passive: false });
 
       touchpad.addEventListener('touchcancel', () => {
+        if (DeviceMode.current !== 'mobile') return;
         clearTimeout(longPressTimer);
         clearTimeout(longPressHintTimer);
         momentumActive = false;
@@ -1248,7 +1300,6 @@ export function buildViewerScript(): string {
         twoFingerStartPos = null;
         touchMoved = false;
       }, { passive: false });
-    }
     
     var inputSendBtn = document.getElementById('input-send');
     if (inputSendBtn) inputSendBtn.addEventListener('click', function(e) {
@@ -1297,8 +1348,32 @@ export function buildViewerScript(): string {
     var resizeTimer = null;
     window.addEventListener('resize', () => {
       clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(fitImageToContainer, 100);
+      resizeTimer = setTimeout(function() {
+        fitImageToContainer();
+        var newMode = detectDeviceMode();
+        if (newMode !== DeviceMode.current) DeviceMode.switchTo(newMode);
+      }, 100);
     });
+
+    window.addEventListener('orientationchange', () => {
+      setTimeout(function() {
+        var newMode = detectDeviceMode();
+        if (newMode !== DeviceMode.current) DeviceMode.switchTo(newMode);
+      }, 200);
+    });
+
+    // matchMedia pointer:coarse as additional trigger
+    if (window.matchMedia) {
+      try {
+        var mql = window.matchMedia('(pointer:coarse)');
+        if (mql && typeof mql.addEventListener === 'function') {
+          mql.addEventListener('change', function(e) {
+            var newMode = e.matches ? 'mobile' : 'desktop';
+            DeviceMode.switchTo(newMode);
+          });
+        }
+      } catch(err) {}
+    }
 
     // Recorder functionality
     const recordBtn = document.getElementById('recordBtn');
@@ -1343,7 +1418,7 @@ export function buildViewerScript(): string {
       }
     });
 
-    if (!isTouchDevice) focusHiddenInput();
+    if (DeviceMode.current === 'desktop') focusHiddenInput();
     connect();
 `;
 }
