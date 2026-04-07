@@ -1011,6 +1011,26 @@ export function buildViewerScript(): string {
       touchpad.style.justifyContent = 'center';
       touchpad.style.zIndex = '10';
 
+      var toolbar = document.getElementById('touchpadToolbar');
+      if (toolbar) {
+        toolbar.addEventListener('click', function(e) {
+          var btn = e.target.closest ? e.target.closest('.tpk-key') : null;
+          if (!btn) return;
+          e.preventDefault();
+          e.stopPropagation();
+          sendUserActivity();
+          var key = btn.dataset.key || '';
+          var code = btn.dataset.code || '';
+          safeSend(JSON.stringify({ type: 'input_keyboard', eventType: 'keyDown', key: key, code: code, modifiers: 0 }));
+          safeSend(JSON.stringify({ type: 'input_keyboard', eventType: 'keyUp', key: key, code: code, modifiers: 0 }));
+        });
+
+        var expandBtn = document.getElementById('tpkExpand');
+        var collapseBtn = document.getElementById('tpkCollapse');
+        if (expandBtn) expandBtn.addEventListener('click', function(e) { e.stopPropagation(); toolbar.classList.remove('collapsed'); });
+        if (collapseBtn) collapseBtn.addEventListener('click', function(e) { e.stopPropagation(); toolbar.classList.add('collapsed'); });
+      }
+
       touchpad.addEventListener('touchstart', (e) => {
         e.preventDefault();
         sendUserActivity();

@@ -216,9 +216,19 @@ export function getViewerHtml(): string {
       display: none;
       flex-direction: column;
       align-items: center;
+      justify-content: flex-start;
+      gap: 0;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    .touchpad-body {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
       justify-content: center;
       gap: 8px;
-      padding-bottom: env(safe-area-inset-bottom, 0px);
+      width: 100%;
+      position: relative;
     }
     .touchpad-hint {
       color: #4ecca3;
@@ -226,6 +236,70 @@ export function getViewerHtml(): string {
       opacity: 0.5;
       text-align: center;
       pointer-events: none;
+    }
+    .touchpad-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 6px 10px;
+      justify-content: center;
+      width: 100%;
+      flex-shrink: 0;
+      border-bottom: 1px solid rgba(78,204,163,0.15);
+    }
+    .touchpad-toolbar.collapsed {
+      flex-wrap: nowrap;
+      overflow: hidden;
+    }
+    .touchpad-toolbar.collapsed .tpk-expand {
+      display: flex;
+    }
+    .touchpad-toolbar.collapsed .tpk-collapse {
+      display: none;
+    }
+    .touchpad-toolbar:not(.collapsed) .tpk-expand {
+      display: none;
+    }
+    .touchpad-toolbar:not(.collapsed) .tpk-collapse {
+      display: flex;
+    }
+    .tpk-btn {
+      width: 38px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(78,204,163,0.12);
+      border: 1px solid rgba(78,204,163,0.25);
+      border-radius: 6px;
+      color: #4ecca3;
+      font-size: 15px;
+      cursor: pointer;
+      padding: 0;
+      flex-shrink: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .tpk-btn:active {
+      background: rgba(78,204,163,0.3);
+    }
+    .tpk-btn svg {
+      width: 16px;
+      height: 16px;
+      fill: none;
+      stroke: #4ecca3;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .tpk-toggle {
+      width: 28px;
+      font-size: 10px;
+      color: rgba(78,204,163,0.5);
+    }
+    .tpk-toggle svg {
+      width: 12px;
+      height: 12px;
+      stroke: rgba(78,204,163,0.5);
     }
     @media (max-width: 600px) {
       .toolbar { padding: 4px 8px; gap: 4px; }
@@ -278,8 +352,42 @@ export function getViewerHtml(): string {
   </div>
   
   <div id="touchpad">
-    <div class="touchpad-hint" id="touchpadHint">Touchpad: move / long-press drag / two-finger scroll</div>
-    <div id="modeBadge" style="display:none;color:#fff;font-size:12px;padding:3px 10px;border-radius:4px;pointer-events:none;font-weight:bold;"></div>
+    <div class="touchpad-toolbar collapsed" id="touchpadToolbar">
+      <button class="tpk-btn tpk-key" data-key="Tab" data-code="Tab" title="Tab">
+        <svg viewBox="0 0 24 24"><path d="M3 21V3h2v18H3z M21 12H7l4-4M7 12l4 4"/></svg>
+      </button>
+      <button class="tpk-btn tpk-key" data-key="ArrowUp" data-code="ArrowUp" title="Up">
+        <svg viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>
+      </button>
+      <button class="tpk-btn tpk-key" data-key="ArrowLeft" data-code="ArrowLeft" title="Left">
+        <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <button class="tpk-btn tpk-key" data-key="ArrowDown" data-code="ArrowDown" title="Down">
+        <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <button class="tpk-btn tpk-key" data-key="ArrowRight" data-code="ArrowRight" title="Right">
+        <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+      <button class="tpk-btn tpk-key" data-key="Enter" data-code="Enter" title="Enter">
+        <svg viewBox="0 0 24 24"><path d="M7 13l5 5 5-5M12 18V6"/><line x1="5" y1="21" x2="19" y2="21"/></svg>
+      </button>
+      <button class="tpk-btn tpk-key" data-key="Backspace" data-code="Backspace" title="Backspace">
+        <svg viewBox="0 0 24 24"><path d="M21 4H8l-7 8 7 8h13a2 2 0 002-2V6a2 2 0 00-2-2z"/><line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/></svg>
+      </button>
+      <button class="tpk-btn tpk-key" data-key="Escape" data-code="Escape" title="Esc">
+        <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+      <button class="tpk-btn tpk-toggle tpk-expand" id="tpkExpand" title="More">
+        <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <button class="tpk-btn tpk-toggle tpk-collapse" id="tpkCollapse" title="Less">
+        <svg viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>
+      </button>
+    </div>
+    <div class="touchpad-body">
+      <div class="touchpad-hint" id="touchpadHint">Touchpad: move / long-press drag / two-finger scroll</div>
+      <div id="modeBadge" style="display:none;color:#fff;font-size:12px;padding:3px 10px;border-radius:4px;pointer-events:none;font-weight:bold;"></div>
+    </div>
   </div>
 
   <script>
