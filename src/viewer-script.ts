@@ -725,7 +725,6 @@ export function buildViewerScript(): string {
       var targetEl = document.getElementById('input-target');
       if (targetEl) targetEl.textContent = labelParts.length > 0 ? labelParts.join(' | ') : 'input';
 
-      // Record target selector for fillValue calls
       window._currentTargetSelector = selector || '';
 
       var field = document.getElementById('input-field');
@@ -734,16 +733,13 @@ export function buildViewerScript(): string {
         field.dataset.lastSent = initialValue || '';
       }
 
-      // Anti-scroll: force scroll to top BEFORE focus (reference demo technique)
       window.scrollTo(0, 0);
       document.body.scrollTop = 0;
       document.documentElement.scrollTop = 0;
 
-      // Lock touch action
       document.body.style.touchAction = 'none';
       document.documentElement.style.touchAction = 'none';
 
-      // Delay: wait for panel to render before capturing viewport & focusing
       setTimeout(function() {
         if (!field) return;
 
@@ -771,10 +767,8 @@ export function buildViewerScript(): string {
           window.visualViewport.addEventListener('resize', keyboardVvHandler);
         }
 
-        // Focus input to trigger soft keyboard
         field.focus();
 
-        // Anti-scroll again after focus (browser may auto-scroll on focus)
         window.scrollTo(0, 0);
         document.body.scrollTop = 0;
         document.documentElement.scrollTop = 0;
