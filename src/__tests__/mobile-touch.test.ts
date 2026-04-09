@@ -134,16 +134,19 @@ describe('Virtual Touchpad - coordinate mapping', () => {
     expect(script).toContain('screen.getBoundingClientRect()');
   });
 
-  it('screen uses aspect-ratio instead of fixed pixel dimensions', () => {
+  it('screen uses JS explicit pixel dimensions', () => {
     const script = buildViewerScript();
-    expect(script).toContain('screen.style.aspectRatio');
+    expect(script).toContain('screen.style.width');
+    expect(script).toContain('screen.style.height');
   });
 
   it('should handle element mode in screenToPage', () => {
     const script = buildViewerScript();
     expect(script).toContain('metadata.element');
-    expect(script).toContain('containerRatio');
-    expect(script).toContain('imageRatio');
+    expect(script).toContain('metadata.element.x');
+    expect(script).toContain('metadata.element.y');
+    expect(script).toContain('metadata.deviceWidth');
+    expect(script).toContain('metadata.deviceHeight');
   });
 });
 

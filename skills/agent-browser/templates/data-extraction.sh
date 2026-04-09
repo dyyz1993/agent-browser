@@ -34,7 +34,8 @@ case "$MODE" in
   api)
     echo ""
     echo "=== 2. API Interception Mode ==="
-    export https_proxy=${PROXY_URL:-http://127.0.0.1:7890}
+    # Optional: set PROXY_URL if using a proxy
+export https_proxy=${PROXY_URL:-}
     agent-browser open "about:blank"
     sleep 1
     
@@ -64,7 +65,8 @@ case "$MODE" in
   scroll)
     echo ""
     echo "=== 2. Infinite Scroll Mode ==="
-    export https_proxy=${PROXY_URL:-http://127.0.0.1:7890}
+    # Optional: set PROXY_URL if using a proxy
+export https_proxy=${PROXY_URL:-}
     agent-browser open "$TARGET_URL"
     sleep 2
     
@@ -125,7 +127,8 @@ print(json.dumps(unique, ensure_ascii=False))
   js)
     echo ""
     echo "=== 2. JS Variable Extraction Mode ==="
-    export https_proxy=${PROXY_URL:-http://127.0.0.1:7890}
+    # Optional: set PROXY_URL if using a proxy
+export https_proxy=${PROXY_URL:-}
     agent-browser open "$TARGET_URL"
     sleep 3
     
@@ -153,7 +156,8 @@ print(json.dumps(unique, ensure_ascii=False))
   dom|*)
     echo ""
     echo "=== 2. DOM Extraction Mode ==="
-    export https_proxy=${PROXY_URL:-http://127.0.0.1:7890}
+    # Optional: set PROXY_URL if using a proxy
+export https_proxy=${PROXY_URL:-}
     agent-browser open "$TARGET_URL"
     sleep 2
     

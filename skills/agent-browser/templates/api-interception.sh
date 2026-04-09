@@ -13,7 +13,8 @@ sleep 1
 
 echo ""
 echo "=== 2. Open blank page ==="
-export https_proxy=${PROXY_URL:-http://127.0.0.1:7890}
+# Optional: set PROXY_URL if using a proxy
+export https_proxy=${PROXY_URL:-}
 agent-browser open "about:blank"
 sleep 1
 
