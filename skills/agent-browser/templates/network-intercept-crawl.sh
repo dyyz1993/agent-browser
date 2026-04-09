@@ -1,5 +1,6 @@
 #!/bin/bash
 # Network Interception Data Collection Template
+set -euo pipefail
 # Usage: ./network-intercept-crawl.sh <url> <output-dir> [max-scrolls]
 #
 # This script demonstrates how to capture API data using network interception.

@@ -1,5 +1,6 @@
 #!/bin/bash
 # API Interception Template - Passively capture API responses
+set -euo pipefail
 # Usage: ./api-interception.sh [target_url] [output_file]
 
 TARGET_URL="${1:-https://example.com/user/profile}"
@@ -12,7 +13,7 @@ sleep 1
 
 echo ""
 echo "=== 2. Open blank page ==="
-export https_proxy=http://127.0.0.1:7890
+export https_proxy=${PROXY_URL:-http://127.0.0.1:7890}
 agent-browser open "about:blank"
 sleep 1
 
