@@ -207,7 +207,7 @@ class StreamServerStandalone {
           res.end(
             JSON.stringify({
               title: 'agent-browser HTTP API',
-              version: '0.10.0',
+              version: '0.11.0',
               endpoints: {
                 'POST /api/command': {
                   description: 'Execute a browser command',
@@ -947,7 +947,7 @@ class StreamServerStandalone {
           connected,
           screencasting: connected,
           session,
-          version: '0.10.0',
+          version: '0.11.0',
         };
         if (state?.selector && state.elementBox) {
           msg.element = {
@@ -975,7 +975,7 @@ class StreamServerStandalone {
       connected,
       screencasting: connected,
       session,
-      version: '0.10.0',
+      version: '0.11.0',
     };
 
     if (clientState?.selector && clientState?.elementBox) {
