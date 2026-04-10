@@ -221,6 +221,7 @@ export function buildViewerScript(): string {
     };
 
     var hiddenInput = null;
+    let cursorInitialized = false;
 
     const DesktopModule = {
       attach: function() {
@@ -709,8 +710,6 @@ export function buildViewerScript(): string {
     let touchMoved = false;
     let twoFingerStartPos = null;
     let longPressTimer = null;
-    let longPressHintTimer = null;
-    let cursorInitialized = false;
 
     const CURSOR_SENSITIVITY = 1.5;
     const WHEEL_SENSITIVITY = 2.0;
