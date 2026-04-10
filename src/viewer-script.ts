@@ -724,6 +724,7 @@ export function buildViewerScript(): string {
     let touchMoved = false;
     let twoFingerStartPos = null;
     let longPressTimer = null;
+    let longPressHintTimer = null;
 
     const CURSOR_SENSITIVITY = 1.5;
     const WHEEL_SENSITIVITY = 2.0;
