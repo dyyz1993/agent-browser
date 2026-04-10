@@ -234,6 +234,59 @@ export function buildViewerScript(): string {
         hiddenInput.setAttribute('autocapitalize', 'off');
         hiddenInput.setAttribute('spellcheck', 'false');
         document.body.appendChild(hiddenInput);
+
+        hiddenInput.addEventListener('compositionstart', () => {
+          isComposing = true;
+          lastInputValue = hiddenInput.value;
+          console.log('[Viewer] compositionstart, lastInputValue:', lastInputValue);
+        });
+
+        hiddenInput.addEventListener('compositionend', (e) => {
+          isComposing = false;
+          const newText = hiddenInput.value.slice(lastInputValue.length);
+          console.log('[Viewer] compositionend, newText:', newText, 'hiddenInput.value:', hiddenInput.value);
+          if (newText) {
+            sendUserActivity();
+            safeSend(JSON.stringify({
+              type: 'keyboard_insert_text',
+              text: newText
+            }));
+          }
+          lastInputValue = '';
+          hiddenInput.value = '';
+        });
+
+        hiddenInput.addEventListener('input', (e) => {
+          console.log('[Viewer] input event, isComposing:', isComposing, 'hiddenInput.value:', hiddenInput.value);
+          if (isComposing) return;
+
+          const newValue = hiddenInput.value;
+          if (newValue.length > 0) {
+            sendUserActivity();
+            safeSend(JSON.stringify({
+              type: 'keyboard_insert_text',
+              text: newValue
+            }));
+          }
+          hiddenInput.value = '';
+          lastInputValue = '';
+        });
+
+        hiddenInput.addEventListener('paste', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+
+          const text = e.clipboardData.getData('text');
+          console.log('[Viewer] paste event, text:', text);
+          if (text) {
+            sendUserActivity();
+            safeSend(JSON.stringify({
+              type: 'keyboard_insert_text',
+              text: text
+            }));
+          }
+        });
+
         focusHiddenInput();
       },
       detach: function() {
@@ -584,58 +637,6 @@ export function buildViewerScript(): string {
         modifiers: modifiers
       }));
       e.preventDefault();
-    });
-    
-    hiddenInput.addEventListener('compositionstart', () => {
-      isComposing = true;
-      lastInputValue = hiddenInput.value;
-      console.log('[Viewer] compositionstart, lastInputValue:', lastInputValue);
-    });
-    
-    hiddenInput.addEventListener('compositionend', (e) => {
-      isComposing = false;
-      const newText = hiddenInput.value.slice(lastInputValue.length);
-      console.log('[Viewer] compositionend, newText:', newText, 'hiddenInput.value:', hiddenInput.value);
-      if (newText) {
-        sendUserActivity();
-        safeSend(JSON.stringify({
-          type: 'keyboard_insert_text',
-          text: newText
-        }));
-      }
-      lastInputValue = '';
-      hiddenInput.value = '';
-    });
-    
-    hiddenInput.addEventListener('input', (e) => {
-      console.log('[Viewer] input event, isComposing:', isComposing, 'hiddenInput.value:', hiddenInput.value);
-      if (isComposing) return;
-      
-      const newValue = hiddenInput.value;
-      if (newValue.length > 0) {
-        sendUserActivity();
-        safeSend(JSON.stringify({
-          type: 'keyboard_insert_text',
-          text: newValue
-        }));
-      }
-      hiddenInput.value = '';
-      lastInputValue = '';
-    });
-    
-    hiddenInput.addEventListener('paste', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      
-      const text = e.clipboardData.getData('text');
-      console.log('[Viewer] paste event, text:', text);
-      if (text) {
-        sendUserActivity();
-        safeSend(JSON.stringify({
-          type: 'keyboard_insert_text',
-          text: text
-        }));
-      }
     });
     
     document.addEventListener('keydown', (e) => {
