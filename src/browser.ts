@@ -1580,7 +1580,20 @@ export class BrowserManager {
       cdpUrl = `http://localhost:${cdpEndpoint}`;
     }
 
-    const browser = await chromium.connectOverCDP(cdpUrl).catch(() => {
+    const CDP_CONNECT_TIMEOUT_MS = 15000;
+
+    function withTimeout<T>(promise: Promise<T>, msg: string): Promise<T> {
+      let timer: ReturnType<typeof setTimeout>;
+      const timeout = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(msg)), CDP_CONNECT_TIMEOUT_MS);
+      });
+      return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+    }
+
+    const browser = await withTimeout(
+      chromium.connectOverCDP(cdpUrl),
+      `CDP connection timed out after ${CDP_CONNECT_TIMEOUT_MS}ms. Remote endpoint at ${cdpUrl} did not respond.`
+    ).catch(() => {
       throw new Error(
         `Failed to connect via CDP to ${cdpUrl}. ` +
           (cdpUrl.includes('localhost')

@@ -83,13 +83,13 @@ describe('DeviceMode dynamic switching - TDD', () => {
 
     it('should re-detect on resize event', () => {
       const resizeMatch = viewerScript.match(
-        /addEventListener\(['"]resize['"][\s\S]*?detectDeviceMode/m
+        /addEventListener\(['"]resize['"][\s\S]*?autoDetectAndSwitch/m
       );
       expect(resizeMatch).not.toBeNull();
     });
 
     it('should re-detect on orientationchange event', () => {
-      const orientMatch = viewerScript.match(/orientationchange[\s\S]*?detectDeviceMode/m);
+      const orientMatch = viewerScript.match(/orientationchange[\s\S]*?autoDetectAndSwitch/m);
       expect(orientMatch).not.toBeNull();
     });
 

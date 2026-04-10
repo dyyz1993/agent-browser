@@ -203,8 +203,16 @@ export function buildViewerScript(): string {
     const DeviceMode = {
       _current: _deviceCurrent,
       _listeners: [],
+      _manualOverride: null,
       get current() { return this._current; },
       onModeChange: function(fn) { this._listeners.push(fn); },
+      setManual: function(mode) {
+        this._manualOverride = mode;
+        this.switchTo(mode);
+      },
+      clearManual: function() {
+        this._manualOverride = null;
+      },
       switchTo: function(mode) {
         if (mode === this._current) return;
         var prev = this._current;
@@ -217,6 +225,11 @@ export function buildViewerScript(): string {
           MobileModule.attach();
         }
         this._listeners.forEach(function(fn) { fn(mode, prev); });
+      },
+      autoDetectAndSwitch: function() {
+        if (this._manualOverride !== null) return;
+        var newMode = detectDeviceMode();
+        if (newMode !== this._current) this.switchTo(newMode);
       }
     };
 
@@ -304,6 +317,7 @@ export function buildViewerScript(): string {
       detach: function() {
         var ip = document.getElementById('input-panel');
         if (ip) { ip.style.display = 'none'; ip.style.bottom = '0px'; }
+        if (touchpad) { touchpad.style.display = 'none'; }
         if (cursor) cursor.style.display = 'block';
       }
     };
@@ -1350,15 +1364,13 @@ export function buildViewerScript(): string {
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(function() {
         fitImageToContainer();
-        var newMode = detectDeviceMode();
-        if (newMode !== DeviceMode.current) DeviceMode.switchTo(newMode);
+        DeviceMode.autoDetectAndSwitch();
       }, 100);
     });
 
     window.addEventListener('orientationchange', () => {
       setTimeout(function() {
-        var newMode = detectDeviceMode();
-        if (newMode !== DeviceMode.current) DeviceMode.switchTo(newMode);
+        DeviceMode.autoDetectAndSwitch();
       }, 200);
     });
 
