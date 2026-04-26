@@ -20,6 +20,26 @@ Or per-command: `agent-browser --executable-path /Applications/Chromium.app/Cont
 
 Verify: `agent-browser config`
 
+**Important**: The daemon persists across commands. If the env var is not inherited by your shell (common in sub-processes), pass `--executable-path` on the first `open` — it's stored in the daemon for the session lifetime. If the daemon restarts (crash/timeout), you must pass it again.
+
+## Daemon Management
+
+agent-browser runs a background daemon per session. If commands hang or timeout, the daemon may be stale:
+
+```bash
+agent-browser kill                    # Kill all daemons + stream server
+agent-browser kill --session myname   # Kill specific session daemon
+agent-browser session list            # Check active sessions
+```
+
+Common recovery pattern:
+
+```bash
+agent-browser kill && agent-browser open https://example.com   # Fresh start
+```
+
+**`tab new <url>`** waits for full page load and may timeout on slow sites. If it fails, the tab is usually created — run `tab list` to check, then `tab <index>` to switch.
+
 ## Quick Start
 
 ```bash
