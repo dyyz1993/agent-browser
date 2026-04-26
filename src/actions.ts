@@ -1212,17 +1212,17 @@ async function handleFill(command: FillCommand, browser: BrowserManager): Promis
   const diffResult = await performDiff(locator, command.diffScope, async () => {
     try {
       await locator.fill(command.value);
-      // Trigger input event for recorder to capture
-      // Use page.evaluate to dispatch events in the browser context
-      const page = browser.getPage();
-      if (page) {
-        await page.evaluate((selector) => {
-          const el = document.querySelector(selector);
-          if (el) {
-            el.dispatchEvent(new Event('input', { bubbles: true }));
-            el.dispatchEvent(new Event('change', { bubbles: true }));
-          }
-        }, command.selector);
+      if (!isRef) {
+        const page = browser.getPage();
+        if (page) {
+          await page.evaluate((selector) => {
+            const el = document.querySelector(selector);
+            if (el) {
+              el.dispatchEvent(new Event('input', { bubbles: true }));
+              el.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+          }, command.selector);
+        }
       }
     } catch (error) {
       throw toAIFriendlyError(error, command.selector);
