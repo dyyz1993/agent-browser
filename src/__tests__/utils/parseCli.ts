@@ -78,6 +78,41 @@ export function genId(): string {
   return `n${Date.now() % 1000000}`;
 }
 
+function levenshtein(a: string, b: string): number {
+  const m = a.length,
+    n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] =
+        a[i - 1] === b[j - 1]
+          ? dp[i - 1][j - 1]
+          : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[m][n];
+}
+
+function findSimilar(input: string, candidates: string[]): string | null {
+  const inputLower = input.toLowerCase();
+  let best: string | null = null;
+  let bestDist = Infinity;
+  for (const c of candidates) {
+    const cLower = c.toLowerCase();
+    if (cLower.startsWith(inputLower) || inputLower.startsWith(cLower)) {
+      return c;
+    }
+    const d = levenshtein(inputLower, cLower);
+    if (d < bestDist && d <= Math.max(2, Math.floor(input.length / 2))) {
+      bestDist = d;
+      best = c;
+    }
+  }
+  return best;
+}
+
 export function parseCliArgs(args: string[]): Command {
   if (args.length === 0) {
     error('No command provided', 'agent-browser <command> [args...]');
@@ -1273,7 +1308,68 @@ export function parseCliArgs(args: string[]): Command {
       return { id, action: 'config', json };
     }
 
-    default:
-      error(`Unknown command: ${cmd}`);
+    default: {
+      const allCommands = [
+        'open',
+        'goto',
+        'navigate',
+        'click',
+        'dblclick',
+        'type',
+        'fill',
+        'press',
+        'hover',
+        'focus',
+        'check',
+        'uncheck',
+        'select',
+        'drag',
+        'upload',
+        'download',
+        'scroll',
+        'scrollintoview',
+        'wait',
+        'screenshot',
+        'pdf',
+        'snapshot',
+        'eval',
+        'connect',
+        'close',
+        'back',
+        'forward',
+        'reload',
+        'get',
+        'is',
+        'find',
+        'mouse',
+        'set',
+        'network',
+        'cookies',
+        'storage',
+        'tab',
+        'trace',
+        'record',
+        'recorder',
+        'console',
+        'errors',
+        'highlight',
+        'state',
+        'session',
+        'kill',
+        'viewer',
+        'ask',
+        'config',
+        'install',
+        'device',
+        'dialog',
+        'window',
+      ];
+      const suggestion = findSimilar(cmd, allCommands);
+      let msg = `Unknown command: ${cmd}`;
+      if (suggestion) {
+        msg += `. Did you mean "${suggestion}"?`;
+      }
+      error(msg);
+    }
   }
 }

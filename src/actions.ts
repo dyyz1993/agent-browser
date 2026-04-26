@@ -224,55 +224,68 @@ async function assertElementExists(
 export function toAIFriendlyError(error: unknown, selector: string): Error {
   const message = error instanceof Error ? error.message : String(error);
 
-  // Handle strict mode violation (multiple elements match)
   if (message.includes('strict mode violation')) {
-    // Extract count if available
     const countMatch = message.match(/resolved to (\d+) elements/);
     const count = countMatch ? countMatch[1] : 'multiple';
 
     return new Error(
       `Selector "${selector}" matched ${count} elements. ` +
-        `Run 'snapshot' to get updated refs, or use a more specific CSS selector.`
+        `Run 'snapshot' to get updated refs, or use a more specific CSS selector. ` +
+        `Tip: Use 'find nth <index> ${selector} --click' to target a specific match.`
     );
   }
 
-  // Handle element not interactable (must be checked BEFORE timeout case)
-  // This includes cases where an overlay/modal blocks the element
   if (message.includes('intercepts pointer events')) {
     return new Error(
       `Element "${selector}" is blocked by another element (likely a modal or overlay). ` +
-        `Try dismissing any modals/cookie banners first.`
+        `Try dismissing any modals/cookie banners first. ` +
+        `Tip: Run 'snapshot -i' to see all visible elements and identify what's blocking.`
     );
   }
 
-  // Handle element not visible
   if (message.includes('not visible') && !message.includes('Timeout')) {
     return new Error(
       `Element "${selector}" is not visible. ` +
-        `Try scrolling it into view or check if it's hidden.`
+        `Try 'scrollintoview ${selector}' or check if it's hidden. ` +
+        `Tip: Run 'is visible ${selector}' to confirm visibility state.`
     );
   }
 
-  // Handle general timeout (element exists but action couldn't complete)
   if (message.includes('Timeout') && message.includes('exceeded')) {
     return new Error(
       `Action on "${selector}" timed out. The element may be blocked, still loading, or not interactable. ` +
-        `Run 'snapshot' to check the current page state.`
+        `Run 'snapshot' to check the current page state. ` +
+        `Tip: If the page is still loading, try 'wait --load networkidle' first.`
     );
   }
 
-  // Handle element not found (timeout waiting for element)
   if (
     message.includes('waiting for') &&
     (message.includes('to be visible') || message.includes('Timeout'))
   ) {
     return new Error(
       `Element "${selector}" not found or not visible. ` +
-        `Run 'snapshot' to see current page elements.`
+        `Run 'snapshot -i' to see current page elements and their refs. ` +
+        `Tip: If using @ref, the page may have changed. Re-run 'snapshot -i' to get fresh refs.`
     );
   }
 
-  // Return original error for unknown cases
+  if (message.includes('Execution context was destroyed') || message.includes('Target closed')) {
+    return new Error(
+      `Browser context was lost (page navigated or closed). ` +
+        `Re-open the page with 'open <url>' and start fresh. ` +
+        `Tip: This usually happens after a form submission triggers navigation.`
+    );
+  }
+
+  if (message.includes('querySelector') || message.includes('is not a valid selector')) {
+    return new Error(
+      `Invalid selector "${selector}". ` +
+        `CSS selectors like '#id', '.class', or 'tag' are supported. ` +
+        `Tip: Use 'snapshot -i' to get @ref selectors (e.g., @e1) that are always valid.`
+    );
+  }
+
   return error instanceof Error ? error : new Error(message);
 }
 

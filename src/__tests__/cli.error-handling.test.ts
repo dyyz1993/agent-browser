@@ -27,6 +27,40 @@ describe('error handling', () => {
     it('should throw error for typo command', () => {
       expect(() => parseCliArgs(['clik', '#btn'])).toThrow(CliError);
     });
+
+    it('should suggest similar command for close typo', () => {
+      try {
+        parseCliArgs(['clsoe']);
+      } catch (e) {
+        expect((e as CliError).message).toContain('Did you mean');
+      }
+    });
+
+    it('should suggest similar command for click typo', () => {
+      try {
+        parseCliArgs(['clik', '#btn']);
+      } catch (e) {
+        expect((e as CliError).message).toContain('Did you mean');
+      }
+    });
+
+    it('should suggest similar command for screenshot typo', () => {
+      try {
+        parseCliArgs(['screnshot']);
+      } catch (e) {
+        expect((e as CliError).message).toContain('Did you mean');
+      }
+    });
+
+    it('should not suggest for very different command', () => {
+      try {
+        parseCliArgs(['xyzzyfoo']);
+      } catch (e) {
+        const msg = (e as CliError).message;
+        expect(msg).toContain('Unknown command');
+        expect(msg).not.toContain('Did you mean');
+      }
+    });
   });
 
   describe('missing arguments', () => {
