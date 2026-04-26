@@ -282,7 +282,9 @@ export async function startDaemon(options?: { provider?: string }): Promise<void
         streamServerProxy = null;
       }
     } else {
-      console.log('[Daemon] Stream Server not running, viewer will be unavailable');
+      console.log(
+        '[Daemon] Stream Server not running, viewer unavailable (use `agent-browser viewer` to start)'
+      );
     }
   }
 

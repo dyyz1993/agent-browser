@@ -40,6 +40,29 @@ agent-browser config                             # Current config & env vars
 
 The CLI is self-documenting. When unsure about a command, run `--help` first.
 
+Global flags (`--session`, `--proxy`, `--state`, etc.) work at any position — before or after the subcommand.
+
+## Basic Info Commands
+
+```bash
+agent-browser get title              # Page title
+agent-browser get url                # Current URL
+agent-browser get text @e1           # Element text
+agent-browser get text body          # All page text
+agent-browser is visible @e1         # Visibility check
+```
+
+## Network Monitoring Pattern
+
+Request tracking activates on first use. After `open`, run `network requests` twice — once to activate, once after triggering requests:
+
+```bash
+agent-browser open https://example.com
+agent-browser network requests                 # Activates tracking (may show hint)
+agent-browser reload                           # Trigger requests
+agent-browser network requests                 # Now shows captured requests
+```
+
 ## Capabilities
 
 | Area | Key Commands | Deep Dive |
@@ -65,9 +88,29 @@ The CLI is self-documenting. When unsure about a command, run `--help` first.
 3. `fill` / `click` / `select` → interact using refs
 4. Re-`snapshot` after any page change (refs are invalidated)
 
+### Session Isolation
+
+Refs live within a **session scope** (default: `default`). Multiple Bash processes sharing the same session share the same refs and browser state — one process navigating away invalidates another's refs.
+
+**When running parallel tasks**, assign each a unique session:
+
+```bash
+agent-browser --session task1 open https://site-a.com
+agent-browser --session task2 open https://site-b.com
+```
+
+If ref errors occur unexpectedly, check whether another process is operating on the same session with `agent-browser session list`.
+
 ### Refs
 
-Refs (`@e1`, `@e2`) are **short-lived** — invalidated by any page change. Always re-snapshot after navigation or DOM mutations. See [snapshot-refs.md](references/snapshot-refs.md).
+Refs (`@e1`, `@e2`) are **session-scoped** — valid across Bash processes within the same session, but invalidated by any page change (navigation, form submit, dynamic load). Always re-snapshot after DOM mutations. See [snapshot-refs.md](references/snapshot-refs.md).
+
+When multiple elements share the same role+name, each gets a unique ref with a `[nth=N]` annotation. Just use the ref — the nth index is built in:
+
+```
+- button "Submit" [ref=e1]
+- button "Submit" [ref=e5] [nth=1]    # Use @e5, no need to specify nth
+```
 
 ### Iframes
 

@@ -334,6 +334,9 @@ export function printResponse(resp: Response, jsonMode: boolean, action?: string
   if (Array.isArray(data.requests)) {
     if (data.requests.length === 0) {
       console.log('No requests captured');
+      if (data.hint) {
+        console.log(`  ${data.hint}`);
+      }
     } else {
       for (const req of data.requests as Record<string, unknown>[]) {
         const method = req.method || 'GET';

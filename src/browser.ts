@@ -95,6 +95,9 @@ export class BrowserManager {
   private trackedRequests: TrackedRequest[] = [];
   private isRequestTrackingEnabled: boolean = false;
   private isResponseCaptureEnabled: boolean = false;
+  get trackingEnabled(): boolean {
+    return this.isRequestTrackingEnabled;
+  }
   // Map to track requests for response matching (instance variable for cross-listener access)
   private pendingRequests: Map<string, TrackedRequest> = new Map();
   // Store request listener references for proper cleanup

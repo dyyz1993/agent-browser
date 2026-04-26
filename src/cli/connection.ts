@@ -353,7 +353,7 @@ export async function ensureStreamServer(): Promise<boolean> {
     return true;
   }
 
-  console.log('[CLI] Stream Server failed to start, viewer will be unavailable');
+  console.log('[CLI] Stream Server failed to start. Run `agent-browser viewer` when needed.');
   return false;
 }
 
@@ -581,8 +581,14 @@ export async function listSessions(): Promise<string[]> {
         const pid = parseInt(fs.readFileSync(pidPath, 'utf8').trim(), 10);
         if (isProcessRunning(pid)) {
           sessions.push(sessionName);
+        } else {
+          fs.unlinkSync(pidPath);
         }
-      } catch {}
+      } catch {
+        try {
+          fs.unlinkSync(pidPath);
+        } catch {}
+      }
     }
   }
 

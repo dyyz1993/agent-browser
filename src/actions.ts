@@ -1607,6 +1607,7 @@ async function handleRequests(
   }
 
   // Start tracking if not already (with response capture if requested)
+  const wasTracking = browser.trackingEnabled;
   browser.startRequestTracking(command.captureResponse);
 
   // If output directory is specified, save to directory
@@ -1621,7 +1622,11 @@ async function handleRequests(
   }
 
   const requests = browser.getRequests(command.filter, command.type);
-  return successResponse(command.id, { requests });
+  const result: Record<string, unknown> = { requests };
+  if (requests.length === 0 && !wasTracking) {
+    result.hint = 'Request tracking just activated. Reload or navigate to capture requests.';
+  }
+  return successResponse(command.id, result);
 }
 
 async function handleDownload(
@@ -2258,7 +2263,7 @@ async function handleNth(command: NthCommand, browser: BrowserManager): Promise<
   const refLocator = browser.getLocatorFromRef(command.selector, command.inFrame);
   let locator;
   if (refLocator) {
-    locator = refLocator;
+    locator = command.index === -1 ? refLocator.last() : refLocator.nth(command.index);
   } else {
     const frame = browser.getFrame(command.inFrame);
     const base = frame.locator(command.selector);
