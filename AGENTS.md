@@ -29,3 +29,19 @@ npx opensrc <owner>/<repo>      # GitHub repo (e.g., npx opensrc vercel/ai)
 ```
 
 <!-- opensrc:end -->
+
+## Browser Executable Path
+
+On macOS, always use the system Chromium instead of letting Playwright download one:
+
+```bash
+export AGENT_BROWSER_EXECUTABLE_PATH=/Applications/Chromium.app/Contents/MacOS/Chromium
+```
+
+Or pass the flag directly:
+
+```bash
+agent-browser --executable-path /Applications/Chromium.app/Contents/MacOS/Chromium open <url>
+```
+
+If the environment variable is set, `--executable-path` is not needed. Verify with `agent-browser config`.
