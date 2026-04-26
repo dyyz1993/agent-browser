@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Interaction Test</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: -apple-system, sans-serif;
+        background: #1a1a2e;
+        color: #eee;
+      }
+      #log {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background: rgba(0, 0, 0, 0.85);
+        color: #4ecca3;
+        font-size: 11px;
+        font-family: monospace;
+        padding: 4px 8px;
+        z-index: 100;
+        max-height: 40px;
+        overflow-y: auto;
+        pointer-events: none;
+      }
+      #cursor-pos {
+        position: fixed;
+        bottom: 8px;
+        right: 8px;
+        background: rgba(0, 0, 0, 0.85);
+        color: #e94560;
+        font-size: 11px;
+        font-family: monospace;
+        padding: 4px 8px;
+        border-radius: 4px;
+        z-index: 100;
+        pointer-events: none;
+      }
+      h3 {
+        margin: 8px 0 6px;
+        color: #4ecca3;
+        font-size: 13px;
+      }
+      .section {
+        margin-bottom: 12px;
+        padding: 12px;
+        border: 1px solid #333;
+        border-radius: 8px;
+        background: #16213e;
+      }
+      .btn-row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .btn {
+        padding: 12px 20px;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        cursor: pointer;
+        color: #fff;
+        transition: background 0.15s;
+      }
+      .btn:active {
+        transform: scale(0.95);
+      }
+      .btn-green {
+        background: #4ecca3;
+        color: #1a1a2e;
+      }
+      .btn-green:hover {
+        background: #3db892;
+      }
+      .btn-red {
+        background: #e94560;
+      }
+      .btn-red:hover {
+        background: #d13350;
+      }
+      .btn-blue {
+        background: #0f3460;
+      }
+      .btn-blue:hover {
+        background: #1a4a7a;
+      }
+      #hover-zone {
+        width: 100%;
+        height: 60px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        font-weight: bold;
+        transition: all 0.2s;
+        background: #0f3460;
+        color: #aaa;
+      }
+      #hover-zone:hover {
+        background: #4ecca3;
+        color: #1a1a2e;
+      }
+      #drag-area {
+        width: 100%;
+        height: 200px;
+        position: relative;
+        background: #111;
+        border: 2px dashed #333;
+      }
+      #draggable {
+        width: 60px;
+        height: 60px;
+        border-radius: 8px;
+        background: #e94560;
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        cursor: grab;
+        user-select: none;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        color: #fff;
+      }
+      #drop-target {
+        width: 100%;
+        height: 60px;
+        border-radius: 8px;
+        background: #0f3460;
+        border: 2px dashed #1a4a7a;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        color: #4ecca3;
+        opacity: 0.5;
+        position: absolute;
+        bottom: 0;
+        left: 0;
+      }
+      #scroll-area {
+        width: 100%;
+        height: 200px;
+        overflow-y: auto;
+        background: #0f3460;
+        border: 1px solid #333;
+      }
+      #scroll-content {
+        height: 600px;
+        position: relative;
+      }
+      .scroll-item {
+        height: 40px;
+        padding: 0 10px;
+        border-bottom: 1px solid #333;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+      }
+      .scroll-item:nth-child(even) {
+        background: rgba(78, 204, 126, 0.1);
+      }
+      #text-input {
+        width: 100%;
+        padding: 10px 12px;
+        background: #16213e;
+        color: #eee;
+        border: 1px solid #0f3460;
+        border-radius: 4px;
+        font-size: 16px;
+        outline: none;
+      }
+      #hscroll-area {
+        width: 100%;
+        overflow-x: auto;
+        white-space: nowrap;
+        background: #0f3460;
+        border: 1px solid #333;
+        padding: 8px;
+      }
+      .hscroll-item {
+        display: inline-block;
+        width: 100px;
+        height: 60px;
+        border-radius: 6px;
+        margin-right: 8px;
+        text-align: center;
+        line-height: 60px;
+        font-size: 13px;
+        color: #fff;
+        font-weight: bold;
+      }
+      #global-cursor {
+        position: fixed;
+        width: 12px;
+        height: 12px;
+        background: red;
+        border: 2px solid #fff;
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 9999;
+        display: none;
+        transform: translate(-50%, -50%);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="log">Ready</div>
+    <div id="cursor-pos">x:0, y:0</div>
+    <div id="global-cursor"></div>
+
+    <div
+      id="test-modal"
+      style="
+        position: fixed;
+        top: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 400px;
+        height: 300px;
+        background: #16213e;
+        border: 2px solid #4ecca3;
+        border-radius: 12px;
+        z-index: 500;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+      "
+    >
+      <div style="color: #4ecca3; font-size: 16px; font-weight: bold">Test Modal (400x300)</div>
+      <div style="display: flex; gap: 12px">
+        <button
+          class="btn btn-green"
+          style="padding: 16px 32px; font-size: 16px"
+          onclick="document.getElementById('modal-coord').textContent = 'click: TL'"
+        >
+          TL
+        </button>
+        <button
+          class="btn btn-red"
+          style="padding: 16px 32px; font-size: 16px"
+          onclick="document.getElementById('modal-coord').textContent = 'click: TR'"
+        >
+          TR
+        </button>
+      </div>
+      <div style="display: flex; gap: 12px">
+        <button
+          class="btn btn-blue"
+          style="padding: 16px 32px; font-size: 16px"
+          onclick="document.getElementById('modal-coord').textContent = 'click: BL'"
+        >
+          BL
+        </button>
+        <button
+          class="btn btn-green"
+          style="padding: 16px 32px; font-size: 16px; background: #f5a623; color: #1a1a2e"
+          onclick="document.getElementById('modal-coord').textContent = 'click: BR'"
+        >
+          BR
+        </button>
+      </div>
+      <div
+        id="modal-coord"
+        style="color: #aaa; font-size: 11px; font-family: monospace; margin-top: 8px"
+      >
+        click: --
+      </div>
+    </div>
+    <div
+      id="test-modal-tall"
+      style="
+        position: fixed;
+        top: 80px;
+        left: 70%;
+        transform: translateX(-50%);
+        width: 250px;
+        height: 450px;
+        background: #16213e;
+        border: 2px solid #f5a623;
+        border-radius: 12px;
+        z-index: 500;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+      "
+    >
+      <div style="color: #f5a623; font-size: 16px; font-weight: bold">Tall Modal (250x450)</div>
+      <div style="display: flex; gap: 12px">
+        <button
+          class="btn btn-green"
+          style="padding: 16px 24px; font-size: 14px"
+          onclick="document.getElementById('tall-modal-coord').textContent = 'click: T'"
+        >
+          T
+        </button>
+        <button
+          class="btn btn-red"
+          style="padding: 16px 24px; font-size: 14px"
+          onclick="document.getElementById('tall-modal-coord').textContent = 'click: R'"
+        >
+          R
+        </button>
+      </div>
+      <div style="display: flex; gap: 12px">
+        <button
+          class="btn btn-blue"
+          style="padding: 16px 24px; font-size: 14px"
+          onclick="document.getElementById('tall-modal-coord').textContent = 'click: B'"
+        >
+          B
+        </button>
+        <button
+          class="btn btn-green"
+          style="padding: 16px 24px; font-size: 14px; background: #9b59b6; color: #fff"
+          onclick="document.getElementById('tall-modal-coord').textContent = 'click: BR'"
+        >
+          BR
+        </button>
+      </div>
+      <div
+        id="tall-modal-coord"
+        style="color: #aaa; font-size: 11px; font-family: monospace; margin-top: 8px"
+      >
+        click: --
+      </div>
+    </div>
+
+    <h3>1. Cursor Position</h3>
+    <div id="hover-zone">Hover here</div>
+
+    <h3>2. Click</h3>
+    <div class="btn-row">
+      <button class="btn btn-green">Click A</button>
+      <button class="btn btn-red">Double Click</button>
+      <button class="btn btn-blue">Click + Reset</button>
+    </div>
+
+    <h3>3. Drag</h3>
+    <div id="drag-area">
+      <div id="draggable">Drag me</div>
+      <div id="drop-target">Drop here</div>
+    </div>
+
+    <h3>4. Scroll</h3>
+    <div id="scroll-area">
+      <div id="scroll-content">
+        <div class="scroll-item">Item 1</div>
+        <div class="scroll-item">Item 2</div>
+        <div class="scroll-item">Item 3</div>
+        <div class="scroll-item">Item 4</div>
+        <div class="scroll-item">Item 5</div>
+        <div class="scroll-item">Item 6</div>
+        <div class="scroll-item">Item 7</div>
+        <div class="scroll-item">Item 8</div>
+        <div class="scroll-item">Item 9</div>
+        <div class="scroll-item">Item 10</div>
+        <div class="scroll-item">Item 11</div>
+        <div class="scroll-item">Item 12</div>
+      </div>
+    </div>
+
+    <h3>5. Horizontal Scroll</h3>
+    <div id="hscroll-area">
+      <div class="hscroll-item" style="background: #e94560">Box 1</div>
+      <div class="hscroll-item" style="background: #4ecca3">Box 2</div>
+      <div class="hscroll-item" style="background: #0f3460">Box 3</div>
+      <div class="hscroll-item" style="background: #f5a623">Box 4</div>
+      <div class="hscroll-item" style="background: #9b59b6">Box 5</div>
+      <div class="hscroll-item" style="background: #1abc9c">Box 6</div>
+      <div class="hscroll-item" style="background: #e67e22">Box 7</div>
+      <div class="hscroll-item" style="background: #3498db">Box 8</div>
+      <div class="hscroll-item" style="background: #e94560">Box 9</div>
+      <div class="hscroll-item" style="background: #2ecc71">Box 10</div>
+      <div class="hscroll-item" style="background: #f39c12">Box 11</div>
+      <div class="hscroll-item" style="background: #8e44ad">Box 12</div>
+      <div class="hscroll-item" style="background: #16a085">Box 13</div>
+      <div class="hscroll-item" style="background: #d35400">Box 14</div>
+      <div class="hscroll-item" style="background: #2980b9">Box 15</div>
+      <div class="hscroll-item" style="background: #c0392b">Box 16</div>
+      <div class="hscroll-item" style="background: #27ae60">Box 17</div>
+      <div class="hscroll-item" style="background: #f1c40f">Box 18</div>
+      <div class="hscroll-item" style="background: #7f8c8d">Box 19</div>
+      <div class="hscroll-item" style="background: #e74c3c">Box 20</div>
+    </div>
+
+    <h3>6. Input</h3>
+    <input id="text-input" type="text" placeholder="Type here and press Enter..." />
+
+    <script>
+      var clickCount = 0;
+      var isDragging = false;
+      var dragOffsetX = 0,
+        dragOffsetY = 0;
+      var dragStartX = 0;
+      var dragStartY = 0;
+
+      var lastEvent = '';
+      var scrollY = 0;
+
+      document.addEventListener('mousemove', function (e) {
+        document.getElementById('cursor-pos').textContent =
+          'x:' + Math.round(e.clientX) + ' y:' + Math.round(e.clientY);
+        var cursor = document.getElementById('global-cursor');
+        cursor.style.display = 'block';
+        cursor.style.left = e.clientX + 'px';
+        cursor.style.top = e.clientY + 'px';
+        if (isDragging) {
+          var dragArea = document.getElementById('drag-area');
+          var areaRect = dragArea.getBoundingClientRect();
+          var newLeft = e.clientX - areaRect.left - dragOffsetX;
+          var newTop = e.clientY - areaRect.top - dragOffsetY;
+          newLeft = Math.max(0, Math.min(newLeft, areaRect.width - 60));
+          newTop = Math.max(0, Math.min(newTop, areaRect.height - 60));
+          document.getElementById('draggable').style.left = newLeft + 'px';
+          document.getElementById('draggable').style.top = newTop + 'px';
+        }
+      });
+
+      document.getElementById('draggable').addEventListener('mousedown', function (e) {
+        e.preventDefault();
+        isDragging = true;
+        var dragArea = document.getElementById('drag-area');
+        var areaRect = dragArea.getBoundingClientRect();
+        var rect = e.target.getBoundingClientRect();
+        dragOffsetX = e.clientX - areaRect.left - (rect.left - areaRect.left);
+        dragOffsetY = e.clientY - areaRect.top - (rect.top - areaRect.top);
+        logEvent('drag', 'drag start at ' + Math.round(rect.left) + ',' + Math.round(rect.top));
+      });
+
+      document.addEventListener('mouseup', function () {
+        if (!isDragging) return;
+        isDragging = false;
+        var draggable = document.getElementById('draggable');
+        var dropTarget = document.getElementById('drop-target');
+        var dRect = dropTarget.getBoundingClientRect();
+        var dStyle = draggable.getBoundingClientRect();
+        var cx = dStyle.left + dStyle.width / 2;
+        var cy = dStyle.top + dStyle.height / 2;
+        if (cx > dRect.left && cx < dRect.right && cy > dRect.top && cy < dRect.bottom) {
+          dropTarget.style.background = '#4ecca3';
+          dropTarget.style.opacity = '1';
+          logEvent('drop', 'Dropped!');
+        } else {
+          dropTarget.style.background = '#0f3460';
+          dropTarget.style.opacity = '0.5';
+        }
+        logEvent('drag', 'released at ' + Math.round(dStyle.left) + ',' + Math.round(dStyle.top));
+      });
+
+      document.querySelectorAll('.btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          clickCount++;
+          btn.textContent = 'Clicked ' + clickCount + '!';
+          logEvent('click', btn.textContent);
+        });
+      });
+
+      var hoverZone = document.getElementById('hover-zone');
+      hoverZone.addEventListener('mouseenter', function () {
+        hoverZone.textContent = 'Mouse In!';
+        hoverZone.style.background = '#4ecca3';
+        hoverZone.style.color = '#1a1a2e';
+        logEvent('hover', 'enter');
+      });
+      hoverZone.addEventListener('mouseleave', function () {
+        hoverZone.textContent = 'Hover here';
+        hoverZone.style.background = '#0f3460';
+        hoverZone.style.color = '#aaa';
+        logEvent('hover', 'leave');
+      });
+
+      document.getElementById('scroll-area').addEventListener('scroll', function (e) {
+        scrollY = e.target.scrollTop;
+        logEvent('scroll', 'scrollTop=' + Math.round(scrollY));
+      });
+
+      document.getElementById('hscroll-area').addEventListener('scroll', function (e) {
+        logEvent('scrollleft', 'scrollLeft=' + Math.round(e.target.scrollLeft));
+      });
+
+      document.getElementById('text-input').addEventListener('input', function (e) {
+        logEvent('input', e.target.value);
+      });
+
+      function logEvent(type, detail) {
+        var log = document.getElementById('log');
+        var time = new Date().toLocaleTimeString().split(' ')[1];
+        var line = time + ' [' + type.toUpperCase() + '] ' + detail;
+        log.textContent = line + '\n' + log.textContent;
+        if (log.textContent.split('\n').length > 6) {
+          log.textContent = log.textContent.split('\n').slice(-6).join('\n');
+        }
+      }
+    </script>
+  </body>
+</html>

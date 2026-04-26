@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Touch Test</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 20px;
+        font-family: sans-serif;
+      }
+      #touch-area {
+        width: 300px;
+        height: 300px;
+        background: #e0e0e0;
+        border: 2px solid #999;
+        position: relative;
+        touch-action: none;
+      }
+      #drag-box {
+        width: 60px;
+        height: 60px;
+        background: #4ecca3;
+        position: absolute;
+        top: 120px;
+        left: 120px;
+        cursor: grab;
+      }
+      #scroll-area {
+        width: 300px;
+        height: 200px;
+        overflow-y: auto;
+        background: #f0f0f0;
+        border: 2px solid #999;
+        margin-top: 20px;
+        touch-action: none;
+      }
+      #scroll-content {
+        height: 1000px;
+        background: linear-gradient(white, black);
+      }
+      #click-log {
+        margin-top: 10px;
+        font-size: 14px;
+        min-height: 20px;
+        font-family: monospace;
+      }
+      #btn-click {
+        width: 200px;
+        height: 60px;
+        margin-top: 10px;
+        background: #0f3460;
+        color: white;
+        border: none;
+        font-size: 16px;
+        touch-action: manipulation;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="touch-area">
+      <div id="drag-box" draggable="false"></div>
+    </div>
+    <div id="scroll-area">
+      <div id="scroll-content"></div>
+    </div>
+    <button id="btn-click">Click Me</button>
+    <div id="click-log">clicks=0</div>
+    <script>
+      var clickCount = 0;
+      var lastClickX = 0;
+      var lastClickY = 0;
+      window.dragMoves = 0;
+      document.getElementById('btn-click').addEventListener('click', function (e) {
+        clickCount++;
+        lastClickX = e.clientX;
+        lastClickY = e.clientY;
+        document.getElementById('click-log').textContent =
+          'clicks=' + clickCount + ' x=' + Math.round(lastClickX) + ' y=' + Math.round(lastClickY);
+      });
+      document.addEventListener('mousemove', function () {
+        window.dragMoves = (window.dragMoves || 0) + 1;
+      });
+    </script>
+  </body>
+</html>
