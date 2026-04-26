@@ -510,6 +510,7 @@ Output Format:
 Examples:
   agent-browser recorder start
   agent-browser recorder start https://example.com
+  agent-browser recorder start --hide                # No overlay panel
   agent-browser recorder stop
   agent-browser recorder stop --output session.yaml
   agent-browser recorder status
@@ -906,7 +907,7 @@ Debug:
   trace start|stop [path]    Record trace
   record start <path> [url]  Start video recording (WebM)
   record stop                Stop and save video
-  recorder start [url]       Start step recording
+  recorder start [url] [--hide] Start step recording
   recorder stop [--output]   Stop and output YAML
   recorder status            Show recording status
   recorder replay [file]     Replay recorded commands

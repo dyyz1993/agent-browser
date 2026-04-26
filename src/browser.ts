@@ -3269,6 +3269,24 @@ export class BrowserManager {
         }
         return null;
 
+      case 'check':
+        if (step.selector) {
+          return `agent-browser check "${escapeShell(step.selector)}"`;
+        }
+        if (step.xpath) {
+          return `agent-browser check "xpath=${escapeShell(step.xpath)}"`;
+        }
+        return null;
+
+      case 'uncheck':
+        if (step.selector) {
+          return `agent-browser uncheck "${escapeShell(step.selector)}"`;
+        }
+        if (step.xpath) {
+          return `agent-browser uncheck "xpath=${escapeShell(step.xpath)}"`;
+        }
+        return null;
+
       case 'fill':
         if (step.value !== undefined) {
           if (step.selector) {

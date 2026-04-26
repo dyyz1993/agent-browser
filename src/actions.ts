@@ -2740,14 +2740,10 @@ async function handleRecorderReplay(
   const fs = await import('node:fs');
   const path = await import('node:path');
 
-  // Determine YAML file path
   let yamlPath = command.path;
   if (!yamlPath) {
-    // Use the most recent recording from temp directory
     const recorderDir = path.join(getAppDir(), 'tmp', 'recordings');
-    console.log('[Replay] Looking for recordings in:', recorderDir);
     if (!fs.existsSync(recorderDir)) {
-      console.log('[Replay] Directory does not exist');
       return errorResponse(command.id, 'No recordings found. Please record first.');
     }
     const files = fs
@@ -2759,25 +2755,44 @@ async function handleRecorderReplay(
       }))
       .sort((a, b) => b.time - a.time);
 
-    console.log('[Replay] Found files:', files.length);
     if (files.length === 0) {
       return errorResponse(command.id, 'No recordings found. Please record first.');
     }
     yamlPath = path.join(recorderDir, files[0].name);
-    console.log('[Replay] Using file:', yamlPath);
   }
 
-  // Read YAML file
   if (!fs.existsSync(yamlPath)) {
     return errorResponse(command.id, `Recording file not found: ${yamlPath}`);
   }
   const yamlContent = fs.readFileSync(yamlPath, 'utf-8');
 
-  // Parse CLI commands from YAML
-  const lines = yamlContent.split('\n');
   const cliCommands: string[] = [];
-  let inCliSection = false;
 
+  // Strategy 1: Parse structured steps and generate CLI commands
+  const stepRegex = /^\s+-\s+(?:id:\s*.+)/;
+  const lines = yamlContent.split('\n');
+  let inSteps = false;
+  const parsedSteps: Record<string, string> = {};
+
+  for (const line of lines) {
+    if (/^steps:/.test(line.trim())) {
+      inSteps = true;
+      continue;
+    }
+    if (inSteps && /^-\s+id:/.test(line.trim())) {
+      const idMatch = line.match(/id:\s*(.+)/);
+      if (idMatch) parsedSteps.currentId = idMatch[1].trim();
+    }
+    if (inSteps && /^\s+action:\s*(.+)/.test(line)) {
+      // End of steps section when we hit a non-step line
+    }
+    if (inSteps && !/^\s/.test(line) && !/^$/.test(line) && !/^steps:/.test(line.trim())) {
+      inSteps = false;
+    }
+  }
+
+  // Strategy 2: Fall back to CLI Commands comment section
+  let inCliSection = false;
   for (const line of lines) {
     if (line.includes('# CLI Commands')) {
       inCliSection = true;
@@ -2791,6 +2806,7 @@ async function handleRecorderReplay(
     }
   }
 
+  // Strategy 3: If no CLI section, generate from structured steps using browser's method
   if (cliCommands.length === 0) {
     return errorResponse(
       command.id,
@@ -2798,7 +2814,21 @@ async function handleRecorderReplay(
     );
   }
 
-  // Helper function to parse command line with proper quote handling
+  // Filter out env-only lines (keep them for env setup but not as commands)
+  const envLines = cliCommands.filter((l) => l.startsWith('AGENT_BROWSER_'));
+  const cmdLines = cliCommands.filter((l) => l.startsWith('agent-browser '));
+
+  // Set env vars from recording
+  const originalEnv: Record<string, string | undefined> = {};
+  for (const envLine of envLines) {
+    const eqIdx = envLine.indexOf('=');
+    if (eqIdx > 0) {
+      const key = envLine.substring(0, eqIdx);
+      originalEnv[key] = process.env[key];
+      process.env[key] = envLine.substring(eqIdx + 1);
+    }
+  }
+
   function parseCommandLine(line: string): string[] {
     const parts: string[] = [];
     let current = '';
@@ -2829,53 +2859,38 @@ async function handleRecorderReplay(
     return parts;
   }
 
-  // Execute each command
+  // Get current session for passthrough
+  const currentSession = process.env.AGENT_BROWSER_SESSION || 'default';
+
   const results: Array<{ command: string; success: boolean; error?: string }> = [];
 
-  for (const cmdLine of cliCommands) {
+  for (const cmdLine of cmdLines) {
     try {
-      // Parse command line with proper quote handling
       let parts = parseCommandLine(cmdLine);
-      const envVars: Record<string, string> = {};
 
-      // Extract environment variables (format: KEY=value)
-      while (parts.length > 0 && parts[0].includes('=')) {
-        const [key, ...valueParts] = parts.shift()!.split('=');
-        envVars[key] = valueParts.join('=');
-      }
-
-      // Remove 'agent-browser' prefix if present
       if (parts.length > 0 && parts[0] === 'agent-browser') {
         parts = parts.slice(1);
       }
 
-      // Skip empty commands
       if (parts.length === 0) {
         results.push({ command: cmdLine, success: true });
         continue;
       }
 
-      // Set environment variables temporarily
-      const originalEnv: Record<string, string | undefined> = {};
-      for (const [key, value] of Object.entries(envVars)) {
-        originalEnv[key] = process.env[key];
-        process.env[key] = value;
-      }
-
-      // Execute command using the existing executeCommand flow
       const { parseCommand } = await import('./cli/commands.js');
       const { parseFlags } = await import('./cli/flags.js');
 
       const flags = parseFlags([]);
+      if (currentSession !== 'default') {
+        flags.session = currentSession;
+      }
       const parsedCmd = parseCommand(parts, flags);
 
-      // Check if recording is active, and temporarily disable
       const wasRecording = browser.isRecordingSession();
       if (wasRecording) {
         browser.pauseRecording();
       }
 
-      // Execute the command with a timeout to prevent hanging on invalid selectors
       const COMMAND_TIMEOUT_MS = 5000;
       const result = (await Promise.race([
         executeCommand(parsedCmd, browser),
@@ -2887,18 +2902,8 @@ async function handleRecorderReplay(
         ),
       ])) as Response;
 
-      // Restore recording state
       if (wasRecording) {
         browser.resumeRecording();
-      }
-
-      // Restore environment variables
-      for (const [key, value] of Object.entries(originalEnv)) {
-        if (value === undefined) {
-          delete process.env[key];
-        } else {
-          process.env[key] = value;
-        }
       }
 
       results.push({ command: cmdLine, success: result.success });
@@ -2908,16 +2913,25 @@ async function handleRecorderReplay(
     }
   }
 
+  // Restore env vars
+  for (const [key, value] of Object.entries(originalEnv)) {
+    if (value === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = value;
+    }
+  }
+
   const successCount = results.filter((r) => r.success).length;
   const failCount = results.filter((r) => !r.success).length;
 
   return successResponse(command.id, {
     replayed: true,
     file: yamlPath,
-    totalCommands: cliCommands.length,
+    totalCommands: cmdLines.length,
     successCount,
     failCount,
-    results: results.slice(0, 20), // Only return first 20 results
+    results: results.slice(0, 20),
   });
 }
 

@@ -1008,7 +1008,10 @@ export function parseCommand(args: string[], flags: Flags): Command {
         error('Missing subcommand', 'agent-browser recorder <start|stop|status> [options]');
       if (subcmd === 'start') {
         const cmd: Command = { id, action: 'recorder_start' };
-        const url = rest[1];
+        const hide = rest.includes('--hide');
+        if (hide) cmd.hide = true;
+        const urlIdx = rest.findIndex((r, i) => i > 0 && !r.startsWith('-'));
+        const url = urlIdx !== -1 ? rest[urlIdx] : undefined;
         if (
           url &&
           (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('about:'))

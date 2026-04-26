@@ -925,6 +925,23 @@
       return;
     }
 
+    const tag = element.tagName;
+    const inputType = (element.type || '').toLowerCase();
+
+    if (tag === 'INPUT' && (inputType === 'checkbox' || inputType === 'radio')) {
+      const isChecked = element.checked;
+      const action = inputType === 'radio' ? 'check' : (isChecked ? 'check' : 'uncheck');
+      recordStep(action, {
+        selector: getSelector(element),
+        xpath: getXPath(element),
+        elementInfo: getElementInfo(element)
+      });
+      if (!HIDE_UI && !isInIframe && typeof addMarker === 'function') {
+        addMarker(element, action);
+      }
+      return;
+    }
+
     recordStep('click', {
       selector: getSelector(element),
       xpath: getXPath(element),
@@ -1023,7 +1040,7 @@
 
   document.addEventListener('keydown', (e) => {
     const element = document.activeElement;
-    console.log('[Recorder] keydown event:', e.key, 'target:', e.target, 'activeElement:', element?.tagName);
+
     if (isInPanel(element)) return;
 
     const specialKeys = ['Enter', 'Tab', 'Escape', 'Backspace', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
@@ -1033,7 +1050,7 @@
         return;
       }
 
-      console.log('[Recorder] Recording keyboard step:', e.key);
+
       recordStep('keyboard', {
         key: e.key,
         code: e.code,
@@ -1123,18 +1140,18 @@
 
       window.xyzInited = false;
       window.xyzQueue = [];
-      console.log('[Panel] closed');
+
     };
 
     // 检查录制会话是否已停止
     if (window.xyzStopped) {
-      console.log('[Panel] Session was stopped, skipping panel creation');
+
       return;
     }
 
     // 检查录制会话是否激活
     if (!window.xyzActive) {
-      console.log('[Panel] Session not active, skipping panel creation');
+
       return;
     }
 
@@ -1196,6 +1213,8 @@
         .xyzStp.fill { border-left-color: #2196F3; }
         .xyzStp.select { border-left-color: #FF9800; }
         .xyzStp.link_click { border-left-color: #9C27B0; }
+        .xyzStp.check { border-left-color: #4CAF50; }
+        .xyzStp.uncheck { border-left-color: #FF5722; }
         .xyzStp.navigate { border-left-color: #607D8B; }
         .xyzStp.annotate { border-left-color: #E91E63; }
         .xyzStp .action { font-weight: 500; color: #333; }
@@ -1761,11 +1780,11 @@
     // 延迟创建面板
     setTimeout(() => {
       if (window.xyzStopped) {
-        console.log('[Panel] Session was stopped during init, skipping panel creation');
+
         return;
       }
       if (!window.xyzActive) {
-        console.log('[Panel] Session not active during init, skipping panel creation');
+
         return;
       }
       createRecorderOverlay();
@@ -1786,7 +1805,7 @@
       panelObserver = new MutationObserver((mutations) => {
         // 检查录制会话是否已停止
         if (window.xyzStopped) {
-          console.log('[Panel] Session was stopped, removing observer');
+
           if (typeof window.xyzClose === 'function') {
             window.xyzClose();
           }
@@ -1799,7 +1818,7 @@
 
         // 检查录制会话是否激活
         if (!window.xyzActive) {
-          console.log('[Panel] Session not active, skipping panel check');
+
           return;
         }
 
@@ -1807,7 +1826,7 @@
         const panel = document.getElementById('xyzPnl');
         const style = document.getElementById('xyzSt');
         if (document.body && (!panel || !style)) {
-          console.log('[Panel] Panel or style missing, recreating...');
+
           createRecorderOverlay();
         }
       });
@@ -1818,21 +1837,8 @@
         subtree: false
       });
 
-      console.log('[Panel] MutationObserver started, watching for panel removal');
-    }
 
-    // 延迟创建面板（保持与原逻辑兼容）
-    setTimeout(() => {
-      if (window.xyzStopped) {
-        console.log('[Panel] Session was stopped during init, skipping panel creation');
-        return;
-      }
-      if (!window.xyzActive) {
-        console.log('[Panel] Session not active during init, skipping panel creation');
-        return;
-      }
-      createRecorderOverlay();
-    }, 0);
+    }
 
     // 启动 MutationObserver
     startPanelObserver();
