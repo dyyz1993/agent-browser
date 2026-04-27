@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 import { spawn, exec } from 'child_process';
+import { checkSocketReady } from '../daemon.js';
 
 export interface Command {
   id: string;
@@ -185,35 +186,7 @@ function isDaemonProcessRunning(session: string): boolean {
 }
 
 function isDaemonReady(session: string): Promise<boolean> {
-  return new Promise((resolve) => {
-    const connectionInfo = getConnectionInfo(session);
-    let socket: net.Socket;
-
-    if (connectionInfo.type === 'unix' && connectionInfo.path) {
-      socket = net.createConnection({ path: connectionInfo.path });
-    } else if (connectionInfo.type === 'tcp' && connectionInfo.port) {
-      socket = net.createConnection({ port: connectionInfo.port, host: '127.0.0.1' });
-    } else {
-      resolve(false);
-      return;
-    }
-
-    const timeout = setTimeout(() => {
-      socket.destroy();
-      resolve(false);
-    }, 100);
-
-    socket.on('connect', () => {
-      clearTimeout(timeout);
-      socket.destroy();
-      resolve(true);
-    });
-
-    socket.on('error', () => {
-      clearTimeout(timeout);
-      resolve(false);
-    });
-  });
+  return checkSocketReady(getConnectionInfo(session));
 }
 
 function getStreamPortPath(session: string): string {

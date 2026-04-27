@@ -132,7 +132,7 @@ The daemon module manages a persistent browser process with socket-based communi
 | `getSession` | `getSession(): string` | 获取当前会话 / Get the current session |
 | `getSocketDir` | `getSocketDir(): string` | 获取 socket 目录路径 / Get socket directory path |
 | `getSocketPath` | `getSocketPath(session?: string): string` | 获取 Unix socket 或 TCP 端口 / Get Unix socket or TCP port |
-| `isDaemonRunning` | `isDaemonRunning(session?: string): boolean` | 检查守护进程是否活动 / Check if daemon is active |
+| `isDaemonRunning` | `isDaemonRunning(session?: string): Promise<boolean>` | 检查守护进程是否活动 / Check if daemon is active |
 | `getConnectionInfo` | `getConnectionInfo(session?: string)` | 获取连接详情 / Get connection details |
 | `cleanupSocket` | `cleanupSocket(session?: string): void` | 清理 socket 文件 / Clean up socket files |
 

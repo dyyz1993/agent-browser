@@ -135,28 +135,18 @@ export function getSocketPath(session?: string): string {
   return path.join(getSocketDir(), `${sess}.sock`);
 }
 
-/**
- * Get the port file path for Windows (stores the port number)
- */
-export function getPortFile(session?: string): string {
-  const sess = session ?? currentSession;
-  return path.join(getSocketDir(), `${sess}.port`);
+export type ConnectionInfo = { type: 'unix'; path: string } | { type: 'tcp'; port: number };
+
+export interface ConnectionInfoLoose {
+  type: 'unix' | 'tcp';
+  path?: string;
+  port?: number;
 }
 
 /**
- * Get the PID file path for the current session
+ * Check if a socket is ready to accept connections (async, non-blocking)
  */
-export function getPidFile(session?: string): string {
-  const sess = session ?? currentSession;
-  return path.join(getSocketDir(), `${sess}.pid`);
-}
-
-/**
- * Check if daemon socket is ready to accept connections
- */
-async function isDaemonReady(session?: string): Promise<boolean> {
-  const connectionInfo = getConnectionInfo(session);
-
+export function checkSocketReady(connectionInfo: ConnectionInfoLoose): Promise<boolean> {
   return new Promise((resolve) => {
     let socket: net.Socket;
     try {
@@ -190,6 +180,29 @@ async function isDaemonReady(session?: string): Promise<boolean> {
       resolve(false);
     });
   });
+}
+
+/**
+ * Returns { type: 'unix', path: string } or { type: 'tcp', port: number }
+ */
+export function getPortFile(session?: string): string {
+  const sess = session ?? currentSession;
+  return path.join(getSocketDir(), `${sess}.port`);
+}
+
+/**
+ * Get the PID file path for the current session
+ */
+export function getPidFile(session?: string): string {
+  const sess = session ?? currentSession;
+  return path.join(getSocketDir(), `${sess}.pid`);
+}
+
+/**
+ * Check if daemon socket is ready to accept connections
+ */
+async function isDaemonReady(session?: string): Promise<boolean> {
+  return checkSocketReady(getConnectionInfo(session));
 }
 
 /**
