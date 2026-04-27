@@ -154,59 +154,62 @@ export function getPidFile(session?: string): string {
 /**
  * Check if daemon socket is ready to accept connections
  */
-function isDaemonReady(session?: string): boolean {
+async function isDaemonReady(session?: string): Promise<boolean> {
   const connectionInfo = getConnectionInfo(session);
 
-  try {
-    const socket =
-      connectionInfo.type === 'unix'
-        ? net.createConnection({ path: connectionInfo.path })
-        : net.createConnection({ port: connectionInfo.port, host: '127.0.0.1' });
+  return new Promise((resolve) => {
+    let socket: net.Socket;
+    try {
+      if (connectionInfo.type === 'unix' && connectionInfo.path) {
+        socket = net.createConnection({ path: connectionInfo.path });
+      } else if (connectionInfo.type === 'tcp' && connectionInfo.port) {
+        socket = net.createConnection({ port: connectionInfo.port, host: '127.0.0.1' });
+      } else {
+        resolve(false);
+        return;
+      }
+    } catch {
+      resolve(false);
+      return;
+    }
 
-    let connected = false;
+    const timeout = setTimeout(() => {
+      socket.destroy();
+      resolve(false);
+    }, 100);
 
     socket.on('connect', () => {
-      connected = true;
+      clearTimeout(timeout);
       socket.destroy();
+      resolve(true);
     });
 
     socket.on('error', () => {
+      clearTimeout(timeout);
       socket.destroy();
+      resolve(false);
     });
-
-    // Synchronous check with timeout
-    const start = Date.now();
-    while (!connected && Date.now() - start < 100) {
-      // Wait for connection
-    }
-
-    return connected;
-  } catch {
-    return false;
-  }
+  });
 }
 
 /**
  * Check if daemon is running for the current session
  */
-export function isDaemonRunning(session?: string): boolean {
+export async function isDaemonRunning(session?: string): Promise<boolean> {
   const pidFile = getPidFile(session);
   if (!fs.existsSync(pidFile)) return false;
 
   try {
     const pid = parseInt(fs.readFileSync(pidFile, 'utf8').trim(), 10);
-    // Check if process exists (works on both Unix and Windows)
     process.kill(pid, 0);
 
-    // Also check if socket is actually ready
-    if (!isDaemonReady(session)) {
+    if (!(await isDaemonReady(session))) {
       cleanupSocket(session);
       return false;
     }
 
     return true;
   } catch {
-    // Process doesn't exist, clean up stale files
     cleanupSocket(session);
     return false;
   }
