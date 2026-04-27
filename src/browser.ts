@@ -947,22 +947,14 @@ export class BrowserManager {
    * by verifying we can access browser contexts and that at least one has pages
    */
   private isCdpConnectionAlive(): boolean {
-    console.log('[DEBUG isCdpConnectionAlive] browser exists:', !!this.browser);
     if (!this.browser) return false;
     try {
       const contexts = this.browser.contexts();
-      console.log('[DEBUG isCdpConnectionAlive] contexts count:', contexts.length);
       if (contexts.length === 0) {
-        console.log('[DEBUG isCdpConnectionAlive] returning false: no contexts');
         return false;
       }
-      const pagesPerContext = contexts.map((context) => context.pages().length);
-      console.log('[DEBUG isCdpConnectionAlive] pages per context:', pagesPerContext);
-      const hasPages = contexts.some((context) => context.pages().length > 0);
-      console.log('[DEBUG isCdpConnectionAlive] hasPages:', hasPages);
-      return hasPages;
-    } catch (e) {
-      console.log('[DEBUG isCdpConnectionAlive] exception:', e);
+      return contexts.some((context) => context.pages().length > 0);
+    } catch (_e) {
       return false;
     }
   }
@@ -971,33 +963,15 @@ export class BrowserManager {
    * Check if CDP connection needs to be re-established
    */
   private needsCdpReconnect(cdpEndpoint: string): boolean {
-    const isConnected = this.browser?.isConnected();
-    const endpointMatch = this.cdpEndpoint === cdpEndpoint;
-    const isAlive = this.isCdpConnectionAlive();
-    console.log('[DEBUG needsCdpReconnect] isConnected:', isConnected);
-    console.log(
-      '[DEBUG needsCdpReconnect] endpointMatch:',
-      endpointMatch,
-      '(this:',
-      this.cdpEndpoint,
-      'vs param:',
-      cdpEndpoint,
-      ')'
-    );
-    console.log('[DEBUG needsCdpReconnect] isCdpConnectionAlive:', isAlive);
-    if (!isConnected) {
-      console.log('[DEBUG needsCdpReconnect] returning true: not connected');
+    if (!this.browser?.isConnected()) {
       return true;
     }
-    if (!endpointMatch) {
-      console.log('[DEBUG needsCdpReconnect] returning true: endpoint mismatch');
+    if (this.cdpEndpoint !== cdpEndpoint) {
       return true;
     }
-    if (!isAlive) {
-      console.log('[DEBUG needsCdpReconnect] returning true: not alive');
+    if (!this.isCdpConnectionAlive()) {
       return true;
     }
-    console.log('[DEBUG needsCdpReconnect] returning false: all checks passed');
     return false;
   }
 
@@ -1542,9 +1516,6 @@ export class BrowserManager {
     this.contexts.push(context);
     this.setupContextTracking(context);
 
-    // Set up context tracking to catch window.open() popups
-    this.setupContextTracking(context);
-
     const page = context.pages()[0] ?? (await context.newPage());
     // Only add if not already tracked (setupContextTracking may have already added it via 'page' event)
     if (!this.pages.includes(page)) {
@@ -1745,9 +1716,6 @@ export class BrowserManager {
     }
     this.activePageIndex = this.pages.length - 1;
 
-    // Set up tracking for the new page
-    this.setupPageTracking(page);
-
     // Trigger tab created event callback
     const callbacks = getEventCallbacks();
     if (callbacks.onTabCreated) {
@@ -1787,9 +1755,6 @@ export class BrowserManager {
       this.setupPageTracking(page);
     }
     this.activePageIndex = this.pages.length - 1;
-
-    // Set up tracking for the new page
-    this.setupPageTracking(page);
 
     // Trigger tab created event callback
     const callbacks = getEventCallbacks();
