@@ -23,6 +23,13 @@ import {
 import { spawn } from 'child_process';
 import { getHumanConfigFromEnv } from './human-mouse.js';
 import path from 'node:path';
+import {
+  formatTips,
+  CONFIG_KEY_MAP,
+  setConfigValue,
+  getConfigValue,
+  loadConfig,
+} from './rc-config.js';
 
 /**
  * Resolve relative paths in command to absolute paths based on current working directory
@@ -260,6 +267,32 @@ async function main(): Promise<void> {
   }
 
   if (args[0] === 'config') {
+    const sub = args[1];
+    if (sub === 'set') {
+      const key = args[2];
+      const value = args.slice(3).join(' ');
+      if (!key || !value) {
+        printError('Usage: agent-browser config set <key> <value>', flags.json);
+        process.exit(1);
+        return;
+      }
+      runConfigSet(key, value, flags);
+      return;
+    }
+    if (sub === 'get') {
+      const key = args[2];
+      if (!key) {
+        printError('Usage: agent-browser config get <key>', flags.json);
+        process.exit(1);
+        return;
+      }
+      runConfigGet(key, flags);
+      return;
+    }
+    if (sub === 'list') {
+      runConfigList(flags);
+      return;
+    }
     runConfig(flags);
     return;
   }
@@ -462,6 +495,16 @@ async function main(): Promise<void> {
     const resp = await sendCommand(cmd, flags.session);
     const action = cmd.action as string | undefined;
     printResponse(resp, flags.json, action);
+
+    if (action === 'viewer' || action === 'ask') {
+      const tips = formatTips(action);
+      if (tips.length > 0) {
+        for (const tip of tips) {
+          console.error(tip);
+        }
+      }
+    }
+
     if (!resp.success) {
       process.exit(1);
     }
@@ -475,3 +518,89 @@ main().catch((e) => {
   printError(e instanceof Error ? e.message : String(e), false);
   process.exit(1);
 });
+
+function runConfigSet(key: string, value: string, flags: Flags): void {
+  if (!CONFIG_KEY_MAP[key]) {
+    printError(
+      `Unknown config key: "${key}"\nRun "agent-browser config list" to see available keys.`,
+      flags.json
+    );
+    process.exit(1);
+    return;
+  }
+
+  const ok = setConfigValue(key, value);
+  if (!ok) {
+    printError(`Invalid value for "${key}": ${value}`, flags.json);
+    process.exit(1);
+    return;
+  }
+
+  if (flags.json) {
+    console.log(JSON.stringify({ success: true, key, value }));
+  } else {
+    console.log(`${successIndicator()} Set ${key} = ${value}`);
+    console.log(`  Saved to ~/.agent-browser/config.json`);
+  }
+}
+
+function runConfigGet(key: string, flags: Flags): void {
+  if (!CONFIG_KEY_MAP[key]) {
+    printError(
+      `Unknown config key: "${key}"\nRun "agent-browser config list" to see available keys.`,
+      flags.json
+    );
+    process.exit(1);
+    return;
+  }
+
+  const value = getConfigValue(key);
+  if (flags.json) {
+    console.log(JSON.stringify({ success: true, key, value: value ?? null }));
+  } else {
+    if (value !== undefined) {
+      console.log(`${key} = ${value}`);
+    } else {
+      console.log(`${key} = (not set)`);
+    }
+  }
+}
+
+function runConfigList(flags: Flags): void {
+  if (flags.json) {
+    const entries = Object.entries(CONFIG_KEY_MAP).map(([key, meta]) => ({
+      key,
+      value: getConfigValue(key) ?? null,
+      description: meta.description,
+    }));
+    console.log(JSON.stringify({ success: true, keys: entries }, null, 2));
+    return;
+  }
+
+  console.log('Configurable Keys:');
+  console.log('==================');
+  console.log('');
+  const config = loadConfig();
+  for (const [key, meta] of Object.entries(CONFIG_KEY_MAP)) {
+    let current: unknown = config;
+    for (const segment of meta.path) {
+      if (current && typeof current === 'object') {
+        current = (current as Record<string, unknown>)[segment];
+      } else {
+        current = undefined;
+        break;
+      }
+    }
+    const valueStr = current !== undefined ? String(current) : '(not set)';
+    console.log(`  ${key}`);
+    console.log(`    ${meta.description}`);
+    console.log(`    Current: ${valueStr}`);
+    console.log('');
+  }
+  console.log('Usage:');
+  console.log('  agent-browser config set <key> <value>');
+  console.log('  agent-browser config get <key>');
+  console.log('');
+  console.log('Config file: ~/.agent-browser/config.json');
+  console.log('Environment variables take priority over config file.');
+}

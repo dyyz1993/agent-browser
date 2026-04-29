@@ -6,6 +6,17 @@ import { getAppDir, getSession, getInstanceId } from './daemon.js';
 import { getEnhancedSnapshot } from './snapshot.js';
 import { performDiff } from './diff.js';
 import { MessageBridge } from './message-bridge.js';
+import {
+  getViewerUrl,
+  getViewerWsUrl,
+  getViewerPort,
+  getMessageBridgeUrl,
+  getExecutablePath,
+  getEffectiveValue,
+  formatTips,
+  type RcConfig,
+  loadConfig,
+} from './rc-config.js';
 import { detectMainContent, generateContentTips } from './content-detection.js';
 import {
   humanClick,
@@ -579,7 +590,7 @@ async function handleLaunch(
   return successResponse(command.id, {
     launched: true,
     instanceId,
-    viewerUrl: `http://localhost:5005/view?instanceId=${instanceId}`,
+    viewerUrl: getViewerUrl(instanceId),
   });
 }
 
@@ -2953,12 +2964,11 @@ async function handleViewer(
   _browser: BrowserManager
 ): Promise<Response<ViewerData>> {
   const instanceId = getInstanceId();
-  const port = parseInt(process.env.AGENT_BROWSER_STREAM_PORT || '5005', 10);
 
   return successResponse(command.id, {
-    url: `http://localhost:${port}/view?instanceId=${instanceId}`,
-    wsUrl: `ws://localhost:${port}?instanceId=${instanceId}`,
-    streamPort: port,
+    url: getViewerUrl(instanceId),
+    wsUrl: getViewerWsUrl(instanceId),
+    streamPort: getViewerPort(),
   });
 }
 
@@ -2967,7 +2977,7 @@ async function handleAsk(
   _browser: BrowserManager
 ): Promise<Response<AskData>> {
   const session = getSession();
-  const bridge = new MessageBridge();
+  const bridge = new MessageBridge(getMessageBridgeUrl());
 
   try {
     const answer = await bridge.ask(command.question, session);
@@ -2993,7 +3003,7 @@ interface ConfigData {
     provider: string | null;
     allowFileAccess: boolean;
     iosDevice: string | null;
-    streamPort: string | null;
+    streamPort: number;
     headed: boolean;
     human: HumanConfig;
   };
@@ -3004,10 +3014,11 @@ function handleConfig(
   command: Command & { action: 'config'; json?: boolean }
 ): Response<ConfigData> {
   const humanConfig = getHumanConfigFromEnv();
+  const rcConfig = loadConfig();
 
   const config = {
     session: process.env.AGENT_BROWSER_SESSION || 'default',
-    executablePath: process.env.AGENT_BROWSER_EXECUTABLE_PATH || null,
+    executablePath: getExecutablePath() || null,
     extensions: process.env.AGENT_BROWSER_EXTENSIONS || null,
     profile: process.env.AGENT_BROWSER_PROFILE || null,
     state: process.env.AGENT_BROWSER_STATE || null,
@@ -3018,14 +3029,18 @@ function handleConfig(
     provider: process.env.AGENT_BROWSER_PROVIDER || null,
     allowFileAccess: process.env.AGENT_BROWSER_ALLOW_FILE_ACCESS === '1',
     iosDevice: process.env.AGENT_BROWSER_IOS_DEVICE || null,
-    streamPort: process.env.AGENT_BROWSER_STREAM_PORT || null,
+    streamPort: getViewerPort(),
     headed: process.env.AGENT_BROWSER_HEADED === '1',
     human: humanConfig,
   };
 
   if (command.json) {
-    return successResponse(command.id, { config });
+    return successResponse(command.id, { config, rc: rcConfig });
   }
+
+  const viewerHost = getEffectiveValue('viewer.host');
+  const bridgeUrl = getEffectiveValue('messageBridge.url');
+  const msgProxy = getEffectiveValue('messageProxy.url');
 
   // Format human-readable output
   const lines: string[] = [
@@ -3033,10 +3048,17 @@ function handleConfig(
     '===========================',
     '',
     'Session & Browser:',
-    `  AGENT_BROWSER_SESSION          ${config.session}`,
-    `  AGENT_BROWSER_EXECUTABLE_PATH  ${config.executablePath || '(not set)'}`,
+    `  executablePath                 ${config.executablePath || '(not set)'}`,
     `  AGENT_BROWSER_PROVIDER         ${config.provider || '(not set)'}`,
     `  AGENT_BROWSER_HEADED           ${config.headed ? 'true' : 'false (default)'}`,
+    '',
+    'Viewer & Stream:',
+    `  viewer.host                    ${viewerHost || '(not set, using http://localhost)'}`,
+    `  viewer.port                    ${config.streamPort}`,
+    '',
+    'Message Bridge (ask command):',
+    `  messageBridge.url              ${bridgeUrl || '(not set, using default)'}`,
+    `  messageProxy.url               ${msgProxy || '(not set)'}`,
     '',
     'Browser Options:',
     `  AGENT_BROWSER_PROFILE          ${config.profile || '(not set)'}`,
@@ -3049,8 +3071,9 @@ function handleConfig(
     'Human Mode (runtime):',
     `  AGENT_BROWSER_HUMAN            ${humanConfig.enabled ? humanConfig.pathType + ' ✓' : '(disabled)'}`,
     '',
-    'Note: Most settings only take effect at browser startup.',
-    'Use "export AGENT_BROWSER_XXX=value" before starting.',
+    `Persistent config: ~/.agent-browser/config.json`,
+    'Run "agent-browser config set <key> <value>" to persist settings.',
+    'Run "agent-browser config list" to see configurable keys.',
   ];
 
   return successResponse(command.id, { config, output: lines.join('\n') });

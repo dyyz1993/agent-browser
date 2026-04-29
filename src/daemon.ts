@@ -8,6 +8,7 @@ import { IOSManager } from './ios-manager.js';
 import { parseCommand, serializeResponse, errorResponse, successResponse } from './protocol.js';
 import { executeCommand } from './actions.js';
 import { executeIOSCommand } from './ios-actions.js';
+import { getExecutablePath } from './rc-config.js';
 import { StreamServerProxy, getStreamServerIpcPath } from './stream-server.js';
 
 type Manager = BrowserManager | IOSManager;
@@ -525,7 +526,7 @@ export async function startDaemon(options?: { provider?: string }): Promise<void
                 id: 'auto',
                 action: 'launch' as const,
                 headless: process.env.AGENT_BROWSER_HEADED !== '1',
-                executablePath: process.env.AGENT_BROWSER_EXECUTABLE_PATH,
+                executablePath: process.env.AGENT_BROWSER_EXECUTABLE_PATH || getExecutablePath(),
                 extensions: extensions,
                 profile: process.env.AGENT_BROWSER_PROFILE,
                 storageState: process.env.AGENT_BROWSER_STATE,

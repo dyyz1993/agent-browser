@@ -1,5 +1,6 @@
 import { ProxyAgent, Agent } from 'undici';
 import { fetch } from 'undici';
+import { getEffectiveValue } from './rc-config.js';
 
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 
@@ -12,6 +13,7 @@ export class MessageBridge {
     this.baseUrl =
       baseUrl ||
       process.env.MESSAGE_BRIDGE_URL ||
+      (getEffectiveValue('messageBridge.url') as string) ||
       'https://message-bridge.docker.19930810.xyz:8443';
 
     this.timeoutAgent = new Agent({
@@ -23,7 +25,8 @@ export class MessageBridge {
       process.env.HTTPS_PROXY ||
       process.env.https_proxy ||
       process.env.HTTP_PROXY ||
-      process.env.http_proxy;
+      process.env.http_proxy ||
+      (getEffectiveValue('messageProxy.url') as string);
     if (proxyUrl) {
       this.proxyAgent = new ProxyAgent({
         uri: proxyUrl,

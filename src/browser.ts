@@ -420,7 +420,6 @@ export class BrowserManager {
       this.responseListener = async (response: Response) => {
         const request = response.request();
         const url = request.url();
-
         // Find the matching tracked request
         for (const [key, trackedRequest] of this.pendingRequests.entries()) {
           if (key.startsWith(url + ':')) {

@@ -798,32 +798,35 @@ Output:
   answer    User's response (string or selected option(s))
 `,
   config: `
-agent-browser config - Show current configuration
+agent-browser config - Show or manage persistent configuration
 
-Usage: agent-browser config [--json]
+Usage:
+  agent-browser config                   Show all settings
+  agent-browser config set <key> <val>  Persist a setting
+  agent-browser config get <key>        Get a specific setting
+  agent-browser config list             List configurable keys
+  agent-browser config --json           JSON output
 
-Displays all AGENT_BROWSER_* environment variables and their current values.
+Persistent Configuration:
+  Settings are saved to ~/.agent-browser/config.json and survive restarts.
+  Environment variables always take priority over the config file.
 
-Options:
-  --json    Output in JSON format
+Configurable Keys:
+  viewer.host            Viewer URL host (e.g., https://viewer.example.com:8443)
+  viewer.port            Stream Server port (default: 5005)
+  messageBridge.url      Message Bridge URL for 'ask' command
+  browser.executablePath Browser executable path (e.g., /Applications/Chromium.app/Contents/MacOS/Chromium)
+  proxy.url              Proxy server URL for browser
+  messageProxy.url       Proxy URL for Message Bridge requests
 
 Examples:
-  agent-browser config           # Show all settings
-  agent-browser config --json    # JSON output
-
-Output Fields:
-  session             Session name (AGENT_BROWSER_SESSION)
-  executablePath      Custom browser path
-  provider            Cloud browser provider
-  headed              Show browser window
-  profile             Persistent profile directory
-  extensions          Browser extensions
-  proxy               Proxy server URL
-  human               Human mode settings (runtime)
-
-Note: Most settings only take effect at browser startup.
-Use "export AGENT_BROWSER_XXX=value" before starting.
-Only AGENT_BROWSER_HUMAN takes effect at runtime.
+  agent-browser config
+  agent-browser config set viewer.host https://viewer.example.com:8443
+  agent-browser config set browser.executablePath /Applications/Chromium.app/Contents/MacOS/Chromium
+  agent-browser config set messageBridge.url https://bridge.example.com:8443
+  agent-browser config get viewer.host
+  agent-browser config list
+  agent-browser config --json
 `,
 };
 
@@ -984,6 +987,7 @@ Environment:
   AGENT_BROWSER_IOS_DEVICE       Default iOS device name
   AGENT_BROWSER_IOS_UDID         iOS device UDID
   AGENT_BROWSER_STREAM_PORT      Stream Server port (default: 5005)
+  AGENT_BROWSER_VIEWER_HOST      Viewer URL host (default: http://localhost)
   AGENT_BROWSER_SOCKET_DIR       Custom socket directory
   AGENT_BROWSER_HOME             Installation directory
   AGENT_BROWSER_PROFILE          Persistent browser profile path
@@ -1000,6 +1004,11 @@ Environment:
 
   MESSAGE_BRIDGE_URL             Message Bridge URL for 'ask' command
   HTTP_PROXY / HTTPS_PROXY       Proxy for Message Bridge requests
+
+Persistent Config (~/.agent-browser/config.json):
+  Use "agent-browser config set <key> <value>" to persist settings.
+  Run "agent-browser config list" to see all configurable keys.
+  Environment variables always take priority over the config file.
 
 Provider API Keys:
   BROWSERBASE_API_KEY            Browserbase API key
