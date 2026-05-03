@@ -1,5 +1,11 @@
 # agent-browser
 
+## 0.13.0
+
+### Minor Changes
+
+- c128cea: Add URL change detection tips and `frames` command for iframe listing
+
 ## 0.9.2
 
 ### Patch Changes
