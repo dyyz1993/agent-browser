@@ -159,6 +159,25 @@ pub fn print_response(resp: &Response, json_mode: bool, action: Option<&str>) {
             }
             return;
         }
+        // Frames (iframes)
+        if let Some(frames) = data.get("frames").and_then(|v| v.as_array()) {
+            if frames.is_empty() {
+                println!("{}", color::dim("No iframes found on this page."));
+            } else {
+                for frame in frames {
+                    let name = frame.get("name").and_then(|v| v.as_str()).unwrap_or("");
+                    let url = frame.get("url").and_then(|v| v.as_str()).unwrap_or("");
+                    let path = frame.get("path").and_then(|v| v.as_str()).unwrap_or("");
+                    let name_display = if name.is_empty() {
+                        color::dim("(unnamed)")
+                    } else {
+                        name.to_string()
+                    };
+                    println!("[{}] {} - {}", color::cyan(path), name_display, color::dim(url));
+                }
+            }
+            return;
+        }
         // Console logs
         if let Some(logs) = data.get("messages").and_then(|v| v.as_array()) {
             for log in logs {

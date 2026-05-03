@@ -64,6 +64,7 @@ import type {
   PdfCommand,
   RouteCommand,
   RequestsCommand,
+  WebSocketsCommand,
   DownloadCommand,
   GeolocationCommand,
   PermissionsCommand,
@@ -364,6 +365,8 @@ export async function executeCommand(
         return await handleTabNew(cmd, browser);
       case 'tab_list':
         return await handleTabList(cmd, browser);
+      case 'frames':
+        return await handleFrames(cmd, browser);
       case 'tab_switch':
         return await handleTabSwitch(cmd, browser);
       case 'tab_close':
@@ -392,6 +395,8 @@ export async function executeCommand(
         return await handleUnroute(cmd, browser);
       case 'requests':
         return await handleRequests(cmd, browser);
+      case 'websockets':
+        return await handleWebSockets(cmd, browser);
       case 'download':
         return await handleDownload(cmd, browser);
       case 'geolocation':
@@ -570,6 +575,8 @@ export async function executeCommand(
         return await handleAsk(cmd, browser);
       case 'config':
         return handleConfig(cmd);
+      case 'history':
+        return await handleHistory(cmd, browser);
       default: {
         const unknownCommand = cmd as { id: string; action: string };
         return errorResponse(unknownCommand.id, `Unknown action: ${unknownCommand.action}`);
@@ -651,6 +658,7 @@ async function handleClick(command: ClickCommand, browser: BrowserManager): Prom
       result.diff = diffResult.output;
       result.diffScope = diffResult.diff.scope;
     }
+    browser.recordCommand('click', command.selector, undefined, true);
     return successResponse(command.id, result);
   }
 
@@ -673,6 +681,7 @@ async function handleClick(command: ClickCommand, browser: BrowserManager): Prom
     result.diffScope = diffResult.diff.scope;
   }
 
+  browser.recordCommand('click', command.selector, undefined, true);
   return successResponse(command.id, result);
 }
 
@@ -707,6 +716,7 @@ async function handleType(command: TypeCommand, browser: BrowserManager): Promis
       result.diff = diffResult.output;
       result.diffScope = diffResult.diff.scope;
     }
+    browser.recordCommand('type', command.selector, command.text, true);
     return successResponse(command.id, result);
   }
 
@@ -734,6 +744,7 @@ async function handleType(command: TypeCommand, browser: BrowserManager): Promis
     result.diffScope = diffResult.diff.scope;
   }
 
+  browser.recordCommand('type', command.selector, command.text, true);
   return successResponse(command.id, result);
 }
 
@@ -866,13 +877,14 @@ async function handleSnapshot(
     inFrame?: string;
     path?: boolean;
     attrs?: boolean;
+    selectors?: boolean;
+    all?: boolean;
   },
   browser: BrowserManager
 ): Promise<Response<SnapshotData>> {
   let effectiveSelector = command.selector;
   let detectionResult = null;
 
-  // 如果未指定 selector，自动检测主体区域
   if (!command.selector) {
     const page = browser.getPage();
     detectionResult = await detectMainContent(page);
@@ -888,6 +900,8 @@ async function handleSnapshot(
     framePath: command.inFrame,
     path: command.path,
     attrs: command.attrs,
+    selectors: command.selectors,
+    all: command.all,
   });
 
   const simpleRefs: Record<
@@ -950,8 +964,22 @@ async function handleEvaluate(
       result = await page.evaluate(script);
     }
 
+    browser.recordCommand(
+      'eval',
+      'javascript',
+      script.length > 200 ? script.substring(0, 200) + '...' : script,
+      true
+    );
+
     return successResponse(command.id, { result });
   } catch (error) {
+    const script = command.script || command.file || '';
+    browser.recordCommand(
+      'eval',
+      'javascript',
+      script.length > 200 ? script.substring(0, 200) + '...' : script,
+      false
+    );
     console.error('Error in handleEvaluate:', error);
     return errorResponse(command.id, error instanceof Error ? error.message : String(error));
   }
@@ -1064,6 +1092,7 @@ async function handleSelect(command: SelectCommand, browser: BrowserManager): Pr
     result.diffScope = diffResult.diff.scope;
   }
 
+  browser.recordCommand('select', command.selector, values.join(','), true);
   return successResponse(command.id, result);
 }
 
@@ -1166,6 +1195,20 @@ async function handleTabList(
   });
 }
 
+async function handleFrames(
+  command: Command & { action: 'frames' },
+  browser: BrowserManager
+): Promise<Response> {
+  const frames = browser.listFrames();
+  if (frames.length === 0) {
+    return successResponse(command.id, {
+      frames: [],
+      tip: 'No iframes found on this page.',
+    });
+  }
+  return successResponse(command.id, { frames });
+}
+
 async function handleTabSwitch(
   command: TabSwitchCommand,
   browser: BrowserManager
@@ -1230,6 +1273,7 @@ async function handleFill(command: FillCommand, browser: BrowserManager): Promis
       result.diff = diffResult.output;
       result.diffScope = diffResult.diff.scope;
     }
+    browser.recordCommand('fill', command.selector, command.value, true);
     return successResponse(command.id, result);
   }
 
@@ -1258,6 +1302,7 @@ async function handleFill(command: FillCommand, browser: BrowserManager): Promis
     result.diff = diffResult.output;
     result.diffScope = diffResult.diff.scope;
   }
+  browser.recordCommand('fill', command.selector, command.value, true);
   return successResponse(command.id, result);
 }
 
@@ -1284,6 +1329,7 @@ async function handleCheck(command: CheckCommand, browser: BrowserManager): Prom
     result.diff = diffResult.output;
     result.diffScope = diffResult.diff.scope;
   }
+  browser.recordCommand('check', command.selector, undefined, true);
   return successResponse(command.id, result);
 }
 
@@ -1310,6 +1356,7 @@ async function handleUncheck(command: UncheckCommand, browser: BrowserManager): 
     result.diff = diffResult.output;
     result.diffScope = diffResult.diff.scope;
   }
+  browser.recordCommand('uncheck', command.selector, undefined, true);
   return successResponse(command.id, result);
 }
 
@@ -1429,20 +1476,46 @@ async function handleGetByRole(
     exact: command.exact,
   });
 
-  switch (command.subaction) {
-    case 'click':
-      await locator.click();
-      return successResponse(command.id, { clicked: true });
-    case 'fill':
-      await locator.fill(command.value ?? '');
-      return successResponse(command.id, { filled: true });
-    case 'check':
-      await locator.check();
-      return successResponse(command.id, { checked: true });
-    case 'hover':
-      await locator.hover();
-      return successResponse(command.id, { hovered: true });
+  try {
+    switch (command.subaction) {
+      case 'click':
+        await locator.click();
+        return successResponse(command.id, { clicked: true });
+      case 'fill':
+        await locator.fill(command.value ?? '');
+        return successResponse(command.id, { filled: true });
+      case 'check':
+        await locator.check();
+        return successResponse(command.id, { checked: true });
+      case 'hover':
+        await locator.hover();
+        return successResponse(command.id, { hovered: true });
+    }
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    if (msg.includes('strict mode violation')) {
+      const countMatch = msg.match(/resolved to (\d+) elements/);
+      const count = countMatch ? countMatch[1] : 'multiple';
+      const first = locator.first();
+      const warning = `Matched ${count} elements, used first match. Use 'find nth <index> role "${command.role}" --click' for a specific match.`;
+      switch (command.subaction) {
+        case 'click':
+          await first.click();
+          return successResponse(command.id, { clicked: true, warning });
+        case 'fill':
+          await first.fill(command.value ?? '');
+          return successResponse(command.id, { filled: true, warning });
+        case 'check':
+          await first.check();
+          return successResponse(command.id, { checked: true, warning });
+        case 'hover':
+          await first.hover();
+          return successResponse(command.id, { hovered: true, warning });
+      }
+    }
+    throw error;
   }
+  return successResponse(command.id, {});
 }
 
 async function handleGetByText(
@@ -1452,14 +1525,39 @@ async function handleGetByText(
   const frame = browser.getFrame(command.inFrame);
   const locator = frame.getByText(command.text, { exact: command.exact });
 
-  switch (command.subaction) {
-    case 'click':
-      await locator.click();
-      return successResponse(command.id, { clicked: true });
-    case 'hover':
-      await locator.hover();
-      return successResponse(command.id, { hovered: true });
+  try {
+    switch (command.subaction) {
+      case 'click':
+        await locator.click();
+        return successResponse(command.id, { clicked: true });
+      case 'hover':
+        await locator.hover();
+        return successResponse(command.id, { hovered: true });
+    }
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    if (msg.includes('strict mode violation')) {
+      const countMatch = msg.match(/resolved to (\d+) elements/);
+      const count = countMatch ? countMatch[1] : 'multiple';
+      const first = locator.first();
+      switch (command.subaction) {
+        case 'click':
+          await first.click();
+          return successResponse(command.id, {
+            clicked: true,
+            warning: `Matched ${count} elements, used first match. Use 'find nth <index> text "${command.text}" --click' for a specific match.`,
+          });
+        case 'hover':
+          await first.hover();
+          return successResponse(command.id, {
+            hovered: true,
+            warning: `Matched ${count} elements, used first match. Use 'find nth <index> text "${command.text}" --hover' for a specific match.`,
+          });
+      }
+    }
+    throw error;
   }
+  return successResponse(command.id, {});
 }
 
 async function handleGetByLabel(
@@ -1649,6 +1747,26 @@ async function handleRequests(
   const result: Record<string, unknown> = { requests };
   if (requests.length === 0 && !wasTracking) {
     result.hint = 'Request tracking just activated. Reload or navigate to capture requests.';
+  }
+  return successResponse(command.id, result);
+}
+
+async function handleWebSockets(
+  command: WebSocketsCommand,
+  browser: BrowserManager
+): Promise<Response> {
+  if (command.clear) {
+    browser.clearWebSockets();
+    return successResponse(command.id, { cleared: true });
+  }
+
+  const wasTracking = browser.wsTrackingEnabled;
+  browser.startWebSocketTracking();
+
+  const sockets = browser.getWebSockets(command.filter);
+  const result: Record<string, unknown> = { websockets: sockets };
+  if (sockets.length === 0 && !wasTracking) {
+    result.hint = 'WebSocket tracking just activated. Reload or navigate to capture connections.';
   }
   return successResponse(command.id, result);
 }
@@ -2477,13 +2595,23 @@ async function handleScrollIntoView(
   return successResponse(command.id, { scrolled: true });
 }
 
-async function handleAddInitScript(
+export async function handleAddInitScript(
   command: AddInitScriptCommand,
   browser: BrowserManager
 ): Promise<Response> {
-  const context = browser.getPage().context();
+  const page = browser.getPage();
+  const context = page.context();
   await context.addInitScript(command.script);
-  return successResponse(command.id, { added: true });
+
+  const tips: string[] = [];
+  try {
+    await page.evaluate(command.script);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    tips.push(`Init script error on current page: ${msg}. Script will work on next navigation.`);
+  }
+
+  return successResponse(command.id, { added: true }, tips.length ? tips : undefined);
 }
 
 async function handleKeyDown(command: KeyDownCommand, browser: BrowserManager): Promise<Response> {
@@ -3077,4 +3205,16 @@ function handleConfig(
   ];
 
   return successResponse(command.id, { config, output: lines.join('\n') });
+}
+
+async function handleHistory(
+  command: Command & { action: 'history'; clear?: boolean; filter?: string },
+  browser: BrowserManager
+): Promise<Response> {
+  if (command.clear) {
+    browser.clearHistory();
+    return successResponse(command.id, { cleared: true });
+  }
+  const history = browser.getHistory(command.filter);
+  return successResponse(command.id, { history });
 }

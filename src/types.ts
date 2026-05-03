@@ -257,6 +257,12 @@ export interface RequestsCommand extends BaseCommand {
   output?: string; // Output directory path for saving requests
 }
 
+export interface WebSocketsCommand extends BaseCommand {
+  action: 'websockets';
+  filter?: string;
+  clear?: boolean;
+}
+
 // Download handling
 export interface DownloadCommand extends BaseCommand {
   action: 'download';
@@ -879,6 +885,14 @@ export interface SnapshotCommand extends BaseCommand {
   selector?: string;
   path?: boolean;
   attrs?: boolean;
+  selectors?: boolean;
+  all?: boolean;
+}
+
+export interface HistoryCommand extends BaseCommand {
+  action: 'history';
+  clear?: boolean;
+  filter?: string;
 }
 
 export interface EvaluateCommand extends BaseCommand {
@@ -943,6 +957,10 @@ export interface TabListCommand extends BaseCommand {
   action: 'tab_list';
 }
 
+export interface FramesCommand extends BaseCommand {
+  action: 'frames';
+}
+
 export interface TabSwitchCommand extends BaseCommand {
   action: 'tab_switch';
   index: number;
@@ -987,6 +1005,7 @@ export type Command =
   | CloseCommand
   | TabNewCommand
   | TabListCommand
+  | FramesCommand
   | TabSwitchCommand
   | TabCloseCommand
   | WindowNewCommand
@@ -1001,6 +1020,7 @@ export type Command =
   | RouteCommand
   | UnrouteCommand
   | RequestsCommand
+  | WebSocketsCommand
   | DownloadCommand
   | GeolocationCommand
   | PermissionsCommand
@@ -1092,7 +1112,8 @@ export type Command =
   | ViewerCommand
   | AskCommand
   | ConfigCommand
-  | InjectFocusListenerCommand;
+  | InjectFocusListenerCommand
+  | HistoryCommand;
 
 export interface LooseCommand {
   id: string;

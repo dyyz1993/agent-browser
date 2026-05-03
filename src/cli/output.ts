@@ -176,6 +176,13 @@ export function printResponse(resp: Response, jsonMode: boolean, action?: string
     console.error('');
   }
 
+  if (resp.data && typeof resp.data === 'object' && 'warning' in resp.data) {
+    const data = resp.data as Record<string, unknown>;
+    if (typeof data.warning === 'string') {
+      console.error(`${colorize('⚠', 'yellow')} ${data.warning}`);
+    }
+  }
+
   if (!resp.data) {
     console.log(`${successIndicator()} Done`);
     return;
@@ -301,6 +308,24 @@ export function printResponse(resp: Response, jsonMode: boolean, action?: string
       const active = tab.active;
       const marker = active ? cyan('→') : ' ';
       console.log(`${marker} [${i}] ${title} - ${url}`);
+    }
+    return;
+  }
+
+  if (Array.isArray(data.frames)) {
+    if (data.frames.length === 0) {
+      console.log(dim('No iframes found on this page.'));
+    } else {
+      for (const frame of data.frames as Record<string, unknown>[]) {
+        const name = (frame.name as string) || '';
+        const url = (frame.url as string) || '';
+        const path = (frame.path as string) || '';
+        const nameDisplay = name || dim('(unnamed)');
+        console.log(`[${cyan(path)}] ${nameDisplay} - ${dim(url)}`);
+      }
+    }
+    if (data.tip) {
+      console.log(`  ${data.tip}`);
     }
     return;
   }

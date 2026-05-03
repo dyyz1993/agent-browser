@@ -15,6 +15,7 @@ import {
   type CDPSession,
   type Video,
   type FrameLocator,
+  type WebSocket as PWWebSocket,
 } from 'playwright-core';
 import path from 'node:path';
 import os from 'node:os';
@@ -75,6 +76,24 @@ interface PageError {
   timestamp: number;
 }
 
+interface TrackedWebSocket {
+  id: string;
+  url: string;
+  openedAt: number;
+  closedAt?: number;
+  closeCode?: number;
+  closeReason?: string;
+  error?: string;
+  frames: TrackedWSFrame[];
+}
+
+interface TrackedWSFrame {
+  direction: 'send' | 'recv';
+  data: string;
+  timestamp: number;
+  opcode?: number;
+}
+
 /**
  * Manages the Playwright browser lifecycle with multiple tabs/windows
  */
@@ -106,10 +125,23 @@ export class BrowserManager {
   private routes: Map<string, (route: Route) => Promise<void>> = new Map();
   private consoleMessages: ConsoleMessage[] = [];
   private pageErrors: PageError[] = [];
+  private trackedWebSockets: TrackedWebSocket[] = [];
+  private isWebSocketTrackingEnabled: boolean = false;
+  private wsListener: ((ws: PWWebSocket) => void) | null = null;
+  get wsTrackingEnabled(): boolean {
+    return this.isWebSocketTrackingEnabled;
+  }
   private isRecordingHar: boolean = false;
   private refMap: RefMap = {};
   private lastSnapshot: string = '';
   private scopedHeaderRoutes: Map<string, (route: Route) => Promise<void>> = new Map();
+  private commandHistory: Array<{
+    action: string;
+    selector: string;
+    value?: string;
+    success: boolean;
+    timestamp: number;
+  }> = [];
 
   // CDP session for screencast and input injection
   private cdpSession: CDPSession | null = null;
@@ -162,6 +194,8 @@ export class BrowserManager {
     framePath?: string;
     path?: boolean;
     attrs?: boolean;
+    selectors?: boolean;
+    all?: boolean;
   }): Promise<EnhancedSnapshot> {
     const frame = options?.framePath ? this.getFrame(options.framePath) : this.getFrame();
     const snapshot = await getEnhancedSnapshot(frame as any, options);
@@ -175,6 +209,35 @@ export class BrowserManager {
    */
   getRefMap(): RefMap {
     return this.refMap;
+  }
+
+  recordCommand(
+    action: string,
+    selector: string,
+    value: string | undefined,
+    success: boolean
+  ): void {
+    this.commandHistory.push({ action, selector, value, success, timestamp: Date.now() });
+  }
+
+  getHistory(
+    filter?: string
+  ): Array<{
+    action: string;
+    selector: string;
+    value?: string;
+    success: boolean;
+    timestamp: number;
+  }> {
+    let history = this.commandHistory;
+    if (filter) {
+      history = history.filter((h) => h.selector.includes(filter) || h.action.includes(filter));
+    }
+    return history;
+  }
+
+  clearHistory(): void {
+    this.commandHistory = [];
   }
 
   /**
@@ -294,10 +357,14 @@ export class BrowserManager {
           name: f.name(),
           url: f.url(),
         }));
+        const suggestion =
+          childFrames.length > 0
+            ? ` Use 'agent-browser frames' to list all iframes, or try: ${childFrames.map((f, idx) => `--in-frame "${idx}"`).join(', ')}`
+            : '';
         throw new Error(
           `Frame not found for selector "${selector}" at path position ${i + 1}. ` +
             `Path: "${framePath}". ` +
-            `Available child frames: ${JSON.stringify(availableInfo, null, 2)}`
+            `Available child frames: ${JSON.stringify(availableInfo, null, 2)}.${suggestion}`
         );
       }
 
@@ -336,6 +403,26 @@ export class BrowserManager {
     if (urlPathMatch) return urlPathMatch;
 
     return undefined;
+  }
+
+  listFrames(): Array<{ name: string; url: string; path: string }> {
+    const page = this.getPage();
+    const result: Array<{ name: string; url: string; path: string }> = [];
+
+    const walk = (frame: Frame, pathSoFar: string) => {
+      const children = frame.childFrames();
+      for (let i = 0; i < children.length; i++) {
+        const child = children[i];
+        const name = child.name() || '';
+        const segment = name || String(i);
+        const childPath = pathSoFar ? `${pathSoFar}/${segment}` : segment;
+        result.push({ name, url: child.url(), path: childPath });
+        walk(child, childPath);
+      }
+    };
+
+    walk(page.mainFrame(), '');
+    return result;
   }
 
   /**
@@ -491,6 +578,67 @@ export class BrowserManager {
    */
   clearRequests(): void {
     this.trackedRequests = [];
+  }
+
+  startWebSocketTracking(): void {
+    const page = this.getPage();
+    if (this.isWebSocketTrackingEnabled) return;
+    this.isWebSocketTrackingEnabled = true;
+
+    this.wsListener = (ws: PWWebSocket) => {
+      const id = `ws_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+      const tracked: TrackedWebSocket = {
+        id,
+        url: ws.url(),
+        openedAt: Date.now(),
+        frames: [],
+      };
+      this.trackedWebSockets.push(tracked);
+
+      ws.on('framesent', (frame: { payload: string | Buffer }) => {
+        tracked.frames.push({
+          direction: 'send',
+          data:
+            typeof frame.payload === 'string'
+              ? frame.payload
+              : `[binary ${frame.payload.byteLength}B]`,
+          timestamp: Date.now(),
+        });
+      });
+
+      ws.on('framereceived', (frame: { payload: string | Buffer }) => {
+        tracked.frames.push({
+          direction: 'recv',
+          data:
+            typeof frame.payload === 'string'
+              ? frame.payload
+              : `[binary ${frame.payload.byteLength}B]`,
+          timestamp: Date.now(),
+        });
+      });
+
+      ws.on('socketerror', (err: string) => {
+        tracked.error = err;
+      });
+
+      ws.on('close', () => {
+        tracked.closedAt = Date.now();
+      });
+    };
+
+    page.on('websocket', this.wsListener);
+  }
+
+  getWebSockets(filter?: string): TrackedWebSocket[] {
+    let sockets = this.trackedWebSockets;
+    if (filter) {
+      sockets = sockets.filter((ws) => ws.url.includes(filter));
+    }
+    return sockets;
+  }
+
+  clearWebSockets(): void {
+    this.trackedWebSockets = [];
   }
 
   /**
@@ -3409,6 +3557,14 @@ export class BrowserManager {
     this.pendingRequests.clear();
     this.isRequestTrackingEnabled = false;
     this.isResponseCaptureEnabled = false;
+    if (this.wsListener) {
+      try {
+        page?.off('websocket', this.wsListener);
+      } catch {}
+      this.wsListener = null;
+    }
+    this.isWebSocketTrackingEnabled = false;
+    this.trackedWebSockets = [];
     this.routes.clear();
     this.consoleMessages = [];
     this.pageErrors = [];

@@ -159,6 +159,10 @@ const mainframeSchema = baseCommandSchema.extend({
   action: z.literal('mainframe'),
 });
 
+const framesSchema = baseCommandSchema.extend({
+  action: z.literal('frames'),
+});
+
 const getByRoleSchema = withFrame(
   baseCommandSchema.extend({
     action: z.literal('getbyrole'),
@@ -283,6 +287,12 @@ const requestsSchema = baseCommandSchema.extend({
   captureResponse: z.boolean().optional(),
   type: z.enum(['json']).optional(),
   output: z.string().optional(),
+});
+
+const websocketsSchema = baseCommandSchema.extend({
+  action: z.literal('websockets'),
+  filter: z.string().optional(),
+  clear: z.boolean().optional(),
 });
 
 const downloadSchema = baseCommandSchema.extend({
@@ -885,8 +895,16 @@ const snapshotSchema = withFrame(
     cursor: z.boolean().optional(),
     path: z.boolean().optional(),
     attrs: z.boolean().optional(),
+    selectors: z.boolean().optional(),
+    all: z.boolean().optional(),
   })
 );
+
+const historySchema = baseCommandSchema.extend({
+  action: z.literal('history'),
+  clear: z.boolean().optional(),
+  filter: z.string().optional(),
+});
 
 const evaluateSchema = baseCommandSchema.extend({
   action: z.literal('evaluate'),
@@ -999,6 +1017,7 @@ const commandSchema = z.discriminatedUnion('action', [
   closeSchema,
   tabNewSchema,
   tabListSchema,
+  framesSchema,
   tabSwitchSchema,
   tabCloseSchema,
   windowNewSchema,
@@ -1013,6 +1032,7 @@ const commandSchema = z.discriminatedUnion('action', [
   routeSchema,
   unrouteSchema,
   requestsSchema,
+  websocketsSchema,
   downloadSchema,
   geolocationSchema,
   permissionsSchema,
@@ -1104,6 +1124,7 @@ const commandSchema = z.discriminatedUnion('action', [
   viewerSchema,
   askSchema,
   configSchema,
+  historySchema,
 ]);
 
 // Parse result type

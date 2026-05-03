@@ -442,6 +442,12 @@ export function parseCommand(args: string[], flags: Flags): Command {
           case '--attrs':
             command.attrs = true;
             break;
+          case '--selectors':
+            command.selectors = true;
+            break;
+          case '--all':
+            command.all = true;
+            break;
         }
       }
       return command;
@@ -851,7 +857,10 @@ export function parseCommand(args: string[], flags: Flags): Command {
     case 'network': {
       const subcmd = rest[0];
       if (!subcmd)
-        error('Missing subcommand', 'agent-browser network <route|unroute|requests> ...');
+        error(
+          'Missing subcommand',
+          'agent-browser network <route|unroute|requests|websockets> ...'
+        );
       switch (subcmd) {
         case 'route': {
           const url = rest[1];
@@ -878,10 +887,16 @@ export function parseCommand(args: string[], flags: Flags): Command {
           const output = outputIdx !== -1 ? rest[outputIdx + 1] : undefined;
           return { id, action: 'requests', clear, filter, captureResponse, type, output };
         }
+        case 'websockets': {
+          const clear = rest.includes('--clear');
+          const filterIdx = rest.indexOf('--filter');
+          const filter = filterIdx !== -1 ? rest[filterIdx + 1] : undefined;
+          return { id, action: 'websockets', clear, filter };
+        }
         default:
           error(
             `Unknown network subcommand: ${subcmd}`,
-            'agent-browser network <route|unroute|requests> ...'
+            'agent-browser network <route|unroute|requests|websockets> ...'
           );
       }
     }
@@ -975,6 +990,7 @@ export function parseCommand(args: string[], flags: Flags): Command {
 
     case 'frame': {
       if (rest[0] === 'main') return { id, action: 'mainframe' };
+      if (rest[0] === 'list' || rest.length === 0) return { id, action: 'frames' };
       const urlIdx = rest.indexOf('--url');
       const nameIdx = rest.indexOf('--name');
       if (urlIdx !== -1) {
@@ -1151,6 +1167,17 @@ export function parseCommand(args: string[], flags: Flags): Command {
       return { id, action: 'config', json };
     }
 
+    case 'history': {
+      const clear = rest.includes('--clear');
+      const filterIdx = rest.indexOf('--filter');
+      const filter = filterIdx !== -1 ? rest[filterIdx + 1] : undefined;
+      return { id, action: 'history', clear, filter };
+    }
+
+    case 'frames':
+    case 'iframes':
+      return { id, action: 'frames' };
+
     default: {
       const allCommands = [
         'open',
@@ -1206,6 +1233,8 @@ export function parseCommand(args: string[], flags: Flags): Command {
         'device',
         'dialog',
         'window',
+        'history',
+        'frames',
       ];
       const suggestion = findSimilar(cmd, allCommands);
       let msg = `Unknown command: ${cmd}`;

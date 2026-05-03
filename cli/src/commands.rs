@@ -835,6 +835,8 @@ pub fn parse_command(args: &[String], flags: &Flags) -> Result<Value, ParseError
         "frame" => {
             if rest.get(0).map(|s| *s) == Some("main") {
                 Ok(json!({ "id": id, "action": "mainframe" }))
+            } else if rest.get(0).map(|s| *s) == Some("list") || rest.is_empty() {
+                Ok(json!({ "id": id, "action": "frames" }))
             } else {
                 // Check for --url or --name flags
                 let mut url_opt: Option<&str> = None;
@@ -879,6 +881,9 @@ pub fn parse_command(args: &[String], flags: &Flags) -> Result<Value, ParseError
                 }
             }
         }
+
+        // === Frames / iFrames ===
+        "frames" | "iframes" => Ok(json!({ "id": id, "action": "frames" })),
 
         // === Dialog ===
         "dialog" => {
