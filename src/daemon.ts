@@ -19,6 +19,7 @@ let currentSession = process.env.AGENT_BROWSER_SESSION || 'default';
 let currentInstanceId = randomUUID().substring(0, 8);
 
 let streamServerProxy: StreamServerProxy | null = null;
+let lastUrl: string | null = null;
 
 const STREAM_SERVER_PID_FILE = 'stream-server.pid';
 
@@ -588,10 +589,34 @@ export async function startDaemon(options?: { provider?: string }): Promise<void
           }
 
           // Execute command with appropriate handler
-          const response =
+          let response =
             isIOS && manager instanceof IOSManager
               ? await executeIOSCommand(parseResult.command, manager)
               : await executeCommand(parseResult.command, manager as BrowserManager);
+
+          if (
+            response.success &&
+            !isIOS &&
+            manager instanceof BrowserManager &&
+            manager.isLaunched()
+          ) {
+            try {
+              const currentUrl = manager.getPage().url();
+              if (lastUrl !== null && currentUrl !== lastUrl) {
+                const urlTip = `URL changed: ${lastUrl} -> ${currentUrl}`;
+                const existingTips = (response as any).tips;
+                if (existingTips) {
+                  const tipsArray = Array.isArray(existingTips) ? existingTips : [existingTips];
+                  (response as any).tips = [urlTip, ...tipsArray];
+                } else {
+                  (response as any).tips = [urlTip];
+                }
+              }
+              lastUrl = currentUrl;
+            } catch {
+              // Page may not be available (e.g., after close)
+            }
+          }
 
           socket.write(serializeResponse(response) + '\n');
         } catch (err) {

@@ -16,6 +16,22 @@ pub fn print_response(resp: &Response, json_mode: bool, action: Option<&str>) {
         return;
     }
 
+    if let Some(tips) = &resp.tips {
+        let tips_arr = if let Some(arr) = tips.as_array() {
+            arr.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>()
+        } else if let Some(s) = tips.as_str() {
+            vec![s]
+        } else {
+            vec![]
+        };
+        for tip in &tips_arr {
+            eprintln!("{} {}", color::dim("Tip:"), tip);
+        }
+        if !tips_arr.is_empty() {
+            eprintln!();
+        }
+    }
+
     if let Some(data) = &resp.data {
         // Navigation response
         if let Some(url) = data.get("url").and_then(|v| v.as_str()) {

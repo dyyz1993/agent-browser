@@ -26,6 +26,8 @@ pub struct Response {
     pub success: bool,
     pub data: Option<Value>,
     pub error: Option<String>,
+    #[serde(default)]
+    pub tips: Option<Value>,
 }
 
 #[allow(dead_code)]
