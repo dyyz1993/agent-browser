@@ -87,7 +87,7 @@ export function parseConfigFromLocation(): ViewerConfig {
 }
 
 export function safeSend(ws: WebSocket | null, data: string): void {
-  if (ws && ws.readyState === WebSocket.OPEN) {
+  if (ws && ws.readyState === 1) {
     ws.send(data);
   }
 }
@@ -526,7 +526,7 @@ export function buildViewerScript(): string {
     }
     
     function safeSend(data) {
-      if (ws && ws.readyState === WebSocket.OPEN) {
+      if (ws && ws.readyState === 1) {
         ws.send(data);
       }
     }
@@ -1410,7 +1410,7 @@ export function buildViewerScript(): string {
 
         // Start background timer - disconnect after timeout
         backgroundTimer = setTimeout(() => {
-          if (ws && ws.readyState === WebSocket.OPEN) {
+          if (ws && ws.readyState === 1) {
             ws.close(1000, 'Page in background');
           }
         }, BACKGROUND_TIMEOUT);
@@ -1425,7 +1425,7 @@ export function buildViewerScript(): string {
         }
 
         // Reconnect immediately if disconnected
-        if (!ws || ws.readyState === WebSocket.CLOSED) {
+        if (!ws || ws.readyState === 3) {
           connect();
         }
       }

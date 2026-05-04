@@ -203,7 +203,7 @@ jobs:
         run: pnpm build
 
       - name: Run serverless integration test
-        run: pnpm exec vitest run test/serverless.test.ts
+        run: pnpm exec vitest run test/serverless.test.ts --config vitest.integration.config.ts
 
   global-install:
     name: Global Install (${{ matrix.os }})
