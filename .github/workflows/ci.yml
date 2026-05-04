@@ -50,8 +50,12 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Run tests
+      - name: Run unit tests
         run: pnpm test
+
+      - name: Run integration tests
+        run: pnpm test:integration
+        continue-on-error: true
 
   rust:
     name: Rust (${{ matrix.os }} - ${{ matrix.target }})
