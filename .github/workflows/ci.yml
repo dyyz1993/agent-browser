@@ -270,7 +270,7 @@ jobs:
       - name: Test npm global install
         run: |
           npm pack
-          npm install -g agent-browser-*.tgz
+          npm install -g dyyz1993-agent-browser-*.tgz
           agent-browser --version
         shell: bash
 
