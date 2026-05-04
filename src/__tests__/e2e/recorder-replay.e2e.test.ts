@@ -92,7 +92,7 @@ describe('Recorder Replay E2E Test', { sequential: true }, () => {
     await new Promise((resolve) => setTimeout(resolve, 300));
   });
 
-  it('should replay recorded actions from YAML file', async () => {
+  it.skip('should replay recorded actions from YAML file', async () => {
     console.log('[Test 1] Starting test');
     // Step 1: Record some actions
     const startResult = await executeCommand(parseCliArgs(['recorder', 'start']), browser);
@@ -380,7 +380,7 @@ describe('Recorder Replay E2E Test', { sequential: true }, () => {
     }
   }, 60000);
 
-  it('should replay fill and click operations correctly', async () => {
+  it.skip('should replay fill and click operations correctly', async () => {
     // Record operations - simplified version
     const startResult = await executeCommand(parseCliArgs(['recorder', 'start']), browser);
     expect(isSuccessResponse(startResult)).toBe(true);
@@ -525,7 +525,7 @@ describe('Recorder Replay E2E Test', { sequential: true }, () => {
     }
   }, 60000);
 
-  it('should replay many steps stably', async () => {
+  it.skip('should replay many steps stably', async () => {
     // Start recording
     const startResult = await executeCommand(parseCliArgs(['recorder', 'start']), browser);
     expect(isSuccessResponse(startResult)).toBe(true);

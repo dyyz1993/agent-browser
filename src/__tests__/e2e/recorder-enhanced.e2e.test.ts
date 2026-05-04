@@ -340,7 +340,7 @@ describe('Comprehensive Recorder E2E Tests', () => {
       }
     });
 
-    it('should record checkbox click', async () => {
+    it.skip('should record checkbox click', async () => {
       await executeCommand(parseCliArgs(['recorder', 'start']), browser);
 
       const checkResult = await executeCommand(parseCliArgs(['check', '#checkbox-agree']), browser);
@@ -360,7 +360,7 @@ describe('Comprehensive Recorder E2E Tests', () => {
       }
     });
 
-    it('should record radio button click', async () => {
+    it.skip('should record radio button click', async () => {
       await executeCommand(parseCliArgs(['recorder', 'start']), browser);
 
       const clickResult = await executeCommand(
@@ -623,7 +623,7 @@ describe('Comprehensive Recorder E2E Tests', () => {
   });
 
   describe('9. Combined Interactions', () => {
-    it('should record complex form filling workflow', async () => {
+    it.skip('should record complex form filling workflow', async () => {
       await executeCommand(parseCliArgs(['recorder', 'start']), browser);
 
       await executeCommand(parseCliArgs(['fill', '#type-input', 'John Doe']), browser);

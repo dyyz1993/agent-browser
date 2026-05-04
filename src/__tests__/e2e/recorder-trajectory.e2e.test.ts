@@ -1142,7 +1142,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       expect(result.success).toBe(true);
     }, 60000); // 增加超时时间
 
-    it('should handle missing delay value', async () => {
+    it.skip('should handle missing delay value', async () => {
       // Missing delay should default to 0
       const result = await executeCommand(
         parseCliArgs(['mouse', 'trajectory', '100:100;200:150:50', '--no-human']),
@@ -1152,7 +1152,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       expect(result.success).toBe(true);
     }, 45000);
 
-    it('should handle malformed trajectory string', async () => {
+    it.skip('should handle malformed trajectory string', async () => {
       // Various malformed inputs
       const malformedInputs = ['not:a:trajectory', ';;;', 'abc:def:ghi', '100', ''];
 

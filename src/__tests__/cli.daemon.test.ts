@@ -4,7 +4,19 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 
-const CLI_PATH = path.join(__dirname, '../cli.ts');
+function getChromiumPath(): string | undefined {
+  if (process.env.AGENT_BROWSER_EXECUTABLE_PATH) {
+    return process.env.AGENT_BROWSER_EXECUTABLE_PATH;
+  }
+  try {
+    const { chromium } = require('playwright-core') as typeof import('playwright-core');
+    return chromium.executablePath();
+  } catch {
+    return undefined;
+  }
+}
+
+const CHROMIUM_PATH = getChromiumPath();
 const SESSION = `test-daemon-${Date.now()}`;
 
 function runCli(
@@ -12,8 +24,15 @@ function runCli(
   timeout = 10000
 ): Promise<{ stdout: string; stderr: string; code: number | null }> {
   return new Promise((resolve, reject) => {
+    const env: Record<string, string> = {
+      ...process.env,
+      AGENT_BROWSER_SESSION: SESSION,
+    } as Record<string, string>;
+    if (CHROMIUM_PATH) {
+      env.AGENT_BROWSER_EXECUTABLE_PATH = CHROMIUM_PATH;
+    }
     const proc = spawn('npx', ['tsx', CLI_PATH, ...args], {
-      env: { ...process.env, AGENT_BROWSER_SESSION: SESSION },
+      env,
       shell: true,
     });
 

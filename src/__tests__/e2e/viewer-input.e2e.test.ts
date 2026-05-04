@@ -142,7 +142,7 @@ describe('keyboard input via Playwright API (E2E)', () => {
       let value = await page.locator('#text-input').inputValue();
       expect(value).toBe('test');
 
-      await page.keyboard.press('Meta+a');
+      await page.keyboard.press(process.platform === 'darwin' ? 'Meta+a' : 'Control+a');
       await page.keyboard.press('Backspace');
 
       value = await page.locator('#text-input').inputValue();

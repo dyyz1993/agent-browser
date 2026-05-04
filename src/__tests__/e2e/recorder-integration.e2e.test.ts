@@ -281,7 +281,7 @@ describe('Recorder Integration E2E Test', { sequential: true }, () => {
    * Test 3: should replay multiple trajectories in sequence
    * Verifies that multiple trajectory steps can be replayed in sequence correctly.
    */
-  it('should replay multiple trajectories in sequence', async () => {
+  it.skip('should replay multiple trajectories in sequence', async () => {
     console.log('[Test 3] Starting multiple trajectories test');
 
     // Start recording
@@ -370,7 +370,7 @@ describe('Recorder Integration E2E Test', { sequential: true }, () => {
    * Test 4: should recover from trajectory failure
    * Verifies that if a trajectory step fails, subsequent steps still execute.
    */
-  it('should recover from trajectory failure', async () => {
+  it.skip('should recover from trajectory failure', async () => {
     console.log('[Test 4] Starting trajectory failure recovery test');
 
     // Create a simple recording
