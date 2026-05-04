@@ -10,7 +10,7 @@ describe('BrowserManager.getFrame', () => {
     await browser.launch({
       action: 'launch',
       id: 'test-launch',
-      headless: true
+      headless: true,
     });
   });
 
@@ -71,7 +71,7 @@ describe('BrowserManager.getFrame', () => {
         const page = browser.getPage();
         const mainFrame = page.mainFrame();
         const childFrames = mainFrame.childFrames();
-        
+
         if (childFrames.length > 0) {
           const frame = browser.getFrame('0');
           expect(frame).toBeDefined();
@@ -109,7 +109,7 @@ describe('BrowserManager.getFrame', () => {
     describe('单层跨域 iframe', () => {
       it('should inject and access cross-origin iframe', async () => {
         const page = browser.getPage();
-        
+
         await page.evaluate(() => {
           document.body.innerHTML = `
             <h1>Main Page</h1>
@@ -127,7 +127,7 @@ describe('BrowserManager.getFrame', () => {
 
       it('should get snapshot from cross-origin iframe', async () => {
         const page = browser.getPage();
-        
+
         await page.evaluate(() => {
           document.body.innerHTML = `
             <iframe id="cross-frame" src="https://tools.docker.19930810.xyz:8443/tools/crawler-practice/examples/18-iframe.html" width="800" height="400"></iframe>
@@ -146,7 +146,7 @@ describe('BrowserManager.getFrame', () => {
     describe('嵌套跨域 iframe (路径解析验证)', () => {
       it('should verify childFrames() behavior on cross-origin iframe', async () => {
         const page = browser.getPage();
-        
+
         await page.evaluate(() => {
           document.body.innerHTML = `
             <iframe id="outer-frame" src="https://tools.docker.19930810.xyz:8443/tools/crawler-practice/examples/18-iframe.html" width="800" height="400"></iframe>
@@ -162,7 +162,7 @@ describe('BrowserManager.getFrame', () => {
         const childFrames = outerFrame.childFrames();
         console.log('Cross-origin iframe childFrames count:', childFrames.length);
         console.log('Cross-origin iframe URL:', outerFrame.url());
-        
+
         if (childFrames.length > 0) {
           childFrames.forEach((f, i) => {
             console.log(`  Child ${i}: name="${f.name()}" url="${f.url()}"`);
@@ -172,7 +172,7 @@ describe('BrowserManager.getFrame', () => {
 
       it('should access nested iframe by index (#frame/0)', async () => {
         const page = browser.getPage();
-        
+
         await page.evaluate(() => {
           document.body.innerHTML = `
             <iframe id="test-frame" src="https://tools.docker.19930810.xyz:8443/tools/crawler-practice/examples/18-iframe.html" width="800" height="400"></iframe>
@@ -198,7 +198,7 @@ describe('BrowserManager.getFrame', () => {
 
       it('should access nested iframe by name (#frame/name)', async () => {
         const page = browser.getPage();
-        
+
         await page.evaluate(() => {
           document.body.innerHTML = `
             <iframe id="test-frame" src="https://tools.docker.19930810.xyz:8443/tools/crawler-practice/examples/18-iframe.html" width="800" height="400"></iframe>
@@ -210,11 +210,11 @@ describe('BrowserManager.getFrame', () => {
 
         const outerFrame = browser.getFrame('#test-frame');
         const childFrames = outerFrame.childFrames();
-        
+
         if (childFrames.length > 0) {
           const firstName = childFrames[0].name();
           console.log('First child frame name:', firstName);
-          
+
           if (firstName) {
             const nestedFrame = browser.getFrame(`#test-frame/${firstName}`);
             console.log('Nested frame found by name:', nestedFrame?.url());
@@ -225,7 +225,7 @@ describe('BrowserManager.getFrame', () => {
 
       it('should access deeply nested iframe (#frame/0/0)', async () => {
         const page = browser.getPage();
-        
+
         await page.evaluate(() => {
           document.body.innerHTML = `
             <iframe id="deep-frame" src="https://tools.docker.19930810.xyz:8443/tools/crawler-practice/examples/18-iframe.html" width="800" height="400"></iframe>
@@ -256,7 +256,7 @@ describe('BrowserManager.getFrame', () => {
 
       it('should verify frame content accessibility', async () => {
         const page = browser.getPage();
-        
+
         await page.evaluate(() => {
           document.body.innerHTML = `
             <iframe id="content-frame" src="https://tools.docker.19930810.xyz:8443/tools/crawler-practice/examples/18-iframe.html" width="800" height="400"></iframe>
@@ -282,7 +282,7 @@ describe('BrowserManager.getFrame', () => {
 
       it('should interact with login form in deepest nested iframe (#frame/0/0)', async () => {
         const page = browser.getPage();
-        
+
         await page.evaluate(() => {
           document.body.innerHTML = `
             <iframe id="login-test-frame" src="https://tools.docker.19930810.xyz:8443/tools/crawler-practice/examples/18-iframe.html" width="800" height="400"></iframe>
@@ -334,7 +334,7 @@ describe('BrowserManager.getFrame', () => {
 
       it('should extract data from login-frame in nested iframe', async () => {
         const page = browser.getPage();
-        
+
         await page.evaluate(() => {
           document.body.innerHTML = `
             <iframe id="extract-frame" src="https://tools.docker.19930810.xyz:8443/tools/crawler-practice/examples/18-iframe.html" width="800" height="400"></iframe>
@@ -358,7 +358,9 @@ describe('BrowserManager.getFrame', () => {
             console.log('Label text:', label);
             expect(label).toContain('login-frame');
 
-            const usernamePlaceholder = await loginFrame.locator('#username').getAttribute('placeholder');
+            const usernamePlaceholder = await loginFrame
+              .locator('#username')
+              .getAttribute('placeholder');
             console.log('Username placeholder:', usernamePlaceholder);
             expect(usernamePlaceholder).toContain('用户名');
 
@@ -375,7 +377,7 @@ describe('BrowserManager.getFrame', () => {
 
       it('should access login-frame by name path (#outer-iframe/#login-frame)', async () => {
         const page = browser.getPage();
-        
+
         await page.evaluate(() => {
           document.body.innerHTML = `
             <iframe id="name-path-frame" src="https://tools.docker.19930810.xyz:8443/tools/crawler-practice/examples/18-iframe.html" width="800" height="400"></iframe>
@@ -387,7 +389,10 @@ describe('BrowserManager.getFrame', () => {
 
         const level1Frame = browser.getFrame('#name-path-frame');
         const level1Children = level1Frame.childFrames();
-        console.log('Level 1 childFrames:', level1Children.map((f, i) => ({ index: i, name: f.name(), url: f.url() })));
+        console.log(
+          'Level 1 childFrames:',
+          level1Children.map((f, i) => ({ index: i, name: f.name(), url: f.url() }))
+        );
 
         if (level1Children.length > 0) {
           const level1ChildName = level1Children[0].name();
@@ -398,14 +403,19 @@ describe('BrowserManager.getFrame', () => {
             console.log('Level 2 frame by name:', level2FrameByName.url());
 
             const level2Children = level2FrameByName.childFrames();
-            console.log('Level 2 childFrames:', level2Children.map((f, i) => ({ index: i, name: f.name(), url: f.url() })));
+            console.log(
+              'Level 2 childFrames:',
+              level2Children.map((f, i) => ({ index: i, name: f.name(), url: f.url() }))
+            );
 
             if (level2Children.length > 0) {
               const level2ChildName = level2Children[0].name();
               console.log('Level 2 child name:', level2ChildName);
 
               if (level2ChildName) {
-                const loginFrameByName = browser.getFrame(`#name-path-frame/${level1ChildName}/${level2ChildName}`);
+                const loginFrameByName = browser.getFrame(
+                  `#name-path-frame/${level1ChildName}/${level2ChildName}`
+                );
                 console.log('Login frame by name path:', loginFrameByName.url());
                 expect(loginFrameByName.url()).toContain('login-frame');
 
@@ -420,7 +430,7 @@ describe('BrowserManager.getFrame', () => {
 
       it('should throw error for non-existent nested frame path', async () => {
         const page = browser.getPage();
-        
+
         await page.evaluate(() => {
           document.body.innerHTML = `
             <iframe id="error-test-frame" src="https://tools.docker.19930810.xyz:8443/tools/crawler-practice/examples/18-iframe.html" width="800" height="400"></iframe>
@@ -435,7 +445,7 @@ describe('BrowserManager.getFrame', () => {
 
       it('should throw error for invalid index in nested path', async () => {
         const page = browser.getPage();
-        
+
         await page.evaluate(() => {
           document.body.innerHTML = `
             <iframe id="invalid-index-frame" src="https://tools.docker.19930810.xyz:8443/tools/crawler-practice/examples/18-iframe.html" width="800" height="400"></iframe>
@@ -450,7 +460,7 @@ describe('BrowserManager.getFrame', () => {
 
       it('should throw error for invalid name in nested path', async () => {
         const page = browser.getPage();
-        
+
         await page.evaluate(() => {
           document.body.innerHTML = `
             <iframe id="invalid-name-frame" src="https://tools.docker.19930810.xyz:8443/tools/crawler-practice/examples/18-iframe.html" width="800" height="400"></iframe>
@@ -470,7 +480,7 @@ describe('BrowserManager.getFrame', () => {
 
       it('should throw error with detailed message showing available frames', async () => {
         const page = browser.getPage();
-        
+
         await page.evaluate(() => {
           document.body.innerHTML = `
             <iframe id="detailed-error-frame" src="https://tools.docker.19930810.xyz:8443/tools/crawler-practice/examples/18-iframe.html" width="800" height="400"></iframe>
@@ -507,7 +517,7 @@ describe('BrowserManager.getFrame', () => {
 
     it('should test page.frameLocator() for cross-origin iframe', async () => {
       const page = browser.getPage();
-      
+
       await page.evaluate(() => {
         document.body.innerHTML = `
           <iframe id="cross-frame" src="https://tools.docker.19930810.xyz:8443/tools/crawler-practice/examples/18-iframe.html" width="800" height="400"></iframe>
@@ -524,7 +534,7 @@ describe('BrowserManager.getFrame', () => {
 
     it('should test chained frameLocator() for nested cross-origin iframe', async () => {
       const page = browser.getPage();
-      
+
       await page.evaluate(() => {
         document.body.innerHTML = `
           <iframe id="outer-frame" src="https://tools.docker.19930810.xyz:8443/tools/crawler-practice/examples/18-iframe.html" width="800" height="400"></iframe>
@@ -555,7 +565,7 @@ describe('BrowserManager.getFrame', () => {
 
     it('should test frameLocator with index for nested iframe', async () => {
       const page = browser.getPage();
-      
+
       await page.evaluate(() => {
         document.body.innerHTML = `
           <iframe id="test-frame" src="https://tools.docker.19930810.xyz:8443/tools/crawler-practice/examples/18-iframe.html" width="800" height="400"></iframe>
@@ -608,7 +618,7 @@ describe('BrowserManager.getFrame', () => {
 
     it('should compare Frame.childFrames() vs frameLocator for cross-origin', async () => {
       const page = browser.getPage();
-      
+
       await page.evaluate(() => {
         document.body.innerHTML = `
           <iframe id="cross-frame" src="https://tools.docker.19930810.xyz:8443/tools/crawler-practice/examples/18-iframe.html" width="800" height="400"></iframe>
@@ -643,7 +653,7 @@ describe('BrowserManager.getFrame', () => {
 
     it('ID 选择器 (#username) 在跨域 iframe 中应该工作', async () => {
       const page = browser.getPage();
-      
+
       await page.evaluate(() => {
         document.body.innerHTML = `
           <iframe id="selector-test-frame" src="https://tools.docker.19930810.xyz:8443/tools/crawler-practice/examples/18-iframe.html" width="800" height="400"></iframe>
@@ -662,13 +672,13 @@ describe('BrowserManager.getFrame', () => {
 
         if (level2Children.length > 0) {
           const loginFrame = browser.getFrame('#selector-test-frame/0/0');
-          
+
           const usernameById = loginFrame.locator('#username');
           const countById = await usernameById.count();
           console.log('ID 选择器 (#username) 元素数量:', countById);
-          
+
           expect(countById).toBe(1);
-          
+
           await usernameById.fill('admin');
           const valueById = await usernameById.inputValue();
           expect(valueById).toBe('admin');
@@ -679,7 +689,7 @@ describe('BrowserManager.getFrame', () => {
 
     it('CSS 属性选择器 (input[name="username"]) 在跨域 iframe 中存在兼容性问题', async () => {
       const page = browser.getPage();
-      
+
       await page.evaluate(() => {
         document.body.innerHTML = `
           <iframe id="attr-selector-frame" src="https://tools.docker.19930810.xyz:8443/tools/crawler-practice/examples/18-iframe.html" width="800" height="400"></iframe>
@@ -698,30 +708,34 @@ describe('BrowserManager.getFrame', () => {
 
         if (level2Children.length > 0) {
           const loginFrame = browser.getFrame('#attr-selector-frame/0/0');
-          
+
           const idSelector = loginFrame.locator('#username');
           const idCount = await idSelector.count();
           console.log('ID 选择器 (#username) 元素数量:', idCount);
           expect(idCount).toBe(1);
-          
+
           const attrSelector = loginFrame.locator('input[name="username"]');
           const countByAttr = await attrSelector.count();
           console.log('CSS 属性选择器 (input[name="username"]) 元素数量:', countByAttr);
-          
-          const inputInfo = await loginFrame.locator('input').evaluateAll((inputs: HTMLInputElement[]) => 
-            inputs.map(input => ({ id: input.id, name: input.getAttribute('name') }))
-          );
+
+          const inputInfo = await loginFrame
+            .locator('input')
+            .evaluateAll((inputs: HTMLInputElement[]) =>
+              inputs.map((input) => ({ id: input.id, name: input.getAttribute('name') }))
+            );
           console.log('Input 元素实际属性:', JSON.stringify(inputInfo, null, 2));
-          
+
           expect(countByAttr).toBe(0);
-          console.log('验证: input 元素没有 name 属性，所以 input[name="username"] 返回 0 是正确行为');
+          console.log(
+            '验证: input 元素没有 name 属性，所以 input[name="username"] 返回 0 是正确行为'
+          );
         }
       }
     }, 20000);
 
     it('ID 选择器和 CSS 属性选择器在跨域 iframe 中的行为对比', async () => {
       const page = browser.getPage();
-      
+
       await page.evaluate(() => {
         document.body.innerHTML = `
           <iframe id="compare-frame" src="https://tools.docker.19930810.xyz:8443/tools/crawler-practice/examples/18-iframe.html" width="800" height="400"></iframe>
@@ -740,21 +754,23 @@ describe('BrowserManager.getFrame', () => {
 
         if (level2Children.length > 0) {
           const loginFrame = browser.getFrame('#compare-frame/0/0');
-          
+
           const idSelector = loginFrame.locator('#username');
           const attrSelector = loginFrame.locator('input[name="username"]');
-          
+
           const idCount = await idSelector.count();
           const attrCount = await attrSelector.count();
-          
+
           console.log('ID 选择器 (#username) 数量:', idCount);
           console.log('CSS 属性选择器 (input[name="username"]) 数量:', attrCount);
-          
+
           expect(idCount).toBe(1);
           expect(attrCount).toBe(0);
-          
-          console.log('说明: 元素只有 id="username"，没有 name 属性，所以属性选择器返回 0 是预期行为');
-          
+
+          console.log(
+            '说明: 元素只有 id="username"，没有 name 属性，所以属性选择器返回 0 是预期行为'
+          );
+
           await idSelector.fill('user1');
           const idValue = await idSelector.inputValue();
           console.log('ID 选择器填充值:', idValue);
@@ -765,7 +781,7 @@ describe('BrowserManager.getFrame', () => {
 
     it('其他 CSS 选择器 (class, tag) 在跨域 iframe 中的行为', async () => {
       const page = browser.getPage();
-      
+
       await page.evaluate(() => {
         document.body.innerHTML = `
           <iframe id="class-selector-frame" src="https://tools.docker.19930810.xyz:8443/tools/crawler-practice/examples/18-iframe.html" width="800" height="400"></iframe>
@@ -784,24 +800,24 @@ describe('BrowserManager.getFrame', () => {
 
         if (level2Children.length > 0) {
           const loginFrame = browser.getFrame('#class-selector-frame/0/0');
-          
+
           const inputByTag = loginFrame.locator('input');
           const inputCount = await inputByTag.count();
           console.log('Tag 选择器 (input) 元素数量:', inputCount);
-          
+
           if (inputCount > 0) {
-            const inputInfo = await inputByTag.evaluateAll((inputs: HTMLInputElement[]) => 
-              inputs.map(input => ({
+            const inputInfo = await inputByTag.evaluateAll((inputs: HTMLInputElement[]) =>
+              inputs.map((input) => ({
                 id: input.id,
                 name: input.getAttribute('name'),
                 type: input.type,
                 placeholder: input.placeholder,
-                className: input.className
+                className: input.className,
               }))
             );
             console.log('Input 元素实际属性:', JSON.stringify(inputInfo, null, 2));
           }
-          
+
           expect(inputCount).toBeGreaterThan(0);
         }
       }
@@ -809,7 +825,7 @@ describe('BrowserManager.getFrame', () => {
 
     it('使用 page.frameLocator + CSS 选择器在跨域 iframe 中验证选择器差异', async () => {
       const page = browser.getPage();
-      
+
       await page.evaluate(() => {
         document.body.innerHTML = `
           <iframe id="frameLocator-frame" src="https://tools.docker.19930810.xyz:8443/tools/crawler-practice/examples/18-iframe.html" width="800" height="400"></iframe>
@@ -820,27 +836,29 @@ describe('BrowserManager.getFrame', () => {
       await page.waitForTimeout(3000);
 
       const outerFrameLocator = page.frameLocator('#frameLocator-frame');
-      
+
       const innerIframes = await outerFrameLocator.locator('iframe').count();
       expect(innerIframes).toBeGreaterThan(0);
 
       const innerFrameLocator = outerFrameLocator.frameLocator('iframe').first();
       const secondIframes = await innerFrameLocator.locator('iframe').count();
-      
+
       if (secondIframes > 0) {
         const loginFrameLocator = innerFrameLocator.frameLocator('iframe').first();
-        
+
         const usernameById = await loginFrameLocator.locator('#username').count();
         console.log('使用 frameLocator + ID 选择器 (#username):', usernameById);
-        
+
         const usernameByAttr = await loginFrameLocator.locator('input[name="username"]').count();
         console.log('使用 frameLocator + CSS 属性选择器 (input[name="username"]):', usernameByAttr);
-        
-        const inputInfo = await loginFrameLocator.locator('input').evaluateAll((inputs: HTMLInputElement[]) => 
-          inputs.map(input => ({ id: input.id, name: input.getAttribute('name') }))
-        );
+
+        const inputInfo = await loginFrameLocator
+          .locator('input')
+          .evaluateAll((inputs: HTMLInputElement[]) =>
+            inputs.map((input) => ({ id: input.id, name: input.getAttribute('name') }))
+          );
         console.log('Input 元素实际属性:', JSON.stringify(inputInfo, null, 2));
-        
+
         expect(usernameById).toBe(1);
         expect(usernameByAttr).toBe(0);
         console.log('说明: 元素没有 name 属性，所以 input[name="username"] 返回 0 是正确行为');

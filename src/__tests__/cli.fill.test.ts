@@ -84,7 +84,9 @@ describe('fill command', () => {
         parseCliArgs(['fill', '#input']);
       } catch (e) {
         expect((e as CliError).message).toBe('Missing selector or value');
-        expect((e as CliError).usage).toBe('agent-browser fill <selector> <text> [--diff [scope]] [--in-frame <path>]');
+        expect((e as CliError).usage).toBe(
+          'agent-browser fill <selector> <text> [--diff [scope]] [--in-frame <path>]'
+        );
       }
     });
   });

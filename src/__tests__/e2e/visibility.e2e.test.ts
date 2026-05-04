@@ -11,10 +11,10 @@ describe('visibility toggle (E2E)', () => {
 
   beforeAll(async () => {
     browser = new BrowserManager();
-    await browser.launch({ 
-      action: 'launch', 
-      id: 'test-launch', 
-      headless: true 
+    await browser.launch({
+      action: 'launch',
+      id: 'test-launch',
+      headless: true,
     });
   });
 
@@ -56,10 +56,7 @@ describe('visibility toggle (E2E)', () => {
 
   describe('toggle visibility', () => {
     it('should show element after toggle', async () => {
-      const toggleResult = await executeCommand(
-        parseCliArgs(['click', '#toggle-btn']),
-        browser
-      );
+      const toggleResult = await executeCommand(parseCliArgs(['click', '#toggle-btn']), browser);
       expect(toggleResult.success).toBe(true);
 
       const visibleResult = await executeCommand(
@@ -89,10 +86,7 @@ describe('visibility toggle (E2E)', () => {
 
   describe('show/hide buttons', () => {
     it('should show element with show button', async () => {
-      const showResult = await executeCommand(
-        parseCliArgs(['click', '#show-btn']),
-        browser
-      );
+      const showResult = await executeCommand(parseCliArgs(['click', '#show-btn']), browser);
       expect(showResult.success).toBe(true);
 
       const visibleResult = await executeCommand(
@@ -107,11 +101,8 @@ describe('visibility toggle (E2E)', () => {
 
     it('should hide element with hide button', async () => {
       await executeCommand(parseCliArgs(['click', '#show-btn']), browser);
-      
-      const hideResult = await executeCommand(
-        parseCliArgs(['click', '#hide-btn']),
-        browser
-      );
+
+      const hideResult = await executeCommand(parseCliArgs(['click', '#hide-btn']), browser);
       expect(hideResult.success).toBe(true);
 
       const visibleResult = await executeCommand(
@@ -148,10 +139,7 @@ describe('visibility toggle (E2E)', () => {
     it('should click button inside revealed element', async () => {
       await executeCommand(parseCliArgs(['click', '#show-btn']), browser);
 
-      const clickResult = await executeCommand(
-        parseCliArgs(['click', '#target-btn']),
-        browser
-      );
+      const clickResult = await executeCommand(parseCliArgs(['click', '#target-btn']), browser);
       expect(clickResult.success).toBe(true);
 
       const textResult = await executeCommand(
@@ -167,16 +155,10 @@ describe('visibility toggle (E2E)', () => {
 
   describe('wait for visible element', () => {
     it('should wait for element to become visible', async () => {
-      const clickResult = await executeCommand(
-        parseCliArgs(['click', '#toggle-btn']),
-        browser
-      );
+      const clickResult = await executeCommand(parseCliArgs(['click', '#toggle-btn']), browser);
       expect(clickResult.success).toBe(true);
 
-      const waitResult = await executeCommand(
-        parseCliArgs(['wait', '#target-element']),
-        browser
-      );
+      const waitResult = await executeCommand(parseCliArgs(['wait', '#target-element']), browser);
       expect(waitResult.success).toBe(true);
     });
   });

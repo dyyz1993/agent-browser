@@ -22,13 +22,29 @@ describe('cookies command', () => {
     });
 
     it('should parse cookies set with --url', () => {
-      const cmd = parseCliArgs(['cookies', 'set', 'mycookie', 'myvalue', '--url', 'https://example.com']);
+      const cmd = parseCliArgs([
+        'cookies',
+        'set',
+        'mycookie',
+        'myvalue',
+        '--url',
+        'https://example.com',
+      ]);
       expect(cmd.action).toBe('cookies_set');
-      expect(cmd.cookies).toEqual([{ name: 'mycookie', value: 'myvalue', url: 'https://example.com' }]);
+      expect(cmd.cookies).toEqual([
+        { name: 'mycookie', value: 'myvalue', url: 'https://example.com' },
+      ]);
     });
 
     it('should parse cookies set with --domain', () => {
-      const cmd = parseCliArgs(['cookies', 'set', 'mycookie', 'myvalue', '--domain', 'example.com']);
+      const cmd = parseCliArgs([
+        'cookies',
+        'set',
+        'mycookie',
+        'myvalue',
+        '--domain',
+        'example.com',
+      ]);
       expect(cmd.action).toBe('cookies_set');
       expect(cmd.cookies).toEqual([{ name: 'mycookie', value: 'myvalue', domain: 'example.com' }]);
     });
@@ -58,53 +74,77 @@ describe('cookies command', () => {
     });
 
     it('should parse cookies set with --expires', () => {
-      const cmd = parseCliArgs(['cookies', 'set', 'mycookie', 'myvalue', '--expires', '1234567890']);
+      const cmd = parseCliArgs([
+        'cookies',
+        'set',
+        'mycookie',
+        'myvalue',
+        '--expires',
+        '1234567890',
+      ]);
       expect(cmd.action).toBe('cookies_set');
       expect(cmd.cookies).toEqual([{ name: 'mycookie', value: 'myvalue', expires: 1234567890 }]);
     });
 
     it('should parse cookies set with multiple flags', () => {
       const cmd = parseCliArgs([
-        'cookies', 'set', 'mycookie', 'myvalue',
-        '--url', 'https://example.com',
+        'cookies',
+        'set',
+        'mycookie',
+        'myvalue',
+        '--url',
+        'https://example.com',
         '--httpOnly',
         '--secure',
-        '--sameSite', 'Lax'
+        '--sameSite',
+        'Lax',
       ]);
       expect(cmd.action).toBe('cookies_set');
-      expect(cmd.cookies).toEqual([{
-        name: 'mycookie',
-        value: 'myvalue',
-        url: 'https://example.com',
-        httpOnly: true,
-        secure: true,
-        sameSite: 'Lax'
-      }]);
+      expect(cmd.cookies).toEqual([
+        {
+          name: 'mycookie',
+          value: 'myvalue',
+          url: 'https://example.com',
+          httpOnly: true,
+          secure: true,
+          sameSite: 'Lax',
+        },
+      ]);
     });
 
     it('should parse cookies set with all flags', () => {
       const cmd = parseCliArgs([
-        'cookies', 'set', 'mycookie', 'myvalue',
-        '--url', 'https://example.com',
-        '--domain', 'example.com',
-        '--path', '/api',
+        'cookies',
+        'set',
+        'mycookie',
+        'myvalue',
+        '--url',
+        'https://example.com',
+        '--domain',
+        'example.com',
+        '--path',
+        '/api',
         '--httpOnly',
         '--secure',
-        '--sameSite', 'None',
-        '--expires', '9999999999'
+        '--sameSite',
+        'None',
+        '--expires',
+        '9999999999',
       ]);
       expect(cmd.action).toBe('cookies_set');
-      expect(cmd.cookies).toEqual([{
-        name: 'mycookie',
-        value: 'myvalue',
-        url: 'https://example.com',
-        domain: 'example.com',
-        path: '/api',
-        httpOnly: true,
-        secure: true,
-        sameSite: 'None',
-        expires: 9999999999
-      }]);
+      expect(cmd.cookies).toEqual([
+        {
+          name: 'mycookie',
+          value: 'myvalue',
+          url: 'https://example.com',
+          domain: 'example.com',
+          path: '/api',
+          httpOnly: true,
+          secure: true,
+          sameSite: 'None',
+          expires: 9999999999,
+        },
+      ]);
     });
   });
 

@@ -86,7 +86,11 @@ describe('set command', () => {
     });
 
     it('should parse set headers with multiple values', () => {
-      const cmd = parseCliArgs(['set', 'headers', '{"Authorization":"Bearer-token","X-Custom":"value"}']);
+      const cmd = parseCliArgs([
+        'set',
+        'headers',
+        '{"Authorization":"Bearer-token","X-Custom":"value"}',
+      ]);
       expect(cmd.action).toBe('headers');
       expect(cmd.headers).toEqual({ Authorization: 'Bearer-token', 'X-Custom': 'value' });
     });

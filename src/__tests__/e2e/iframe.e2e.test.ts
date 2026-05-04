@@ -11,10 +11,10 @@ describe('iframe nested (E2E)', () => {
 
   beforeAll(async () => {
     browser = new BrowserManager();
-    await browser.launch({ 
-      action: 'launch', 
-      id: 'test-launch', 
-      headless: true 
+    await browser.launch({
+      action: 'launch',
+      id: 'test-launch',
+      headless: true,
     });
   });
 
@@ -87,7 +87,13 @@ describe('iframe nested (E2E)', () => {
   describe('fill in nested iframe', () => {
     it('should fill input in deepest iframe', async () => {
       const fillResult = await executeCommand(
-        parseCliArgs(['fill', '#deep-input', 'test value', '--in-frame', '#frame1/#frame2/#frame3']),
+        parseCliArgs([
+          'fill',
+          '#deep-input',
+          'test value',
+          '--in-frame',
+          '#frame1/#frame2/#frame3',
+        ]),
         browser
       );
       expect(fillResult.success).toBe(true);
@@ -109,15 +115,13 @@ describe('iframe nested (E2E)', () => {
       );
       expect(snapshotResult.success).toBe(true);
       expect(isSuccessResponse(snapshotResult)).toBe(true);
-      
+
       if (!isSuccessResponse(snapshotResult)) return;
-      
+
       const refs = (snapshotResult.data as { refs?: Record<string, { role: string }> }).refs;
       expect(refs).toBeDefined();
-      
-      const inputRef = Object.entries(refs || {}).find(
-        ([_, data]) => data.role === 'textbox'
-      );
+
+      const inputRef = Object.entries(refs || {}).find(([_, data]) => data.role === 'textbox');
       expect(inputRef).toBeDefined();
       const refId = inputRef![0];
 
@@ -147,12 +151,12 @@ describe('iframe nested (E2E)', () => {
       expect(snapshotResult.success).toBe(true);
       if (!isSuccessResponse(snapshotResult)) return;
 
-      const refs = (snapshotResult.data as { refs?: Record<string, { role: string; name?: string }> }).refs;
+      const refs = (
+        snapshotResult.data as { refs?: Record<string, { role: string; name?: string }> }
+      ).refs;
       expect(refs).toBeDefined();
 
-      const buttonRef = Object.entries(refs || {}).find(
-        ([_, data]) => data.role === 'button'
-      );
+      const buttonRef = Object.entries(refs || {}).find(([_, data]) => data.role === 'button');
       expect(buttonRef).toBeDefined();
       const refId = buttonRef![0];
 
@@ -177,9 +181,7 @@ describe('iframe nested (E2E)', () => {
       const refs = (snapshotResult.data as { refs?: Record<string, { role: string }> }).refs;
       expect(refs).toBeDefined();
 
-      const buttonRef = Object.entries(refs || {}).find(
-        ([_, data]) => data.role === 'button'
-      );
+      const buttonRef = Object.entries(refs || {}).find(([_, data]) => data.role === 'button');
       expect(buttonRef).toBeDefined();
       const refId = buttonRef![0];
 
@@ -189,7 +191,9 @@ describe('iframe nested (E2E)', () => {
       );
       expect(attrResult.success).toBe(true);
       if (isSuccessResponse(attrResult)) {
-        expect((attrResult.data as { attribute: string; value: string | null }).value).toBe('deep-btn');
+        expect((attrResult.data as { attribute: string; value: string | null }).value).toBe(
+          'deep-btn'
+        );
       }
     });
 
@@ -204,9 +208,7 @@ describe('iframe nested (E2E)', () => {
       const refs = (snapshotResult.data as { refs?: Record<string, { role: string }> }).refs;
       expect(refs).toBeDefined();
 
-      const buttonRef = Object.entries(refs || {}).find(
-        ([_, data]) => data.role === 'button'
-      );
+      const buttonRef = Object.entries(refs || {}).find(([_, data]) => data.role === 'button');
       expect(buttonRef).toBeDefined();
       const refId = buttonRef![0];
 
@@ -231,9 +233,7 @@ describe('iframe nested (E2E)', () => {
       const refs = (snapshotResult.data as { refs?: Record<string, { role: string }> }).refs;
       expect(refs).toBeDefined();
 
-      const textboxRef = Object.entries(refs || {}).find(
-        ([_, data]) => data.role === 'textbox'
-      );
+      const textboxRef = Object.entries(refs || {}).find(([_, data]) => data.role === 'textbox');
       expect(textboxRef).toBeDefined();
       const refId = textboxRef![0];
 
@@ -258,9 +258,7 @@ describe('iframe nested (E2E)', () => {
       const refs = (snapshotResult.data as { refs?: Record<string, { role: string }> }).refs;
       expect(refs).toBeDefined();
 
-      const buttonRef = Object.entries(refs || {}).find(
-        ([_, data]) => data.role === 'button'
-      );
+      const buttonRef = Object.entries(refs || {}).find(([_, data]) => data.role === 'button');
       expect(buttonRef).toBeDefined();
       const refId = buttonRef![0];
 
@@ -270,7 +268,9 @@ describe('iframe nested (E2E)', () => {
       );
       expect(boxResult.success).toBe(true);
       if (isSuccessResponse(boxResult)) {
-        const box = (boxResult.data as { box: { x: number; y: number; width: number; height: number } | null }).box;
+        const box = (
+          boxResult.data as { box: { x: number; y: number; width: number; height: number } | null }
+        ).box;
         expect(box).not.toBeNull();
         expect(box!.width).toBeGreaterThan(0);
         expect(box!.height).toBeGreaterThan(0);
@@ -288,9 +288,7 @@ describe('iframe nested (E2E)', () => {
       const refs = (snapshotResult.data as { refs?: Record<string, { role: string }> }).refs;
       expect(refs).toBeDefined();
 
-      const buttonRef = Object.entries(refs || {}).find(
-        ([_, data]) => data.role === 'button'
-      );
+      const buttonRef = Object.entries(refs || {}).find(([_, data]) => data.role === 'button');
       expect(buttonRef).toBeDefined();
       const refId = buttonRef![0];
 

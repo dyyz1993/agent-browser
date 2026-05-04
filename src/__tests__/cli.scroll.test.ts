@@ -100,7 +100,9 @@ describe('scrollintoview command', () => {
         parseCliArgs(['scrollintoview']);
       } catch (e) {
         expect((e as CliError).message).toBe('Missing selector');
-        expect((e as CliError).usage).toBe('agent-browser scrollintoview <selector> [--in-frame <path>]');
+        expect((e as CliError).usage).toBe(
+          'agent-browser scrollintoview <selector> [--in-frame <path>]'
+        );
       }
     });
   });

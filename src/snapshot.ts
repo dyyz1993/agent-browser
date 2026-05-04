@@ -41,20 +41,15 @@ export interface EnhancedSnapshot {
 }
 
 export interface SnapshotOptions {
-  /** Only include interactive elements (buttons, links, inputs, etc.) */
   interactive?: boolean;
-  /** Include cursor-interactive elements (cursor:pointer, onclick, tabindex) */
   cursor?: boolean;
-  /** Maximum depth of tree to include (0 = root only) */
   maxDepth?: number;
-  /** Remove structural elements without meaningful content */
   compact?: boolean;
-  /** CSS selector to scope the snapshot */
   selector?: string;
-  /** Include xpath and cssPath in refs (requires selector) */
   path?: boolean;
-  /** Include element attributes in refs (requires selector) */
   attrs?: boolean;
+  selectors?: boolean;
+  all?: boolean;
 }
 
 // Counter for generating refs
@@ -461,7 +456,85 @@ export async function getEnhancedSnapshot(
     await enrichRefsWithPathsAndAttrs(page, refs, options);
   }
 
-  return { tree: enhancedTree, refs };
+  let finalTree = enhancedTree;
+
+  if (options.selectors && Object.keys(refs).length > 0) {
+    const selectorMap = await buildCompactSelectors(page as Page | Frame, refs, options);
+    if (selectorMap) {
+      finalTree += '\n## Selectors\n' + selectorMap;
+    }
+  }
+
+  return { tree: finalTree, refs };
+}
+
+async function buildCompactSelectors(
+  page: Page | Frame,
+  refs: RefMap,
+  options?: { all?: boolean }
+): Promise<string> {
+  const entries = Object.entries(refs);
+  const parts: string[] = [];
+  const includeAll = options?.all ?? false;
+
+  for (const [ref, data] of entries) {
+    if (data.role === 'clickable' || data.role === 'focusable') continue;
+
+    try {
+      let locator;
+      if (data.name) {
+        locator = page.getByRole(data.role as any, { name: data.name, exact: true });
+      } else {
+        locator = page.getByRole(data.role as any);
+      }
+      if (data.nth !== undefined) locator = locator.nth(data.nth);
+
+      if (!includeAll) {
+        const isReallyVisible = await locator
+          .evaluate((el: Element) => {
+            const style = getComputedStyle(el);
+            const rect = el.getBoundingClientRect();
+            return !(
+              style.display === 'none' ||
+              style.visibility === 'hidden' ||
+              parseFloat(style.opacity) === 0 ||
+              (rect.width === 0 && rect.height === 0) ||
+              rect.x + rect.width < 0 ||
+              rect.y + rect.height < 0
+            );
+          })
+          .catch(() => false);
+        if (!isReallyVisible) continue;
+      }
+
+      const attrs = await locator
+        .evaluate((el: Element) => {
+          const htmlEl = el as HTMLElement;
+          const r: Record<string, string> = {};
+          if (htmlEl.dataset.testid) r['testid'] = `[data-testid="${htmlEl.dataset.testid}"]`;
+          if (htmlEl.id && !htmlEl.id.match(/^[:]/)) r['id'] = '#' + CSS.escape(htmlEl.id);
+          const nameAttr = htmlEl.getAttribute('name');
+          if (nameAttr) r['name'] = `${htmlEl.tagName.toLowerCase()}[name="${nameAttr}"]`;
+          return r;
+        })
+        .catch(() => null);
+
+      if (!attrs) continue;
+
+      let bestSelector = '';
+      if (attrs.testid) bestSelector = attrs.testid;
+      else if (attrs.id) bestSelector = attrs.id;
+      else if (attrs.name) bestSelector = attrs.name;
+
+      if (bestSelector) {
+        parts.push(`${ref}: ${bestSelector}`);
+      }
+    } catch {
+      // skip
+    }
+  }
+
+  return parts.join(' | ');
 }
 
 async function enrichRefsWithPathsAndAttrs(

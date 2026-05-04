@@ -266,12 +266,14 @@ describe('diff module', () => {
       const diff: SnapshotDiff = {
         added: [],
         removed: [],
-        changed: [{
-          role: 'paragraph',
-          name: '',
-          before: { value: 'Counter: 0' },
-          after: { value: 'Counter: 1' },
-        }],
+        changed: [
+          {
+            role: 'paragraph',
+            name: '',
+            before: { value: 'Counter: 0' },
+            after: { value: 'Counter: 1' },
+          },
+        ],
         scope: '',
       };
       const output = formatDiff(diff);
@@ -293,12 +295,14 @@ describe('diff module', () => {
       const diff: SnapshotDiff = {
         added: [{ role: 'textbox', name: 'Email', ref: 'e2' }],
         removed: [{ role: 'button', name: 'Cancel', ref: 'e3' }],
-        changed: [{
-          role: 'paragraph',
-          name: '',
-          before: { value: 'Counter: 0' },
-          after: { value: 'Counter: 1' },
-        }],
+        changed: [
+          {
+            role: 'paragraph',
+            name: '',
+            before: { value: 'Counter: 0' },
+            after: { value: 'Counter: 1' },
+          },
+        ],
         scope: '',
       };
       const output = formatDiff(diff);

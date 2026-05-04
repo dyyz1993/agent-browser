@@ -89,7 +89,9 @@ describe('click command', () => {
         parseCliArgs(['click']);
       } catch (e) {
         expect((e as CliError).message).toBe('Missing selector');
-        expect((e as CliError).usage).toBe('agent-browser click <selector> [--diff [scope]] [--in-frame <path>]');
+        expect((e as CliError).usage).toBe(
+          'agent-browser click <selector> [--diff [scope]] [--in-frame <path>]'
+        );
       }
     });
   });
@@ -123,7 +125,9 @@ describe('dblclick command', () => {
         parseCliArgs(['dblclick']);
       } catch (e) {
         expect((e as CliError).message).toBe('Missing selector');
-        expect((e as CliError).usage).toBe('agent-browser dblclick <selector> [--diff [scope]] [--in-frame <path>]');
+        expect((e as CliError).usage).toBe(
+          'agent-browser dblclick <selector> [--diff [scope]] [--in-frame <path>]'
+        );
       }
     });
   });

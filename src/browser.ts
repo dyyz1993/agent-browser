@@ -220,9 +220,7 @@ export class BrowserManager {
     this.commandHistory.push({ action, selector, value, success, timestamp: Date.now() });
   }
 
-  getHistory(
-    filter?: string
-  ): Array<{
+  getHistory(filter?: string): Array<{
     action: string;
     selector: string;
     value?: string;

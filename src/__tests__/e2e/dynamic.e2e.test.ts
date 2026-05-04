@@ -11,10 +11,10 @@ describe('dynamic content (E2E)', () => {
 
   beforeAll(async () => {
     browser = new BrowserManager();
-    await browser.launch({ 
-      action: 'launch', 
-      id: 'test-launch', 
-      headless: true 
+    await browser.launch({
+      action: 'launch',
+      id: 'test-launch',
+      headless: true,
     });
   });
 
@@ -32,10 +32,7 @@ describe('dynamic content (E2E)', () => {
 
   describe('add dynamic items', () => {
     it('should add one item', async () => {
-      const clickResult = await executeCommand(
-        parseCliArgs(['click', '#add-btn']),
-        browser
-      );
+      const clickResult = await executeCommand(parseCliArgs(['click', '#add-btn']), browser);
       expect(clickResult.success).toBe(true);
 
       const countResult = await executeCommand(
@@ -66,30 +63,18 @@ describe('dynamic content (E2E)', () => {
 
   describe('wait for dynamic elements', () => {
     it('should wait for element to appear', async () => {
-      const clickResult = await executeCommand(
-        parseCliArgs(['click', '#add-btn']),
-        browser
-      );
+      const clickResult = await executeCommand(parseCliArgs(['click', '#add-btn']), browser);
       expect(clickResult.success).toBe(true);
 
-      const waitResult = await executeCommand(
-        parseCliArgs(['wait', '.dynamic-item']),
-        browser
-      );
+      const waitResult = await executeCommand(parseCliArgs(['wait', '.dynamic-item']), browser);
       expect(waitResult.success).toBe(true);
     });
 
     it('should wait for async content', async () => {
-      const clickResult = await executeCommand(
-        parseCliArgs(['click', '#load-btn']),
-        browser
-      );
+      const clickResult = await executeCommand(parseCliArgs(['click', '#load-btn']), browser);
       expect(clickResult.success).toBe(true);
 
-      const waitResult = await executeCommand(
-        parseCliArgs(['wait', '.async-item']),
-        browser
-      );
+      const waitResult = await executeCommand(parseCliArgs(['wait', '.async-item']), browser);
       expect(waitResult.success).toBe(true);
 
       const countResult = await executeCommand(
@@ -109,10 +94,7 @@ describe('dynamic content (E2E)', () => {
       await executeCommand(parseCliArgs(['click', '#add-btn']), browser);
       await executeCommand(parseCliArgs(['click', '#add-btn']), browser);
 
-      const removeResult = await executeCommand(
-        parseCliArgs(['click', '#remove-btn']),
-        browser
-      );
+      const removeResult = await executeCommand(parseCliArgs(['click', '#remove-btn']), browser);
       expect(removeResult.success).toBe(true);
 
       const countResult = await executeCommand(
@@ -129,10 +111,7 @@ describe('dynamic content (E2E)', () => {
       await executeCommand(parseCliArgs(['click', '#add-btn']), browser);
       await executeCommand(parseCliArgs(['click', '#add-btn']), browser);
 
-      const clearResult = await executeCommand(
-        parseCliArgs(['click', '#clear-btn']),
-        browser
-      );
+      const clearResult = await executeCommand(parseCliArgs(['click', '#clear-btn']), browser);
       expect(clearResult.success).toBe(true);
 
       const countResult = await executeCommand(
@@ -151,10 +130,7 @@ describe('dynamic content (E2E)', () => {
       await executeCommand(parseCliArgs(['click', '#add-btn']), browser);
       await executeCommand(parseCliArgs(['click', '#add-btn']), browser);
 
-      const snapshotResult = await executeCommand(
-        parseCliArgs(['snapshot']),
-        browser
-      );
+      const snapshotResult = await executeCommand(parseCliArgs(['snapshot']), browser);
       expect(snapshotResult.success).toBe(true);
       if (isSuccessResponse(snapshotResult)) {
         expect(snapshotResult.data).toBeDefined();

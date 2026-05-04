@@ -525,6 +525,38 @@ export function parseCliArgs(args: string[]): Command {
       return { id, action: 'evaluate', script, file, inFrame };
     }
 
+    case 'addinitscript': {
+      let script: string | undefined;
+      let file: string | undefined;
+      if (rest.includes('--file')) {
+        const fileIdx = rest.indexOf('--file');
+        file = rest[fileIdx + 1];
+        if (!file) error('Missing file path', 'agent-browser addinitscript --file <path>');
+      } else if (rest.includes('-f')) {
+        const fIdx = rest.indexOf('-f');
+        if (fIdx + 1 < rest.length && !rest[fIdx + 1].startsWith('-')) {
+          file = rest[fIdx + 1];
+        }
+        if (!file) error('Missing file path', 'agent-browser addinitscript -f <path>');
+      } else if (rest.includes('--stdin')) {
+        script = readStdin();
+      } else if (rest.includes('-b') || rest.includes('--base64')) {
+        const bIdx = rest.includes('-b') ? rest.indexOf('-b') : rest.indexOf('--base64');
+        const encoded = rest[bIdx + 1];
+        if (!encoded)
+          error('Missing base64 script', 'agent-browser addinitscript -b <base64-script>');
+        try {
+          script = Buffer.from(encoded, 'base64').toString('utf8');
+        } catch {
+          error('Invalid base64', 'agent-browser addinitscript -b <base64-script>');
+        }
+      } else {
+        script = rest.join(' ');
+        if (!script) error('Missing script', 'agent-browser addinitscript <script>');
+      }
+      return { id, action: 'addinitscript', script, file };
+    }
+
     case 'close':
     case 'quit':
     case 'exit':

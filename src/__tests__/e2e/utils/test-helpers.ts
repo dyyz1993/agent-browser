@@ -10,10 +10,10 @@ export function getFixturePath(filename: string): string {
 
 export async function createBrowser(headless: boolean = true): Promise<BrowserManager> {
   const browser = new BrowserManager();
-  await browser.launch({ 
-    action: 'launch', 
-    id: 'test-browser', 
-    headless 
+  await browser.launch({
+    action: 'launch',
+    id: 'test-browser',
+    headless,
   });
   return browser;
 }

@@ -36,7 +36,9 @@ describe('type command', () => {
         parseCliArgs(['type', '#input']);
       } catch (e) {
         expect((e as CliError).message).toBe('Missing selector or text');
-        expect((e as CliError).usage).toBe('agent-browser type <selector> <text> [--diff [scope]] [--in-frame <path>]');
+        expect((e as CliError).usage).toBe(
+          'agent-browser type <selector> <text> [--diff [scope]] [--in-frame <path>]'
+        );
       }
     });
   });

@@ -11,10 +11,10 @@ describe('form complex (E2E)', () => {
 
   beforeAll(async () => {
     browser = new BrowserManager();
-    await browser.launch({ 
-      action: 'launch', 
-      id: 'test-launch', 
-      headless: true 
+    await browser.launch({
+      action: 'launch',
+      id: 'test-launch',
+      headless: true,
     });
   });
 
@@ -55,10 +55,7 @@ describe('form complex (E2E)', () => {
       );
       expect(fillResult.success).toBe(true);
 
-      const valueResult = await executeCommand(
-        parseCliArgs(['get', 'value', '#email']),
-        browser
-      );
+      const valueResult = await executeCommand(parseCliArgs(['get', 'value', '#email']), browser);
       expect(valueResult.success).toBe(true);
       if (isSuccessResponse(valueResult)) {
         expect((valueResult.data as ValueData).value).toBe('test@example.com');
@@ -89,10 +86,7 @@ describe('form complex (E2E)', () => {
       );
       expect(fillResult.success).toBe(true);
 
-      const valueResult = await executeCommand(
-        parseCliArgs(['get', 'value', '#bio']),
-        browser
-      );
+      const valueResult = await executeCommand(parseCliArgs(['get', 'value', '#bio']), browser);
       expect(valueResult.success).toBe(true);
       if (isSuccessResponse(valueResult)) {
         expect((valueResult.data as ValueData).value).toBe('This is my bio');
@@ -108,10 +102,7 @@ describe('form complex (E2E)', () => {
       );
       expect(selectResult.success).toBe(true);
 
-      const valueResult = await executeCommand(
-        parseCliArgs(['get', 'value', '#country']),
-        browser
-      );
+      const valueResult = await executeCommand(parseCliArgs(['get', 'value', '#country']), browser);
       expect(valueResult.success).toBe(true);
       if (isSuccessResponse(valueResult)) {
         expect((valueResult.data as ValueData).value).toBe('cn');
@@ -129,10 +120,7 @@ describe('form complex (E2E)', () => {
 
   describe('checkbox and radio', () => {
     it('should check checkbox', async () => {
-      const checkResult = await executeCommand(
-        parseCliArgs(['check', '#agree']),
-        browser
-      );
+      const checkResult = await executeCommand(parseCliArgs(['check', '#agree']), browser);
       expect(checkResult.success).toBe(true);
 
       const checkedResult = await executeCommand(
@@ -147,11 +135,8 @@ describe('form complex (E2E)', () => {
 
     it('should uncheck checkbox', async () => {
       await executeCommand(parseCliArgs(['check', '#agree']), browser);
-      
-      const uncheckResult = await executeCommand(
-        parseCliArgs(['uncheck', '#agree']),
-        browser
-      );
+
+      const uncheckResult = await executeCommand(parseCliArgs(['uncheck', '#agree']), browser);
       expect(uncheckResult.success).toBe(true);
 
       const checkedResult = await executeCommand(
@@ -165,10 +150,7 @@ describe('form complex (E2E)', () => {
     });
 
     it('should click radio button', async () => {
-      const clickResult = await executeCommand(
-        parseCliArgs(['click', '#gender-male']),
-        browser
-      );
+      const clickResult = await executeCommand(parseCliArgs(['click', '#gender-male']), browser);
       expect(clickResult.success).toBe(true);
     });
   });
@@ -180,10 +162,7 @@ describe('form complex (E2E)', () => {
       await executeCommand(parseCliArgs(['select', '#country', 'cn']), browser);
       await executeCommand(parseCliArgs(['check', '#agree']), browser);
 
-      const submitResult = await executeCommand(
-        parseCliArgs(['click', '#submit-btn']),
-        browser
-      );
+      const submitResult = await executeCommand(parseCliArgs(['click', '#submit-btn']), browser);
       expect(submitResult.success).toBe(true);
 
       const textResult = await executeCommand(
@@ -198,11 +177,8 @@ describe('form complex (E2E)', () => {
 
     it('should reset form', async () => {
       await executeCommand(parseCliArgs(['fill', '#username', 'testuser']), browser);
-      
-      const resetResult = await executeCommand(
-        parseCliArgs(['click', '#reset-btn']),
-        browser
-      );
+
+      const resetResult = await executeCommand(parseCliArgs(['click', '#reset-btn']), browser);
       expect(resetResult.success).toBe(true);
 
       const valueResult = await executeCommand(
