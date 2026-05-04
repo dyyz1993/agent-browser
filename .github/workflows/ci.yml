@@ -305,66 +305,15 @@ jobs:
 
   feishu-notify:
     name: Feishu Notification
-    runs-on: ubuntu-latest
     if: always()
     needs: [typescript, rust, windows-integration, serverless-chromium, global-install]
-    steps:
-      - name: Send Feishu notification
-        if: env.FEISHU_WEBHOOK_URL != ''
-        env:
-          FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
-          REPO: ${{ github.repository }}
-          RUN_ID: ${{ github.run_id }}
-          SHA: ${{ github.sha }}
-          REF: ${{ github.ref_name }}
-          ACTOR: ${{ github.actor }}
-        run: |
-          TS_RESULT="${{ needs.typescript.result }}"
-          RUST_RESULT="${{ needs.rust.result }}"
-          WIN_RESULT="${{ needs.windows-integration.result }}"
-          SERVERLESS_RESULT="${{ needs.serverless-chromium.result }}"
-          GLOBAL_RESULT="${{ needs.global-install.result }}"
-
-          if [ "$TS_RESULT" = "failure" ] || [ "$RUST_RESULT" = "failure" ] || [ "$WIN_RESULT" = "failure" ] || [ "$SERVERLESS_RESULT" = "failure" ] || [ "$GLOBAL_RESULT" = "failure" ]; then
-            STATUS="❌ Failed"
-            COLOR="red"
-          else
-            STATUS="✅ Passed"
-            COLOR="green"
-          fi
-
-          SHORT_SHA=$(echo "$SHA" | cut -c1-7)
-
-          MSG="**CI ${STATUS}**
-          **Repo:** ${REPO}
-          **Branch:** ${REF}
-          **Commit:** ${SHORT_SHA}
-          **Actor:** ${ACTOR}
-          **Details:** TypeScript=${TS_RESULT} | Rust=${RUST_RESULT} | Windows=${WIN_RESULT} | Serverless=${SERVERLESS_RESULT} | Global=${GLOBAL_RESULT}
-          **Link:** https://github.com/${REPO}/actions/runs/${RUN_ID}"
-
-          PAYLOAD=$(cat <<EOF
-          {
-            "msg_type": "interactive",
-            "card": {
-              "header": {
-                "title": {
-                  "tag": "plain_text",
-                  "content": "CI ${STATUS} - ${REPO}"
-                },
-                "template": "${COLOR}"
-              },
-              "elements": [
-                {
-                  "tag": "markdown",
-                  "content": "**Branch:** ${REF}\n**Commit:** ${SHORT_SHA}\n**Actor:** ${ACTOR}\n**Results:** TypeScript=${TS_RESULT} | Rust=${RUST_RESULT} | Windows=${WIN_RESULT} | Serverless=${SERVERLESS_RESULT} | Global=${GLOBAL_RESULT}\n[View Details](https://github.com/${REPO}/actions/runs/${RUN_ID})"
-                }
-              ]
-            }
-          }
-          EOF
-          )
-
-          curl -s -X POST "$FEISHU_WEBHOOK_URL" \
-            -H "Content-Type: application/json" \
-            -d "$PAYLOAD"
+    uses: dyyz1993/ci-tools/.github/workflows/feishu-notify.yml@main
+    with:
+      jobs: '{"typescript":"${{ needs.typescript.result }}","rust":"${{ needs.rust.result }}","windows":"${{ needs.windows-integration.result }}","serverless":"${{ needs.serverless-chromium.result }}","global":"${{ needs.global-install.result }}"}'
+      sha: ${{ github.sha }}
+      ref: ${{ github.ref_name }}
+      actor: ${{ github.actor }}
+      repo: ${{ github.repository }}
+      run-id: ${{ github.run_id }}
+    secrets:
+      FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
