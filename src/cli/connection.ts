@@ -473,7 +473,7 @@ function connect(session: string): Promise<net.Socket> {
   });
 }
 
-function sendCommandOnce(cmd: Command, session: string): Promise<Response> {
+export function sendCommandOnce(cmd: Command, session: string): Promise<Response> {
   return new Promise(async (resolve, reject) => {
     let socket: net.Socket;
     try {
@@ -566,6 +566,81 @@ export async function listSessions(): Promise<string[]> {
   }
 
   return sessions;
+}
+
+export interface IdleSessionInfo {
+  session: string;
+  idleMinutes: number;
+  tabs: Array<{ index: number; url: string; title: string; active: boolean }>;
+}
+
+const IDLE_THRESHOLD_MINUTES = 5;
+const PING_TIMEOUT_MS = 3000;
+
+export async function queryIdleSessions(excludeSession: string): Promise<IdleSessionInfo[]> {
+  const sessions = await listSessions();
+  const idleSessions: IdleSessionInfo[] = [];
+
+  for (const session of sessions) {
+    if (session === excludeSession) continue;
+
+    try {
+      const result = await Promise.race([
+        sendCommandOnce({ id: '_ping', action: '_ping' }, session),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), PING_TIMEOUT_MS)),
+      ]);
+
+      if (!result || !result.success || !result.data) continue;
+
+      const data = result.data as {
+        session: string;
+        lastActivityAt: number;
+        tabs: Array<{ index: number; url: string; title: string; active: boolean }>;
+      };
+
+      const idleMinutes = (Date.now() - data.lastActivityAt) / 60000;
+
+      if (idleMinutes >= IDLE_THRESHOLD_MINUTES) {
+        idleSessions.push({
+          session: data.session,
+          idleMinutes: Math.round(idleMinutes),
+          tabs: data.tabs || [],
+        });
+      }
+    } catch {
+      // Session unreachable, skip
+    }
+  }
+
+  return idleSessions.sort((a, b) => b.idleMinutes - a.idleMinutes);
+}
+
+export function formatIdleSessionTips(idleSessions: IdleSessionInfo[]): string[] {
+  if (idleSessions.length === 0) return [];
+
+  const tips: string[] = [];
+
+  for (const s of idleSessions) {
+    const idleDesc =
+      s.idleMinutes >= 60
+        ? `${Math.floor(s.idleMinutes / 60)}h ${s.idleMinutes % 60}m`
+        : `${s.idleMinutes}m`;
+
+    const lines: string[] = [];
+    lines.push(
+      `[Idle Session] '${s.session}' has been idle for ${idleDesc}, ${s.tabs.length} tab(s) open:`
+    );
+
+    for (const tab of s.tabs) {
+      const url = tab.url.length > 80 ? tab.url.substring(0, 77) + '...' : tab.url;
+      lines.push(`  - Tab ${tab.index}: ${url}`);
+    }
+
+    lines.push(`  Consider closing it: agent-browser close --session ${s.session}`);
+    tips.push(lines.join('\n'));
+  }
+
+  return tips;
 }
 
 export async function killDaemon(session: string): Promise<boolean> {

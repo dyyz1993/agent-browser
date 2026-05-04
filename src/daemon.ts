@@ -20,6 +20,7 @@ let currentInstanceId = randomUUID().substring(0, 8);
 
 let streamServerProxy: StreamServerProxy | null = null;
 let lastUrl: string | null = null;
+let lastActivityAt = Date.now();
 
 const STREAM_SERVER_PID_FILE = 'stream-server.pid';
 
@@ -82,6 +83,10 @@ export function getSession(): string {
  */
 export function getInstanceId(): string {
   return currentInstanceId;
+}
+
+export function getLastActivityAt(): number {
+  return lastActivityAt;
 }
 
 /**
@@ -445,6 +450,28 @@ export async function startDaemon(options?: { provider?: string }): Promise<void
               }
               continue;
             }
+
+            if (quickParse && action === '_ping') {
+              try {
+                const tabList =
+                  !isIOS && manager instanceof BrowserManager && manager.isLaunched()
+                    ? await manager.listTabs()
+                    : [];
+                socket.write(
+                  serializeResponse(
+                    successResponse(quickParse.id, {
+                      session: currentSession,
+                      lastActivityAt,
+                      tabs: tabList,
+                    })
+                  ) + '\n'
+                );
+              } catch (err) {
+                const message = err instanceof Error ? err.message : String(err);
+                socket.write(serializeResponse(errorResponse(quickParse.id, message)) + '\n');
+              }
+              continue;
+            }
           } catch (_) {
             /* not JSON, fall through to normal parsing */
           }
@@ -587,6 +614,8 @@ export async function startDaemon(options?: { provider?: string }): Promise<void
             }
             continue;
           }
+
+          lastActivityAt = Date.now();
 
           // Execute command with appropriate handler
           let response =

@@ -9,6 +9,8 @@ import {
   genId,
   killDaemon,
   killAll,
+  queryIdleSessions,
+  formatIdleSessionTips,
 } from './cli/connection.js';
 import { parseCommand, CliError } from './cli/commands.js';
 import { printHelp, printCommandHelp, printVersion } from './cli/help.js';
@@ -494,6 +496,25 @@ async function main(): Promise<void> {
     cmd = resolveCommandPaths(cmd);
     const resp = await sendCommand(cmd, flags.session);
     const action = cmd.action as string | undefined;
+
+    if (resp.success && (action === 'launch' || action === 'open' || action === 'navigate')) {
+      try {
+        const idleSessions = await queryIdleSessions(flags.session);
+        if (idleSessions.length > 0) {
+          const idleTips = formatIdleSessionTips(idleSessions);
+          const existingTips = resp.tips;
+          if (existingTips) {
+            const tipsArray = Array.isArray(existingTips) ? existingTips : [existingTips];
+            (resp as any).tips = [...tipsArray, ...idleTips];
+          } else {
+            (resp as any).tips = idleTips;
+          }
+        }
+      } catch {
+        // Idle session detection is best-effort, never block the main flow
+      }
+    }
+
     printResponse(resp, flags.json, action);
 
     if (action === 'viewer' || action === 'ask') {
