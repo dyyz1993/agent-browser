@@ -1,3 +1,26 @@
+import { readFileSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+function getVersion(): string {
+  try {
+    const __filename = fileURLToPath(import.meta.url);
+    let dir = dirname(__filename);
+    for (let i = 0; i < 5; i++) {
+      try {
+        const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf-8'));
+        if (pkg.version) return pkg.version;
+      } catch {
+        /* keep going up */
+      }
+      dir = dirname(dir);
+    }
+    return '0.0.0';
+  } catch {
+    return '0.0.0';
+  }
+}
+
 const HELP_TEXT: Record<string, string> = {
   open: `
 agent-browser open - Navigate to a URL
@@ -1039,5 +1062,5 @@ iOS Simulator (requires Xcode and Appium):
 }
 
 export function printVersion(): void {
-  console.log('agent-browser 0.11.0');
+  console.log(`agent-browser ${getVersion()}`);
 }
