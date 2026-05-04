@@ -319,61 +319,90 @@ pub fn parse_command(args: &[String], flags: &Flags) -> Result<Value, ParseError
             Ok(cmd)
         }
         "drag" => {
-            let src = rest.get(0).ok_or_else(|| ParseError::MissingArguments {
+            let (in_frame, r1) = parse_in_frame(&rest);
+            let src = r1.get(0).ok_or_else(|| ParseError::MissingArguments {
                 context: "drag".to_string(),
-                usage: "drag <source> <target>",
+                usage: "drag <source> <target> [--in-frame <path>]",
             })?;
-            let tgt = rest.get(1).ok_or_else(|| ParseError::MissingArguments {
+            let tgt = r1.get(1).ok_or_else(|| ParseError::MissingArguments {
                 context: "drag".to_string(),
-                usage: "drag <source> <target>",
+                usage: "drag <source> <target> [--in-frame <path>]",
             })?;
-            Ok(json!({ "id": id, "action": "drag", "source": src, "target": tgt }))
+            let mut cmd = json!({ "id": id, "action": "drag", "source": src, "target": tgt });
+            if let Some(frame) = in_frame {
+                cmd["inFrame"] = json!(frame);
+            }
+            Ok(cmd)
         }
         "upload" => {
-            let sel = rest.get(0).ok_or_else(|| ParseError::MissingArguments {
+            let (in_frame, r1) = parse_in_frame(&rest);
+            let sel = r1.get(0).ok_or_else(|| ParseError::MissingArguments {
                 context: "upload".to_string(),
-                usage: "upload <selector> <files...>",
+                usage: "upload <selector> <files...> [--in-frame <path>]",
             })?;
-            Ok(json!({ "id": id, "action": "upload", "selector": sel, "files": &rest[1..] }))
+            let mut cmd = json!({ "id": id, "action": "upload", "selector": sel, "files": &r1[1..] });
+            if let Some(frame) = in_frame {
+                cmd["inFrame"] = json!(frame);
+            }
+            Ok(cmd)
         }
         "download" => {
-            let sel = rest.get(0).ok_or_else(|| ParseError::MissingArguments {
+            let (in_frame, r1) = parse_in_frame(&rest);
+            let sel = r1.get(0).ok_or_else(|| ParseError::MissingArguments {
                 context: "download".to_string(),
-                usage: "download <selector> <path>",
+                usage: "download <selector> <path> [--in-frame <path>]",
             })?;
-            let path = rest.get(1).ok_or_else(|| ParseError::MissingArguments {
+            let path = r1.get(1).ok_or_else(|| ParseError::MissingArguments {
                 context: "download".to_string(),
-                usage: "download <selector> <path>",
+                usage: "download <selector> <path> [--in-frame <path>]",
             })?;
-            Ok(json!({ "id": id, "action": "download", "selector": sel, "path": path }))
+            let mut cmd = json!({ "id": id, "action": "download", "selector": sel, "path": path });
+            if let Some(frame) = in_frame {
+                cmd["inFrame"] = json!(frame);
+            }
+            Ok(cmd)
         }
 
         // === Keyboard ===
         "press" | "key" => {
-            let (diff_scope, remaining) = parse_diff(&rest);
+            let (in_frame, r1) = parse_in_frame(&rest);
+            let (diff_scope, remaining) = parse_diff(&r1);
             let key = remaining.get(0).ok_or_else(|| ParseError::MissingArguments {
                 context: "press".to_string(),
-                usage: "press <key> [--diff [scope]]",
+                usage: "press <key> [--diff [scope]] [--in-frame <path>]",
             })?;
             let mut cmd = json!({ "id": id, "action": "press", "key": key });
+            if let Some(frame) = in_frame {
+                cmd["inFrame"] = json!(frame);
+            }
             if let Some(diff) = diff_scope {
                 cmd["diffScope"] = diff;
             }
             Ok(cmd)
         }
         "keydown" => {
-            let key = rest.get(0).ok_or_else(|| ParseError::MissingArguments {
+            let (in_frame, r1) = parse_in_frame(&rest);
+            let key = r1.get(0).ok_or_else(|| ParseError::MissingArguments {
                 context: "keydown".to_string(),
-                usage: "keydown <key>",
+                usage: "keydown <key> [--in-frame <path>]",
             })?;
-            Ok(json!({ "id": id, "action": "keydown", "key": key }))
+            let mut cmd = json!({ "id": id, "action": "keydown", "key": key });
+            if let Some(frame) = in_frame {
+                cmd["inFrame"] = json!(frame);
+            }
+            Ok(cmd)
         }
         "keyup" => {
-            let key = rest.get(0).ok_or_else(|| ParseError::MissingArguments {
+            let (in_frame, r1) = parse_in_frame(&rest);
+            let key = r1.get(0).ok_or_else(|| ParseError::MissingArguments {
                 context: "keyup".to_string(),
-                usage: "keyup <key>",
+                usage: "keyup <key> [--in-frame <path>]",
             })?;
-            Ok(json!({ "id": id, "action": "keyup", "key": key }))
+            let mut cmd = json!({ "id": id, "action": "keyup", "key": key });
+            if let Some(frame) = in_frame {
+                cmd["inFrame"] = json!(frame);
+            }
+            Ok(cmd)
         }
 
         // === Scroll ===
@@ -386,115 +415,115 @@ pub fn parse_command(args: &[String], flags: &Flags) -> Result<Value, ParseError
             Ok(json!({ "id": id, "action": "scroll", "direction": dir, "amount": amount }))
         }
         "scrollintoview" | "scrollinto" => {
-            let sel = rest.get(0).ok_or_else(|| ParseError::MissingArguments {
+            let (in_frame, r1) = parse_in_frame(&rest);
+            let sel = r1.get(0).ok_or_else(|| ParseError::MissingArguments {
                 context: "scrollintoview".to_string(),
-                usage: "scrollintoview <selector>",
+                usage: "scrollintoview <selector> [--in-frame <path>]",
             })?;
-            Ok(json!({ "id": id, "action": "scrollintoview", "selector": sel }))
+            let mut cmd = json!({ "id": id, "action": "scrollintoview", "selector": sel });
+            if let Some(frame) = in_frame {
+                cmd["inFrame"] = json!(frame);
+            }
+            Ok(cmd)
         }
 
         // === Wait ===
         "wait" => {
-            // Check for --url flag: wait --url "**/dashboard"
-            if let Some(idx) = rest.iter().position(|&s| s == "--url" || s == "-u") {
-                let url = rest
+            let (in_frame, r1) = parse_in_frame(&rest);
+
+            let inject_frame = |cmd: Value| -> Value {
+                let mut c = cmd;
+                if let Some(ref frame) = in_frame {
+                    c["inFrame"] = json!(frame);
+                }
+                c
+            };
+
+            if let Some(idx) = r1.iter().position(|&s| s == "--url" || s == "-u") {
+                let url = r1
                     .get(idx + 1)
                     .ok_or_else(|| ParseError::MissingArguments {
                         context: "wait --url".to_string(),
-                        usage: "wait --url <pattern>",
+                        usage: "wait --url <pattern> [--in-frame <path>]",
                     })?;
-                return Ok(json!({ "id": id, "action": "waitforurl", "url": url }));
+                return Ok(inject_frame(json!({ "id": id, "action": "waitforurl", "url": url })));
             }
 
-            // Check for --load flag: wait --load networkidle
-            if let Some(idx) = rest.iter().position(|&s| s == "--load" || s == "-l") {
-                let state = rest
+            if let Some(idx) = r1.iter().position(|&s| s == "--load" || s == "-l") {
+                let state = r1
                     .get(idx + 1)
                     .ok_or_else(|| ParseError::MissingArguments {
                         context: "wait --load".to_string(),
-                        usage: "wait --load <state>",
+                        usage: "wait --load <state> [--in-frame <path>]",
                     })?;
-                return Ok(json!({ "id": id, "action": "waitforloadstate", "state": state }));
+                return Ok(inject_frame(json!({ "id": id, "action": "waitforloadstate", "state": state })));
             }
 
-            // Check for --fn flag: wait --fn "window.ready === true"
-            if let Some(idx) = rest.iter().position(|&s| s == "--fn" || s == "-f") {
-                let expr = rest
+            if let Some(idx) = r1.iter().position(|&s| s == "--fn") {
+                let expr = r1
                     .get(idx + 1)
                     .ok_or_else(|| ParseError::MissingArguments {
                         context: "wait --fn".to_string(),
-                        usage: "wait --fn <expression>",
+                        usage: "wait --fn <expression> [--in-frame <path>]",
                     })?;
-                return Ok(json!({ "id": id, "action": "waitforfunction", "expression": expr }));
+                return Ok(inject_frame(json!({ "id": id, "action": "waitforfunction", "expression": expr })));
             }
 
-            // Check for --text flag: wait --text "Welcome"
-            if let Some(idx) = rest.iter().position(|&s| s == "--text" || s == "-t") {
-                let text = rest
+            if let Some(idx) = r1.iter().position(|&s| s == "--text" || s == "-t") {
+                let text = r1
                     .get(idx + 1)
                     .ok_or_else(|| ParseError::MissingArguments {
                         context: "wait --text".to_string(),
-                        usage: "wait --text <text>",
+                        usage: "wait --text <text> [--in-frame <path>]",
                     })?;
-                // Use getByText locator to wait for text to appear
                 return Ok(
-                    json!({ "id": id, "action": "wait", "selector": format!("text={}", text) }),
+                    inject_frame(json!({ "id": id, "action": "wait", "selector": format!("text={}", text) })),
                 );
             }
 
-            // Check for --download flag: wait --download [path] [--timeout ms]
-            if rest.iter().any(|&s| s == "--download" || s == "-d") {
+            if r1.iter().any(|&s| s == "--download" || s == "-d") {
                 let mut cmd = json!({ "id": id, "action": "waitfordownload" });
-                // Check for optional path (first non-flag argument after --download)
-                let download_idx = rest
+                let download_idx = r1
                     .iter()
                     .position(|&s| s == "--download" || s == "-d")
                     .unwrap();
-                if let Some(path) = rest.get(download_idx + 1) {
+                if let Some(path) = r1.get(download_idx + 1) {
                     if !path.starts_with("--") {
                         cmd["path"] = json!(path);
                     }
                 }
-                // Check for optional timeout
-                if let Some(idx) = rest.iter().position(|&s| s == "--timeout") {
-                    if let Some(timeout_str) = rest.get(idx + 1) {
+                if let Some(idx) = r1.iter().position(|&s| s == "--timeout") {
+                    if let Some(timeout_str) = r1.get(idx + 1) {
                         if let Ok(timeout) = timeout_str.parse::<u64>() {
                             cmd["timeout"] = json!(timeout);
                         }
                     }
                 }
-                return Ok(cmd);
+                return Ok(inject_frame(cmd));
             }
 
-            // Default: selector or timeout
-            if let Some(arg) = rest.get(0) {
+            if let Some(arg) = r1.get(0) {
                 if arg.parse::<u64>().is_ok() {
-                    Ok(
-                        json!({ "id": id, "action": "wait", "timeout": arg.parse::<u64>().unwrap() }),
-                    )
+                    Ok(inject_frame(json!({ "id": id, "action": "wait", "timeout": arg.parse::<u64>().unwrap() })))
                 } else {
-                    Ok(json!({ "id": id, "action": "wait", "selector": arg }))
+                    Ok(inject_frame(json!({ "id": id, "action": "wait", "selector": arg })))
                 }
             } else {
                 Err(ParseError::MissingArguments {
                     context: "wait".to_string(),
-                    usage: "wait <selector|ms|--url|--load|--fn|--text>",
+                    usage: "wait <selector|ms|--url|--load|--fn|--text> [--in-frame <path>]",
                 })
             }
         }
 
         // === Screenshot/PDF ===
         "screenshot" => {
-            // screenshot [selector] [path]
-            // selector: @ref or CSS selector
-            // path: file path (contains / or . or ends with known extension)
-            let (selector, path) = match (rest.get(0), rest.get(1)) {
+            let (in_frame, r1) = parse_in_frame(&rest);
+            let (selector, path) = match (r1.get(0), r1.get(1)) {
                 (Some(first), Some(second)) => {
-                    // Two args: first is selector, second is path
                     (Some(*first), Some(*second))
                 }
                 (Some(first), None) => {
-                    // One arg: determine if it's a selector or a path
                     let is_relative_path = first.starts_with("./") || first.starts_with("../");
                     let is_selector = !is_relative_path
                         && (first.starts_with('.')
@@ -513,9 +542,11 @@ pub fn parse_command(args: &[String], flags: &Flags) -> Result<Value, ParseError
                 }
                 _ => (None, None),
             };
-            Ok(
-                json!({ "id": id, "action": "screenshot", "path": path, "selector": selector, "fullPage": flags.full }),
-            )
+            let mut cmd = json!({ "id": id, "action": "screenshot", "path": path, "selector": selector, "fullPage": flags.full });
+            if let Some(frame) = in_frame {
+                cmd["inFrame"] = json!(frame);
+            }
+            Ok(cmd)
         }
         "pdf" => {
             let path = rest.get(0).ok_or_else(|| ParseError::MissingArguments {
@@ -527,11 +558,12 @@ pub fn parse_command(args: &[String], flags: &Flags) -> Result<Value, ParseError
 
         // === Snapshot ===
         "snapshot" => {
+            let (in_frame, r1) = parse_in_frame(&rest);
             let mut cmd = json!({ "id": id, "action": "snapshot" });
             let obj = cmd.as_object_mut().unwrap();
             let mut i = 0;
-            while i < rest.len() {
-                match rest[i] {
+            while i < r1.len() {
+                match r1[i] {
                     "-i" | "--interactive" => {
                         obj.insert("interactive".to_string(), json!(true));
                     }
@@ -542,7 +574,7 @@ pub fn parse_command(args: &[String], flags: &Flags) -> Result<Value, ParseError
                         obj.insert("cursor".to_string(), json!(true));
                     }
                     "-d" | "--depth" => {
-                        if let Some(d) = rest.get(i + 1) {
+                        if let Some(d) = r1.get(i + 1) {
                             if let Ok(n) = d.parse::<i32>() {
                                 obj.insert("maxDepth".to_string(), json!(n));
                                 i += 1;
@@ -550,7 +582,7 @@ pub fn parse_command(args: &[String], flags: &Flags) -> Result<Value, ParseError
                         }
                     }
                     "-s" | "--selector" => {
-                        if let Some(s) = rest.get(i + 1) {
+                        if let Some(s) = r1.get(i + 1) {
                             obj.insert("selector".to_string(), json!(s));
                             i += 1;
                         }
@@ -559,28 +591,37 @@ pub fn parse_command(args: &[String], flags: &Flags) -> Result<Value, ParseError
                 }
                 i += 1;
             }
+            if let Some(frame) = in_frame {
+                obj.insert("inFrame".to_string(), json!(frame));
+            }
             Ok(cmd)
         }
 
         // === Eval ===
         "eval" => {
+            let (in_frame, r1) = parse_in_frame(&rest);
+
             let (is_base64, is_stdin, is_file, script_parts): (bool, bool, bool, &[&str]) =
-                if rest.first() == Some(&"-b") || rest.first() == Some(&"--base64") {
-                    (true, false, false, &rest[1..])
-                } else if rest.first() == Some(&"--stdin") {
-                    (false, true, false, &rest[1..])
-                } else if rest.first() == Some(&"--file") || rest.first() == Some(&"-f") {
-                    (false, false, true, &rest[1..])
+                if r1.first() == Some(&"-b") || r1.first() == Some(&"--base64") {
+                    (true, false, false, &r1[1..])
+                } else if r1.first() == Some(&"--stdin") {
+                    (false, true, false, &r1[1..])
+                } else if r1.first() == Some(&"--file") {
+                    (false, false, true, &r1[1..])
                 } else {
-                    (false, false, false, rest.as_slice())
+                    (false, false, false, r1.as_slice())
                 };
 
             if is_file {
                 let file_path = script_parts.first().ok_or_else(|| ParseError::MissingArguments {
                     context: "eval --file".to_string(),
-                    usage: "eval --file <path>",
+                    usage: "eval --file <path> [--in-frame <path>]",
                 })?;
-                Ok(json!({ "id": id, "action": "evaluate", "file": file_path }))
+                let mut cmd = json!({ "id": id, "action": "evaluate", "file": file_path });
+                if let Some(frame) = in_frame {
+                    cmd["inFrame"] = json!(frame);
+                }
+                Ok(cmd)
             } else {
                 let script = if is_stdin {
                     let stdin = io::stdin();
@@ -603,7 +644,11 @@ pub fn parse_command(args: &[String], flags: &Flags) -> Result<Value, ParseError
                         raw_script
                     }
                 };
-                Ok(json!({ "id": id, "action": "evaluate", "script": script }))
+                let mut cmd = json!({ "id": id, "action": "evaluate", "script": script });
+                if let Some(frame) = in_frame {
+                    cmd["inFrame"] = json!(frame);
+                }
+                Ok(cmd)
             }
         }
 
@@ -657,13 +702,34 @@ pub fn parse_command(args: &[String], flags: &Flags) -> Result<Value, ParseError
         }
 
         // === Get ===
-        "get" => parse_get(&rest, &id),
+        "get" => {
+            let (in_frame, r1) = parse_in_frame(&rest);
+            let mut cmd = parse_get(&r1, &id)?;
+            if let Some(frame) = in_frame {
+                cmd["inFrame"] = json!(frame);
+            }
+            Ok(cmd)
+        }
 
         // === Is (state checks) ===
-        "is" => parse_is(&rest, &id),
+        "is" => {
+            let (in_frame, r1) = parse_in_frame(&rest);
+            let mut cmd = parse_is(&r1, &id)?;
+            if let Some(frame) = in_frame {
+                cmd["inFrame"] = json!(frame);
+            }
+            Ok(cmd)
+        }
 
         // === Find (locators) ===
-        "find" => parse_find(&rest, &id),
+        "find" => {
+            let (in_frame, r1) = parse_in_frame(&rest);
+            let mut cmd = parse_find(&r1, &id)?;
+            if let Some(frame) = in_frame {
+                cmd["inFrame"] = json!(frame);
+            }
+            Ok(cmd)
+        }
 
         // === Mouse ===
         "mouse" => parse_mouse(&rest, &id),
@@ -992,11 +1058,16 @@ pub fn parse_command(args: &[String], flags: &Flags) -> Result<Value, ParseError
             Ok(json!({ "id": id, "action": "errors", "clear": clear }))
         }
         "highlight" => {
-            let sel = rest.get(0).ok_or_else(|| ParseError::MissingArguments {
+            let (in_frame, r1) = parse_in_frame(&rest);
+            let sel = r1.get(0).ok_or_else(|| ParseError::MissingArguments {
                 context: "highlight".to_string(),
-                usage: "highlight <selector>",
+                usage: "highlight <selector> [--in-frame <path>]",
             })?;
-            Ok(json!({ "id": id, "action": "highlight", "selector": sel }))
+            let mut cmd = json!({ "id": id, "action": "highlight", "selector": sel });
+            if let Some(frame) = in_frame {
+                cmd["inFrame"] = json!(frame);
+            }
+            Ok(cmd)
         }
 
         // === State ===
@@ -1030,12 +1101,16 @@ pub fn parse_command(args: &[String], flags: &Flags) -> Result<Value, ParseError
 
         // === iOS-specific commands ===
         "tap" => {
-            // Alias for click (semantic clarity for touch interfaces)
-            let sel = rest.get(0).ok_or_else(|| ParseError::MissingArguments {
+            let (in_frame, r1) = parse_in_frame(&rest);
+            let sel = r1.get(0).ok_or_else(|| ParseError::MissingArguments {
                 context: "tap".to_string(),
-                usage: "tap <selector>",
+                usage: "tap <selector> [--in-frame <path>]",
             })?;
-            Ok(json!({ "id": id, "action": "tap", "selector": sel }))
+            let mut cmd = json!({ "id": id, "action": "tap", "selector": sel });
+            if let Some(frame) = in_frame {
+                cmd["inFrame"] = json!(frame);
+            }
+            Ok(cmd)
         }
         "swipe" => {
             let direction = rest.get(0).ok_or_else(|| ParseError::MissingArguments {
@@ -2646,5 +2721,414 @@ mod tests {
         let cmd = parse_command(&args("connect 1"), &default_flags()).unwrap();
         assert_eq!(cmd["action"], "launch");
         assert_eq!(cmd["cdpPort"], 1);
+    }
+
+    // === --in-frame Tests ===
+
+    #[test]
+    fn test_press_in_frame() {
+        let cmd = parse_command(
+            &args("press --in-frame search_ai Enter"),
+            &default_flags(),
+        )
+        .unwrap();
+        assert_eq!(cmd["action"], "press");
+        assert_eq!(cmd["key"], "Enter");
+        assert_eq!(cmd["inFrame"], "search_ai");
+    }
+
+    #[test]
+    fn test_press_in_frame_key_before_flag() {
+        let cmd = parse_command(
+            &args("press Enter --in-frame search_ai"),
+            &default_flags(),
+        )
+        .unwrap();
+        assert_eq!(cmd["action"], "press");
+        assert_eq!(cmd["key"], "Enter");
+        assert_eq!(cmd["inFrame"], "search_ai");
+    }
+
+    #[test]
+    fn test_press_without_in_frame() {
+        let cmd = parse_command(&args("press Enter"), &default_flags()).unwrap();
+        assert_eq!(cmd["action"], "press");
+        assert_eq!(cmd["key"], "Enter");
+        assert!(cmd.get("inFrame").is_none());
+    }
+
+    #[test]
+    fn test_press_in_frame_with_diff() {
+        let cmd = parse_command(
+            &args("press --in-frame search_ai Enter --diff 5"),
+            &default_flags(),
+        )
+        .unwrap();
+        assert_eq!(cmd["action"], "press");
+        assert_eq!(cmd["key"], "Enter");
+        assert_eq!(cmd["inFrame"], "search_ai");
+        assert_eq!(cmd["diffScope"], 5);
+    }
+
+    #[test]
+    fn test_eval_in_frame() {
+        let cmd = parse_command(
+            &args("eval --in-frame search_ai document.title"),
+            &default_flags(),
+        )
+        .unwrap();
+        assert_eq!(cmd["action"], "evaluate");
+        assert_eq!(cmd["script"], "document.title");
+        assert_eq!(cmd["inFrame"], "search_ai");
+    }
+
+    #[test]
+    fn test_eval_in_frame_script_before_flag() {
+        let cmd = parse_command(
+            &args("eval document.title --in-frame search_ai"),
+            &default_flags(),
+        )
+        .unwrap();
+        assert_eq!(cmd["action"], "evaluate");
+        assert_eq!(cmd["script"], "document.title");
+        assert_eq!(cmd["inFrame"], "search_ai");
+    }
+
+    #[test]
+    fn test_eval_without_in_frame() {
+        let cmd = parse_command(&args("eval document.title"), &default_flags()).unwrap();
+        assert_eq!(cmd["action"], "evaluate");
+        assert_eq!(cmd["script"], "document.title");
+        assert!(cmd.get("inFrame").is_none());
+    }
+
+    #[test]
+    fn test_eval_in_frame_with_base64() {
+        let cmd = parse_command(
+            &args("eval --in-frame search_ai -b ZG9jdW1lbnQudGl0bGU="),
+            &default_flags(),
+        )
+        .unwrap();
+        assert_eq!(cmd["action"], "evaluate");
+        assert_eq!(cmd["script"], "document.title");
+        assert_eq!(cmd["inFrame"], "search_ai");
+    }
+
+    #[test]
+    fn test_fill_in_frame_existing_test() {
+        let cmd = parse_command(
+            &args("fill --in-frame search_ai [contenteditable=true] hello"),
+            &default_flags(),
+        )
+        .unwrap();
+        assert_eq!(cmd["action"], "fill");
+        assert_eq!(cmd["selector"], "[contenteditable=true]");
+        assert_eq!(cmd["value"], "hello");
+        assert_eq!(cmd["inFrame"], "search_ai");
+    }
+
+    #[test]
+    fn test_drag_in_frame() {
+        let cmd = parse_command(
+            &args("drag --in-frame myframe #src #tgt"),
+            &default_flags(),
+        )
+        .unwrap();
+        assert_eq!(cmd["action"], "drag");
+        assert_eq!(cmd["source"], "#src");
+        assert_eq!(cmd["target"], "#tgt");
+        assert_eq!(cmd["inFrame"], "myframe");
+    }
+
+    #[test]
+    fn test_drag_without_in_frame() {
+        let cmd = parse_command(&args("drag #src #tgt"), &default_flags()).unwrap();
+        assert_eq!(cmd["action"], "drag");
+        assert!(cmd.get("inFrame").is_none());
+    }
+
+    #[test]
+    fn test_upload_in_frame() {
+        let cmd = parse_command(
+            &args("upload --in-frame myframe #file /path/to/file.txt"),
+            &default_flags(),
+        )
+        .unwrap();
+        assert_eq!(cmd["action"], "upload");
+        assert_eq!(cmd["selector"], "#file");
+        assert_eq!(cmd["inFrame"], "myframe");
+    }
+
+    #[test]
+    fn test_download_in_frame() {
+        let cmd = parse_command(
+            &args("download --in-frame myframe #btn ./file.pdf"),
+            &default_flags(),
+        )
+        .unwrap();
+        assert_eq!(cmd["action"], "download");
+        assert_eq!(cmd["selector"], "#btn");
+        assert_eq!(cmd["path"], "./file.pdf");
+        assert_eq!(cmd["inFrame"], "myframe");
+    }
+
+    #[test]
+    fn test_keydown_in_frame() {
+        let cmd = parse_command(
+            &args("keydown --in-frame myframe Enter"),
+            &default_flags(),
+        )
+        .unwrap();
+        assert_eq!(cmd["action"], "keydown");
+        assert_eq!(cmd["key"], "Enter");
+        assert_eq!(cmd["inFrame"], "myframe");
+    }
+
+    #[test]
+    fn test_keyup_in_frame() {
+        let cmd = parse_command(
+            &args("keyup --in-frame myframe Enter"),
+            &default_flags(),
+        )
+        .unwrap();
+        assert_eq!(cmd["action"], "keyup");
+        assert_eq!(cmd["key"], "Enter");
+        assert_eq!(cmd["inFrame"], "myframe");
+    }
+
+    #[test]
+    fn test_scrollintoview_in_frame() {
+        let cmd = parse_command(
+            &args("scrollintoview --in-frame myframe #target"),
+            &default_flags(),
+        )
+        .unwrap();
+        assert_eq!(cmd["action"], "scrollintoview");
+        assert_eq!(cmd["selector"], "#target");
+        assert_eq!(cmd["inFrame"], "myframe");
+    }
+
+    #[test]
+    fn test_screenshot_in_frame() {
+        let cmd = parse_command(
+            &args("screenshot --in-frame myframe #box"),
+            &default_flags(),
+        )
+        .unwrap();
+        assert_eq!(cmd["action"], "screenshot");
+        assert_eq!(cmd["selector"], "#box");
+        assert_eq!(cmd["inFrame"], "myframe");
+    }
+
+    #[test]
+    fn test_screenshot_in_frame_with_path() {
+        let cmd = parse_command(
+            &args("screenshot --in-frame myframe #box ./out.png"),
+            &default_flags(),
+        )
+        .unwrap();
+        assert_eq!(cmd["action"], "screenshot");
+        assert_eq!(cmd["selector"], "#box");
+        assert_eq!(cmd["path"], "./out.png");
+        assert_eq!(cmd["inFrame"], "myframe");
+    }
+
+    #[test]
+    fn test_snapshot_in_frame() {
+        let cmd = parse_command(
+            &args("snapshot --in-frame myframe"),
+            &default_flags(),
+        )
+        .unwrap();
+        assert_eq!(cmd["action"], "snapshot");
+        assert_eq!(cmd["inFrame"], "myframe");
+    }
+
+    #[test]
+    fn test_snapshot_in_frame_with_flags() {
+        let cmd = parse_command(
+            &args("snapshot --in-frame myframe -i -C"),
+            &default_flags(),
+        )
+        .unwrap();
+        assert_eq!(cmd["action"], "snapshot");
+        assert_eq!(cmd["inFrame"], "myframe");
+        assert_eq!(cmd["interactive"], true);
+        assert_eq!(cmd["cursor"], true);
+    }
+
+    #[test]
+    fn test_highlight_in_frame() {
+        let cmd = parse_command(
+            &args("highlight --in-frame myframe #btn"),
+            &default_flags(),
+        )
+        .unwrap();
+        assert_eq!(cmd["action"], "highlight");
+        assert_eq!(cmd["selector"], "#btn");
+        assert_eq!(cmd["inFrame"], "myframe");
+    }
+
+    #[test]
+    fn test_tap_in_frame() {
+        let cmd = parse_command(
+            &args("tap --in-frame myframe #btn"),
+            &default_flags(),
+        )
+        .unwrap();
+        assert_eq!(cmd["action"], "tap");
+        assert_eq!(cmd["selector"], "#btn");
+        assert_eq!(cmd["inFrame"], "myframe");
+    }
+
+    #[test]
+    fn test_get_text_in_frame() {
+        let cmd = parse_command(
+            &args("get --in-frame myframe text #output"),
+            &default_flags(),
+        )
+        .unwrap();
+        assert_eq!(cmd["action"], "gettext");
+        assert_eq!(cmd["selector"], "#output");
+        assert_eq!(cmd["inFrame"], "myframe");
+    }
+
+    #[test]
+    fn test_get_attr_in_frame() {
+        let cmd = parse_command(
+            &args("get --in-frame myframe attr #link href"),
+            &default_flags(),
+        )
+        .unwrap();
+        assert_eq!(cmd["action"], "getattribute");
+        assert_eq!(cmd["selector"], "#link");
+        assert_eq!(cmd["attribute"], "href");
+        assert_eq!(cmd["inFrame"], "myframe");
+    }
+
+    #[test]
+    fn test_get_url_no_in_frame() {
+        let cmd = parse_command(&args("get url"), &default_flags()).unwrap();
+        assert_eq!(cmd["action"], "url");
+        assert!(cmd.get("inFrame").is_none());
+    }
+
+    #[test]
+    fn test_is_visible_in_frame() {
+        let cmd = parse_command(
+            &args("is --in-frame myframe visible #el"),
+            &default_flags(),
+        )
+        .unwrap();
+        assert_eq!(cmd["action"], "isvisible");
+        assert_eq!(cmd["selector"], "#el");
+        assert_eq!(cmd["inFrame"], "myframe");
+    }
+
+    #[test]
+    fn test_is_enabled_in_frame() {
+        let cmd = parse_command(
+            &args("is --in-frame myframe enabled #input"),
+            &default_flags(),
+        )
+        .unwrap();
+        assert_eq!(cmd["action"], "isenabled");
+        assert_eq!(cmd["selector"], "#input");
+        assert_eq!(cmd["inFrame"], "myframe");
+    }
+
+    #[test]
+    fn test_find_role_in_frame() {
+        let cmd = parse_command(
+            &args("find --in-frame myframe role button click"),
+            &default_flags(),
+        )
+        .unwrap();
+        assert_eq!(cmd["action"], "getbyrole");
+        assert_eq!(cmd["role"], "button");
+        assert_eq!(cmd["inFrame"], "myframe");
+    }
+
+    #[test]
+    fn test_find_text_in_frame() {
+        let cmd = parse_command(
+            &args("find --in-frame myframe text Submit click"),
+            &default_flags(),
+        )
+        .unwrap();
+        assert_eq!(cmd["action"], "getbytext");
+        assert_eq!(cmd["inFrame"], "myframe");
+    }
+
+    #[test]
+    fn test_wait_selector_in_frame() {
+        let cmd = parse_command(
+            &args("wait --in-frame myframe #element"),
+            &default_flags(),
+        )
+        .unwrap();
+        assert_eq!(cmd["action"], "wait");
+        assert_eq!(cmd["selector"], "#element");
+        assert_eq!(cmd["inFrame"], "myframe");
+    }
+
+    #[test]
+    fn test_wait_timeout_in_frame() {
+        let cmd = parse_command(
+            &args("wait --in-frame myframe 5000"),
+            &default_flags(),
+        )
+        .unwrap();
+        assert_eq!(cmd["action"], "wait");
+        assert_eq!(cmd["timeout"], 5000);
+        assert_eq!(cmd["inFrame"], "myframe");
+    }
+
+    #[test]
+    fn test_wait_fn_in_frame() {
+        let cmd = parse_command(
+            &args("wait --in-frame myframe --fn window.ready"),
+            &default_flags(),
+        )
+        .unwrap();
+        assert_eq!(cmd["action"], "waitforfunction");
+        assert_eq!(cmd["expression"], "window.ready");
+        assert_eq!(cmd["inFrame"], "myframe");
+    }
+
+    #[test]
+    fn test_wait_url_in_frame() {
+        let cmd = parse_command(
+            &args("wait --in-frame myframe --url **/dashboard"),
+            &default_flags(),
+        )
+        .unwrap();
+        assert_eq!(cmd["action"], "waitforurl");
+        assert_eq!(cmd["url"], "**/dashboard");
+        assert_eq!(cmd["inFrame"], "myframe");
+    }
+
+    #[test]
+    fn test_wait_text_in_frame() {
+        let cmd = parse_command(
+            &args("wait --in-frame myframe --text Welcome"),
+            &default_flags(),
+        )
+        .unwrap();
+        assert_eq!(cmd["action"], "wait");
+        assert_eq!(cmd["selector"], "text=Welcome");
+        assert_eq!(cmd["inFrame"], "myframe");
+    }
+
+    #[test]
+    fn test_wait_download_in_frame() {
+        let cmd = parse_command(
+            &args("wait --in-frame myframe --download ./file.pdf"),
+            &default_flags(),
+        )
+        .unwrap();
+        assert_eq!(cmd["action"], "waitfordownload");
+        assert_eq!(cmd["path"], "./file.pdf");
+        assert_eq!(cmd["inFrame"], "myframe");
     }
 }
