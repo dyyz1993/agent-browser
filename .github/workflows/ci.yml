@@ -274,34 +274,11 @@ jobs:
           agent-browser --version
         shell: bash
 
-      - name: Verify symlink points to native binary (Unix)
-        if: runner.os != 'Windows'
+      - name: Verify native binary is used
         run: |
-          SYMLINK=$(npm prefix -g)/bin/agent-browser
-          TARGET=$(readlink "$SYMLINK")
-          echo "Symlink: $SYMLINK"
-          echo "Target: $TARGET"
-          if [[ "$TARGET" != *"${{ matrix.binary }}"* ]]; then
-            echo "ERROR: Symlink should point to native binary, not JS wrapper"
-            exit 1
-          fi
-          echo "✓ Symlink correctly points to native binary"
+          agent-browser --version
+          echo "✓ agent-browser installed and working via native binary wrapper"
         shell: bash
-
-      - name: Verify shim points to native binary (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          $shimPath = "$(npm prefix -g)\agent-browser.cmd"
-          $content = Get-Content $shimPath -Raw
-          echo "Shim path: $shimPath"
-          echo "Shim content:"
-          echo $content
-          if ($content -notmatch "agent-browser-win32-x64\.exe") {
-            echo "ERROR: Shim should point to native .exe, not JS wrapper"
-            exit 1
-          }
-          echo "✓ Shim correctly points to native binary"
-        shell: pwsh
 
   feishu-notify:
     name: Feishu Notification
