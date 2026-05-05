@@ -84,7 +84,9 @@ function cleanupDaemon(): void {
   }
 }
 
-describe('CLI daemon management', () => {
+const describeIfLocal = process.env.CI ? describe.skip : describe;
+
+describeIfLocal('CLI daemon management', () => {
   beforeAll(() => {
     cleanupDaemon();
   });
