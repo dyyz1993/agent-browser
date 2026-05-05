@@ -22,6 +22,15 @@ export interface RecorderAnnotation {
   customNote?: string;
 }
 
+export interface ElementIdentity {
+  tagName: string;
+  textContent: string;
+  attributes: Record<string, string>;
+  classes: string[];
+  boundingRect: { x: number; y: number; width: number; height: number };
+  parentSignature: string;
+}
+
 export interface RecorderStep {
   id: string;
   time?: string;
@@ -32,6 +41,11 @@ export interface RecorderStep {
   value?: string;
   url?: string;
   annotation?: RecorderAnnotation;
+
+  fallbackSelectors?: string[];
+  elementIdentity?: ElementIdentity;
+  signalType?: 'url_change' | 'dom_stable';
+  data?: Record<string, unknown>;
 }
 
 export interface RecorderYaml {
@@ -155,7 +169,9 @@ export function recorderToFlow(
 
         case 'custom':
           warnings.push(
-            `Custom annotation at step "${step.id}": ${step.annotation.customNote || step.annotation.label}`
+            `Custom annotation at step "${step.id}": ${
+              step.annotation.customNote || step.annotation.label
+            }`
           );
           {
             const flowStep = convertStep(step);
@@ -166,6 +182,27 @@ export function recorderToFlow(
     }
 
     if (step.action === 'annotate') {
+      continue;
+    }
+
+    if (step.action === 'environment_signal') {
+      if (step.signalType === 'url_change') {
+        steps.push({
+          id: step.id,
+          action: 'wait',
+          waitCondition: 'url_change',
+          waitUrlPattern: (step.data?.url as string) || step.url,
+          timeout: step.data?.timeout as number | undefined,
+        });
+      } else if (step.signalType === 'dom_stable') {
+        steps.push({
+          id: step.id,
+          action: 'wait',
+          waitCondition: 'dom_stable',
+          waitDomStableTimeout: (step.data?.timeout as number) || 500,
+          timeout: step.data?.timeout as number | undefined,
+        });
+      }
       continue;
     }
 
@@ -272,70 +309,107 @@ export function recorderToFlow(
   return { site, warnings };
 }
 
+function attachRecorderMeta(flowStep: FlowStep, step: RecorderStep): FlowStep {
+  if (step.fallbackSelectors && step.fallbackSelectors.length > 0) {
+    flowStep.fallbackSelectors = step.fallbackSelectors;
+  }
+  if (step.elementIdentity) {
+    flowStep.elementIdentity = step.elementIdentity;
+  }
+  return flowStep;
+}
+
 function convertStep(step: RecorderStep): FlowStep | null {
   switch (step.action) {
     case 'navigate':
     case 'open':
     case 'goto':
-      return {
-        id: step.id,
-        action: 'navigate',
-        url: step.url,
-      };
+      return attachRecorderMeta(
+        {
+          id: step.id,
+          action: 'navigate',
+          url: step.url,
+        },
+        step
+      );
     case 'click':
-      return {
-        id: step.id,
-        action: 'click',
-        selector: step.selector,
-      };
+      return attachRecorderMeta(
+        {
+          id: step.id,
+          action: 'click',
+          selector: step.selector,
+        },
+        step
+      );
     case 'fill':
     case 'type':
-      return {
-        id: step.id,
-        action: 'fill',
-        selector: step.selector,
-        value: step.value,
-      };
+      return attachRecorderMeta(
+        {
+          id: step.id,
+          action: 'fill',
+          selector: step.selector,
+          value: step.value,
+        },
+        step
+      );
     case 'press':
     case 'keyboard':
-      return {
-        id: step.id,
-        action: 'press',
-        value: step.value || step.selector,
-      };
+      return attachRecorderMeta(
+        {
+          id: step.id,
+          action: 'press',
+          value: step.value || step.selector,
+        },
+        step
+      );
     case 'scroll':
-      return {
-        id: step.id,
-        action: 'scroll',
-        value: 'down',
-        scrollAmount: 500,
-      };
+      return attachRecorderMeta(
+        {
+          id: step.id,
+          action: 'scroll',
+          value: 'down',
+          scrollAmount: 500,
+        },
+        step
+      );
     case 'select':
-      return {
-        id: step.id,
-        action: 'fill',
-        selector: step.selector,
-        value: step.value,
-      };
+      return attachRecorderMeta(
+        {
+          id: step.id,
+          action: 'fill',
+          selector: step.selector,
+          value: step.value,
+        },
+        step
+      );
     case 'wait':
-      return {
-        id: step.id,
-        action: 'wait',
-        selector: step.selector,
-        timeout: 5000,
-      };
+      return attachRecorderMeta(
+        {
+          id: step.id,
+          action: 'wait',
+          selector: step.selector,
+          timeout: 5000,
+        },
+        step
+      );
     case 'snapshot':
-      return {
-        id: step.id,
-        action: 'snapshot',
-        selector: step.selector,
-      };
+      return attachRecorderMeta(
+        {
+          id: step.id,
+          action: 'snapshot',
+          selector: step.selector,
+        },
+        step
+      );
     case 'back':
-      return {
-        id: step.id,
-        action: 'navigate',
-        url: 'back',
-      };
+      return attachRecorderMeta(
+        {
+          id: step.id,
+          action: 'navigate',
+          url: 'back',
+        },
+        step
+      );
     default:
       return null;
   }
@@ -422,6 +496,9 @@ function serializeStep(step: FlowStep): any {
     'preset',
     'outputFormat',
     'pretty',
+    'waitCondition',
+    'waitUrlPattern',
+    'waitDomStableTimeout',
   ];
 
   for (const key of simpleKeys) {
@@ -458,6 +535,10 @@ function serializeStep(step: FlowStep): any {
   }
 
   if (step.smartExtractConfig) result.smartExtractConfig = step.smartExtractConfig;
+
+  if (step.fallbackSelectors && step.fallbackSelectors.length > 0)
+    result.fallbackSelectors = step.fallbackSelectors;
+  if (step.elementIdentity) result.elementIdentity = step.elementIdentity;
 
   return result;
 }

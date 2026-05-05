@@ -129,6 +129,19 @@ export interface FlowStep {
     preferLayer?: 'api' | 'script' | 'dom';
     minResults?: number;
   };
+
+  fallbackSelectors?: string[];
+  elementIdentity?: {
+    tagName: string;
+    textContent: string;
+    attributes: Record<string, string>;
+    classes: string[];
+    boundingRect: { x: number; y: number; width: number; height: number };
+    parentSignature: string;
+  };
+  waitCondition?: 'url_change' | 'dom_stable';
+  waitUrlPattern?: string;
+  waitDomStableTimeout?: number;
 }
 
 export interface FlowDefinition {

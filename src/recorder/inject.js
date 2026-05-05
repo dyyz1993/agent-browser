@@ -1,4 +1,4 @@
-(function() {
+(function () {
   'use strict';
 
   // 配置常量
@@ -76,6 +76,8 @@
   let pendingScroll = null;
   let lastFillSelector = null;
   let lastFillValue = '';
+  let lastFillFallbacks = [];
+  let lastFillIdentity = null;
   let fillTimeout = null;
   let currentViewport = { width: window.innerWidth, height: window.innerHeight };
   let pendingResize = null;
@@ -89,7 +91,25 @@
   // 暴露初始视口（隐蔽名称）
   window.xyzVp = { ...currentViewport };
 
-  const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'META', 'LINK', 'HEAD', 'NOSCRIPT', 'BR', 'HR', 'SVG', 'PATH', 'TITLE', 'BASE', 'WBR', 'AREA', 'MAP', 'COL', 'COLGROUP']);
+  const SKIP_TAGS = new Set([
+    'SCRIPT',
+    'STYLE',
+    'META',
+    'LINK',
+    'HEAD',
+    'NOSCRIPT',
+    'BR',
+    'HR',
+    'SVG',
+    'PATH',
+    'TITLE',
+    'BASE',
+    'WBR',
+    'AREA',
+    'MAP',
+    'COL',
+    'COLGROUP',
+  ]);
 
   // ============ 私有函数：统一事件 API ============
   function pushEvent(action) {
@@ -113,7 +133,7 @@
         if (!action.id) {
           return { success: false, steps, error: 'Missing id for update action' };
         }
-        const updateIndex = steps.findIndex(s => s.id === action.id);
+        const updateIndex = steps.findIndex((s) => s.id === action.id);
         if (updateIndex >= 0) {
           steps[updateIndex] = { ...steps[updateIndex], ...action.data };
           window.xyzQueue = steps;
@@ -125,7 +145,7 @@
         if (!action.id) {
           return { success: false, steps, error: 'Missing id for delete action' };
         }
-        const deleteIndex = steps.findIndex(s => s.id === action.id);
+        const deleteIndex = steps.findIndex((s) => s.id === action.id);
         if (deleteIndex >= 0) {
           steps.splice(deleteIndex, 1);
           window.xyzQueue = steps;
@@ -151,7 +171,7 @@
 
     const now = Date.now();
     const cached = highlightCache.get(element);
-    if (cached && (now - cached.time) < CACHE_TTL) {
+    if (cached && now - cached.time < CACHE_TTL) {
       return cached.result;
     }
 
@@ -180,7 +200,8 @@
     }
 
     const style = window.getComputedStyle(element);
-    const result = style.display !== 'none' && style.visibility !== 'hidden' && parseFloat(style.opacity) !== 0;
+    const result =
+      style.display !== 'none' && style.visibility !== 'hidden' && parseFloat(style.opacity) !== 0;
 
     highlightCache.set(element, { time: now, result });
     return result;
@@ -194,7 +215,9 @@
         // 使用动态绑定名称
         const bindingName = window.xyzBindingName || 'xyzTrack';
         if (typeof window[bindingName] === 'function') {
-          try { window[bindingName](JSON.stringify(event.data.step)); } catch (e) {}
+          try {
+            window[bindingName](JSON.stringify(event.data.step));
+          } catch (e) {}
         }
       } else {
         try {
@@ -204,26 +227,30 @@
     }
   });
 
-  document.addEventListener('mousemove', (e) => {
-    // 检查录制会话是否仍然活跃
-    // 注意：xyzActive 可能是 undefined（在 iframe 中），所以只检查明确为 false 的情况
-    if (window.xyzActive === false || window.xyzStopped) return;
-    
-    // 检查当前会话是否是最新的
-    // 由于 addInitScript 是累积的，旧的监听器可能会继续工作
-    // 通过比较时间戳来确保只有最新的会话记录事件
-    const currentTimestamp = parseInt((window.xyzSessionId || '').replace('recorder-', '')) || 0;
-    if (thisTimestamp > 0 && currentTimestamp > thisTimestamp) return;
-    
-    const now = Date.now();
-    if (now - lastTime > TRAJECTORY_INTERVAL) {
-      mousePath.push({ x: e.clientX, y: e.clientY, t: now });
-      if (mousePath.length > MAX_TRAJECTORY_POINTS) {
-        mousePath.shift();
+  document.addEventListener(
+    'mousemove',
+    (e) => {
+      // 检查录制会话是否仍然活跃
+      // 注意：xyzActive 可能是 undefined（在 iframe 中），所以只检查明确为 false 的情况
+      if (window.xyzActive === false || window.xyzStopped) return;
+
+      // 检查当前会话是否是最新的
+      // 由于 addInitScript 是累积的，旧的监听器可能会继续工作
+      // 通过比较时间戳来确保只有最新的会话记录事件
+      const currentTimestamp = parseInt((window.xyzSessionId || '').replace('recorder-', '')) || 0;
+      if (thisTimestamp > 0 && currentTimestamp > thisTimestamp) return;
+
+      const now = Date.now();
+      if (now - lastTime > TRAJECTORY_INTERVAL) {
+        mousePath.push({ x: e.clientX, y: e.clientY, t: now });
+        if (mousePath.length > MAX_TRAJECTORY_POINTS) {
+          mousePath.shift();
+        }
+        lastTime = now;
       }
-      lastTime = now;
-    }
-  }, true);
+    },
+    true
+  );
 
   function getTrajectory() {
     // 检查当前会话是否是最新的
@@ -234,7 +261,7 @@
       mousePath = [];
       return [];
     }
-    
+
     const points = mousePath.slice(-4);
     mousePath = [];
     return points;
@@ -281,11 +308,21 @@
 
   function syncStep(step) {
     if (pendingResize) {
-      syncStepDirect({ timestamp: Date.now(), action: 'resize', from: pendingResize.from, to: pendingResize.to });
+      syncStepDirect({
+        timestamp: Date.now(),
+        action: 'resize',
+        from: pendingResize.from,
+        to: pendingResize.to,
+      });
       pendingResize = null;
     }
     if (pendingScroll) {
-      syncStepDirect({ timestamp: Date.now(), action: 'scroll', x: pendingScroll.x, y: pendingScroll.y });
+      syncStepDirect({
+        timestamp: Date.now(),
+        action: 'scroll',
+        x: pendingScroll.x,
+        y: pendingScroll.y,
+      });
       pendingScroll = null;
     }
     const trajectory = getTrajectory();
@@ -295,41 +332,52 @@
     syncStepDirect(step);
   }
 
-  window.addEventListener('resize', () => {
-    clearTimeout(resizeTimeout);
-    resizeTimeout = setTimeout(() => {
-      const newWidth = window.innerWidth;
-      const newHeight = window.innerHeight;
-      if (newWidth !== currentViewport.width || newHeight !== currentViewport.height) {
-        pendingResize = { from: { ...currentViewport }, to: { width: newWidth, height: newHeight } };
-        currentViewport = { width: newWidth, height: newHeight };
-      }
-    }, 100);
-  }, true);
+  window.addEventListener(
+    'resize',
+    () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        const newWidth = window.innerWidth;
+        const newHeight = window.innerHeight;
+        if (newWidth !== currentViewport.width || newHeight !== currentViewport.height) {
+          pendingResize = {
+            from: { ...currentViewport },
+            to: { width: newWidth, height: newHeight },
+          };
+          currentViewport = { width: newWidth, height: newHeight };
+        }
+      }, 100);
+    },
+    true
+  );
 
-  window.addEventListener('scroll', () => {
-    clearTimeout(scrollTimeout);
-    scrollTimeout = setTimeout(() => {
-      const scrollX = window.scrollX;
-      const scrollY = window.scrollY;
-      if (Math.abs(scrollY - lastScrollY) > SCROLL_THRESHOLD || Math.abs(scrollX - lastScrollX) > SCROLL_THRESHOLD) {
-        pendingScroll = { x: scrollX, y: scrollY };
-        lastScrollX = scrollX;
-        lastScrollY = scrollY;
-      }
-    }, 100);
-  }, true);
+  window.addEventListener(
+    'scroll',
+    () => {
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        const scrollX = window.scrollX;
+        const scrollY = window.scrollY;
+        if (
+          Math.abs(scrollY - lastScrollY) > SCROLL_THRESHOLD ||
+          Math.abs(scrollX - lastScrollX) > SCROLL_THRESHOLD
+        ) {
+          pendingScroll = { x: scrollX, y: scrollY };
+          lastScrollX = scrollX;
+          lastScrollY = scrollY;
+        }
+      }, 100);
+    },
+    true
+  );
 
   // ============ XPath 和 Selector 工具函数 ============
   function isUniqueXPath(xpath) {
     try {
-      return document.evaluate(
-        'count(' + xpath + ')',
-        document,
-        null,
-        XPathResult.NUMBER_TYPE,
-        null
-      ).numberValue === 1;
+      return (
+        document.evaluate('count(' + xpath + ')', document, null, XPathResult.NUMBER_TYPE, null)
+          .numberValue === 1
+      );
     } catch (e) {
       return false;
     }
@@ -392,7 +440,16 @@
     }
 
     if (!result) {
-      const semanticAttrs = ['data-testid', 'data-test', 'data-cy', 'aria-label', 'name', 'role', 'title', 'placeholder'];
+      const semanticAttrs = [
+        'data-testid',
+        'data-test',
+        'data-cy',
+        'aria-label',
+        'name',
+        'role',
+        'title',
+        'placeholder',
+      ];
       for (const attr of semanticAttrs) {
         const value = element.getAttribute(attr);
         if (value) {
@@ -408,7 +465,8 @@
     if (!result) {
       const text = element.innerText?.trim();
       if (text && text.length < 30 && ['BUTTON', 'A', 'SPAN', 'LABEL'].includes(element.tagName)) {
-        const xpath = '//' + element.tagName.toLowerCase() + '[contains(text(), "' + text.slice(0, 20) + '")]';
+        const xpath =
+          '//' + element.tagName.toLowerCase() + '[contains(text(), "' + text.slice(0, 20) + '")]';
         if (isUniqueXPath(xpath)) result = xpath;
       }
     }
@@ -441,19 +499,27 @@
 
   // 语义属性优先级列表
   const SEMANTIC_ATTRS = [
-    'data-testid', 'data-test', 'data-cy',
-    'name', 'aria-label', 'aria-labelledby',
-    'role', 'type', 'placeholder', 'title', 'alt'
+    'data-testid',
+    'data-test',
+    'data-cy',
+    'name',
+    'aria-label',
+    'aria-labelledby',
+    'role',
+    'type',
+    'placeholder',
+    'title',
+    'alt',
   ];
 
   // 工具类名排除规则
   const UTILITY_CLASS_PATTERNS = [
-    /^_/,           // 下划线开头
-    /^css-/,        // CSS Modules
+    /^_/, // 下划线开头
+    /^css-/, // CSS Modules
     /^[a-z]{1,2}$/, // 1-2个字符的短类名
     /^(active|disabled|hidden|visible|selected|hover|focus|current|open|closed)$/i,
     /^(text-|font-|bg-|p-|m-|w-|h-|flex|grid|border|rounded|shadow|opacity|z-)/,
-    /^(sm:|md:|lg:|xl:|2xl:)/  // 响应式前缀
+    /^(sm:|md:|lg:|xl:|2xl:)/, // 响应式前缀
   ];
 
   // 检测高熵类名（CSS Modules/Emotion/Styled Components 自动生成的随机类名）
@@ -493,14 +559,17 @@
   // 过滤有用的类名
   function filterUsefulClasses(element) {
     if (!element.className || typeof element.className !== 'string') return [];
-    return element.className.trim().split(/\s+/).filter(c => {
-      if (!c) return false;
-      // 过滤工具类名
-      if (UTILITY_CLASS_PATTERNS.some(p => p.test(c))) return false;
-      // 过滤高熵类名
-      if (isHighEntropyClassName(c)) return false;
-      return true;
-    });
+    return element.className
+      .trim()
+      .split(/\s+/)
+      .filter((c) => {
+        if (!c) return false;
+        // 过滤工具类名
+        if (UTILITY_CLASS_PATTERNS.some((p) => p.test(c))) return false;
+        // 过滤高熵类名
+        if (isHighEntropyClassName(c)) return false;
+        return true;
+      });
   }
 
   // 策略1: 多属性组合选择器
@@ -527,9 +596,18 @@
     if (attrs.length >= 2) {
       for (let i = 0; i < attrs.length; i++) {
         for (let j = i + 1; j < attrs.length; j++) {
-          const selector = tag +
-            '[' + attrs[i].attr + '="' + CSS.escape(attrs[i].value) + '"]' +
-            '[' + attrs[j].attr + '="' + CSS.escape(attrs[j].value) + '"]';
+          const selector =
+            tag +
+            '[' +
+            attrs[i].attr +
+            '="' +
+            CSS.escape(attrs[i].value) +
+            '"]' +
+            '[' +
+            attrs[j].attr +
+            '="' +
+            CSS.escape(attrs[j].value) +
+            '"]';
           if (isUniqueSelector(selector)) return selector;
         }
       }
@@ -552,7 +630,8 @@
     for (const attr of SEMANTIC_ATTRS) {
       const value = element.getAttribute(attr);
       if (value) {
-        const selector = tag + '.' + CSS.escape(bestClass) + '[' + attr + '="' + CSS.escape(value) + '"]';
+        const selector =
+          tag + '.' + CSS.escape(bestClass) + '[' + attr + '="' + CSS.escape(value) + '"]';
         if (isUniqueSelector(selector)) return selector;
       }
     }
@@ -578,7 +657,13 @@
 
     // 尝试组合多个类名
     for (let i = 2; i <= Math.min(3, classes.length); i++) {
-      const selector = tag + '.' + classes.slice(0, i).map(c => CSS.escape(c)).join('.');
+      const selector =
+        tag +
+        '.' +
+        classes
+          .slice(0, i)
+          .map((c) => CSS.escape(c))
+          .join('.');
       if (isUniqueSelector(selector)) return selector;
     }
 
@@ -659,7 +744,12 @@
     if (classes.length > 0) {
       // 按长度排序，取最具体的类名
       classes.sort((a, b) => b.length - a.length);
-      selector += '.' + classes.slice(0, 2).map(c => CSS.escape(c)).join('.');
+      selector +=
+        '.' +
+        classes
+          .slice(0, 2)
+          .map((c) => CSS.escape(c))
+          .join('.');
     }
     return selector;
   }
@@ -669,7 +759,7 @@
     if (!parent) return baseSelector;
 
     const siblings = Array.from(parent.children);
-    const sameTagSiblings = siblings.filter(s => s.tagName === element.tagName);
+    const sameTagSiblings = siblings.filter((s) => s.tagName === element.tagName);
 
     if (sameTagSiblings.length === 1) {
       return baseSelector;
@@ -843,13 +933,110 @@
     return getSelectorWithShadow(element);
   }
 
+  // === Fallback Selectors (Enhancement 1) ===
+  function getFallbackSelectors(element) {
+    const primary = getSelectorInternal(element);
+    const candidates = [];
+
+    const tryCandidate = (selector) => {
+      if (selector && selector !== primary && !candidates.includes(selector)) {
+        candidates.push(selector);
+      }
+    };
+
+    if (element.id) {
+      const sel = '#' + CSS.escape(element.id);
+      try {
+        if (document.querySelectorAll(sel).length === 1) tryCandidate(sel);
+      } catch (e) {}
+    }
+
+    tryCandidate(getMultiAttributeSelector(element));
+    tryCandidate(getAttributeClassComboSelector(element));
+    tryCandidate(getBestClassSelector(element));
+    tryCandidate(getSiblingBasedSelector(element));
+    tryCandidate(buildComposedSelector(element));
+
+    const base = getBaseSelector(element);
+    const nthSel = makeUniqueWithNth(element, base);
+    try {
+      if (document.querySelectorAll(nthSel).length === 1) tryCandidate(nthSel);
+    } catch (e) {}
+
+    tryCandidate(buildUniquePath(element));
+
+    return candidates.slice(0, 3);
+  }
+
+  // === Element Identity Capture (Enhancement 2) ===
+  function captureSemanticAttributes(element) {
+    const attrs = {};
+    const semanticAttrs = [
+      'name',
+      'aria-label',
+      'data-testid',
+      'data-test',
+      'placeholder',
+      'type',
+      'role',
+      'title',
+      'href',
+    ];
+    for (const attr of semanticAttrs) {
+      const value = element.getAttribute(attr);
+      if (value) attrs[attr] = value;
+    }
+    return attrs;
+  }
+
+  function getParentSignature(element) {
+    let current = element.parentElement;
+    let depth = 0;
+    while (current && current !== document.body && depth < 10) {
+      if (current.id) {
+        return '#' + CSS.escape(current.id);
+      }
+      const testId = current.getAttribute('data-testid') || current.getAttribute('data-test');
+      if (testId) {
+        return current.tagName.toLowerCase() + '[data-testid="' + testId + '"]';
+      }
+      const classes = filterUsefulClasses(current);
+      if (classes.length > 0) {
+        const sel = current.tagName.toLowerCase() + '.' + CSS.escape(classes[0]);
+        try {
+          if (document.querySelectorAll(sel).length === 1) return sel;
+        } catch (e) {}
+      }
+      current = current.parentElement;
+      depth++;
+    }
+    return null;
+  }
+
+  function captureElementIdentity(element) {
+    const r = element.getBoundingClientRect();
+    return {
+      tagName: element.tagName.toLowerCase(),
+      textContent: (element.textContent || '').trim().substring(0, 100),
+      attributes: captureSemanticAttributes(element),
+      classes: filterUsefulClasses(element).slice(0, 5),
+      boundingRect: {
+        x: Math.round(r.x),
+        y: Math.round(r.y),
+        width: Math.round(r.width),
+        height: Math.round(r.height),
+      },
+      parentSignature: getParentSignature(element),
+    };
+  }
+
   function getElementInfo(element) {
     return {
       tagName: element.tagName.toLowerCase(),
       id: element.id,
       className: element.className,
       text: element.innerText ? element.innerText.slice(0, 50) : '',
-      xpath: getXPath(element)
+      xpath: getXPath(element),
     };
   }
 
@@ -874,13 +1061,19 @@
       value: data.value,
       elementInfo: data.elementInfo,
       annotation: data.annotation,
-      iframe: isInIframe
+      iframe: isInIframe,
+      fallbackSelectors: data.fallbackSelectors
+        ? data.fallbackSelectors.map((s) => iframePrefix + s)
+        : undefined,
+      elementIdentity: data.elementIdentity || undefined,
     };
 
     if (action === 'keyboard') {
       delete step.selector;
       delete step.xpath;
       delete step.elementInfo;
+      delete step.fallbackSelectors;
+      delete step.elementIdentity;
       // 复制键盘事件相关属性
       step.key = data.key;
       step.code = data.code;
@@ -893,177 +1086,245 @@
     syncStep(step);
   }
 
-  document.addEventListener('click', (e) => {
-    const path = e.composedPath();
-    const element = path[0] || e.target;
+  document.addEventListener(
+    'click',
+    (e) => {
+      const path = e.composedPath();
+      const element = path[0] || e.target;
 
-    if (isInPanel(element)) {
-      return;
-    }
-    if (element === document.body || element === document.documentElement) {
-      return;
-    }
-
-    const link = element.closest('a[href]');
-    if (link) {
-      const href = link.href;
-      const target = link.target || '_self';
-      let isExternal = target === '_blank';
-      if (!isExternal && href.startsWith('http')) {
-        try {
-          const linkHost = new URL(href).host;
-          isExternal = linkHost !== window.location.host;
-        } catch (e) {}
+      if (isInPanel(element)) {
+        return;
+      }
+      if (element === document.body || element === document.documentElement) {
+        return;
       }
 
-      recordStep('link_click', {
-        selector: getSelector(link),
-        xpath: getXPath(link),
-        value: href,
-        elementInfo: { ...getElementInfo(link), target: target, isExternal: isExternal }
-      });
-      return;
-    }
+      const link = element.closest('a[href]');
+      if (link) {
+        const href = link.href;
+        const target = link.target || '_self';
+        let isExternal = target === '_blank';
+        if (!isExternal && href.startsWith('http')) {
+          try {
+            const linkHost = new URL(href).host;
+            isExternal = linkHost !== window.location.host;
+          } catch (e) {}
+        }
 
-    const tag = element.tagName;
-    const inputType = (element.type || '').toLowerCase();
+        recordStep('link_click', {
+          selector: getSelector(link),
+          xpath: getXPath(link),
+          value: href,
+          elementInfo: { ...getElementInfo(link), target: target, isExternal: isExternal },
+          fallbackSelectors: getFallbackSelectors(link),
+          elementIdentity: captureElementIdentity(link),
+        });
+        return;
+      }
 
-    if (tag === 'INPUT' && (inputType === 'checkbox' || inputType === 'radio')) {
-      const isChecked = element.checked;
-      const action = inputType === 'radio' ? 'check' : (isChecked ? 'check' : 'uncheck');
-      recordStep(action, {
+      const tag = element.tagName;
+      const inputType = (element.type || '').toLowerCase();
+
+      if (tag === 'INPUT' && (inputType === 'checkbox' || inputType === 'radio')) {
+        const isChecked = element.checked;
+        const action = inputType === 'radio' ? 'check' : isChecked ? 'check' : 'uncheck';
+        recordStep(action, {
+          selector: getSelector(element),
+          xpath: getXPath(element),
+          elementInfo: getElementInfo(element),
+          fallbackSelectors: getFallbackSelectors(element),
+          elementIdentity: captureElementIdentity(element),
+        });
+        if (!HIDE_UI && !isInIframe && typeof addMarker === 'function') {
+          addMarker(element, action);
+        }
+        return;
+      }
+
+      recordStep('click', {
         selector: getSelector(element),
         xpath: getXPath(element),
-        elementInfo: getElementInfo(element)
+        elementInfo: getElementInfo(element),
+        fallbackSelectors: getFallbackSelectors(element),
+        elementIdentity: captureElementIdentity(element),
       });
+
+      // 非隐藏模式下添加标记
       if (!HIDE_UI && !isInIframe && typeof addMarker === 'function') {
-        addMarker(element, action);
+        addMarker(element, 'default');
       }
-      return;
-    }
+    },
+    true
+  );
 
-    recordStep('click', {
-      selector: getSelector(element),
-      xpath: getXPath(element),
-      elementInfo: getElementInfo(element)
-    });
+  document.addEventListener(
+    'input',
+    (e) => {
+      const element = e.target;
+      if (!element || !element.tagName) return;
+      if (isInPanel(element)) return;
 
-    // 非隐藏模式下添加标记
-    if (!HIDE_UI && !isInIframe && typeof addMarker === 'function') {
-      addMarker(element, 'default');
-    }
-  }, true);
+      // Skip checkbox, radio, and select - they are handled by click and change events
+      if (element.tagName === 'SELECT') return;
+      const inputType = (element.type || '').toLowerCase();
+      if (inputType === 'checkbox' || inputType === 'radio') return;
 
-  document.addEventListener('input', (e) => {
-    const element = e.target;
-    if (!element || !element.tagName) return;
-    if (isInPanel(element)) return;
+      const selector = getSelector(element);
+      const value = element.value;
+      const fallbacks = getFallbackSelectors(element);
+      const identity = captureElementIdentity(element);
 
-    // Skip checkbox, radio, and select - they are handled by click and change events
-    if (element.tagName === 'SELECT') return;
-    const inputType = (element.type || '').toLowerCase();
-    if (inputType === 'checkbox' || inputType === 'radio') return;
+      clearTimeout(fillTimeout);
 
-    const selector = getSelector(element);
-    const value = element.value;
-
-    clearTimeout(fillTimeout);
-
-    if (lastFillSelector && lastFillSelector !== selector && lastFillValue) {
-      recordStep('fill', { selector: lastFillSelector, value: lastFillValue });
-    }
-
-    lastFillSelector = selector;
-    lastFillValue = value;
-
-    fillTimeout = setTimeout(() => {
-      if (lastFillSelector && lastFillValue) {
-        recordStep('fill', { selector: lastFillSelector, value: lastFillValue });
-        lastFillSelector = null;
-        lastFillValue = '';
+      if (lastFillSelector && lastFillSelector !== selector && lastFillValue) {
+        recordStep('fill', {
+          selector: lastFillSelector,
+          value: lastFillValue,
+          fallbackSelectors: lastFillFallbacks,
+          elementIdentity: lastFillIdentity,
+        });
       }
-    }, 300);
-  }, true);  // capture phase
+
+      lastFillSelector = selector;
+      lastFillValue = value;
+      lastFillFallbacks = fallbacks;
+      lastFillIdentity = identity;
+
+      fillTimeout = setTimeout(() => {
+        if (lastFillSelector && lastFillValue) {
+          recordStep('fill', {
+            selector: lastFillSelector,
+            value: lastFillValue,
+            fallbackSelectors: lastFillFallbacks,
+            elementIdentity: lastFillIdentity,
+          });
+          lastFillSelector = null;
+          lastFillValue = '';
+          lastFillFallbacks = [];
+          lastFillIdentity = null;
+        }
+      }, 300);
+    },
+    true
+  ); // capture phase
 
   // Also listen in bubbling phase to catch programmatically dispatched events
-  document.addEventListener('input', (e) => {
-    const element = e.target;
-    if (!element || !element.tagName) return;
-    if (isInPanel(element)) return;
+  document.addEventListener(
+    'input',
+    (e) => {
+      const element = e.target;
+      if (!element || !element.tagName) return;
+      if (isInPanel(element)) return;
 
-    // Skip checkbox, radio, and select - they are handled by click and change events
-    if (element.tagName === 'SELECT') return;
-    const inputType = (element.type || '').toLowerCase();
-    if (inputType === 'checkbox' || inputType === 'radio') return;
+      // Skip checkbox, radio, and select - they are handled by click and change events
+      if (element.tagName === 'SELECT') return;
+      const inputType = (element.type || '').toLowerCase();
+      if (inputType === 'checkbox' || inputType === 'radio') return;
 
-    const selector = getSelector(element);
-    const value = element.value;
+      const selector = getSelector(element);
+      const value = element.value;
+      const fallbacks = getFallbackSelectors(element);
+      const identity = captureElementIdentity(element);
 
-    // Only process if not already processed in capture phase
-    if (lastFillSelector === selector && lastFillValue === value) {
-      return;
-    }
-
-    clearTimeout(fillTimeout);
-
-    if (lastFillSelector && lastFillSelector !== selector && lastFillValue) {
-      recordStep('fill', { selector: lastFillSelector, value: lastFillValue });
-    }
-
-    lastFillSelector = selector;
-    lastFillValue = value;
-
-    fillTimeout = setTimeout(() => {
-      if (lastFillSelector && lastFillValue) {
-        recordStep('fill', { selector: lastFillSelector, value: lastFillValue });
-        lastFillSelector = null;
-        lastFillValue = '';
+      // Only process if not already processed in capture phase
+      if (lastFillSelector === selector && lastFillValue === value) {
+        return;
       }
-    }, 300);
-  }, false);  // bubbling phase
+
+      clearTimeout(fillTimeout);
+
+      if (lastFillSelector && lastFillSelector !== selector && lastFillValue) {
+        recordStep('fill', {
+          selector: lastFillSelector,
+          value: lastFillValue,
+          fallbackSelectors: lastFillFallbacks,
+          elementIdentity: lastFillIdentity,
+        });
+      }
+
+      lastFillSelector = selector;
+      lastFillValue = value;
+      lastFillFallbacks = fallbacks;
+      lastFillIdentity = identity;
+
+      fillTimeout = setTimeout(() => {
+        if (lastFillSelector && lastFillValue) {
+          recordStep('fill', {
+            selector: lastFillSelector,
+            value: lastFillValue,
+            fallbackSelectors: lastFillFallbacks,
+            elementIdentity: lastFillIdentity,
+          });
+          lastFillSelector = null;
+          lastFillValue = '';
+          lastFillFallbacks = [];
+          lastFillIdentity = null;
+        }
+      }, 300);
+    },
+    false
+  ); // bubbling phase
 
   // 标记事件监听器已注册
   window.xyzHasInputListener = true;
 
-  document.addEventListener('change', (e) => {
-    const element = e.target;
-    if (!element || element.tagName !== 'SELECT') return;
-    if (isInPanel(element)) return;
+  document.addEventListener(
+    'change',
+    (e) => {
+      const element = e.target;
+      if (!element || element.tagName !== 'SELECT') return;
+      if (isInPanel(element)) return;
 
-    recordStep('select', {
-      selector: getSelector(element),
-      xpath: getXPath(element),
-      value: element.value,
-      elementInfo: getElementInfo(element)
-    });
-  }, true);
-
-  document.addEventListener('keydown', (e) => {
-    const element = document.activeElement;
-
-    if (isInPanel(element)) return;
-
-    const specialKeys = ['Enter', 'Tab', 'Escape', 'Backspace', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
-
-    if (specialKeys.includes(e.key) || e.ctrlKey || e.metaKey || e.altKey) {
-      if (!e.ctrlKey && !e.metaKey && !e.altKey && !specialKeys.includes(e.key)) {
-        return;
-      }
-
-
-      recordStep('keyboard', {
-        key: e.key,
-        code: e.code,
-        ctrlKey: e.ctrlKey,
-        metaKey: e.metaKey,
-        altKey: e.altKey,
-        shiftKey: e.shiftKey,
-        selector: element ? getSelector(element) : '',
-        xpath: element ? getXPath(element) : '',
-        elementInfo: element ? getElementInfo(element) : null
+      recordStep('select', {
+        selector: getSelector(element),
+        xpath: getXPath(element),
+        value: element.value,
+        elementInfo: getElementInfo(element),
+        fallbackSelectors: getFallbackSelectors(element),
+        elementIdentity: captureElementIdentity(element),
       });
-    }
-  }, true);
+    },
+    true
+  );
+
+  document.addEventListener(
+    'keydown',
+    (e) => {
+      const element = document.activeElement;
+
+      if (isInPanel(element)) return;
+
+      const specialKeys = [
+        'Enter',
+        'Tab',
+        'Escape',
+        'Backspace',
+        'ArrowUp',
+        'ArrowDown',
+        'ArrowLeft',
+        'ArrowRight',
+      ];
+
+      if (specialKeys.includes(e.key) || e.ctrlKey || e.metaKey || e.altKey) {
+        if (!e.ctrlKey && !e.metaKey && !e.altKey && !specialKeys.includes(e.key)) {
+          return;
+        }
+
+        recordStep('keyboard', {
+          key: e.key,
+          code: e.code,
+          ctrlKey: e.ctrlKey,
+          metaKey: e.metaKey,
+          altKey: e.altKey,
+          shiftKey: e.shiftKey,
+          selector: element ? getSelector(element) : '',
+          xpath: element ? getXPath(element) : '',
+          elementInfo: element ? getElementInfo(element) : null,
+        });
+      }
+    },
+    true
+  );
 
   window.addEventListener('beforeunload', () => {
     if (lastFillSelector && lastFillValue) {
@@ -1072,22 +1333,31 @@
         timestamp: Date.now(),
         action: 'fill',
         selector: lastFillSelector,
-        value: lastFillValue
+        value: lastFillValue,
+        fallbackSelectors: lastFillFallbacks,
+        elementIdentity: lastFillIdentity,
       });
     }
     syncStepDirect({
       id: 'step-' + Date.now(),
       timestamp: Date.now(),
       action: 'navigate',
-      value: window.location.href
+      value: window.location.href,
     });
   });
 
-  window.xyzFlushPending = function() {
+  window.xyzFlushPending = function () {
     if (lastFillSelector && lastFillValue) {
-      recordStep('fill', { selector: lastFillSelector, value: lastFillValue });
+      recordStep('fill', {
+        selector: lastFillSelector,
+        value: lastFillValue,
+        fallbackSelectors: lastFillFallbacks,
+        elementIdentity: lastFillIdentity,
+      });
       lastFillSelector = null;
       lastFillValue = '';
+      lastFillFallbacks = [];
+      lastFillIdentity = null;
     }
     if (fillTimeout) {
       clearTimeout(fillTimeout);
@@ -1103,7 +1373,7 @@
     let _checkPanelInterval = null;
 
     // 关闭面板函数（暴露给外部调用）
-    window.xyzClose = function() {
+    window.xyzClose = function () {
       if (_animationFrameId) {
         cancelAnimationFrame(_animationFrameId);
         _animationFrameId = null;
@@ -1129,10 +1399,10 @@
         document.getElementById('xyzMk'),
         document.getElementById('xyzCv'),
         document.getElementById('xyzSh'),
-        document.getElementById('xyzSt')
+        document.getElementById('xyzSt'),
       ];
 
-      elements.forEach(el => {
+      elements.forEach((el) => {
         if (el && el.parentNode) {
           el.parentNode.removeChild(el);
         }
@@ -1140,24 +1410,23 @@
 
       window.xyzInited = false;
       window.xyzQueue = [];
-
     };
 
     // 检查录制会话是否已停止
     if (window.xyzStopped) {
-
       return;
     }
 
     // 检查录制会话是否激活
     if (!window.xyzActive) {
-
       return;
     }
 
     let uiElements = {};
     let currentElement = null;
-    let mouseX = 0, mouseY = 0, currentEdge = null;
+    let mouseX = 0,
+      mouseY = 0,
+      currentEdge = null;
     const EDGE_THRESHOLD = 30;
     let animationFrameId = null;
     let highlightRafId = null;
@@ -1311,24 +1580,29 @@
       });
 
       // Prevent scroll penetration
-      panelBody.addEventListener('wheel', (e) => {
-        const { scrollTop, scrollHeight, clientHeight } = panelBody;
-        const atTop = scrollTop === 0;
-        const atBottom = scrollTop + clientHeight >= scrollHeight - 1;
+      panelBody.addEventListener(
+        'wheel',
+        (e) => {
+          const { scrollTop, scrollHeight, clientHeight } = panelBody;
+          const atTop = scrollTop === 0;
+          const atBottom = scrollTop + clientHeight >= scrollHeight - 1;
 
-        if ((atTop && e.deltaY < 0) || (atBottom && e.deltaY > 0)) {
-          e.preventDefault();
-        }
-      }, { passive: false });
+          if ((atTop && e.deltaY < 0) || (atBottom && e.deltaY > 0)) {
+            e.preventDefault();
+          }
+        },
+        { passive: false }
+      );
 
       // Track scroll position for auto-scroll
       panelBody.addEventListener('scroll', () => {
-        const isAtBottom = panelBody.scrollHeight - panelBody.scrollTop - panelBody.clientHeight < 10;
+        const isAtBottom =
+          panelBody.scrollHeight - panelBody.scrollTop - panelBody.clientHeight < 10;
         autoScroll = isAtBottom;
       });
 
       // Tool selection for current step
-      panelTools.querySelectorAll('.tool-btn').forEach(btn => {
+      panelTools.querySelectorAll('.tool-btn').forEach((btn) => {
         btn.addEventListener('click', () => {
           if (!currentStepId) {
             const steps = window.xyzQueue || [];
@@ -1345,8 +1619,10 @@
 
       // Panel drag functionality
       let isDragging = false;
-      let dragStartX = 0, dragStartY = 0;
-      let panelStartX = 0, panelStartY = 0;
+      let dragStartX = 0,
+        dragStartY = 0;
+      let panelStartX = 0,
+        panelStartY = 0;
 
       const header = panel.querySelector('.xyzPnl-hdr');
       header.addEventListener('mousedown', (e) => {
@@ -1375,11 +1651,14 @@
         if (isDragging) {
           isDragging = false;
           try {
-            localStorage.setItem('xyzPnl-pos', JSON.stringify({
-              left: panel.style.left,
-              top: panel.style.top
-            }));
-          } catch(e) {}
+            localStorage.setItem(
+              'xyzPnl-pos',
+              JSON.stringify({
+                left: panel.style.left,
+                top: panel.style.top,
+              })
+            );
+          } catch (e) {}
         }
       });
 
@@ -1394,7 +1673,7 @@
             panel.style.right = 'auto';
           }
         }
-      } catch(e) {}
+      } catch (e) {}
 
       const markersContainer = document.createElement('div');
       markersContainer.className = 'xyzMk';
@@ -1431,38 +1710,60 @@
 
         const displaySteps = steps.slice(-20);
 
-        container.innerHTML = displaySteps.map((step) => {
-          const action = step.action || 'unknown';
-          const selector = step.selector || '';
-          const value = step.value || '';
-          const stepId = step.id || '';
+        container.innerHTML = displaySteps
+          .map((step) => {
+            const action = step.action || 'unknown';
+            const selector = step.selector || '';
+            const value = step.value || '';
+            const stepId = step.id || '';
 
-          let extra = '';
-          if (action === 'trajectory' && step.points) {
-            extra = '<div class="selector">🖱️ ' + step.points.length + ' points</div>';
-          } else if (action === 'scroll') {
-            extra = '<div class="selector">📜 (' + step.x + ', ' + step.y + ')</div>';
-          } else if (action === 'resize') {
-            extra = '<div class="selector">📐 ' + step.to.width + 'x' + step.to.height + '</div>';
-          } else if (action === 'link_click') {
-            extra = '<div class="selector">🔗 ' + (value || '') + '</div>';
-          }
+            let extra = '';
+            if (action === 'trajectory' && step.points) {
+              extra = '<div class="selector">🖱️ ' + step.points.length + ' points</div>';
+            } else if (action === 'scroll') {
+              extra = '<div class="selector">📜 (' + step.x + ', ' + step.y + ')</div>';
+            } else if (action === 'resize') {
+              extra = '<div class="selector">📐 ' + step.to.width + 'x' + step.to.height + '</div>';
+            } else if (action === 'link_click') {
+              extra = '<div class="selector">🔗 ' + (value || '') + '</div>';
+            }
 
-          const hasAnnotation = step.annotation && step.annotation.label;
-          const isSelected = stepId === currentStepId;
+            const hasAnnotation = step.annotation && step.annotation.label;
+            const isSelected = stepId === currentStepId;
 
-          return '<div class="xyzStp ' + action + (isSelected ? ' selected' : '') + '" data-step-id="' + stepId + '">' +
-            '<div class="action">' + action.toUpperCase() + '</div>' +
-            (selector ? '<div class="selector">' + selector + '</div>' : '') +
-            (value && !['trajectory', 'scroll', 'resize', 'link_click'].includes(action) ? '<div class="value">"' + value.slice(0, 30) + (value.length > 30 ? '...' : '') + '"</div>' : '') +
-            extra +
-            (hasAnnotation ? '<span class="annotation">🏷️ ' + step.annotation.label + '</span>' : '') +
-            (isSelected ? '<button class="xyzDelBtn" data-step-id="' + stepId + '" title="Delete step">🗑️</button>' : '') +
-          '</div>';
-        }).join('');
+            return (
+              '<div class="xyzStp ' +
+              action +
+              (isSelected ? ' selected' : '') +
+              '" data-step-id="' +
+              stepId +
+              '">' +
+              '<div class="action">' +
+              action.toUpperCase() +
+              '</div>' +
+              (selector ? '<div class="selector">' + selector + '</div>' : '') +
+              (value && !['trajectory', 'scroll', 'resize', 'link_click'].includes(action)
+                ? '<div class="value">"' +
+                  value.slice(0, 30) +
+                  (value.length > 30 ? '...' : '') +
+                  '"</div>'
+                : '') +
+              extra +
+              (hasAnnotation
+                ? '<span class="annotation">🏷️ ' + step.annotation.label + '</span>'
+                : '') +
+              (isSelected
+                ? '<button class="xyzDelBtn" data-step-id="' +
+                  stepId +
+                  '" title="Delete step">🗑️</button>'
+                : '') +
+              '</div>'
+            );
+          })
+          .join('');
 
         // Click to select step
-        container.querySelectorAll('.xyzStp').forEach(stepEl => {
+        container.querySelectorAll('.xyzStp').forEach((stepEl) => {
           stepEl.addEventListener('click', (e) => {
             if (e.target.classList.contains('xyzDelBtn')) return;
 
@@ -1473,7 +1774,7 @@
         });
 
         // Delete button click
-        container.querySelectorAll('.xyzDelBtn').forEach(btn => {
+        container.querySelectorAll('.xyzDelBtn').forEach((btn) => {
           btn.addEventListener('click', (e) => {
             e.stopPropagation();
             const stepId = btn.dataset.stepId;
@@ -1500,7 +1801,7 @@
         }
 
         const steps = window.xyzQueue || [];
-        const step = steps.find(s => s.id === stepId);
+        const step = steps.find((s) => s.id === stepId);
         if (!step) return;
 
         const labels = {
@@ -1510,7 +1811,7 @@
           pagination: 'Pagination',
           login_check: 'Login',
           checkpoint: 'Check',
-          custom: 'Custom'
+          custom: 'Custom',
         };
 
         let annotation = null;
@@ -1527,14 +1828,14 @@
           annotation = {
             type: toolType,
             label: labels[toolType],
-            waitTimeout: parseInt(timeout) || 10000
+            waitTimeout: parseInt(timeout) || 10000,
           };
         } else if (toolType === 'data_container') {
           const itemSelector = prompt('Enter item selector (e.g., .product-item):');
           annotation = {
             type: toolType,
             label: labels[toolType],
-            itemSelector: itemSelector || ''
+            itemSelector: itemSelector || '',
           };
         } else {
           annotation = { type: toolType, label: labels[toolType] };
@@ -1545,7 +1846,9 @@
         if (result.success) {
           if (typeof window[window.xyzBindingName || 'xyzTrack'] === 'function') {
             try {
-              window[window.xyzBindingName || 'xyzTrack'](JSON.stringify({ action: 'xyzUpdate', id: stepId, data: { annotation } }));
+              window[window.xyzBindingName || 'xyzTrack'](
+                JSON.stringify({ action: 'xyzUpdate', id: stepId, data: { annotation } })
+              );
             } catch (e) {}
           }
 
@@ -1561,7 +1864,9 @@
         if (result.success) {
           if (typeof window[window.xyzBindingName || 'xyzTrack'] === 'function') {
             try {
-              window[window.xyzBindingName || 'xyzTrack'](JSON.stringify({ action: 'xyzDelete', id: stepId }));
+              window[window.xyzBindingName || 'xyzTrack'](
+                JSON.stringify({ action: 'xyzDelete', id: stepId })
+              );
             } catch (e) {}
           }
 
@@ -1572,7 +1877,7 @@
         }
       }
 
-      window.addEventListener('xyzEvt', function(e) {
+      window.addEventListener('xyzEvt', function (e) {
         window.xyzQueue = e.detail;
         updateUI();
       });
@@ -1581,14 +1886,16 @@
         window[window.xyzBindingName || 'xyzTrack']('');
       }
 
-      document.getElementById('xyzClear').addEventListener('click', function() {
+      document.getElementById('xyzClear').addEventListener('click', function () {
         window.xyzQueue = [];
         document.getElementById('xyzMk').innerHTML = '';
         markedElements.clear();
         annotations.clear();
         updateUI();
         if (typeof window[window.xyzBindingName || 'xyzTrack'] === 'function') {
-          try { window[window.xyzBindingName || 'xyzTrack'](JSON.stringify({ action: 'xyzClear' })); } catch (e) {}
+          try {
+            window[window.xyzBindingName || 'xyzTrack'](JSON.stringify({ action: 'xyzClear' }));
+          } catch (e) {}
         }
       });
 
@@ -1635,7 +1942,7 @@
           pagination: 'Pagination',
           login_check: 'Login',
           checkpoint: 'Check',
-          custom: 'Note'
+          custom: 'Note',
         };
         let annotation = null;
         if (type === 'custom') {
@@ -1648,7 +1955,7 @@
             type,
             label: labels[type],
             selector: selector,
-            waitTimeout: parseInt(timeout) || 10000
+            waitTimeout: parseInt(timeout) || 10000,
           };
         } else if (type === 'data_container') {
           const itemSelector = prompt('Enter item selector (e.g., .product-item):');
@@ -1656,7 +1963,7 @@
             type,
             label: labels[type],
             selector: selector,
-            itemSelector: itemSelector || ''
+            itemSelector: itemSelector || '',
           };
         } else {
           annotation = { type, label: labels[type], selector: selector };
@@ -1668,12 +1975,17 @@
           selector: selector,
           xpath: getXPath(element),
           annotation: annotation,
-          elementInfo: getElementInfo(element)
+          elementInfo: getElementInfo(element),
+          fallbackSelectors: getFallbackSelectors(element),
+          elementIdentity: captureElementIdentity(element),
         });
 
         shadowBox.style.transition = 'none';
         shadowBox.style.boxShadow = '0 0 20px 5px rgba(76, 175, 80, 0.8)';
-        setTimeout(() => { shadowBox.style.transition = 'box-shadow 0.3s ease'; shadowBox.style.boxShadow = ''; }, 200);
+        setTimeout(() => {
+          shadowBox.style.transition = 'box-shadow 0.3s ease';
+          shadowBox.style.boxShadow = '';
+        }, 200);
 
         updateShadowBox(element);
       }
@@ -1695,30 +2007,34 @@
         }
       }
 
-      document.addEventListener('mousemove', (e) => {
-        const element = e.composedPath()[0] || e.target;
-        mouseX = e.clientX;
-        mouseY = e.clientY;
+      document.addEventListener(
+        'mousemove',
+        (e) => {
+          const element = e.composedPath()[0] || e.target;
+          mouseX = e.clientX;
+          mouseY = e.clientY;
 
-        if (element === shadowBox) return;
-        if (isInPanel(element)) {
-          throttledHighlight(null);
-          return;
-        }
-        if (element === document.body || element === document.documentElement) {
-          throttledHighlight(null);
-          currentEdge = null;
-          return;
-        }
+          if (element === shadowBox) return;
+          if (isInPanel(element)) {
+            throttledHighlight(null);
+            return;
+          }
+          if (element === document.body || element === document.documentElement) {
+            throttledHighlight(null);
+            currentEdge = null;
+            return;
+          }
 
-        if (!shouldHighlightElement(element)) {
-          throttledHighlight(null);
-          return;
-        }
+          if (!shouldHighlightElement(element)) {
+            throttledHighlight(null);
+            return;
+          }
 
-        currentElement = element;
-        throttledHighlight(element);
-      }, true);
+          currentElement = element;
+          throttledHighlight(element);
+        },
+        true
+      );
 
       const ctx = canvas.getContext('2d');
       function resizeCanvas() {
@@ -1780,11 +2096,9 @@
     // 延迟创建面板
     setTimeout(() => {
       if (window.xyzStopped) {
-
         return;
       }
       if (!window.xyzActive) {
-
         return;
       }
       createRecorderOverlay();
@@ -1805,7 +2119,6 @@
       panelObserver = new MutationObserver((mutations) => {
         // 检查录制会话是否已停止
         if (window.xyzStopped) {
-
           if (typeof window.xyzClose === 'function') {
             window.xyzClose();
           }
@@ -1818,7 +2131,6 @@
 
         // 检查录制会话是否激活
         if (!window.xyzActive) {
-
           return;
         }
 
@@ -1826,7 +2138,6 @@
         const panel = document.getElementById('xyzPnl');
         const style = document.getElementById('xyzSt');
         if (document.body && (!panel || !style)) {
-
           createRecorderOverlay();
         }
       });
@@ -1834,13 +2145,100 @@
       // 启动观察器
       panelObserver.observe(document.body, {
         childList: true,
-        subtree: false
+        subtree: false,
       });
-
-
     }
 
     // 启动 MutationObserver
     startPanelObserver();
   }
+
+  // === SPA URL Change Detection (Enhancement 3) ===
+  (function setupURLChangeDetection() {
+    function pushSignal(data) {
+      if (!window.xyzActive) return;
+      const step = {
+        id: 'env-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+        timestamp: Date.now(),
+        action: 'environment_signal',
+        signalType: 'url_change',
+        data: {
+          from: data.from || '',
+          to: data.to || window.location.href,
+        },
+        url: window.location.href,
+      };
+      syncStepDirect(step);
+    }
+
+    const origPushState = history.pushState;
+    if (origPushState) {
+      history.pushState = function () {
+        const from = window.location.href;
+        const result = origPushState.apply(this, arguments);
+        pushSignal({ from: from, to: window.location.href });
+        return result;
+      };
+    }
+
+    const origReplaceState = history.replaceState;
+    if (origReplaceState) {
+      history.replaceState = function () {
+        const from = window.location.href;
+        const result = origReplaceState.apply(this, arguments);
+        pushSignal({ from: from, to: window.location.href });
+        return result;
+      };
+    }
+
+    window.addEventListener('popstate', function () {
+      pushSignal({ to: window.location.href });
+    });
+  })();
+
+  // === DOM Stability Detection (Enhancement 4) ===
+  (function setupDOMStabilityDetection() {
+    let mutationTimer = null;
+    let lastMutationTime = 0;
+
+    function computeContentHash() {
+      var main =
+        document.querySelector('main, [role="main"], #content, .content, article') || document.body;
+      if (!main) return '0';
+      var html = main.innerHTML.substring(0, 10240);
+      var hash = 0;
+      for (var i = 0; i < html.length; i++) {
+        hash = ((hash << 5) - hash + html.charCodeAt(i)) | 0;
+      }
+      return hash.toString(36);
+    }
+
+    var observer = new MutationObserver(function () {
+      lastMutationTime = Date.now();
+      clearTimeout(mutationTimer);
+      mutationTimer = setTimeout(function () {
+        if (!window.xyzActive) return;
+        var step = {
+          id: 'env-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+          timestamp: Date.now(),
+          action: 'environment_signal',
+          signalType: 'dom_stable',
+          data: {
+            stableAfterMs: Date.now() - lastMutationTime,
+            contentHash: computeContentHash(),
+          },
+          url: window.location.href,
+        };
+        syncStepDirect(step);
+      }, 300);
+    });
+
+    if (document.body) {
+      observer.observe(document.body, { childList: true, subtree: true });
+    } else {
+      document.addEventListener('DOMContentLoaded', function () {
+        observer.observe(document.body, { childList: true, subtree: true });
+      });
+    }
+  })();
 })();
