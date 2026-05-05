@@ -230,6 +230,12 @@ Options:
   --path               Include xpath and cssPath in refs (requires --selector)
   --attrs              Include element attributes in refs (requires --selector)
 
+Selector Commands:
+  --selector-for <snap_N:@eN>   Get stable CSS selector for element
+  --selector-for <snap_N:N>     Get selector by index
+  --selectors-of <snap_N>       List all selectors for a snapshot
+  --validate <snap_N>           Validate selectors still match current page
+
 Examples:
   agent-browser snapshot
   agent-browser snapshot -i
@@ -238,6 +244,10 @@ Examples:
   agent-browser snapshot --selector "main" --path
   agent-browser snapshot --selector "form" --attrs
   agent-browser snapshot -s "main" --path --attrs
+  agent-browser snapshot --selector-for snap_3:@e1
+  agent-browser snapshot --selector-for snap_3:1
+  agent-browser snapshot --selectors-of snap_3
+  agent-browser snapshot --validate snap_3
 `,
   eval: `
 agent-browser eval - Execute JavaScript
@@ -515,6 +525,11 @@ Usage: agent-browser recorder <operation> [options]
 
 Records user interactions (clicks, inputs, scrolls, etc.) as structured
 steps that can be exported as YAML for LLM processing.
+
+The recorder captures fallback selectors (top-3 alternatives per element),
+element identity (tagName, text, attributes, parent signature), SPA URL
+changes (pushState/replaceState), and DOM stability signals
+(MutationObserver) for self-healing replay.
 
 Operations:
   start [url]              Start recording (optionally navigate to URL)
@@ -872,6 +887,10 @@ Subcommands:
     --description <text>               Flow description
     --output <file.yaml>               Write output to file
     --max-pages <n>                    Max pagination iterations (default: 10)
+  export <file> [options]              Export flow as standalone script
+    --format <playwright|python>       Export format (required)
+    --headless                         Include headless mode in script
+    --base-url <url>                   Override base URL in exported script
 
 Site/Flow Reference:
   Use "site-name.flow-name" format (e.g., "baidu-search.search-and-extract").
@@ -889,6 +908,9 @@ Examples:
   agent-browser flow validate sites/baidu-search.yaml
   agent-browser flow from-recorder recording.yaml --name my-site --output sites/my-site.yaml
   agent-browser flow list --sites-dir ./my-sites
+  agent-browser flow export recording.yaml --format playwright
+  agent-browser flow export recording.yaml --format python --headless
+  agent-browser flow export recording.yaml --format playwright --base-url https://staging.example.com
 `,
 };
 

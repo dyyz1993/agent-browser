@@ -167,6 +167,55 @@ The command succeeds with a yellow warning in the output:
 
 To target a specific element, use `find nth <index> text "X" --click` or a more specific CSS selector (`#id`, `[data-testid]`).
 
+### Self-Healing Replay
+
+When replaying recorded flows, the engine automatically tries fallback selectors and element identity matching when the primary selector fails. This makes replays resilient to DOM changes, class renames, and structural reorganizations.
+
+Healing strategies (tried in order):
+
+1. **fallback** — Try the top-3 alternative selectors captured during recording
+2. **identity_text** — Match by tagName + visible text content
+3. **identity_attr** — Match by tagName + stable attribute combination
+4. **identity_parent** — Match by parent signature + position
+
+The healing log is included in flow results when `--output json` is used:
+
+```bash
+agent-browser flow run my-site.my-flow --output json
+# healingLog entries show which strategy succeeded and the original vs healed selector
+```
+
+### Script Export
+
+Flows and recordings can be exported as standalone scripts that run without agent-browser:
+
+```bash
+# Export as Playwright TypeScript
+agent-browser flow export recording.yaml --format playwright
+
+# Export as Python Playwright
+agent-browser flow export recording.yaml --format python
+
+# With options
+agent-browser flow export recording.yaml --format playwright --headless
+agent-browser flow export recording.yaml --format python --base-url https://staging.example.com
+```
+
+Options:
+
+- `--format <playwright|python>` — Export format (required)
+- `--headless` — Include headless mode in the exported script
+- `--base-url <url>` — Override base URL in the exported script
+
+### Enhanced Recording
+
+The recorder captures additional metadata beyond basic selectors, enabling self-healing replay and robust script export:
+
+- **Fallback selectors** — Top-3 alternative CSS selectors per element, so replay can recover when the primary selector breaks
+- **Element identity** — tagName, visible text, key attributes, and parent signature for fuzzy matching
+- **SPA URL change detection** — Tracks `pushState` and `replaceState` calls to accurately record navigation in single-page applications
+- **DOM stability signals** — Uses MutationObserver to wait for DOM settling before capturing selectors, avoiding stale captures during dynamic rendering
+
 ### Snapshot --all (Include Visually Hidden Elements)
 
 By default, `snapshot -i --selectors` only includes elements that are visually visible. Elements with `opacity: 0`, zero dimensions, or positioned off-screen are filtered out.
