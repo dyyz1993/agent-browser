@@ -1602,12 +1602,26 @@ fn parse_network(rest: &[&str], id: &str) -> Result<Value, ParseError> {
         Some("route") => {
             let url = rest.get(1).ok_or_else(|| ParseError::MissingArguments {
                 context: "network route".to_string(),
-                usage: "network route <url> [--abort|--body <json>]",
+                usage: "network route <url> [--abort] [--body <json>] [--content-type <type>]",
             })?;
             let abort = rest.iter().any(|&s| s == "--abort");
             let body_idx = rest.iter().position(|&s| s == "--body");
             let body = body_idx.and_then(|i| rest.get(i + 1).map(|s| *s));
-            Ok(json!({ "id": id, "action": "route", "url": url, "abort": abort, "body": body }))
+            let content_type_idx = rest.iter().position(|&s| s == "--content-type");
+            let content_type = content_type_idx.and_then(|i| rest.get(i + 1).map(|s| *s));
+            let response = if body.is_some() || content_type.is_some() {
+                let mut r = json!({});
+                if let Some(b) = body {
+                    r["body"] = json!(b);
+                }
+                if let Some(ct) = content_type {
+                    r["contentType"] = json!(ct);
+                }
+                Some(r)
+            } else {
+                None
+            };
+            Ok(json!({ "id": id, "action": "route", "url": url, "abort": abort, "response": response }))
         }
         Some("unroute") => {
             let mut cmd = json!({ "id": id, "action": "unroute" });
