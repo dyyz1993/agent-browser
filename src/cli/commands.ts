@@ -3,7 +3,10 @@ import { Command } from './connection.js';
 import { Flags } from './flags.js';
 
 export class CliError extends Error {
-  constructor(message: string, public usage?: string) {
+  constructor(
+    message: string,
+    public usage?: string
+  ) {
     super(message);
     this.name = 'CliError';
   }
@@ -838,8 +841,8 @@ export function parseCommand(args: string[], flags: Flags): Command {
           const color = rest.includes('dark')
             ? 'dark'
             : rest.includes('light')
-            ? 'light'
-            : 'no-preference';
+              ? 'light'
+              : 'no-preference';
           const reduced = rest.includes('reduced-motion') ? 'reduce' : 'no-preference';
           return { id, action: 'emulatemedia', colorScheme: color, reducedMotion: reduced };
         }
