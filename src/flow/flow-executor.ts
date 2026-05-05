@@ -13,14 +13,20 @@ import type {
   FlowContext,
   FlowResult,
   BlockingCondition,
+  HealingLogEntry,
+  StateCheckpoint,
+  CheckpointResult,
 } from './types.js';
 import { PluginManager } from './plugin-system.js';
 import type { HookType } from './plugin-system.js';
+import type { Page, Frame } from 'playwright-core';
 
 export class FlowExecutor {
   private browser: BrowserManager;
   private context: FlowContext;
   private pluginManager: PluginManager | null;
+  private healingLog: HealingLogEntry[] = [];
+  private checkpointResults: CheckpointResult[] = [];
 
   constructor(browser: BrowserManager, pluginManager?: PluginManager) {
     this.browser = browser;
@@ -40,6 +46,9 @@ export class FlowExecutor {
     const startTime = Date.now();
     const flow = site.flows[flowName];
     if (!flow) throw new Error(`Flow "${flowName}" not found in site "${site.name}"`);
+
+    this.healingLog = [];
+    this.checkpointResults = [];
 
     this.context = {
       variables: { baseUrl: site.baseUrl || '' },
@@ -85,6 +94,9 @@ export class FlowExecutor {
       data,
       errors,
       duration: Date.now() - startTime,
+      healingLog: this.healingLog.length > 0 ? [...this.healingLog] : undefined,
+      checkpointResults:
+        this.checkpointResults.length > 0 ? [...this.checkpointResults] : undefined,
     };
   }
 
@@ -123,7 +135,24 @@ export class FlowExecutor {
         if (this.pluginManager) {
           await this.pluginManager.triggerHook('onStepStart', step);
         }
-        await this.executeStep(step, errors);
+        await this.executeStepWithRetry(step, errors);
+
+        if (step.environment?.waitDomStable) {
+          const frame = step.inFrame ? this.browser.getFrame(step.inFrame) : this.browser.getPage();
+          await this.waitForDOMStable(frame, step.environment.domStableTimeout);
+        }
+
+        if (step.checkpoint) {
+          const frame = step.inFrame ? this.browser.getFrame(step.inFrame) : this.browser.getPage();
+          const result = await this.verifyCheckpoint(step.checkpoint, frame);
+          this.checkpointResults.push({ stepId: step.id, ...result });
+          if (!result.passed) {
+            console.warn(
+              `[Checkpoint] Step "${step.id}" checkpoint failures: ${result.failures.join('; ')}`
+            );
+          }
+        }
+
         if (this.pluginManager) {
           const result = step.outputVar ? this.context.results[step.outputVar] : undefined;
           await this.pluginManager.triggerHook('onStepEnd', step, result);
@@ -135,6 +164,34 @@ export class FlowExecutor {
         errors.push({ step: step.id, error: err instanceof Error ? err.message : String(err) });
       }
     }
+  }
+
+  private async executeStepWithRetry(
+    step: FlowStep,
+    errors: Array<{ step: string; error: string }>
+  ): Promise<void> {
+    if (!step.retry) {
+      await this.executeStep(step, errors);
+      return;
+    }
+
+    const { maxAttempts, delayMs, strategy } = step.retry;
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        await this.executeStep(step, errors);
+        return;
+      } catch (err: unknown) {
+        lastError = err;
+        if (attempt < maxAttempts) {
+          const delay = strategy === 'exponential' ? delayMs * Math.pow(2, attempt - 1) : delayMs;
+          await new Promise((r) => setTimeout(r, delay));
+        }
+      }
+    }
+
+    throw lastError;
   }
 
   private async executeStep(
@@ -292,7 +349,7 @@ export class FlowExecutor {
   }
 
   private async executeClick(step: FlowStep): Promise<void> {
-    const selector = step.selector || '';
+    const selector = await this.resolveSelector(step);
     const args = ['click', selector];
     if (step.inFrame) args.push('--in-frame', step.inFrame);
     await executeCommand(parseCliArgs(args), this.browser);
@@ -302,8 +359,9 @@ export class FlowExecutor {
   }
 
   private async executeFill(step: FlowStep): Promise<void> {
+    const selector = await this.resolveSelector(step);
     const value = this.substituteVars(step.value || '');
-    const args = ['fill', step.selector || '', value];
+    const args = ['fill', selector, value];
     if (step.inFrame) args.push('--in-frame', step.inFrame);
     await executeCommand(parseCliArgs(args), this.browser);
   }
@@ -390,7 +448,9 @@ export class FlowExecutor {
           await new Promise((r) => setTimeout(r, 3000));
         } catch (err: unknown) {
           console.warn(
-            `Pagination stopped at page ${page}: ${err instanceof Error ? err.message : String(err)}`
+            `Pagination stopped at page ${page}: ${
+              err instanceof Error ? err.message : String(err)
+            }`
           );
           break;
         }
@@ -1115,9 +1175,192 @@ export class FlowExecutor {
       console.log(`[smartExtract] All layers produced insufficient results`);
       errors.push({
         step: step.id,
-        error: `Smart extract failed: API=${layer1Data.length}, Script=${layer2Data.length}, DOM=${Array.isArray(domData) ? domData.length : 0} items`,
+        error: `Smart extract failed: API=${layer1Data.length}, Script=${layer2Data.length}, DOM=${
+          Array.isArray(domData) ? domData.length : 0
+        } items`,
       });
     }
+  }
+
+  private async resolveSelector(step: FlowStep): Promise<string> {
+    const primarySelector = step.selector || '';
+
+    if (!step.fallbackSelectors?.length && !step.elementIdentity) {
+      return primarySelector;
+    }
+
+    const frame: Page | Frame = step.inFrame
+      ? this.browser.getFrame(step.inFrame)
+      : this.browser.getPage();
+
+    try {
+      const primary = frame.locator(primarySelector);
+      if ((await primary.count()) > 0) {
+        return primarySelector;
+      }
+    } catch {}
+
+    if (step.fallbackSelectors && step.fallbackSelectors.length > 0) {
+      for (const fallback of step.fallbackSelectors) {
+        await new Promise((r) => setTimeout(r, 300));
+        try {
+          const loc = frame.locator(fallback);
+          if ((await loc.count()) > 0) {
+            this.healingLog.push({
+              stepId: step.id || '',
+              originalSelector: primarySelector,
+              healedSelector: fallback,
+              strategy: 'fallback',
+            });
+            return fallback;
+          }
+        } catch {}
+      }
+    }
+
+    const identityResult = await this.healByIdentity(step, frame);
+    if (identityResult) return identityResult;
+
+    throw new Error(`Element not found: "${primarySelector}" (all healing strategies exhausted)`);
+  }
+
+  private async healByIdentity(step: FlowStep, frame: Page | Frame): Promise<string | null> {
+    const identity = step.elementIdentity;
+    if (!identity) return null;
+
+    if (identity.textContent && identity.textContent.length > 0) {
+      const text = identity.textContent.slice(0, 30);
+      try {
+        const selector = `${identity.tagName}:text-is("${text}")`;
+        const loc = frame.locator(selector);
+        if ((await loc.count()) === 1) {
+          this.healingLog.push({
+            stepId: step.id || '',
+            originalSelector: step.selector || '',
+            healedSelector: selector,
+            strategy: 'identity_text',
+          });
+          return selector;
+        }
+      } catch {}
+    }
+
+    if (identity.attributes) {
+      for (const [attr, value] of Object.entries(identity.attributes)) {
+        if (!value) continue;
+        try {
+          const selector = `${identity.tagName}[${attr}="${value}"]`;
+          const loc = frame.locator(selector);
+          if ((await loc.count()) === 1) {
+            this.healingLog.push({
+              stepId: step.id || '',
+              originalSelector: step.selector || '',
+              healedSelector: selector,
+              strategy: 'identity_attr',
+            });
+            return selector;
+          }
+        } catch {}
+      }
+    }
+
+    if (identity.parentSignature) {
+      try {
+        const parent = frame.locator(identity.parentSignature);
+        if ((await parent.count()) > 0) {
+          const child = parent.locator(identity.tagName).first();
+          if ((await child.count()) > 0) {
+            const selector = `${identity.parentSignature} > ${identity.tagName}`;
+            this.healingLog.push({
+              stepId: step.id || '',
+              originalSelector: step.selector || '',
+              healedSelector: selector,
+              strategy: 'identity_parent',
+            });
+            return selector;
+          }
+        }
+      } catch {}
+    }
+
+    return null;
+  }
+
+  private async verifyCheckpoint(
+    checkpoint: StateCheckpoint,
+    frame: Page | Frame
+  ): Promise<{ passed: boolean; failures: string[] }> {
+    const failures: string[] = [];
+
+    if (checkpoint.urlPattern) {
+      const url = frame.url();
+      const pattern = checkpoint.urlPattern;
+      if (!url.startsWith(pattern) && !url.includes(pattern)) {
+        failures.push(`URL mismatch: expected pattern "${pattern}", got "${url}"`);
+      }
+    }
+
+    if (checkpoint.elementChecks) {
+      for (const check of checkpoint.elementChecks) {
+        try {
+          const loc = frame.locator(check.selector);
+          const count = await loc.count();
+          if (check.exists && count === 0) {
+            failures.push(`Element missing: "${check.selector}" should exist`);
+          } else if (!check.exists && count > 0) {
+            failures.push(`Element unexpected: "${check.selector}" should not exist`);
+          }
+          if (check.visible && count > 0) {
+            const isVisible = await loc.first().isVisible();
+            if (!isVisible) {
+              failures.push(`Element not visible: "${check.selector}"`);
+            }
+          }
+          if (check.textContent && count > 0) {
+            const actual = (await loc.first().textContent()) || '';
+            if (!actual.includes(check.textContent)) {
+              failures.push(
+                `Element text mismatch: "${check.selector}" expected to contain "${
+                  check.textContent
+                }", got "${actual.substring(0, 100)}"`
+              );
+            }
+          }
+        } catch (e) {
+          failures.push(`Element check error: "${check.selector}" - ${(e as Error).message}`);
+        }
+      }
+    }
+
+    return { passed: failures.length === 0, failures };
+  }
+
+  private async waitForDOMStable(frame: Page | Frame, timeout: number = 3000): Promise<void> {
+    await frame
+      .waitForFunction(
+        () =>
+          new Promise<boolean>((resolve) => {
+            let timer: ReturnType<typeof setTimeout>;
+            const observer = new MutationObserver(() => {
+              clearTimeout(timer);
+              timer = setTimeout(() => {
+                observer.disconnect();
+                resolve(true);
+              }, 200);
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
+            timer = setTimeout(() => {
+              observer.disconnect();
+              resolve(true);
+            }, 200);
+          }),
+        { timeout }
+      )
+      .catch(() => {});
+  }
+
+  getHealingLog(): HealingLogEntry[] {
+    return this.healingLog;
   }
 
   getBrowser(): BrowserManager {

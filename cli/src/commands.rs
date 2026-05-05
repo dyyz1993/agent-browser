@@ -1178,6 +1178,211 @@ pub fn parse_command(args: &[String], flags: &Flags) -> Result<Value, ParseError
             }
         }
 
+        "flow" => {
+            let subcmd = rest.get(0).ok_or_else(|| ParseError::MissingArguments {
+                context: "flow".to_string(),
+                usage: "flow <run|list|show|validate|from-recorder|export> [args...]",
+            })?;
+            match *subcmd {
+                "run" => {
+                    let site_flow = rest.get(1).ok_or_else(|| ParseError::MissingArguments {
+                        context: "flow run".to_string(),
+                        usage: "flow run <site.flow> [--param key=value]",
+                    })?;
+                    let mut cmd = json!({
+                        "id": id,
+                        "action": "flow",
+                        "subcommand": "run",
+                        "siteFlow": *site_flow,
+                        "params": {}
+                    });
+                    let mut i = 2;
+                    while i < rest.len() {
+                        match rest[i] {
+                            "--param" => {
+                                if let Some(p) = rest.get(i + 1) {
+                                    if let Some(eq_pos) = p.find('=') {
+                                        let key = &p[..eq_pos];
+                                        let val = &p[eq_pos + 1..];
+                                        cmd["params"][key] = json!(val);
+                                    }
+                                    i += 2;
+                                } else {
+                                    i += 1;
+                                }
+                            }
+                            "--sites-dir" => {
+                                if let Some(d) = rest.get(i + 1) {
+                                    cmd["sitesDir"] = json!(*d);
+                                    i += 2;
+                                } else {
+                                    i += 1;
+                                }
+                            }
+                            "--output" => {
+                                if let Some(o) = rest.get(i + 1) {
+                                    cmd["outputFormat"] = json!(*o);
+                                    i += 2;
+                                } else {
+                                    i += 1;
+                                }
+                            }
+                            "--output-file" => {
+                                if let Some(o) = rest.get(i + 1) {
+                                    cmd["outputFile"] = json!(*o);
+                                    i += 2;
+                                } else {
+                                    i += 1;
+                                }
+                            }
+                            _ => { i += 1; }
+                        }
+                    }
+                    Ok(cmd)
+                }
+                "list" => {
+                    let mut cmd = json!({
+                        "id": id,
+                        "action": "flow",
+                        "subcommand": "list"
+                    });
+                    if rest.contains(&"--json") {
+                        cmd["json"] = json!(true);
+                    }
+                    let sites_dir_idx = rest.iter().position(|r| *r == "--sites-dir");
+                    if let Some(idx) = sites_dir_idx {
+                        if let Some(d) = rest.get(idx + 1) {
+                            cmd["sitesDir"] = json!(*d);
+                        }
+                    }
+                    Ok(cmd)
+                }
+                "show" => {
+                    let site_flow = rest.get(1).ok_or_else(|| ParseError::MissingArguments {
+                        context: "flow show".to_string(),
+                        usage: "flow show <site.flow>",
+                    })?;
+                    let mut cmd = json!({
+                        "id": id,
+                        "action": "flow",
+                        "subcommand": "show",
+                        "siteFlow": *site_flow
+                    });
+                    let sites_dir_idx = rest.iter().position(|r| *r == "--sites-dir");
+                    if let Some(idx) = sites_dir_idx {
+                        if let Some(d) = rest.get(idx + 1) {
+                            cmd["sitesDir"] = json!(*d);
+                        }
+                    }
+                    Ok(cmd)
+                }
+                "validate" => {
+                    let file_path = rest.get(1).ok_or_else(|| ParseError::MissingArguments {
+                        context: "flow validate".to_string(),
+                        usage: "flow validate <file.yaml>",
+                    })?;
+                    Ok(json!({
+                        "id": id,
+                        "action": "flow",
+                        "subcommand": "validate",
+                        "filePath": *file_path
+                    }))
+                }
+                "from-recorder" => {
+                    let recorder_file = rest.get(1).ok_or_else(|| ParseError::MissingArguments {
+                        context: "flow from-recorder".to_string(),
+                        usage: "flow from-recorder <recorder-yaml-file> [options]",
+                    })?;
+                    let mut cmd = json!({
+                        "id": id,
+                        "action": "flow",
+                        "subcommand": "from-recorder",
+                        "recorderFile": *recorder_file
+                    });
+                    let mut i = 2;
+                    while i < rest.len() {
+                        match rest[i] {
+                            "--name" => {
+                                if let Some(v) = rest.get(i + 1) {
+                                    cmd["siteName"] = json!(*v);
+                                    i += 2;
+                                } else { i += 1; }
+                            }
+                            "--flow-id" => {
+                                if let Some(v) = rest.get(i + 1) {
+                                    cmd["flowId"] = json!(*v);
+                                    i += 2;
+                                } else { i += 1; }
+                            }
+                            "--base-url" => {
+                                if let Some(v) = rest.get(i + 1) {
+                                    cmd["baseUrl"] = json!(*v);
+                                    i += 2;
+                                } else { i += 1; }
+                            }
+                            "--description" => {
+                                if let Some(v) = rest.get(i + 1) {
+                                    cmd["description"] = json!(*v);
+                                    i += 2;
+                                } else { i += 1; }
+                            }
+                            "--output" => {
+                                if let Some(v) = rest.get(i + 1) {
+                                    cmd["outputFile"] = json!(*v);
+                                    i += 2;
+                                } else { i += 1; }
+                            }
+                            "--max-pages" => {
+                                if let Some(v) = rest.get(i + 1) {
+                                    if let Ok(n) = v.parse::<u32>() {
+                                        cmd["maxPaginateIterations"] = json!(n);
+                                    }
+                                    i += 2;
+                                } else { i += 1; }
+                            }
+                            _ => { i += 1; }
+                        }
+                    }
+                    Ok(cmd)
+                }
+                "export" => {
+                    let file_path = rest.get(1).ok_or_else(|| ParseError::MissingArguments {
+                        context: "flow export".to_string(),
+                        usage: "flow export <file.yaml> --format <format>",
+                    })?;
+                    let format_idx = rest.iter().position(|r| *r == "--format");
+                    let format = format_idx
+                        .and_then(|idx| rest.get(idx + 1))
+                        .map(|s| *s)
+                        .unwrap_or("playwright");
+                    let mut cmd = json!({
+                        "id": id,
+                        "action": "flow",
+                        "subcommand": "export",
+                        "filePath": *file_path,
+                        "format": format
+                    });
+                    let headless_idx = rest.iter().position(|r| *r == "--headless");
+                    if let Some(idx) = headless_idx {
+                        if let Some(v) = rest.get(idx + 1) {
+                            cmd["headless"] = json!(*v != "false");
+                        }
+                    }
+                    let base_url_idx = rest.iter().position(|r| *r == "--base-url");
+                    if let Some(idx) = base_url_idx {
+                        if let Some(v) = rest.get(idx + 1) {
+                            cmd["baseUrl"] = json!(*v);
+                        }
+                    }
+                    Ok(cmd)
+                }
+                _ => Err(ParseError::UnknownSubcommand {
+                    subcommand: subcmd.to_string(),
+                    valid_options: &["run", "list", "show", "validate", "from-recorder", "export"],
+                }),
+            }
+        }
+
         _ => Err(ParseError::UnknownCommand {
             command: cmd.to_string(),
         }),

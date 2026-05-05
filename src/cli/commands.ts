@@ -3,10 +3,7 @@ import { Command } from './connection.js';
 import { Flags } from './flags.js';
 
 export class CliError extends Error {
-  constructor(
-    message: string,
-    public usage?: string
-  ) {
+  constructor(message: string, public usage?: string) {
     super(message);
     this.name = 'CliError';
   }
@@ -841,8 +838,8 @@ export function parseCommand(args: string[], flags: Flags): Command {
           const color = rest.includes('dark')
             ? 'dark'
             : rest.includes('light')
-              ? 'light'
-              : 'no-preference';
+            ? 'light'
+            : 'no-preference';
           const reduced = rest.includes('reduced-motion') ? 'reduce' : 'no-preference';
           return { id, action: 'emulatemedia', colorScheme: color, reducedMotion: reduced };
         }
@@ -1317,10 +1314,29 @@ export function parseCommand(args: string[], flags: Flags): Command {
             (fromRecCmd as any).maxPaginateIterations = parseInt(rest[maxIdx + 1], 10);
           return fromRecCmd;
         }
+        case 'export': {
+          const filePath = rest[1];
+          if (!filePath)
+            error('Missing file path', 'agent-browser flow export <file.yaml> --format <format>');
+          const formatIdx = rest.indexOf('--format');
+          const format =
+            formatIdx !== -1 && rest[formatIdx + 1] ? rest[formatIdx + 1] : 'playwright';
+          const cmd: Command = { id, action: 'flow' } as any;
+          (cmd as any).subcommand = 'export';
+          (cmd as any).filePath = filePath;
+          (cmd as any).format = format;
+          const headlessIdx = rest.indexOf('--headless');
+          if (headlessIdx !== -1 && rest[headlessIdx + 1])
+            (cmd as any).headless = rest[headlessIdx + 1] !== 'false';
+          const baseUrlIdx = rest.indexOf('--base-url');
+          if (baseUrlIdx !== -1 && rest[baseUrlIdx + 1])
+            (cmd as any).baseUrl = rest[baseUrlIdx + 1];
+          return cmd;
+        }
         default:
           error(
             `Unknown flow subcommand: ${subcmd}`,
-            'agent-browser flow <run|list|show|validate|register|unregister> [args...]'
+            'agent-browser flow <run|list|show|validate|register|unregister|from-recorder|export> [args...]'
           );
       }
     }

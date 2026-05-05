@@ -142,6 +142,20 @@ export interface FlowStep {
   waitCondition?: 'url_change' | 'dom_stable';
   waitUrlPattern?: string;
   waitDomStableTimeout?: number;
+
+  retry?: {
+    maxAttempts: number;
+    delayMs: number;
+    strategy: 'fixed' | 'exponential';
+  };
+
+  checkpoint?: StateCheckpoint;
+  environment?: {
+    urlPattern?: string;
+    pageTitle?: string;
+    waitDomStable?: boolean;
+    domStableTimeout?: number;
+  };
 }
 
 export interface FlowDefinition {
@@ -167,6 +181,32 @@ export interface FlowContext {
   currentPage: number;
 }
 
+export interface StateCheckpointElementCheck {
+  selector: string;
+  exists: boolean;
+  visible?: boolean;
+  textContent?: string;
+}
+
+export interface StateCheckpoint {
+  urlPattern?: string;
+  elementChecks?: StateCheckpointElementCheck[];
+  contentHash?: string;
+}
+
+export interface CheckpointResult {
+  stepId: string;
+  passed: boolean;
+  failures: string[];
+}
+
+export interface HealingLogEntry {
+  stepId: string;
+  originalSelector: string;
+  healedSelector: string;
+  strategy: string;
+}
+
 export interface FlowResult {
   success: boolean;
   site: string;
@@ -174,4 +214,6 @@ export interface FlowResult {
   data: Record<string, unknown>;
   errors: Array<{ step: string; error: string }>;
   duration: number;
+  healingLog?: HealingLogEntry[];
+  checkpointResults?: CheckpointResult[];
 }

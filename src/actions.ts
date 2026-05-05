@@ -6,6 +6,7 @@ import { getAppDir, getSession, getInstanceId } from './daemon.js';
 import { getEnhancedSnapshot } from './snapshot.js';
 import { performDiff } from './diff.js';
 import { MessageBridge } from './message-bridge.js';
+import type { RcConfig } from './rc-config.js';
 import {
   getViewerUrl,
   getViewerWsUrl,
@@ -14,7 +15,6 @@ import {
   getExecutablePath,
   getEffectiveValue,
   formatTips,
-  type RcConfig,
   loadConfig,
 } from './rc-config.js';
 import { detectMainContent, generateContentTips } from './content-detection.js';
@@ -24,8 +24,8 @@ import {
   humanMoveTo,
   humanWander,
   getHumanConfigFromEnv,
-  type HumanConfig,
 } from './human-mouse.js';
+import type { HumanConfig } from './human-mouse.js';
 import type {
   Command,
   AnyCommand,
@@ -168,6 +168,8 @@ import {
 } from './flow/yaml-parser.js';
 import { recorderToFlowFromFile, siteToYamlString } from './flow/recorder-to-flow.js';
 import { FlowExecutor } from './flow/flow-executor.js';
+import { PlaywrightExporter, PythonExporter } from './flow/exporters/index.js';
+import type { ScriptExporter } from './flow/exporters/types.js';
 
 // Callback for screencast frames - will be set by the daemon when streaming is active
 let screencastFrameCallback: ((frame: ScreencastFrame) => void) | null = null;
@@ -3218,7 +3220,9 @@ function handleConfig(
     `  AGENT_BROWSER_ALLOW_FILE_ACCESS ${config.allowFileAccess ? 'true' : 'false (default)'}`,
     '',
     'Human Mode (runtime):',
-    `  AGENT_BROWSER_HUMAN            ${humanConfig.enabled ? humanConfig.pathType + ' ✓' : '(disabled)'}`,
+    `  AGENT_BROWSER_HUMAN            ${
+      humanConfig.enabled ? humanConfig.pathType + ' ✓' : '(disabled)'
+    }`,
     '',
     `Persistent config: ~/.agent-browser/config.json`,
     'Run "agent-browser config set <key> <value>" to persist settings.',
@@ -3386,6 +3390,8 @@ async function handleFlowAction(command: AnyCommand, browser: BrowserManager): P
       return handleFlowValidate(cmd);
     case 'from-recorder':
       return handleFlowFromRecorder(cmd);
+    case 'export':
+      return handleFlowExport(cmd);
     default:
       return errorResponse(command.id, `Unknown flow subcommand: ${subcommand}`);
   }
@@ -3511,4 +3517,60 @@ async function handleFlowRun(command: any, browser: BrowserManager): Promise<Res
   const flowResult = await executor.execute(result.site, result.flowName, typedParams);
 
   return successResponse(command.id, flowResult);
+}
+
+function handleFlowExport(command: any): Response {
+  const filePath = command.filePath as string | undefined;
+  if (!filePath) {
+    return errorResponse(command.id, 'Missing file path for export');
+  }
+
+  let site: import('./flow/types.js').SiteDefinition;
+  try {
+    site = parseYamlSiteFile(filePath);
+  } catch (e) {
+    return errorResponse(
+      command.id,
+      `Failed to parse YAML file: ${e instanceof Error ? e.message : String(e)}`
+    );
+  }
+
+  const flowEntries = Object.entries(site.flows);
+  if (flowEntries.length === 0) {
+    return errorResponse(command.id, 'No flows found in YAML file');
+  }
+
+  const flow = flowEntries[0][1];
+  const format = (command.format as string) || 'playwright';
+
+  const exporterMap: Record<string, ScriptExporter> = {
+    playwright: new PlaywrightExporter(),
+    python: new PythonExporter(),
+  };
+
+  const exporter = exporterMap[format];
+  if (!exporter) {
+    return errorResponse(
+      command.id,
+      `Unknown export format: "${format}". Available: ${Object.keys(exporterMap).join(', ')}`
+    );
+  }
+
+  try {
+    const script = exporter.export(flow.steps, {
+      baseUrl: command.baseUrl || site.baseUrl,
+      headless: command.headless,
+    });
+
+    return successResponse(command.id, {
+      format: exporter.format,
+      extension: exporter.extension,
+      script,
+    });
+  } catch (e) {
+    return errorResponse(
+      command.id,
+      `Export failed: ${e instanceof Error ? e.message : String(e)}`
+    );
+  }
 }

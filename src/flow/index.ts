@@ -52,3 +52,5 @@ export type {
   BlockingCondition,
   HumanIntervention,
 } from './types.js';
+export { PlaywrightExporter, PythonExporter } from './exporters/index.js';
+export type { ScriptExporter, ExportOptions } from './exporters/index.js';

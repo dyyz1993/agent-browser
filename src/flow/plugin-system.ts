@@ -88,7 +88,9 @@ export class PluginManager {
     }
 
     console.log(
-      `[PluginManager] Registered plugin: ${plugin.name} (${Object.keys(plugin.actions || {}).length} actions, ${Object.keys(plugin.hooks || {}).length} hooks)`
+      `[PluginManager] Registered plugin: ${plugin.name} (${
+        Object.keys(plugin.actions || {}).length
+      } actions, ${Object.keys(plugin.hooks || {}).length} hooks)`
     );
   }
 
