@@ -24,7 +24,13 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import type { LaunchCommand } from './types.js';
-import { type RefMap, type EnhancedSnapshot, getEnhancedSnapshot, generateStableSelectors, parseRef } from './snapshot.js';
+import {
+  type RefMap,
+  type EnhancedSnapshot,
+  getEnhancedSnapshot,
+  generateStableSelectors,
+  parseRef,
+} from './snapshot.js';
 import { SnapshotStore, SnapshotElement } from './snapshot-store.js';
 import { getEventCallbacks } from './actions.js';
 

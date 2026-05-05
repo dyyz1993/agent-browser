@@ -131,7 +131,13 @@ describe('Snapshot Selector Iframe E2E', () => {
       const snapId = match![1];
 
       const result = await executeCommand(
-        parseCliArgs(['snapshot', '--selector-for', `${snapId}:@e999`, '--in-frame', '#test-frame']),
+        parseCliArgs([
+          'snapshot',
+          '--selector-for',
+          `${snapId}:@e999`,
+          '--in-frame',
+          '#test-frame',
+        ]),
         browser
       );
       expect(result.success).toBe(false);

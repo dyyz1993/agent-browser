@@ -182,10 +182,7 @@ describe('Snapshot Selector Store E2E', () => {
       const match = snapshot.match(/Snapshot #(snap_\d+)/);
       const snapId = match![1];
 
-      await executeCommand(
-        parseCliArgs(['snapshot', '--selectors-of', snapId]),
-        browser
-      );
+      await executeCommand(parseCliArgs(['snapshot', '--selectors-of', snapId]), browser);
 
       await browser.getPage().goto('about:blank');
       await browser.getPage().waitForLoadState('load');
@@ -196,9 +193,11 @@ describe('Snapshot Selector Store E2E', () => {
       );
       expect(result.success).toBe(true);
       if (isSuccessResponse(result)) {
-        const notFound = (result.data as {
-          results: Array<{ status: string }>;
-        }).results.filter((r) => r.status === 'not_found');
+        const notFound = (
+          result.data as {
+            results: Array<{ status: string }>;
+          }
+        ).results.filter((r) => r.status === 'not_found');
         expect(notFound.length).toBeGreaterThan(0);
         if ((result.data as { newSnapshotId?: string }).newSnapshotId) {
           expect((result.data as { newSnapshotId: string }).newSnapshotId).toBeDefined();
