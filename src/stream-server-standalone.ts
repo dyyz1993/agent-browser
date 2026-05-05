@@ -652,7 +652,9 @@ class StreamServerStandalone {
       case 'selector_element':
         if (message.session && message.selector) {
           console.log(
-            `[StreamServer] Received selector_element: session=${message.session} selector=${message.selector} box=${message.elementBox ? JSON.stringify(message.elementBox) : 'null'}`
+            `[StreamServer] Received selector_element: session=${message.session} selector=${
+              message.selector
+            } box=${message.elementBox ? JSON.stringify(message.elementBox) : 'null'}`
           );
           const clients = this.clients.get(message.session);
           if (clients) {

@@ -111,7 +111,7 @@ class MockElement implements Element {
   }
 
   querySelectorAll(_selectors: string): NodeListOf<Element> {
-    return ([] as unknown) as NodeListOf<Element>;
+    return [] as unknown as NodeListOf<Element>;
   }
 }
 

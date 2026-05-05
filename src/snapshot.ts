@@ -749,7 +749,9 @@ export async function getEnhancedSnapshot(
     if (errorMessage.includes('Timeout') && options.selector) {
       const suggestedSelectors = await suggestSelectors(page as Page | Frame);
       return {
-        tree: `(no elements found for selector: ${options.selector})\n\nSuggested selectors: ${suggestedSelectors.join(', ')}`,
+        tree: `(no elements found for selector: ${
+          options.selector
+        })\n\nSuggested selectors: ${suggestedSelectors.join(', ')}`,
         refs: {},
       };
     }

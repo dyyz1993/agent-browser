@@ -152,7 +152,9 @@ describe('iframe nested (E2E)', () => {
       if (!isSuccessResponse(snapshotResult)) return;
 
       const refs = (
-        snapshotResult.data as { refs?: Record<string, { role: string; name?: string }> }
+        snapshotResult.data as {
+          refs?: Record<string, { role: string; name?: string }>;
+        }
       ).refs;
       expect(refs).toBeDefined();
 
@@ -269,7 +271,9 @@ describe('iframe nested (E2E)', () => {
       expect(boxResult.success).toBe(true);
       if (isSuccessResponse(boxResult)) {
         const box = (
-          boxResult.data as { box: { x: number; y: number; width: number; height: number } | null }
+          boxResult.data as {
+            box: { x: number; y: number; width: number; height: number } | null;
+          }
         ).box;
         expect(box).not.toBeNull();
         expect(box!.width).toBeGreaterThan(0);

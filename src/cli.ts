@@ -168,7 +168,9 @@ function runConfig(flags: Flags): void {
     `  AGENT_BROWSER_ALLOW_FILE_ACCESS ${config.allowFileAccess ? 'true' : 'false (default)'}`,
     '',
     'Human Mode (runtime):',
-    `  AGENT_BROWSER_HUMAN            ${humanConfig.enabled ? humanConfig.pathType + ' ✓' : '(disabled)'}`,
+    `  AGENT_BROWSER_HUMAN            ${
+      humanConfig.enabled ? humanConfig.pathType + ' ✓' : '(disabled)'
+    }`,
     '',
     'Note: Most settings only take effect at browser startup.',
     'Use "export AGENT_BROWSER_XXX=value" before starting.',
@@ -385,7 +387,9 @@ async function main(): Promise<void> {
 
       if (ignoredFlags.length > 0 && !flags.json) {
         printWarning(
-          `${ignoredFlags.join(', ')} ignored: daemon already running. Use 'agent-browser close' first to restart with new options.`
+          `${ignoredFlags.join(
+            ', '
+          )} ignored: daemon already running. Use 'agent-browser close' first to restart with new options.`
         );
       }
     }

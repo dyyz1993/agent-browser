@@ -436,7 +436,9 @@ export function printResponse(resp: Response, jsonMode: boolean, action?: string
     const path = (data.path as string) || 'unknown';
     if (data.previousPath) {
       console.log(
-        `${successIndicator()} Recording restarted: ${path} (previous saved to ${data.previousPath})`
+        `${successIndicator()} Recording restarted: ${path} (previous saved to ${
+          data.previousPath
+        })`
       );
     } else {
       console.log(`${successIndicator()} Recording started: ${path}`);
