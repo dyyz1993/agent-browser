@@ -3255,6 +3255,8 @@ async function handleSelectorFor(
   const snapshotId = command.target.substring(0, colonIndex);
   const refOrIndex = command.target.substring(colonIndex + 1);
 
+  await browser.ensureSelectorsGenerated(snapshotId);
+
   const element = store.getElement(snapshotId, refOrIndex);
   if (!element) {
     return errorResponse(
@@ -3279,6 +3281,9 @@ async function handleSelectorsOf(
   browser: BrowserManager
 ): Promise<Response> {
   const store = browser.getSnapshotStore();
+
+  await browser.ensureSelectorsGenerated(command.target);
+
   const elements = store.getElements(command.target);
   if (!elements) {
     return errorResponse(
@@ -3305,6 +3310,9 @@ async function handleValidate(
   browser: BrowserManager
 ): Promise<Response> {
   const store = browser.getSnapshotStore();
+
+  await browser.ensureSelectorsGenerated(command.target);
+
   const elements = store.getElements(command.target);
   if (!elements) {
     return errorResponse(
@@ -3346,9 +3354,20 @@ async function handleValidate(
     };
   });
 
+  const failedCount = results.filter(
+    (r) => r.status === 'not_found' || r.status === 'invalid_selector'
+  ).length;
+
+  let newSnapshotId: string | undefined;
+  if (failedCount > 0) {
+    const newSnapshot = await browser.getSnapshot({ interactive: true });
+    newSnapshotId = newSnapshot.snapshotId;
+  }
+
   return successResponse(command.id, {
     snapshotId: command.target,
     results,
+    newSnapshotId,
   });
 }
 

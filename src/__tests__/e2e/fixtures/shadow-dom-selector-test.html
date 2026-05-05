@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<body>
+<h1>Shadow DOM Test</h1>
+<div id="host"></div>
+<script>
+  const host = document.getElementById('host');
+  const shadow = host.attachShadow({ mode: 'open' });
+  shadow.innerHTML = `
+    <input id="shadow-input" name="shadow-email" placeholder="Email in Shadow">
+    <button id="shadow-btn" type="button">Shadow Button</button>
+    <a href="#" id="shadow-link">Shadow Link</a>
+  `;
+</script>
+</body>
+</html>

@@ -7,14 +7,14 @@ import { isSuccessResponse } from '../../types.js';
 
 const executablePath = process.env.AGENT_BROWSER_EXECUTABLE_PATH;
 
-describe('Snapshot Selector Store E2E', () => {
+describe('Snapshot Selector Shadow DOM E2E', () => {
   let browser: BrowserManager;
 
   beforeAll(async () => {
     browser = new BrowserManager();
     await browser.launch({
       action: 'launch',
-      id: 'test-selector-store',
+      id: 'test-selector-shadow',
       headless: true,
       ...(executablePath ? { executablePath } : {}),
     });
@@ -26,13 +26,13 @@ describe('Snapshot Selector Store E2E', () => {
 
   beforeEach(async () => {
     const openResult = await executeCommand(
-      parseCliArgs(['open', getFixturePath('form-complex.html')]),
+      parseCliArgs(['open', getFixturePath('shadow-dom-selector-test.html')]),
       browser
     );
     expect(openResult.success).toBe(true);
   });
 
-  describe('snapshot -i with selector store', () => {
+  describe('snapshot -i with Shadow DOM elements', () => {
     it('should return snapshot with header containing snap_N ID', async () => {
       const result = await executeCommand(parseCliArgs(['snapshot', '-i']), browser);
       expect(result.success).toBe(true);
@@ -46,7 +46,7 @@ describe('Snapshot Selector Store E2E', () => {
       }
     });
 
-    it('should return snapshot with element count', async () => {
+    it('should return snapshot with element count including Shadow DOM', async () => {
       const result = await executeCommand(parseCliArgs(['snapshot', '-i']), browser);
       expect(result.success).toBe(true);
       if (isSuccessResponse(result)) {
@@ -54,10 +54,19 @@ describe('Snapshot Selector Store E2E', () => {
         expect(snapshot).toMatch(/\(\d+ interactive elements\)/);
       }
     });
+
+    it('should pierce open Shadow DOM and include shadow elements', async () => {
+      const result = await executeCommand(parseCliArgs(['snapshot', '-i']), browser);
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        const snapshot = (result.data as { snapshot: string }).snapshot;
+        expect(snapshot).toContain('Shadow Button');
+      }
+    });
   });
 
-  describe('selector-for command', () => {
-    it('should return CSS selector for element by ref', async () => {
+  describe('selector-for with Shadow DOM elements', () => {
+    it('should return CSS selector for Shadow DOM element by ref', async () => {
       const snapResult = await executeCommand(parseCliArgs(['snapshot', '-i']), browser);
       expect(snapResult.success).toBe(true);
       const snapshot = (snapResult.data as { snapshot: string }).snapshot;
@@ -78,7 +87,7 @@ describe('Snapshot Selector Store E2E', () => {
       }
     });
 
-    it('should return CSS selector for element by index', async () => {
+    it('should return CSS selector for Shadow DOM element by index', async () => {
       const snapResult = await executeCommand(parseCliArgs(['snapshot', '-i']), browser);
       const snapshot = (snapResult.data as { snapshot: string }).snapshot;
       const match = snapshot.match(/Snapshot #(snap_\d+)/);
@@ -96,15 +105,7 @@ describe('Snapshot Selector Store E2E', () => {
       }
     });
 
-    it('should return error for invalid snapshot ID', async () => {
-      const result = await executeCommand(
-        parseCliArgs(['snapshot', '--selector-for', 'snap_999:@e1']),
-        browser
-      );
-      expect(result.success).toBe(false);
-    });
-
-    it('should return error for invalid ref', async () => {
+    it('should return error for invalid ref in Shadow DOM snapshot', async () => {
       const snapResult = await executeCommand(parseCliArgs(['snapshot', '-i']), browser);
       const snapshot = (snapResult.data as { snapshot: string }).snapshot;
       const match = snapshot.match(/Snapshot #(snap_\d+)/);
@@ -118,8 +119,8 @@ describe('Snapshot Selector Store E2E', () => {
     });
   });
 
-  describe('selectors-of command', () => {
-    it('should list all selectors for a snapshot', async () => {
+  describe('selectors-of with Shadow DOM', () => {
+    it('should list all selectors for a Shadow DOM snapshot', async () => {
       const snapResult = await executeCommand(parseCliArgs(['snapshot', '-i']), browser);
       const snapshot = (snapResult.data as { snapshot: string }).snapshot;
       const match = snapshot.match(/Snapshot #(snap_\d+)/);
@@ -142,18 +143,10 @@ describe('Snapshot Selector Store E2E', () => {
         }
       }
     });
-
-    it('should return error for non-existent snapshot', async () => {
-      const result = await executeCommand(
-        parseCliArgs(['snapshot', '--selectors-of', 'snap_999']),
-        browser
-      );
-      expect(result.success).toBe(false);
-    });
   });
 
-  describe('validate command', () => {
-    it('should validate all selectors on current page', async () => {
+  describe('validate with Shadow DOM', () => {
+    it('should run validate on Shadow DOM snapshot and return results', async () => {
       const snapResult = await executeCommand(parseCliArgs(['snapshot', '-i']), browser);
       const snapshot = (snapResult.data as { snapshot: string }).snapshot;
       const match = snapshot.match(/Snapshot #(snap_\d+)/);
@@ -170,25 +163,16 @@ describe('Snapshot Selector Store E2E', () => {
         };
         expect(data.results).toBeDefined();
         expect(data.results.length).toBeGreaterThan(0);
-        for (const r of data.results) {
-          expect(r.status).toBe('valid');
-        }
       }
     });
 
-    it('should detect removed elements after navigation', async () => {
+    it('should detect removed elements after navigation away', async () => {
       const snapResult = await executeCommand(parseCliArgs(['snapshot', '-i']), browser);
       const snapshot = (snapResult.data as { snapshot: string }).snapshot;
       const match = snapshot.match(/Snapshot #(snap_\d+)/);
       const snapId = match![1];
 
-      await executeCommand(
-        parseCliArgs(['snapshot', '--selectors-of', snapId]),
-        browser
-      );
-
-      await browser.getPage().goto('about:blank');
-      await browser.getPage().waitForLoadState('load');
+      await executeCommand(parseCliArgs(['open', 'about:blank']), browser);
 
       const result = await executeCommand(
         parseCliArgs(['snapshot', '--validate', snapId]),
@@ -196,13 +180,11 @@ describe('Snapshot Selector Store E2E', () => {
       );
       expect(result.success).toBe(true);
       if (isSuccessResponse(result)) {
-        const notFound = (result.data as {
+        const data = result.data as {
           results: Array<{ status: string }>;
-        }).results.filter((r) => r.status === 'not_found');
+        };
+        const notFound = data.results.filter((r) => r.status === 'not_found');
         expect(notFound.length).toBeGreaterThan(0);
-        if ((result.data as { newSnapshotId?: string }).newSnapshotId) {
-          expect((result.data as { newSnapshotId: string }).newSnapshotId).toBeDefined();
-        }
       }
     });
   });

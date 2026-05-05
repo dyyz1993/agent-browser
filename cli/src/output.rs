@@ -464,11 +464,16 @@ pub fn print_response(resp: &Response, json_mode: bool, action: Option<&str>) {
         if let Some(results) = data.get("results").and_then(|v| v.as_array()) {
             let snap_id = data.get("snapshotId").and_then(|v| v.as_str()).unwrap_or("?");
             println!("{} Selector Validation ({} elements):", snap_id, results.len());
+            let mut failed_count = 0usize;
             for (i, item) in results.iter().enumerate() {
                 let ref_val = item.get("ref").and_then(|v| v.as_str()).unwrap_or("?");
                 let selector = item.get("cssSelector").or_else(|| item.get("selector")).and_then(|v| v.as_str()).unwrap_or("?");
                 let status_str = item.get("status").and_then(|v| v.as_str()).unwrap_or("unknown");
                 let match_count = item.get("matchCount").and_then(|v| v.as_i64()).unwrap_or(-1);
+                let is_failed = status_str == "not_found" || status_str == "invalid_selector";
+                if is_failed {
+                    failed_count += 1;
+                }
                 let status = match status_str {
                     "valid" => format!("{} valid", color::green("✓")),
                     "ambiguous" => format!("{} ambiguous ({})", color::yellow("⚠"), match_count),
@@ -477,6 +482,22 @@ pub fn print_response(resp: &Response, json_mode: bool, action: Option<&str>) {
                     _ => format!("{}", status_str),
                 };
                 println!("  [{}] {} {:<15} →  {}", i + 1, ref_val, selector, status);
+            }
+            if failed_count > 0 {
+                if let Some(new_snap) = data.get("newSnapshotId").and_then(|v| v.as_str()) {
+                    println!("---");
+                    println!(
+                        "{} selector{} no longer valid. {} Fresh snapshot: {}",
+                        failed_count,
+                        if failed_count > 1 { "s" } else { "" },
+                        color::yellow("Re-snapshot suggested."),
+                        color::cyan(new_snap)
+                    );
+                    println!(
+                        "  Get new selectors:  {}",
+                        color::dim(&format!("snapshot --selectors-of {}", new_snap))
+                    );
+                }
             }
             return;
         }

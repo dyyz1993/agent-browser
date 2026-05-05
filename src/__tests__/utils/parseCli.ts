@@ -502,6 +502,20 @@ export function parseCliArgs(args: string[]): Command {
             }
             break;
           }
+          case '-p':
+          case '--path':
+            (command as any).path = true;
+            break;
+          case '-a':
+          case '--attrs':
+            (command as any).attrs = true;
+            break;
+          case '--selectors':
+            (command as any).selectors = true;
+            break;
+          case '--all':
+            (command as any).all = true;
+            break;
         }
       }
       return command;

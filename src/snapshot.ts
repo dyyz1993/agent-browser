@@ -38,7 +38,6 @@ export interface RefMap {
 export interface EnhancedSnapshot {
   tree: string;
   refs: RefMap;
-  stableSelectors?: Record<string, { cssSelector: string; xpath: string }>;
 }
 
 export interface SnapshotOptions {
@@ -373,7 +372,7 @@ async function suggestSelectors(page: Page | Frame): Promise<string[]> {
   return selectors;
 }
 
-async function generateStableSelectors(
+export async function generateStableSelectors(
   page: Page | Frame,
   refs: RefMap
 ): Promise<Record<string, { cssSelector: string; xpath: string }>> {
@@ -819,12 +818,7 @@ export async function getEnhancedSnapshot(
     }
   }
 
-  let stableSelectors: Record<string, { cssSelector: string; xpath: string }> | undefined;
-  try {
-    stableSelectors = await generateStableSelectors(page as Page | Frame, refs);
-  } catch {}
-
-  return { tree: finalTree, refs, stableSelectors };
+  return { tree: finalTree, refs };
 }
 
 async function buildCompactSelectors(

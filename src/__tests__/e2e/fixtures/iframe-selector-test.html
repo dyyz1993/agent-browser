@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<body>
+<h1>Parent Page</h1>
+<button id="parent-btn">Parent Button</button>
+<iframe id="test-frame" srcdoc='
+  <html><body>
+    <h2>Inside Iframe</h2>
+    <input id="iframe-input" name="username" placeholder="Username">
+    <button id="iframe-btn" type="submit">Submit in Frame</button>
+  </body></html>
+'></iframe>
+</body>
+</html>

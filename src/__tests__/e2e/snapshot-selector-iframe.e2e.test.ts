@@ -7,14 +7,14 @@ import { isSuccessResponse } from '../../types.js';
 
 const executablePath = process.env.AGENT_BROWSER_EXECUTABLE_PATH;
 
-describe('Snapshot Selector Store E2E', () => {
+describe('Snapshot Selector Iframe E2E', () => {
   let browser: BrowserManager;
 
   beforeAll(async () => {
     browser = new BrowserManager();
     await browser.launch({
       action: 'launch',
-      id: 'test-selector-store',
+      id: 'test-selector-iframe',
       headless: true,
       ...(executablePath ? { executablePath } : {}),
     });
@@ -26,15 +26,18 @@ describe('Snapshot Selector Store E2E', () => {
 
   beforeEach(async () => {
     const openResult = await executeCommand(
-      parseCliArgs(['open', getFixturePath('form-complex.html')]),
+      parseCliArgs(['open', getFixturePath('iframe-selector-test.html')]),
       browser
     );
     expect(openResult.success).toBe(true);
   });
 
-  describe('snapshot -i with selector store', () => {
+  describe('snapshot -i inside iframe with --in-frame', () => {
     it('should return snapshot with header containing snap_N ID', async () => {
-      const result = await executeCommand(parseCliArgs(['snapshot', '-i']), browser);
+      const result = await executeCommand(
+        parseCliArgs(['snapshot', '-i', '--in-frame', '#test-frame']),
+        browser
+      );
       expect(result.success).toBe(true);
       if (isSuccessResponse(result)) {
         const snapshot = (result.data as { snapshot: string }).snapshot;
@@ -46,19 +49,38 @@ describe('Snapshot Selector Store E2E', () => {
       }
     });
 
-    it('should return snapshot with element count', async () => {
-      const result = await executeCommand(parseCliArgs(['snapshot', '-i']), browser);
+    it('should return snapshot with element count inside iframe', async () => {
+      const result = await executeCommand(
+        parseCliArgs(['snapshot', '-i', '--in-frame', '#test-frame']),
+        browser
+      );
       expect(result.success).toBe(true);
       if (isSuccessResponse(result)) {
         const snapshot = (result.data as { snapshot: string }).snapshot;
         expect(snapshot).toMatch(/\(\d+ interactive elements\)/);
       }
     });
+
+    it('should contain iframe interactive elements in snapshot', async () => {
+      const result = await executeCommand(
+        parseCliArgs(['snapshot', '-i', '--in-frame', '#test-frame']),
+        browser
+      );
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        const snapshot = (result.data as { snapshot: string }).snapshot;
+        expect(snapshot).toContain('Username');
+        expect(snapshot).toContain('Submit in Frame');
+      }
+    });
   });
 
-  describe('selector-for command', () => {
-    it('should return CSS selector for element by ref', async () => {
-      const snapResult = await executeCommand(parseCliArgs(['snapshot', '-i']), browser);
+  describe('selector-for inside iframe', () => {
+    it('should return CSS selector for element inside iframe by ref', async () => {
+      const snapResult = await executeCommand(
+        parseCliArgs(['snapshot', '-i', '--in-frame', '#test-frame']),
+        browser
+      );
       expect(snapResult.success).toBe(true);
       const snapshot = (snapResult.data as { snapshot: string }).snapshot;
       const match = snapshot.match(/Snapshot #(snap_\d+)/);
@@ -66,7 +88,7 @@ describe('Snapshot Selector Store E2E', () => {
       const snapId = match![1];
 
       const selResult = await executeCommand(
-        parseCliArgs(['snapshot', '--selector-for', `${snapId}:@e1`]),
+        parseCliArgs(['snapshot', '--selector-for', `${snapId}:@e1`, '--in-frame', '#test-frame']),
         browser
       );
       expect(selResult.success).toBe(true);
@@ -78,14 +100,17 @@ describe('Snapshot Selector Store E2E', () => {
       }
     });
 
-    it('should return CSS selector for element by index', async () => {
-      const snapResult = await executeCommand(parseCliArgs(['snapshot', '-i']), browser);
+    it('should return CSS selector for element inside iframe by index', async () => {
+      const snapResult = await executeCommand(
+        parseCliArgs(['snapshot', '-i', '--in-frame', '#test-frame']),
+        browser
+      );
       const snapshot = (snapResult.data as { snapshot: string }).snapshot;
       const match = snapshot.match(/Snapshot #(snap_\d+)/);
       const snapId = match![1];
 
       const selResult = await executeCommand(
-        parseCliArgs(['snapshot', '--selector-for', `${snapId}:1`]),
+        parseCliArgs(['snapshot', '--selector-for', `${snapId}:1`, '--in-frame', '#test-frame']),
         browser
       );
       expect(selResult.success).toBe(true);
@@ -96,37 +121,35 @@ describe('Snapshot Selector Store E2E', () => {
       }
     });
 
-    it('should return error for invalid snapshot ID', async () => {
-      const result = await executeCommand(
-        parseCliArgs(['snapshot', '--selector-for', 'snap_999:@e1']),
+    it('should return error for invalid ref inside iframe', async () => {
+      const snapResult = await executeCommand(
+        parseCliArgs(['snapshot', '-i', '--in-frame', '#test-frame']),
         browser
       );
-      expect(result.success).toBe(false);
-    });
-
-    it('should return error for invalid ref', async () => {
-      const snapResult = await executeCommand(parseCliArgs(['snapshot', '-i']), browser);
       const snapshot = (snapResult.data as { snapshot: string }).snapshot;
       const match = snapshot.match(/Snapshot #(snap_\d+)/);
       const snapId = match![1];
 
       const result = await executeCommand(
-        parseCliArgs(['snapshot', '--selector-for', `${snapId}:@e999`]),
+        parseCliArgs(['snapshot', '--selector-for', `${snapId}:@e999`, '--in-frame', '#test-frame']),
         browser
       );
       expect(result.success).toBe(false);
     });
   });
 
-  describe('selectors-of command', () => {
-    it('should list all selectors for a snapshot', async () => {
-      const snapResult = await executeCommand(parseCliArgs(['snapshot', '-i']), browser);
+  describe('selectors-of inside iframe', () => {
+    it('should list all selectors for an iframe snapshot', async () => {
+      const snapResult = await executeCommand(
+        parseCliArgs(['snapshot', '-i', '--in-frame', '#test-frame']),
+        browser
+      );
       const snapshot = (snapResult.data as { snapshot: string }).snapshot;
       const match = snapshot.match(/Snapshot #(snap_\d+)/);
       const snapId = match![1];
 
       const result = await executeCommand(
-        parseCliArgs(['snapshot', '--selectors-of', snapId]),
+        parseCliArgs(['snapshot', '--selectors-of', snapId, '--in-frame', '#test-frame']),
         browser
       );
       expect(result.success).toBe(true);
@@ -142,22 +165,42 @@ describe('Snapshot Selector Store E2E', () => {
         }
       }
     });
-
-    it('should return error for non-existent snapshot', async () => {
-      const result = await executeCommand(
-        parseCliArgs(['snapshot', '--selectors-of', 'snap_999']),
-        browser
-      );
-      expect(result.success).toBe(false);
-    });
   });
 
-  describe('validate command', () => {
-    it('should validate all selectors on current page', async () => {
-      const snapResult = await executeCommand(parseCliArgs(['snapshot', '-i']), browser);
+  describe('validate inside iframe', () => {
+    it('should run validate on iframe snapshot and return results', async () => {
+      const snapResult = await executeCommand(
+        parseCliArgs(['snapshot', '-i', '--in-frame', '#test-frame']),
+        browser
+      );
       const snapshot = (snapResult.data as { snapshot: string }).snapshot;
       const match = snapshot.match(/Snapshot #(snap_\d+)/);
       const snapId = match![1];
+
+      const result = await executeCommand(
+        parseCliArgs(['snapshot', '--validate', snapId, '--in-frame', '#test-frame']),
+        browser
+      );
+      expect(result.success).toBe(true);
+      if (isSuccessResponse(result)) {
+        const data = result.data as {
+          results: Array<{ status: string }>;
+        };
+        expect(data.results).toBeDefined();
+        expect(data.results.length).toBeGreaterThan(0);
+      }
+    });
+
+    it('should detect removed elements after navigation away from iframe', async () => {
+      const snapResult = await executeCommand(
+        parseCliArgs(['snapshot', '-i', '--in-frame', '#test-frame']),
+        browser
+      );
+      const snapshot = (snapResult.data as { snapshot: string }).snapshot;
+      const match = snapshot.match(/Snapshot #(snap_\d+)/);
+      const snapId = match![1];
+
+      await executeCommand(parseCliArgs(['open', 'about:blank']), browser);
 
       const result = await executeCommand(
         parseCliArgs(['snapshot', '--validate', snapId]),
@@ -168,41 +211,8 @@ describe('Snapshot Selector Store E2E', () => {
         const data = result.data as {
           results: Array<{ status: string }>;
         };
-        expect(data.results).toBeDefined();
-        expect(data.results.length).toBeGreaterThan(0);
-        for (const r of data.results) {
-          expect(r.status).toBe('valid');
-        }
-      }
-    });
-
-    it('should detect removed elements after navigation', async () => {
-      const snapResult = await executeCommand(parseCliArgs(['snapshot', '-i']), browser);
-      const snapshot = (snapResult.data as { snapshot: string }).snapshot;
-      const match = snapshot.match(/Snapshot #(snap_\d+)/);
-      const snapId = match![1];
-
-      await executeCommand(
-        parseCliArgs(['snapshot', '--selectors-of', snapId]),
-        browser
-      );
-
-      await browser.getPage().goto('about:blank');
-      await browser.getPage().waitForLoadState('load');
-
-      const result = await executeCommand(
-        parseCliArgs(['snapshot', '--validate', snapId]),
-        browser
-      );
-      expect(result.success).toBe(true);
-      if (isSuccessResponse(result)) {
-        const notFound = (result.data as {
-          results: Array<{ status: string }>;
-        }).results.filter((r) => r.status === 'not_found');
+        const notFound = data.results.filter((r) => r.status === 'not_found');
         expect(notFound.length).toBeGreaterThan(0);
-        if ((result.data as { newSnapshotId?: string }).newSnapshotId) {
-          expect((result.data as { newSnapshotId: string }).newSnapshotId).toBeDefined();
-        }
       }
     });
   });

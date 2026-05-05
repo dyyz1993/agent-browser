@@ -608,6 +608,18 @@ pub fn parse_command(args: &[String], flags: &Flags) -> Result<Value, ParseError
                             i += 1;
                         }
                     }
+                    "--path" | "-p" => {
+                        obj.insert("path".to_string(), json!(true));
+                    }
+                    "--attrs" | "-a" => {
+                        obj.insert("attrs".to_string(), json!(true));
+                    }
+                    "--selectors" => {
+                        obj.insert("selectors".to_string(), json!(true));
+                    }
+                    "--all" => {
+                        obj.insert("all".to_string(), json!(true));
+                    }
                     _ => {}
                 }
                 i += 1;

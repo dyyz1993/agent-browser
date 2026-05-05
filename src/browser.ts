@@ -24,7 +24,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import type { LaunchCommand } from './types.js';
-import { type RefMap, type EnhancedSnapshot, getEnhancedSnapshot, parseRef } from './snapshot.js';
+import { type RefMap, type EnhancedSnapshot, getEnhancedSnapshot, generateStableSelectors, parseRef } from './snapshot.js';
 import { SnapshotStore, SnapshotElement } from './snapshot-store.js';
 import { getEventCallbacks } from './actions.js';
 
@@ -205,34 +205,67 @@ export class BrowserManager {
     this.lastSnapshot = snapshot.tree;
 
     let snapshotId: string | undefined;
-    if (snapshot.stableSelectors && Object.keys(snapshot.stableSelectors).length > 0) {
-      const url = this.pages.length > 0 ? this.getPage().url() : '';
-      const elements: SnapshotElement[] = [];
-      let index = 1;
-      for (const [ref, data] of Object.entries(snapshot.refs)) {
-        const selector = snapshot.stableSelectors[ref];
-        if (selector) {
-          elements.push({
-            ref,
-            index: index,
-            role: data.role,
-            name: data.name,
-            cssSelector: selector.cssSelector,
-            xpath: selector.xpath,
-          });
-        }
-        index++;
-      }
-      snapshotId = this.snapshotStore.create(url, elements, options?.framePath);
-
-      const elementCount = elements.length;
-      const header = `Snapshot #${snapshotId} (${elementCount} interactive elements)\n---`;
-      const tips = `---\nTips:\n  Get selector:  snapshot --selector-for ${snapshotId}:@e1\n  Or by index:   snapshot --selector-for ${snapshotId}:1\n  List all:      snapshot --selectors-of ${snapshotId}\n  Validate:      snapshot --validate ${snapshotId}`;
-      snapshot.tree = `${header}\n${snapshot.tree}\n${tips}`;
-      this.lastSnapshot = snapshot.tree;
+    const url = this.pages.length > 0 ? this.getPage().url() : '';
+    const elements: SnapshotElement[] = [];
+    let index = 1;
+    for (const [ref, data] of Object.entries(snapshot.refs)) {
+      elements.push({
+        ref,
+        index: index,
+        role: data.role,
+        name: data.name,
+        cssSelector: '',
+        xpath: '',
+      });
+      index++;
     }
+    snapshotId = this.snapshotStore.create(url, elements, options?.framePath);
+
+    const elementCount = elements.length;
+    const header = `Snapshot #${snapshotId} (${elementCount} interactive elements)\n---`;
+    const tips = `---\nTips:\n  Get selector:  snapshot --selector-for ${snapshotId}:@e1\n  Or by index:   snapshot --selector-for ${snapshotId}:1\n  List all:      snapshot --selectors-of ${snapshotId}\n  Validate:      snapshot --validate ${snapshotId}`;
+    snapshot.tree = `${header}\n${snapshot.tree}\n${tips}`;
+    this.lastSnapshot = snapshot.tree;
 
     return { ...snapshot, snapshotId };
+  }
+
+  /**
+   * Ensure selectors have been lazily generated for a snapshot.
+   * Generates them on first call, then caches in the store.
+   */
+  async ensureSelectorsGenerated(snapId: string): Promise<boolean> {
+    const store = this.snapshotStore;
+    if (store.isSelectorsGenerated(snapId)) return true;
+
+    const entry = store.get(snapId);
+    if (!entry) return false;
+
+    const refs: RefMap = {};
+    for (const [ref, el] of entry.elements) {
+      refs[ref] = {
+        selector: `getByRole('${el.role}'${el.name ? `, { name: "${el.name}", exact: true }` : ''})`,
+        role: el.role,
+        name: el.name,
+      };
+    }
+
+    const frame = entry.framePath ? this.getFrame(entry.framePath) : this.getFrame();
+    let stableSelectors: Record<string, { cssSelector: string; xpath: string }> = {};
+    try {
+      stableSelectors = await generateStableSelectors(frame as any, refs);
+    } catch {}
+
+    for (const [ref, sel] of Object.entries(stableSelectors)) {
+      const el = entry.elements.get(ref);
+      if (el) {
+        el.cssSelector = sel.cssSelector;
+        el.xpath = sel.xpath;
+      }
+    }
+
+    store.markSelectorsGenerated(snapId);
+    return true;
   }
 
   /**

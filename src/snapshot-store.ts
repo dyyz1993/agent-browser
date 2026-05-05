@@ -32,6 +32,8 @@ export interface SnapshotEntry {
   framePath?: string;
   /** Elements keyed by ref ID (e.g., "e1" -> SnapshotElement) */
   elements: Map<string, SnapshotElement>;
+  /** Whether stable selectors have been generated for this snapshot */
+  selectorsGenerated: boolean;
 }
 
 export class SnapshotStore {
@@ -51,6 +53,7 @@ export class SnapshotStore {
       url,
       framePath,
       elements: elementMap,
+      selectorsGenerated: false,
     });
     return id;
   }
@@ -113,5 +116,20 @@ export class SnapshotStore {
    */
   has(id: string): boolean {
     return this.snapshots.has(id);
+  }
+
+  /**
+   * Mark selectors as generated for a snapshot.
+   */
+  markSelectorsGenerated(id: string): void {
+    const entry = this.snapshots.get(id);
+    if (entry) entry.selectorsGenerated = true;
+  }
+
+  /**
+   * Check if selectors have been generated for a snapshot.
+   */
+  isSelectorsGenerated(id: string): boolean {
+    return this.snapshots.get(id)?.selectorsGenerated ?? false;
   }
 }
