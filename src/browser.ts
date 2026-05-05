@@ -25,6 +25,7 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import type { LaunchCommand } from './types.js';
 import { type RefMap, type EnhancedSnapshot, getEnhancedSnapshot, parseRef } from './snapshot.js';
+import { SnapshotStore, SnapshotElement } from './snapshot-store.js';
 import { getEventCallbacks } from './actions.js';
 
 // Screencast frame data from CDP
@@ -134,6 +135,7 @@ export class BrowserManager {
   private isRecordingHar: boolean = false;
   private refMap: RefMap = {};
   private lastSnapshot: string = '';
+  private snapshotStore: SnapshotStore = new SnapshotStore();
   private scopedHeaderRoutes: Map<string, (route: Route) => Promise<void>> = new Map();
   private commandHistory: Array<{
     action: string;
@@ -196,12 +198,41 @@ export class BrowserManager {
     attrs?: boolean;
     selectors?: boolean;
     all?: boolean;
-  }): Promise<EnhancedSnapshot> {
+  }): Promise<EnhancedSnapshot & { snapshotId?: string }> {
     const frame = options?.framePath ? this.getFrame(options.framePath) : this.getFrame();
     const snapshot = await getEnhancedSnapshot(frame as any, options);
     this.refMap = snapshot.refs;
     this.lastSnapshot = snapshot.tree;
-    return snapshot;
+
+    let snapshotId: string | undefined;
+    if (snapshot.stableSelectors && Object.keys(snapshot.stableSelectors).length > 0) {
+      const url = this.pages.length > 0 ? this.getPage().url() : '';
+      const elements: SnapshotElement[] = [];
+      let index = 1;
+      for (const [ref, data] of Object.entries(snapshot.refs)) {
+        const selector = snapshot.stableSelectors[ref];
+        if (selector) {
+          elements.push({
+            ref,
+            index: index,
+            role: data.role,
+            name: data.name,
+            cssSelector: selector.cssSelector,
+            xpath: selector.xpath,
+          });
+        }
+        index++;
+      }
+      snapshotId = this.snapshotStore.create(url, elements, options?.framePath);
+
+      const elementCount = elements.length;
+      const header = `Snapshot #${snapshotId} (${elementCount} interactive elements)\n---`;
+      const tips = `---\nTips:\n  Get selector:  snapshot --selector-for ${snapshotId}:@e1\n  Or by index:   snapshot --selector-for ${snapshotId}:1\n  List all:      snapshot --selectors-of ${snapshotId}\n  Validate:      snapshot --validate ${snapshotId}`;
+      snapshot.tree = `${header}\n${snapshot.tree}\n${tips}`;
+      this.lastSnapshot = snapshot.tree;
+    }
+
+    return { ...snapshot, snapshotId };
   }
 
   /**
@@ -209,6 +240,10 @@ export class BrowserManager {
    */
   getRefMap(): RefMap {
     return this.refMap;
+  }
+
+  getSnapshotStore(): SnapshotStore {
+    return this.snapshotStore;
   }
 
   recordCommand(

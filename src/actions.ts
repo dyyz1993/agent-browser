@@ -154,8 +154,20 @@ import type {
   StylesData,
   ViewerData,
   AskData,
+  SelectorForCommand,
+  SelectorsOfCommand,
+  ValidateCommand,
 } from './types.js';
 import { successResponse, errorResponse } from './protocol.js';
+import {
+  parseYamlSiteFile,
+  loadSitesFromDirectory,
+  loadAllSites,
+  findFlow,
+  validateYamlFile,
+} from './flow/yaml-parser.js';
+import { recorderToFlowFromFile, siteToYamlString } from './flow/recorder-to-flow.js';
+import { FlowExecutor } from './flow/flow-executor.js';
 
 // Callback for screencast frames - will be set by the daemon when streaming is active
 let screencastFrameCallback: ((frame: ScreencastFrame) => void) | null = null;
@@ -309,6 +321,9 @@ export async function executeCommand(
   browser: BrowserManager
 ): Promise<Response> {
   try {
+    if (command.action === 'flow') {
+      return await handleFlowAction(command, browser);
+    }
     const cmd = command as Command;
     switch (cmd.action) {
       case 'launch':
@@ -577,6 +592,12 @@ export async function executeCommand(
         return handleConfig(cmd);
       case 'history':
         return await handleHistory(cmd, browser);
+      case 'selector-for':
+        return await handleSelectorFor(cmd as SelectorForCommand, browser);
+      case 'selectors-of':
+        return await handleSelectorsOf(cmd as SelectorsOfCommand, browser);
+      case 'validate':
+        return await handleValidate(cmd as ValidateCommand, browser);
       default: {
         const unknownCommand = cmd as { id: string; action: string };
         return errorResponse(unknownCommand.id, `Unknown action: ${unknownCommand.action}`);
@@ -3217,4 +3238,258 @@ async function handleHistory(
   }
   const history = browser.getHistory(command.filter);
   return successResponse(command.id, { history });
+}
+
+async function handleSelectorFor(
+  command: SelectorForCommand,
+  browser: BrowserManager
+): Promise<Response> {
+  const store = browser.getSnapshotStore();
+  const colonIndex = command.target.indexOf(':');
+  if (colonIndex === -1) {
+    return errorResponse(
+      command.id,
+      `Invalid target format: "${command.target}". Expected "snapshotId:refOrIndex" (e.g., "snap_3:@e1" or "snap_3:1").`
+    );
+  }
+  const snapshotId = command.target.substring(0, colonIndex);
+  const refOrIndex = command.target.substring(colonIndex + 1);
+
+  const element = store.getElement(snapshotId, refOrIndex);
+  if (!element) {
+    return errorResponse(
+      command.id,
+      `Element not found: "${refOrIndex}" in snapshot "${snapshotId}". Run 'snapshot' to get fresh snapshot data.`
+    );
+  }
+
+  return successResponse(command.id, {
+    snapshotId,
+    ref: element.ref,
+    index: element.index,
+    role: element.role,
+    name: element.name,
+    cssSelector: element.cssSelector,
+    xpath: element.xpath,
+  });
+}
+
+async function handleSelectorsOf(
+  command: SelectorsOfCommand,
+  browser: BrowserManager
+): Promise<Response> {
+  const store = browser.getSnapshotStore();
+  const elements = store.getElements(command.target);
+  if (!elements) {
+    return errorResponse(
+      command.id,
+      `Snapshot "${command.target}" not found. Run 'snapshot' to create a new snapshot.`
+    );
+  }
+
+  return successResponse(command.id, {
+    snapshotId: command.target,
+    elements: elements.map((el) => ({
+      ref: el.ref,
+      index: el.index,
+      role: el.role,
+      name: el.name,
+      cssSelector: el.cssSelector,
+      xpath: el.xpath,
+    })),
+  });
+}
+
+async function handleValidate(
+  command: ValidateCommand,
+  browser: BrowserManager
+): Promise<Response> {
+  const store = browser.getSnapshotStore();
+  const elements = store.getElements(command.target);
+  if (!elements) {
+    return errorResponse(
+      command.id,
+      `Snapshot "${command.target}" not found. Run 'snapshot' to create a new snapshot.`
+    );
+  }
+
+  const page = browser.getPage();
+  const selectors = elements.map((el) => el.cssSelector);
+  const matchCounts = await page.evaluate((sels: string[]) => {
+    return sels.map((sel) => {
+      try {
+        return document.querySelectorAll(sel).length;
+      } catch {
+        return -1;
+      }
+    });
+  }, selectors);
+
+  const results = elements.map((el, i) => {
+    const matchCount = matchCounts[i];
+    let status: string;
+    if (matchCount === -1) {
+      status = 'invalid_selector';
+    } else if (matchCount === 0) {
+      status = 'not_found';
+    } else if (matchCount === 1) {
+      status = 'valid';
+    } else {
+      status = 'ambiguous';
+    }
+    return {
+      ref: el.ref,
+      index: el.index,
+      cssSelector: el.cssSelector,
+      status,
+      matchCount,
+    };
+  });
+
+  return successResponse(command.id, {
+    snapshotId: command.target,
+    results,
+  });
+}
+
+async function handleFlowAction(command: AnyCommand, browser: BrowserManager): Promise<Response> {
+  const cmd = command as any;
+  const subcommand = cmd.subcommand as string | undefined;
+
+  switch (subcommand) {
+    case 'run':
+      return await handleFlowRun(cmd, browser);
+    case 'list':
+      return handleFlowList(cmd);
+    case 'show':
+      return handleFlowShow(cmd);
+    case 'validate':
+      return handleFlowValidate(cmd);
+    case 'from-recorder':
+      return handleFlowFromRecorder(cmd);
+    default:
+      return errorResponse(command.id, `Unknown flow subcommand: ${subcommand}`);
+  }
+}
+
+function handleFlowList(command: any): Response {
+  const sites = command.sitesDir ? loadSitesFromDirectory(command.sitesDir) : loadAllSites();
+
+  const siteList: Array<{ name: string; description?: string; flows: string[] }> = [];
+  for (const [name, site] of sites) {
+    siteList.push({
+      name,
+      description: site.description,
+      flows: Object.keys(site.flows),
+    });
+  }
+
+  return successResponse(command.id, { sites: siteList });
+}
+
+function handleFlowShow(command: any): Response {
+  const sites = command.sitesDir ? loadSitesFromDirectory(command.sitesDir) : loadAllSites();
+
+  const ref = command.siteFlow || '';
+  const result = findFlow(sites, ref);
+  if (!result) {
+    return errorResponse(command.id, `Flow "${ref}" not found`);
+  }
+
+  return successResponse(command.id, {
+    site: {
+      name: result.site.name,
+      description: result.site.description,
+      baseUrl: result.site.baseUrl,
+    },
+    flow: result.flow,
+  });
+}
+
+function handleFlowValidate(command: any): Response {
+  const filePath = command.filePath || '';
+  if (!filePath) {
+    return errorResponse(command.id, 'Missing file path for validate');
+  }
+
+  const result = validateYamlFile(filePath);
+  return successResponse(command.id, result);
+}
+
+function handleFlowFromRecorder(command: any): Response {
+  const recorderFile = command.recorderFile;
+  if (!recorderFile) {
+    return errorResponse(command.id, 'Missing recorder YAML file path');
+  }
+
+  try {
+    const result = recorderToFlowFromFile(recorderFile, {
+      flowId: command.flowId,
+      description: command.description,
+      baseUrl: command.baseUrl,
+      siteName: command.siteName,
+      maxPaginateIterations: command.maxPaginateIterations,
+    });
+
+    const yamlString = siteToYamlString(result.site);
+
+    if (command.outputFile) {
+      writeFileSync(path.resolve(command.outputFile), yamlString, 'utf-8');
+      return successResponse(command.id, {
+        siteName: result.site.name,
+        flowId: Object.keys(result.site.flows)[0],
+        outputFile: command.outputFile,
+        warnings: result.warnings,
+      });
+    }
+
+    return successResponse(command.id, {
+      siteName: result.site.name,
+      flowId: Object.keys(result.site.flows)[0],
+      yaml: yamlString,
+      warnings: result.warnings,
+    });
+  } catch (e) {
+    return errorResponse(
+      command.id,
+      `Failed to convert recorder YAML: ${e instanceof Error ? e.message : String(e)}`
+    );
+  }
+}
+
+async function handleFlowRun(command: any, browser: BrowserManager): Promise<Response> {
+  const ref = command.siteFlow || '';
+  const sites = command.sitesDir ? loadSitesFromDirectory(command.sitesDir) : loadAllSites();
+
+  const result = findFlow(sites, ref);
+  if (!result) {
+    return errorResponse(
+      command.id,
+      `Flow "${ref}" not found. Available sites: ${[...sites.keys()].join(', ')}`
+    );
+  }
+
+  const typedParams: Record<string, unknown> = {};
+  if (result.flow.params) {
+    for (const param of result.flow.params) {
+      const raw = command.params?.[param.name];
+      if (raw !== undefined) {
+        switch (param.type) {
+          case 'number':
+            typedParams[param.name] = Number(raw);
+            break;
+          case 'boolean':
+            typedParams[param.name] = raw === 'true' || raw === '1';
+            break;
+          default:
+            typedParams[param.name] = raw;
+        }
+      }
+    }
+  }
+
+  const executor = new FlowExecutor(browser);
+  const flowResult = await executor.execute(result.site, result.flowName, typedParams);
+
+  return successResponse(command.id, flowResult);
 }

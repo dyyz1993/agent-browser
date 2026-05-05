@@ -906,6 +906,21 @@ const historySchema = baseCommandSchema.extend({
   filter: z.string().optional(),
 });
 
+const selectorForSchema = baseCommandSchema.extend({
+  action: z.literal('selector-for'),
+  target: z.string().min(1),
+});
+
+const selectorsOfSchema = baseCommandSchema.extend({
+  action: z.literal('selectors-of'),
+  target: z.string().min(1),
+});
+
+const validateSchema = baseCommandSchema.extend({
+  action: z.literal('validate'),
+  target: z.string().min(1),
+});
+
 const evaluateSchema = baseCommandSchema.extend({
   action: z.literal('evaluate'),
   script: z.string().min(1).optional(),
@@ -1125,6 +1140,9 @@ const commandSchema = z.discriminatedUnion('action', [
   askSchema,
   configSchema,
   historySchema,
+  selectorForSchema,
+  selectorsOfSchema,
+  validateSchema,
 ]);
 
 // Parse result type

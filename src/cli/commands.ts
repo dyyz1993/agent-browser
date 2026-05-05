@@ -872,7 +872,16 @@ export function parseCommand(args: string[], flags: Flags): Command {
           const abort = rest.includes('--abort');
           const bodyIdx = rest.indexOf('--body');
           const body = bodyIdx !== -1 ? rest[bodyIdx + 1] : undefined;
-          return { id, action: 'route', url, abort, body };
+          const contentTypeIdx = rest.indexOf('--content-type');
+          const contentType = contentTypeIdx !== -1 ? rest[contentTypeIdx + 1] : undefined;
+          const response =
+            body || contentType
+              ? {
+                  ...(body ? { body } : {}),
+                  ...(contentType ? { contentType } : {}),
+                }
+              : undefined;
+          return { id, action: 'route', url, abort, response };
         }
         case 'unroute':
           return { id, action: 'unroute', url: rest[1] };
@@ -1178,6 +1187,144 @@ export function parseCommand(args: string[], flags: Flags): Command {
     case 'iframes':
       return { id, action: 'frames' };
 
+    case 'flow': {
+      const subcmd = rest[0];
+      if (!subcmd)
+        error(
+          'Missing subcommand',
+          'agent-browser flow <run|list|show|validate|register|unregister> [args...]'
+        );
+      switch (subcmd) {
+        case 'run': {
+          const siteFlow = rest[1];
+          if (!siteFlow)
+            error(
+              'Missing site.flow reference',
+              'agent-browser flow run <site.flow> [--param key=value]'
+            );
+          const params: Record<string, string> = {};
+          let sitesDir: string | undefined;
+          let outputFormat: string | undefined;
+          let outputFile: string | undefined;
+          for (let i = 2; i < rest.length; i++) {
+            if (rest[i] === '--param' && rest[i + 1]) {
+              const [key, ...valParts] = rest[i + 1].split('=');
+              if (key) params[key] = valParts.join('=');
+              i++;
+            } else if (rest[i] === '--sites-dir' && rest[i + 1]) {
+              sitesDir = rest[i + 1];
+              i++;
+            } else if (rest[i] === '--output' && rest[i + 1]) {
+              outputFormat = rest[i + 1];
+              i++;
+            } else if (rest[i] === '--output-file' && rest[i + 1]) {
+              outputFile = rest[i + 1];
+              i++;
+            }
+          }
+          const cmd: Command = { id, action: 'flow' } as any;
+          (cmd as any).subcommand = 'run';
+          (cmd as any).siteFlow = siteFlow;
+          (cmd as any).params = params;
+          if (sitesDir) (cmd as any).sitesDir = sitesDir;
+          if (outputFormat) (cmd as any).outputFormat = outputFormat;
+          if (outputFile) (cmd as any).outputFile = outputFile;
+          return cmd;
+        }
+        case 'list': {
+          const cmd: Command = { id, action: 'flow' } as any;
+          (cmd as any).subcommand = 'list';
+          (cmd as any).json = rest.includes('--json');
+          const sitesDirIdx = rest.indexOf('--sites-dir');
+          if (sitesDirIdx !== -1 && rest[sitesDirIdx + 1]) {
+            (cmd as any).sitesDir = rest[sitesDirIdx + 1];
+          }
+          return cmd;
+        }
+        case 'show': {
+          const siteFlow = rest[1];
+          if (!siteFlow)
+            error('Missing site.flow reference', 'agent-browser flow show <site.flow>');
+          const cmd: Command = { id, action: 'flow' } as any;
+          (cmd as any).subcommand = 'show';
+          (cmd as any).siteFlow = siteFlow;
+          const sitesDirIdx = rest.indexOf('--sites-dir');
+          if (sitesDirIdx !== -1 && rest[sitesDirIdx + 1]) {
+            (cmd as any).sitesDir = rest[sitesDirIdx + 1];
+          }
+          return cmd;
+        }
+        case 'validate': {
+          const filePath = rest[1];
+          if (!filePath) error('Missing file path', 'agent-browser flow validate <file.yaml>');
+          const cmd: Command = { id, action: 'flow' } as any;
+          (cmd as any).subcommand = 'validate';
+          (cmd as any).filePath = filePath;
+          return cmd;
+        }
+        case 'register': {
+          const cmd: Command = { id, action: 'flow' } as any;
+          (cmd as any).subcommand = 'register';
+          const fileIdx = rest.indexOf('--file');
+          const urlIdx = rest.indexOf('--url');
+          const nameIdx = rest.indexOf('--name');
+          if (fileIdx !== -1 && rest[fileIdx + 1]) {
+            (cmd as any).sourceFile = rest[fileIdx + 1];
+          } else if (urlIdx !== -1 && rest[urlIdx + 1]) {
+            (cmd as any).sourceUrl = rest[urlIdx + 1];
+          } else {
+            error(
+              'Missing --file or --url',
+              'agent-browser flow register --file <path>|--url <url> [--name <name>]'
+            );
+          }
+          if (nameIdx !== -1 && rest[nameIdx + 1]) {
+            (cmd as any).siteName = rest[nameIdx + 1];
+          }
+          return cmd;
+        }
+        case 'unregister': {
+          const name = rest[1];
+          if (!name) error('Missing site name', 'agent-browser flow unregister <name>');
+          const cmd: Command = { id, action: 'flow' } as any;
+          (cmd as any).subcommand = 'unregister';
+          (cmd as any).siteName = name;
+          return cmd;
+        }
+        case 'from-recorder': {
+          const recorderFile = rest[1];
+          if (!recorderFile)
+            error(
+              'Missing recorder YAML file',
+              'agent-browser flow from-recorder <recorder-yaml-file> [options]'
+            );
+          const fromRecCmd: Command = { id, action: 'flow' } as any;
+          (fromRecCmd as any).subcommand = 'from-recorder';
+          (fromRecCmd as any).recorderFile = recorderFile;
+          const nameIdx = rest.indexOf('--name');
+          if (nameIdx !== -1 && rest[nameIdx + 1]) (fromRecCmd as any).siteName = rest[nameIdx + 1];
+          const flowIdx = rest.indexOf('--flow-id');
+          if (flowIdx !== -1 && rest[flowIdx + 1]) (fromRecCmd as any).flowId = rest[flowIdx + 1];
+          const baseIdx = rest.indexOf('--base-url');
+          if (baseIdx !== -1 && rest[baseIdx + 1]) (fromRecCmd as any).baseUrl = rest[baseIdx + 1];
+          const descIdx = rest.indexOf('--description');
+          if (descIdx !== -1 && rest[descIdx + 1])
+            (fromRecCmd as any).description = rest[descIdx + 1];
+          const outIdx = rest.indexOf('--output');
+          if (outIdx !== -1 && rest[outIdx + 1]) (fromRecCmd as any).outputFile = rest[outIdx + 1];
+          const maxIdx = rest.indexOf('--max-pages');
+          if (maxIdx !== -1 && rest[maxIdx + 1])
+            (fromRecCmd as any).maxPaginateIterations = parseInt(rest[maxIdx + 1], 10);
+          return fromRecCmd;
+        }
+        default:
+          error(
+            `Unknown flow subcommand: ${subcmd}`,
+            'agent-browser flow <run|list|show|validate|register|unregister> [args...]'
+          );
+      }
+    }
+
     default: {
       const allCommands = [
         'open',
@@ -1235,6 +1382,7 @@ export function parseCommand(args: string[], flags: Flags): Command {
         'window',
         'history',
         'frames',
+        'flow',
       ];
       const suggestion = findSimilar(cmd, allCommands);
       let msg = `Unknown command: ${cmd}`;

@@ -360,6 +360,7 @@ Subcommands:
   route <url> [options]      Intercept requests
     --abort                  Abort matching requests
     --body <json>            Respond with custom body
+    --content-type <type>    Content-Type for mocked response
   unroute [url]              Remove route
   requests [options]         List captured requests
     --clear                  Clear request log
@@ -850,6 +851,44 @@ Examples:
   agent-browser config get viewer.host
   agent-browser config list
   agent-browser config --json
+`,
+  flow: `
+agent-browser flow - Flow engine commands for YAML-defined automation
+
+Usage: agent-browser flow <subcommand> [args]
+
+Subcommands:
+  list [--sites-dir <dir>]            List all available sites and flows
+  show <site.flow> [--sites-dir <dir>] Show details of a specific flow
+  run <site.flow> [options]           Execute a flow
+    --param key=value                  Pass parameters (repeatable)
+    --sites-dir <dir>                  Override sites directory
+    --output json|yaml|table           Output format
+  validate <file.yaml>                Validate a site YAML file
+  from-recorder <file.yaml> [options] Convert recorder YAML to flow YAML
+    --name <name>                      Site name (default: recorded-site)
+    --flow-id <id>                     Flow ID (default: auto-generated)
+    --base-url <url>                   Base URL override
+    --description <text>               Flow description
+    --output <file.yaml>               Write output to file
+    --max-pages <n>                    Max pagination iterations (default: 10)
+
+Site/Flow Reference:
+  Use "site-name.flow-name" format (e.g., "baidu-search.search-and-extract").
+  If only a flow name is given, all sites are searched for a match.
+
+Sites Directory:
+  Flows are loaded from ./sites/ (project-local) and ~/.agent-browser/sites/.
+  Use --sites-dir to specify a custom directory.
+
+Examples:
+  agent-browser flow list
+  agent-browser flow show baidu-search.search-and-extract
+  agent-browser flow run baidu-search.search-and-extract --param keyword=test
+  agent-browser flow run baidu-search.search-and-extract --param keyword=AI --param maxPages=3
+  agent-browser flow validate sites/baidu-search.yaml
+  agent-browser flow from-recorder recording.yaml --name my-site --output sites/my-site.yaml
+  agent-browser flow list --sites-dir ./my-sites
 `,
 };
 

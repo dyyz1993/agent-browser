@@ -238,52 +238,54 @@ pub fn print_response(resp: &Response, json_mode: bool, action: Option<&str>) {
         }
         // Element styles
         if let Some(elements) = data.get("elements").and_then(|v| v.as_array()) {
-            for (i, el) in elements.iter().enumerate() {
-                let tag = el.get("tag").and_then(|v| v.as_str()).unwrap_or("?");
-                let text = el.get("text").and_then(|v| v.as_str()).unwrap_or("");
-                println!("[{}] {} \"{}\"", i, tag, text);
+            if data.get("snapshotId").is_none() {
+                for (i, el) in elements.iter().enumerate() {
+                    let tag = el.get("tag").and_then(|v| v.as_str()).unwrap_or("?");
+                    let text = el.get("text").and_then(|v| v.as_str()).unwrap_or("");
+                    println!("[{}] {} \"{}\"", i, tag, text);
 
-                if let Some(box_data) = el.get("box") {
-                    let w = box_data.get("width").and_then(|v| v.as_i64()).unwrap_or(0);
-                    let h = box_data.get("height").and_then(|v| v.as_i64()).unwrap_or(0);
-                    let x = box_data.get("x").and_then(|v| v.as_i64()).unwrap_or(0);
-                    let y = box_data.get("y").and_then(|v| v.as_i64()).unwrap_or(0);
-                    println!("    box: {}x{} at ({}, {})", w, h, x, y);
-                }
-
-                if let Some(styles) = el.get("styles") {
-                    let font_size = styles
-                        .get("fontSize")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("");
-                    let font_weight = styles
-                        .get("fontWeight")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("");
-                    let font_family = styles
-                        .get("fontFamily")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("");
-                    let color = styles.get("color").and_then(|v| v.as_str()).unwrap_or("");
-                    let bg = styles
-                        .get("backgroundColor")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("");
-                    let radius = styles
-                        .get("borderRadius")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("");
-
-                    println!("    font: {} {} {}", font_size, font_weight, font_family);
-                    println!("    color: {}", color);
-                    println!("    background: {}", bg);
-                    if radius != "0px" {
-                        println!("    border-radius: {}", radius);
+                    if let Some(box_data) = el.get("box") {
+                        let w = box_data.get("width").and_then(|v| v.as_i64()).unwrap_or(0);
+                        let h = box_data.get("height").and_then(|v| v.as_i64()).unwrap_or(0);
+                        let x = box_data.get("x").and_then(|v| v.as_i64()).unwrap_or(0);
+                        let y = box_data.get("y").and_then(|v| v.as_i64()).unwrap_or(0);
+                        println!("    box: {}x{} at ({}, {})", w, h, x, y);
                     }
+
+                    if let Some(styles) = el.get("styles") {
+                        let font_size = styles
+                            .get("fontSize")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("");
+                        let font_weight = styles
+                            .get("fontWeight")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("");
+                        let font_family = styles
+                            .get("fontFamily")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("");
+                        let color = styles.get("color").and_then(|v| v.as_str()).unwrap_or("");
+                        let bg = styles
+                            .get("backgroundColor")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("");
+                        let radius = styles
+                            .get("borderRadius")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("");
+
+                        println!("    font: {} {} {}", font_size, font_weight, font_family);
+                        println!("    color: {}", color);
+                        println!("    background: {}", bg);
+                        if radius != "0px" {
+                            println!("    border-radius: {}", radius);
+                        }
+                    }
+                    println!();
                 }
-                println!();
+                return;
             }
-            return;
         }
         // Closed
         if data.get("closed").is_some() {
@@ -426,6 +428,58 @@ pub fn print_response(resp: &Response, json_mode: bool, action: Option<&str>) {
             return;
         }
 
+        // Selector-for: single element selector info
+        if let Some(ref_val) = data.get("ref").and_then(|v| v.as_str()) {
+            // Response from selector-for has cssSelector/xpath at top level (not in elements array)
+            let snap_id = data.get("snapshotId").and_then(|v| v.as_str()).unwrap_or("?");
+            let role = data.get("role").and_then(|v| v.as_str()).unwrap_or("");
+            let name = data.get("name").and_then(|v| v.as_str()).unwrap_or("");
+            let name_display = if name.is_empty() { String::new() } else { format!(" \"{}\"", name) };
+            println!("{} {} ({}{})", snap_id, ref_val, role, name_display);
+            if let Some(css) = data.get("cssSelector").and_then(|v| v.as_str()) {
+                println!("  CSS:      {}", css);
+            }
+            if let Some(xpath) = data.get("xpath").and_then(|v| v.as_str()) {
+                println!("  XPath:    {}", xpath);
+            }
+            return;
+        }
+        // Selectors-of: all selectors for a snapshot
+        if let Some(elements) = data.get("elements").and_then(|v| v.as_array()) {
+            if data.get("snapshotId").is_some() {
+                let snap_id = data.get("snapshotId").and_then(|v| v.as_str()).unwrap_or("?");
+                println!("{} Selectors ({} elements):", snap_id, elements.len());
+                for (i, el) in elements.iter().enumerate() {
+                    let ref_val = el.get("ref").and_then(|v| v.as_str()).unwrap_or("?");
+                    let role = el.get("role").and_then(|v| v.as_str()).unwrap_or("");
+                    let name = el.get("name").and_then(|v| v.as_str()).unwrap_or("");
+                    let selector = el.get("cssSelector").or_else(|| el.get("css")).or_else(|| el.get("selector")).and_then(|v| v.as_str()).unwrap_or("?");
+                    let name_display = if name.is_empty() { String::new() } else { format!(" \"{}\"", name) };
+                    println!("  [{}] {} {}{}     →  {}", i + 1, ref_val, role, name_display, selector);
+                }
+                return;
+            }
+        }
+        // Validate: selector validation results
+        if let Some(results) = data.get("results").and_then(|v| v.as_array()) {
+            let snap_id = data.get("snapshotId").and_then(|v| v.as_str()).unwrap_or("?");
+            println!("{} Selector Validation ({} elements):", snap_id, results.len());
+            for (i, item) in results.iter().enumerate() {
+                let ref_val = item.get("ref").and_then(|v| v.as_str()).unwrap_or("?");
+                let selector = item.get("cssSelector").or_else(|| item.get("selector")).and_then(|v| v.as_str()).unwrap_or("?");
+                let status_str = item.get("status").and_then(|v| v.as_str()).unwrap_or("unknown");
+                let match_count = item.get("matchCount").and_then(|v| v.as_i64()).unwrap_or(-1);
+                let status = match status_str {
+                    "valid" => format!("{} valid", color::green("✓")),
+                    "ambiguous" => format!("{} ambiguous ({})", color::yellow("⚠"), match_count),
+                    "not_found" => format!("{} not found", color::red("✗")),
+                    "invalid_selector" => format!("{} invalid selector", color::red("✗")),
+                    _ => format!("{}", status_str),
+                };
+                println!("  [{}] {} {:<15} →  {}", i + 1, ref_val, selector, status);
+            }
+            return;
+        }
         // Informational note
         if let Some(note) = data.get("note").and_then(|v| v.as_str()) {
             println!("{}", note);

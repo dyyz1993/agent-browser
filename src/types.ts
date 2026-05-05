@@ -976,6 +976,21 @@ export interface WindowNewCommand extends BaseCommand {
   viewport?: { width: number; height: number };
 }
 
+export interface SelectorForCommand extends BaseCommand {
+  action: 'selector-for';
+  target: string;
+}
+
+export interface SelectorsOfCommand extends BaseCommand {
+  action: 'selectors-of';
+  target: string;
+}
+
+export interface ValidateCommand extends BaseCommand {
+  action: 'validate';
+  target: string;
+}
+
 // Union of all command types
 export type Command =
   | LaunchCommand
@@ -1113,7 +1128,10 @@ export type Command =
   | AskCommand
   | ConfigCommand
   | InjectFocusListenerCommand
-  | HistoryCommand;
+  | HistoryCommand
+  | SelectorForCommand
+  | SelectorsOfCommand
+  | ValidateCommand;
 
 export interface LooseCommand {
   id: string;

@@ -587,6 +587,27 @@ pub fn parse_command(args: &[String], flags: &Flags) -> Result<Value, ParseError
                             i += 1;
                         }
                     }
+                    "--selector-for" => {
+                        if let Some(s) = r1.get(i + 1) {
+                            obj.insert("action".to_string(), json!("selector-for"));
+                            obj.insert("target".to_string(), json!(s));
+                            i += 1;
+                        }
+                    }
+                    "--selectors-of" => {
+                        if let Some(s) = r1.get(i + 1) {
+                            obj.insert("action".to_string(), json!("selectors-of"));
+                            obj.insert("target".to_string(), json!(s));
+                            i += 1;
+                        }
+                    }
+                    "--validate" => {
+                        if let Some(s) = r1.get(i + 1) {
+                            obj.insert("action".to_string(), json!("validate"));
+                            obj.insert("target".to_string(), json!(s));
+                            i += 1;
+                        }
+                    }
                     _ => {}
                 }
                 i += 1;
