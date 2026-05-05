@@ -481,6 +481,27 @@ export function parseCliArgs(args: string[]): Command {
               i++;
             }
             break;
+          case '--selector-for': {
+            if (rest[i + 1]) {
+              command.action = 'selector-for';
+              (command as any).target = rest[++i];
+            }
+            break;
+          }
+          case '--selectors-of': {
+            if (rest[i + 1]) {
+              command.action = 'selectors-of';
+              (command as any).target = rest[++i];
+            }
+            break;
+          }
+          case '--validate': {
+            if (rest[i + 1]) {
+              command.action = 'validate';
+              (command as any).target = rest[++i];
+            }
+            break;
+          }
         }
       }
       return command;
@@ -982,7 +1003,16 @@ export function parseCliArgs(args: string[]): Command {
           const abort = remaining.includes('--abort');
           const bodyIdx = remaining.indexOf('--body');
           const body = bodyIdx !== -1 ? remaining[bodyIdx + 1] : undefined;
-          return { id, action: 'route', url, abort, body, inFrame };
+          const contentTypeIdx = remaining.indexOf('--content-type');
+          const contentType = contentTypeIdx !== -1 ? remaining[contentTypeIdx + 1] : undefined;
+          const response =
+            body || contentType
+              ? {
+                  ...(body ? { body } : {}),
+                  ...(contentType ? { contentType } : {}),
+                }
+              : undefined;
+          return { id, action: 'route', url, abort, response, inFrame };
         }
         case 'unroute':
           return { id, action: 'unroute', url: remaining[1], inFrame };

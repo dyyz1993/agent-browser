@@ -112,4 +112,34 @@ describe('snapshot command', () => {
       expect(cmd.selector).toBe('#main');
     });
   });
+
+  describe('selector-for flag', () => {
+    it('should parse --selector-for with ref target', () => {
+      const cmd = parseCliArgs(['snapshot', '--selector-for', 'snap_1:@e1']);
+      expect(cmd.action).toBe('selector-for');
+      expect((cmd as any).target).toBe('snap_1:@e1');
+    });
+
+    it('should parse --selector-for with index target', () => {
+      const cmd = parseCliArgs(['snapshot', '--selector-for', 'snap_3:1']);
+      expect(cmd.action).toBe('selector-for');
+      expect((cmd as any).target).toBe('snap_3:1');
+    });
+  });
+
+  describe('selectors-of flag', () => {
+    it('should parse --selectors-of', () => {
+      const cmd = parseCliArgs(['snapshot', '--selectors-of', 'snap_1']);
+      expect(cmd.action).toBe('selectors-of');
+      expect((cmd as any).target).toBe('snap_1');
+    });
+  });
+
+  describe('validate flag', () => {
+    it('should parse --validate', () => {
+      const cmd = parseCliArgs(['snapshot', '--validate', 'snap_1']);
+      expect(cmd.action).toBe('validate');
+      expect((cmd as any).target).toBe('snap_1');
+    });
+  });
 });
