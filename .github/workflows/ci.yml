@@ -52,9 +52,16 @@ jobs:
 
       - name: Set Chromium path
         run: |
-          CHROMIUM_PATH=$(pnpm exec playwright-core install --dry-run chromium 2>/dev/null | grep -oP '/[^ ]*chrome[^ ]*' | head -1 || true)
-          if [ -z "$CHROMIUM_PATH" ]; then
-            CHROMIUM_PATH=$(find ~/.cache/ms-playwright -name "chrome" -o -name "chromium" -o -name "chrome-headless-shell" 2>/dev/null | head -1 || true)
+          CHROMIUM_PATH=$(node -e "
+            try {
+              const { chromium } = require('playwright-core');
+              console.log(chromium.executablePath());
+            } catch(e) {
+              console.error(e.message);
+            }
+          " 2>/dev/null || true)
+          if [ -z "$CHROMIUM_PATH" ] || [ ! -f "$CHROMIUM_PATH" ]; then
+            CHROMIUM_PATH=$(find "$HOME/.cache/ms-playwright" -type f -name "chrome" -o -name "chromium" 2>/dev/null | head -1 || true)
           fi
           if [ -n "$CHROMIUM_PATH" ]; then
             echo "AGENT_BROWSER_EXECUTABLE_PATH=$CHROMIUM_PATH" >> $GITHUB_ENV
