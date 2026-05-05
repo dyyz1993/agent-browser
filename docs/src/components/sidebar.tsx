@@ -1,21 +1,24 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useMobileNav } from "./mobile-nav-context";
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useMobileNav } from './mobile-nav-context';
 
 const navigation = [
-  { name: "Introduction", href: "/" },
-  { name: "Installation", href: "/installation" },
-  { name: "Quick Start", href: "/quick-start" },
-  { name: "Commands", href: "/commands" },
-  { name: "Selectors", href: "/selectors" },
-  { name: "Sessions", href: "/sessions" },
-  { name: "Snapshots", href: "/snapshots" },
-  { name: "Streaming", href: "/streaming" },
-  { name: "CDP Mode", href: "/cdp-mode" },
-  { name: "iOS Simulator", href: "/ios" },
-  { name: "Changelog", href: "/changelog" },
+  { name: 'Introduction', href: '/' },
+  { name: 'Installation', href: '/installation' },
+  { name: 'Quick Start', href: '/quick-start' },
+  { name: 'Commands', href: '/commands' },
+  { name: 'Selectors', href: '/selectors' },
+  { name: 'Snapshots', href: '/snapshots' },
+  { name: 'Sessions', href: '/sessions' },
+  { name: 'Self-Healing', href: '/self-healing' },
+  { name: 'Recording & Replay', href: '/recording' },
+  { name: 'Script Export', href: '/script-export' },
+  { name: 'Streaming', href: '/streaming' },
+  { name: 'CDP Mode', href: '/cdp-mode' },
+  { name: 'iOS Simulator', href: '/ios' },
+  { name: 'Changelog', href: '/changelog' },
 ];
 
 export function Sidebar() {
@@ -39,7 +42,7 @@ export function Sidebar() {
           w-56 lg:w-48 h-[calc(100vh-3.5rem)]
           bg-background
           transform transition-transform duration-150 ease-out
-          ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
+          ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
       >
         <div className="h-full overflow-y-auto py-5 pl-3 pr-5">
@@ -52,9 +55,7 @@ export function Sidebar() {
                   key={item.name}
                   href={item.href}
                   className={`block px-2 py-1.5 text-sm transition-colors ${
-                    isActive
-                      ? "text-foreground"
-                      : "text-muted-foreground hover:text-foreground"
+                    isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   {item.name}

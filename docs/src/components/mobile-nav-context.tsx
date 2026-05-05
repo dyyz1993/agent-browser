@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { createContext, useContext, useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { createContext, useContext, useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 
 type MobileNavContextType = {
   isOpen: boolean;
@@ -21,10 +21,10 @@ export function MobileNavProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setIsOpen(false);
+      if (e.key === 'Escape') setIsOpen(false);
     };
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
   }, []);
 
   const toggle = () => setIsOpen(!isOpen);
@@ -39,7 +39,7 @@ export function MobileNavProvider({ children }: { children: React.ReactNode }) {
 export function useMobileNav() {
   const context = useContext(MobileNavContext);
   if (!context) {
-    throw new Error("useMobileNav must be used within a MobileNavProvider");
+    throw new Error('useMobileNav must be used within a MobileNavProvider');
   }
   return context;
 }

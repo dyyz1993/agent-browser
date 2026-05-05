@@ -1,0 +1,35 @@
+name: pagination-example
+description: "Example: Crawl multiple pages of search results"
+
+steps:
+  - action: navigate
+    url: "https://example.com/search?q=agent-browser"
+  - action: wait
+    value: "1500"
+  - action: snapshot
+  - action: extract
+    selector: ".result-item"
+    fields:
+      title: "h3"
+      link: "a@href"
+      description: ".snippet"
+  - action: click
+    selector: "a.next-page"
+    fallbackSelectors:
+      - ".pagination .next"
+      - "[aria-label='Next page']"
+    elementIdentity:
+      tagName: "a"
+      textContent: "Next"
+  - action: wait
+    value: "1500"
+  - action: extract
+    selector: ".result-item"
+    fields:
+      title: "h3"
+      link: "a@href"
+      description: ".snippet"
+
+healing:
+  enabled: true
+  maxAttempts: 3

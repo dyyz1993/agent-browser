@@ -1,0 +1,63 @@
+name: ecommerce-checkout-example
+description: "Example: E-commerce add to cart and checkout flow"
+
+steps:
+  - action: navigate
+    url: "https://shop.example.com/product/123"
+  - action: click
+    selector: "button.add-to-cart"
+    fallbackSelectors:
+      - "[data-testid='add-to-cart']"
+      - ".btn-add-cart"
+    elementIdentity:
+      tagName: "button"
+      textContent: "Add to Cart"
+  - action: wait
+    value: "1000"
+  - action: click
+    selector: ".cart-icon"
+    fallbackSelectors:
+      - "[data-testid='cart']"
+      - "a[href='/cart']"
+  - action: wait
+    value: "1500"
+  - action: click
+    selector: "button.checkout"
+    fallbackSelectors:
+      - "[data-testid='checkout-btn']"
+      - ".btn-checkout"
+    elementIdentity:
+      tagName: "button"
+      textContent: "Checkout"
+  - action: fill
+    selector: "input[name='email']"
+    fallbackSelectors:
+      - "#email"
+      - "[type='email']"
+    value: "test@example.com"
+  - action: fill
+    selector: "input[name='card-number']"
+    fallbackSelectors:
+      - "#card-number"
+      - "[data-testid='card-number']"
+    value: "4242424242424242"
+  - action: click
+    selector: "button.place-order"
+    fallbackSelectors:
+      - "[data-testid='place-order']"
+      - ".btn-submit"
+    elementIdentity:
+      tagName: "button"
+      textContent: "Place Order"
+
+healing:
+  enabled: true
+  strategies: [fallback, identity_text, identity_attr, identity_parent]
+  maxAttempts: 5
+  attemptDelayMs: 500
+
+retry:
+  maxAttempts: 3
+  delayMs: 1000
+  strategy: exponential
+  backoffMultiplier: 2

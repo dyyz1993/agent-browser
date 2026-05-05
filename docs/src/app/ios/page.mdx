@@ -1,4 +1,4 @@
-export const metadata = { title: "iOS Simulator" }
+export const metadata = { title: 'iOS Simulator' };
 
 # iOS Simulator
 
@@ -93,11 +93,11 @@ agent-browser snapshot -i
 agent-browser tap @e1
 ```
 
-| Variable | Description |
-| --- | --- |
-| `AGENT_BROWSER_PROVIDER` | Set to `ios` to enable iOS mode |
-| `AGENT_BROWSER_IOS_DEVICE` | Device name (e.g., "iPhone 16 Pro") |
-| `AGENT_BROWSER_IOS_UDID` | Device UDID (alternative to device name) |
+| Variable                   | Description                              |
+| -------------------------- | ---------------------------------------- |
+| `AGENT_BROWSER_PROVIDER`   | Set to `ios` to enable iOS mode          |
+| `AGENT_BROWSER_IOS_DEVICE` | Device name (e.g., "iPhone 16 Pro")      |
+| `AGENT_BROWSER_IOS_UDID`   | Device UDID (alternative to device name) |
 
 ## Supported devices
 
@@ -168,13 +168,13 @@ agent-browser -p ios --device "John's iPhone" open https://example.com
 
 ## Differences from desktop
 
-| Feature | Desktop | iOS |
-| --- | --- | --- |
-| Browser | Chromium/Firefox/WebKit | Safari only |
-| Tabs | Supported | Single tab only |
-| PDF export | Supported | Not supported |
-| Screencast | Supported | Not supported |
-| Swipe gestures | Not native | Native support |
+| Feature        | Desktop                 | iOS             |
+| -------------- | ----------------------- | --------------- |
+| Browser        | Chromium/Firefox/WebKit | Safari only     |
+| Tabs           | Supported               | Single tab only |
+| PDF export     | Supported               | Not supported   |
+| Screencast     | Supported               | Not supported   |
+| Swipe gestures | Not native              | Native support  |
 
 ## Troubleshooting
 

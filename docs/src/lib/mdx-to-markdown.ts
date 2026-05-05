@@ -8,7 +8,7 @@
  * - Pass everything else through as-is (already valid Markdown)
  */
 export function mdxToCleanMarkdown(raw: string): string {
-  const lines = raw.split("\n");
+  const lines = raw.split('\n');
   const out: string[] = [];
   let inJsxBlock = false;
   let jsxDepth = 0;
@@ -17,16 +17,12 @@ export function mdxToCleanMarkdown(raw: string): string {
     const trimmed = line.trim();
 
     // Skip export and import statements
-    if (trimmed.startsWith("export ") || trimmed.startsWith("import ")) {
+    if (trimmed.startsWith('export ') || trimmed.startsWith('import ')) {
       continue;
     }
 
     // Track JSX blocks (like callout divs) and skip them
-    if (
-      !inJsxBlock &&
-      trimmed.startsWith("<div ") &&
-      trimmed.includes("className=")
-    ) {
+    if (!inJsxBlock && trimmed.startsWith('<div ') && trimmed.includes('className=')) {
       inJsxBlock = true;
       jsxDepth = 1;
       continue;
@@ -48,7 +44,7 @@ export function mdxToCleanMarkdown(raw: string): string {
   }
 
   // Clean up leading blank lines
-  let result = out.join("\n");
-  result = result.replace(/^\n+/, "\n").trim();
+  let result = out.join('\n');
+  result = result.replace(/^\n+/, '\n').trim();
   return result;
 }

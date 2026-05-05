@@ -1499,7 +1499,7 @@ async function handleGetByRole(
   browser: BrowserManager
 ): Promise<Response> {
   const frame = browser.getFrame(command.inFrame);
-  const locator = frame.getByRole(command.role as any, {
+  const locator = frame.getByRole(command.role as Parameters<typeof frame.getByRole>[0], {
     name: command.name,
     exact: command.exact,
   });
@@ -3380,8 +3380,26 @@ async function handleValidate(
   });
 }
 
+interface FlowSubCommand {
+  id: string;
+  subcommand?: string;
+  sitesDir?: string;
+  siteFlow?: string;
+  filePath?: string;
+  recorderFile?: string;
+  flowId?: string;
+  description?: string;
+  baseUrl?: string;
+  siteName?: string;
+  maxPaginateIterations?: number;
+  outputFile?: string;
+  params?: Record<string, string>;
+  format?: string;
+  headless?: boolean;
+}
+
 async function handleFlowAction(command: AnyCommand, browser: BrowserManager): Promise<Response> {
-  const cmd = command as any;
+  const cmd = command as FlowSubCommand;
   const subcommand = cmd.subcommand as string | undefined;
 
   switch (subcommand) {
@@ -3402,7 +3420,7 @@ async function handleFlowAction(command: AnyCommand, browser: BrowserManager): P
   }
 }
 
-function handleFlowList(command: any): Response {
+function handleFlowList(command: FlowSubCommand): Response {
   const sites = command.sitesDir ? loadSitesFromDirectory(command.sitesDir) : loadAllSites();
 
   const siteList: Array<{ name: string; description?: string; flows: string[] }> = [];
@@ -3417,7 +3435,7 @@ function handleFlowList(command: any): Response {
   return successResponse(command.id, { sites: siteList });
 }
 
-function handleFlowShow(command: any): Response {
+function handleFlowShow(command: FlowSubCommand): Response {
   const sites = command.sitesDir ? loadSitesFromDirectory(command.sitesDir) : loadAllSites();
 
   const ref = command.siteFlow || '';
@@ -3436,7 +3454,7 @@ function handleFlowShow(command: any): Response {
   });
 }
 
-function handleFlowValidate(command: any): Response {
+function handleFlowValidate(command: FlowSubCommand): Response {
   const filePath = command.filePath || '';
   if (!filePath) {
     return errorResponse(command.id, 'Missing file path for validate');
@@ -3446,7 +3464,7 @@ function handleFlowValidate(command: any): Response {
   return successResponse(command.id, result);
 }
 
-function handleFlowFromRecorder(command: any): Response {
+function handleFlowFromRecorder(command: FlowSubCommand): Response {
   const recorderFile = command.recorderFile;
   if (!recorderFile) {
     return errorResponse(command.id, 'Missing recorder YAML file path');
@@ -3487,7 +3505,7 @@ function handleFlowFromRecorder(command: any): Response {
   }
 }
 
-async function handleFlowRun(command: any, browser: BrowserManager): Promise<Response> {
+async function handleFlowRun(command: FlowSubCommand, browser: BrowserManager): Promise<Response> {
   const ref = command.siteFlow || '';
   const sites = command.sitesDir ? loadSitesFromDirectory(command.sitesDir) : loadAllSites();
 
@@ -3524,8 +3542,8 @@ async function handleFlowRun(command: any, browser: BrowserManager): Promise<Res
   return successResponse(command.id, flowResult);
 }
 
-function handleFlowExport(command: any): Response {
-  const filePath = command.filePath as string | undefined;
+function handleFlowExport(command: FlowSubCommand): Response {
+  const filePath = command.filePath;
   if (!filePath) {
     return errorResponse(command.id, 'Missing file path for export');
   }

@@ -1,0 +1,172 @@
+export const metadata = { title: 'Script Export' };
+
+# Script Export
+
+Convert recorded browser interactions into standalone test scripts. Export to Playwright, Python (Playwright), Cypress, or Selenium formats.
+
+## CLI usage
+
+```bash
+agent-browser export <format> [options]
+```
+
+### Export formats
+
+| Format                  | Flag         | Output             |
+| ----------------------- | ------------ | ------------------ |
+| Playwright (TypeScript) | `playwright` | `.ts` test file    |
+| Python (Playwright)     | `python`     | `.py` test file    |
+| Cypress                 | `cypress`    | `.cy.ts` test file |
+| Selenium                | `selenium`   | `.py` test file    |
+
+## Examples
+
+### Export to Playwright
+
+```bash
+agent-browser export playwright --output tests/login.spec.ts
+```
+
+Output:
+
+```typescript
+import { test, expect } from '@playwright/test';
+
+test('recorded flow', async ({ page }) => {
+  await page.goto('https://example.com/login');
+  await page.locator('#email').fill('user@example.com');
+  await page.locator('#password').fill('s3cret');
+  await page.locator('#submit').click();
+  await expect(page.locator('.welcome')).toBeVisible();
+});
+```
+
+### Export to Python
+
+```bash
+agent-browser export python --output tests/test_login.py
+```
+
+Output:
+
+```python
+from playwright.sync_api import sync_playwright, expect
+
+def test_recorded_flow():
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.goto("https://example.com/login")
+        page.locator("#email").fill("user@example.com")
+        page.locator("#password").fill("s3cret")
+        page.locator("#submit").click()
+        expect(page.locator(".welcome")).to_be_visible()
+        browser.close()
+```
+
+### Export to Cypress
+
+```bash
+agent-browser export cypress --output cypress/e2e/login.cy.ts
+```
+
+Output:
+
+```typescript
+describe('recorded flow', () => {
+  it('visits login page', () => {
+    cy.visit('https://example.com/login');
+    cy.get('#email').type('user@example.com');
+    cy.get('#password').type('s3cret');
+    cy.get('#submit').click();
+    cy.get('.welcome').should('be.visible');
+  });
+});
+```
+
+### Export to Selenium
+
+```bash
+agent-browser export selenium --output tests/test_login.py
+```
+
+Output:
+
+```python
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+def test_recorded_flow():
+    driver = webdriver.Chrome()
+    driver.get("https://example.com/login")
+    driver.find_element(By.CSS_SELECTOR, "#email").send_keys("user@example.com")
+    driver.find_element(By.CSS_SELECTOR, "#password").send_keys("s3cret")
+    driver.find_element(By.CSS_SELECTOR, "#submit").click()
+    WebDriverWait(driver, 10).until(
+        EC.visibility_of_element_located((By.CSS_SELECTOR, ".welcome"))
+    )
+    driver.quit()
+```
+
+## Options
+
+| Option                | Description                                         |
+| --------------------- | --------------------------------------------------- |
+| `--output, -o <path>` | Output file path                                    |
+| `--headless`          | Add headless launch config to exported script       |
+| `--base-url <url>`    | Replace recorded URLs with base URL + relative path |
+| `--name <name>`       | Test name (default: "recorded flow")                |
+| `--timeout <ms>`      | Set action timeout in exported script               |
+
+### Headless mode
+
+```bash
+agent-browser export playwright --headless --output tests/login.spec.ts
+# Adds: browser.launch({ headless: true })
+```
+
+### Base URL substitution
+
+```bash
+agent-browser export playwright --base-url https://staging.example.com
+# Replaces https://example.com/login with /login
+# Adds: baseURL config to playwright
+```
+
+## Supported actions
+
+The exporter converts these recorded actions:
+
+| Action         | Playwright                 | Cypress                 | Selenium                     |
+| -------------- | -------------------------- | ----------------------- | ---------------------------- |
+| Navigate       | `page.goto()`              | `cy.visit()`            | `driver.get()`               |
+| Click          | `locator.click()`          | `cy.get().click()`      | `find_element().click()`     |
+| Fill           | `locator.fill()`           | `cy.get().type()`       | `find_element().send_keys()` |
+| Select         | `locator.selectOption()`   | `cy.get().select()`     | `Select().select_by()`       |
+| Check          | `locator.check()`          | `cy.get().check()`      | `find_element().click()`     |
+| Hover          | `locator.hover()`          | `cy.get().trigger()`    | `ActionChains`               |
+| Press key      | `locator.press()`          | `cy.get().type()`       | `send_keys()`                |
+| Wait           | `waitForSelector()`        | `cy.get()` auto-wait    | `WebDriverWait`              |
+| Assert visible | `expect.toBeVisible()`     | `.should("be.visible")` | `EC.visibility_of`           |
+| Screenshot     | `page.screenshot()`        | `cy.screenshot()`       | `driver.save_screenshot()`   |
+| Scroll         | `locator.scrollIntoView()` | `cy.scrollTo()`         | `execute_script()`           |
+
+## Workflow
+
+```bash
+# 1. Record a flow
+agent-browser record start
+agent-browser open https://example.com/login
+agent-browser fill "#email" "user@example.com"
+agent-browser fill "#password" "s3cret"
+agent-browser click "#submit"
+agent-browser record stop
+
+# 2. Export to your preferred format
+agent-browser export playwright --output tests/login.spec.ts
+
+# 3. Run the exported test
+npx playwright test tests/login.spec.ts
+```

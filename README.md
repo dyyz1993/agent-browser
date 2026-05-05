@@ -902,6 +902,114 @@ When enabled, agent-browser connects to a Kernel cloud session instead of launch
 
 Get your API key from the [Kernel Dashboard](https://dashboard.onkernel.com).
 
+## Stable Selector System
+
+agent-browser generates persistent CSS selectors that survive page changes, using an 8-strategy algorithm:
+
+1. ID selector (`#submit-btn`)
+2. data-testid (`[data-testid="submit"]`)
+3. name attribute (`[name="email"]`)
+4. aria-label (`[aria-label="Search"]`)
+5. Semantic class (`.btn-primary`)
+6. Class + attribute combination
+7. Composed path (ancestor > child)
+8. nth-child fallback
+
+### Query Selectors
+
+```bash
+# Take a snapshot with element references
+agent-browser snapshot -i
+
+# Get stable selector for a specific element
+agent-browser snapshot --selector-for snap_1:@e3
+
+# List all selectors for a snapshot
+agent-browser snapshot --selectors-of snap_1
+
+# Validate selectors still match current page
+agent-browser snapshot --validate snap_1
+```
+
+Selectors are lazily generated on first query and cached for the session.
+
+## Self-Healing Replay
+
+When replaying recorded flows, agent-browser automatically recovers from broken selectors:
+
+**Healing strategies (in priority order):**
+1. Fallback selectors - tries alternative selectors captured during recording
+2. Identity text - finds element by matching text content
+3. Identity attribute - finds element by data-testid, aria-label, or name
+4. Identity parent - finds element by parent signature + tag name
+
+**Configuration (in YAML flow file):**
+```yaml
+flows:
+  myFlow:
+    steps:
+      - action: click
+        selector: "#old-btn"
+        fallbackSelectors: ["button.submit", "[data-testid='submit']"]
+        elementIdentity:
+          tagName: "button"
+          textContent: "Submit"
+    healing:
+      enabled: true
+      strategies: [fallback, identity_text, identity_attr, identity_parent]
+      maxAttempts: 5
+      attemptDelayMs: 500
+    retry:
+      maxAttempts: 3
+      delayMs: 1000
+      strategy: exponential
+      backoffMultiplier: 2
+```
+
+## Script Export
+
+Export recorded flows as standalone test scripts:
+
+```bash
+# Export as Playwright TypeScript
+agent-browser flow export recording.yaml --format playwright --output test.spec.ts
+
+# Export as Python Playwright
+agent-browser flow export recording.yaml --format python --output test.py
+
+# Export as Cypress
+agent-browser flow export recording.yaml --format cypress --output.cy.ts
+
+# Export as Selenium Python
+agent-browser flow export recording.yaml --format selenium --output test.py
+
+# Options
+agent-browser flow export recording.yaml --format playwright --headless false --base-url https://staging.example.com
+```
+
+Supported formats: `playwright`, `python`, `cypress`, `selenium`
+
+## Recording & Replay
+
+Record browser interactions and replay them automatically:
+
+```bash
+# Start recording
+agent-browser record start
+
+# Perform browser actions...
+agent-browser click "#search-btn"
+agent-browser fill "input[name='q']" --value "agent-browser"
+
+# Stop and save recording
+agent-browser record stop --output my-flow.yaml
+
+# Replay the recording
+agent-browser flow run my-flow.yaml
+```
+
+See [RECORDING-REPLAY-GUIDE.md](./RECORDING-REPLAY-GUIDE.md) for the complete guide.
+
 ## License
 
 Apache-2.0

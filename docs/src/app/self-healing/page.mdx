@@ -1,0 +1,120 @@
+export const metadata = { title: 'Self-Healing Selectors' };
+
+# Self-Healing Selectors
+
+When a page changes and breaks a selector, the self-healing system automatically recovers by trying alternative strategies. This keeps automation flows running without manual intervention.
+
+## How it works
+
+When an element lookup fails, agent-browser runs through a sequence of fallback strategies to locate the intended element. Each strategy produces a candidate selector which is validated against the current DOM before being accepted.
+
+```
+[primary selector fails]
+  -> strategy 1: text match
+  -> strategy 2: nearby ref
+  -> strategy 3: role + name
+  -> strategy 4: structural path
+[healed selector found]
+```
+
+## Healing strategies
+
+### 1. Text match
+
+Find an element with the same visible text content as the original.
+
+```bash
+# Original selector pointed to a "Submit" button that was removed.
+# Healing finds another element with text "Submit".
+agent-browser click "#old-submit-btn"
+# Healing log:
+# [heal] primary selector "#old-submit-btn" not found
+# [heal] strategy=text-match -> found button "Submit" via text=Submit
+```
+
+### 2. Nearby ref
+
+Use a ref from the current snapshot that is structurally close to the original element's position.
+
+```bash
+agent-browser click "@e5"
+# Healing log:
+# [heal] ref @e5 no longer valid
+# [heal] strategy=nearby-ref -> found @e7 (sibling of original position)
+```
+
+### 3. Role + name
+
+Locate by ARIA role and accessible name, ignoring structural changes.
+
+```bash
+agent-browser click "div.card > button.primary"
+# Healing log:
+# [heal] CSS selector "div.card > button.primary" not found
+# [heal] strategy=role-name -> found button "Submit" [role=button, name=Submit]
+```
+
+### 4. Structural path
+
+Walk up the DOM tree from a known anchor element and reconstruct a path to the target.
+
+```bash
+agent-browser fill "#login-form input.email" "user@example.com"
+# Healing log:
+# [heal] CSS selector "#login-form input.email" not found
+# [heal] strategy=structural-path -> found input via form[name=login] > input[type=email]
+```
+
+## Configuration
+
+### YAML config
+
+```yaml
+# agent-browser.config.yaml
+healing:
+  enabled: true
+  strategies:
+    - text-match
+    - nearby-ref
+    - role-name
+    - structural-path
+  max-attempts: 3
+  confidence-threshold: 0.8
+
+retry:
+  max-retries: 2
+  delay-ms: 500
+  backoff: exponential
+```
+
+### CLI flags
+
+```bash
+agent-browser --healing on click "#submit"
+agent-browser --healing off click "#submit"    # Disable for this command
+agent-browser --retry 3 click "#submit"        # Override retry count
+agent-browser --retry-delay 1000 click "#submit"  # Override delay
+```
+
+## Healing log output
+
+When healing occurs, the command output includes a healing log:
+
+```bash
+agent-browser click "#old-btn"
+# [heal] primary selector "#old-btn" not found in DOM
+# [heal] trying strategy: text-match
+# [heal] candidate: button "Submit" (confidence: 0.95)
+# [heal] healed selector: "button:has-text('Submit')" -> clicked successfully
+# Clicked: button "Submit"
+```
+
+Disable healing log with `--quiet` or set `healing.log: false` in config.
+
+## Best practices
+
+1. Enable healing in config for long-running automation flows
+2. Review healing logs to identify selectors that break frequently
+3. Use `--healing off` for assertions where exact element matching is required
+4. Set `confidence-threshold` above 0.7 to avoid false-positive matches
+5. Combine with snapshot-based refs for best reliability

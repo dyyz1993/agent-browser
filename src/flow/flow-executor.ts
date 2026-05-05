@@ -333,9 +333,9 @@ export class FlowExecutor {
         const field = step.dedupField || 'url';
         const data = this.context.results[sourceVar];
         if (Array.isArray(data)) {
-          const seen = new Set();
+          const seen = new Set<unknown>();
           this.context.results[sourceVar] = data.filter((item) => {
-            const key = (item as any)[field];
+            const key = (item as Record<string, unknown>)[field];
             if (seen.has(key)) return false;
             seen.add(key);
             return true;
@@ -531,7 +531,9 @@ export class FlowExecutor {
       if (typeof parsed === 'string') {
         try {
           parsed = JSON.parse(parsed);
-        } catch {}
+        } catch (_e) {
+          // Intentionally ignored: non-JSON eval result kept as string
+        }
       }
       this.context.results[step.outputVar] = parsed;
     }
@@ -934,8 +936,8 @@ export class FlowExecutor {
 
     const result = await executeCommand(parseCliArgs(['addinitscript', script]), this.browser);
 
-    if (isSuccessResponse(result) && (result as any).tips?.length) {
-      console.log('[captureScript] Tips:', (result as any).tips);
+    if (isSuccessResponse(result) && (result.data as Record<string, unknown>)?.tips) {
+      console.log('[captureScript] Tips:', (result.data as Record<string, unknown>).tips);
     }
   }
 
@@ -1032,7 +1034,7 @@ export class FlowExecutor {
       this.browser
     );
     if (isSuccessResponse(result)) {
-      const raw = (result.data as any).result;
+      const raw = (result.data as { result?: unknown }).result;
       try {
         const captured = typeof raw === 'string' ? JSON.parse(raw) : raw;
         return Array.isArray(captured) ? captured : [];
@@ -1065,11 +1067,11 @@ export class FlowExecutor {
 
     const result = await executeCommand(parseCliArgs(args), this.browser);
     if (isSuccessResponse(result)) {
-      const data = result.data as { requests?: any[] };
+      const data = result.data as { requests?: Array<Record<string, unknown>> };
       const requests = data.requests || [];
       const apiData = requests
-        .filter((r: any) => r.responseBody)
-        .map((r: any) => ({
+        .filter((r) => r.responseBody)
+        .map((r) => ({
           url: r.url,
           method: r.method,
           status: r.status,
@@ -1115,7 +1117,7 @@ export class FlowExecutor {
     const container = config.container || 'body';
     const fields = step.fields || {};
 
-    let layer1Data: any[] = [];
+    let layer1Data: unknown[] = [];
     try {
       const apiUrl = config.apiUrl || config.apiFilter || '';
       if (apiUrl) {
@@ -1123,10 +1125,11 @@ export class FlowExecutor {
         if (apiUrl) args.push('--filter', apiUrl);
         const result = await executeCommand(parseCliArgs(args), this.browser);
         if (isSuccessResponse(result)) {
-          const requests = (result.data as any).requests || [];
+          const requests =
+            (result.data as { requests?: Array<Record<string, unknown>> }).requests || [];
           layer1Data = requests
-            .filter((r: any) => r.responseBody)
-            .map((r: any) => {
+            .filter((r) => r.responseBody)
+            .map((r) => {
               const body = r.responseBody;
               if (typeof body === 'string') {
                 try {
@@ -1149,19 +1152,29 @@ export class FlowExecutor {
       return;
     }
 
-    let layer2Data: any[] = [];
+    let layer2Data: unknown[] = [];
     try {
       const captured = await this.readCapturedData();
       if (config.scriptFilter) {
         layer2Data = captured.filter(
-          (item: any) => item.url && item.url.includes(config.scriptFilter!)
+          (item) =>
+            typeof item === 'object' &&
+            item !== null &&
+            'url' in item &&
+            String((item as Record<string, unknown>).url).includes(config.scriptFilter!)
         );
       } else {
-        layer2Data = captured as any[];
+        layer2Data = captured;
       }
       layer2Data = layer2Data
-        .filter((item: any) => item.body)
-        .map((item: any) => (typeof item.body === 'string' ? JSON.parse(item.body) : item.body))
+        .filter(
+          (item) =>
+            typeof item === 'object' && item !== null && 'body' in (item as Record<string, unknown>)
+        )
+        .map((item) => {
+          const body = (item as Record<string, unknown>).body;
+          return typeof body === 'string' ? JSON.parse(body) : body;
+        })
         .filter(Boolean);
     } catch {
       /* Layer 2 failed, try next */
@@ -1226,7 +1239,9 @@ export class FlowExecutor {
       if ((await primary.count()) > 0) {
         return primarySelector;
       }
-    } catch {}
+    } catch (_e) {
+      // Intentionally ignored: primary selector check failed, proceeding to healing
+    }
 
     let attemptCount = 0;
 
@@ -1249,7 +1264,9 @@ export class FlowExecutor {
               });
               return fallback;
             }
-          } catch {}
+          } catch (_e) {
+            // Intentionally ignored: fallback selector check failed, trying next
+          }
         }
       } else if (
         strategy === 'identity_text' ||
@@ -1293,7 +1310,9 @@ export class FlowExecutor {
           });
           return selector;
         }
-      } catch {}
+      } catch (_e) {
+        // Intentionally ignored: identity_text healing strategy failed
+      }
     }
 
     if ((!onlyStrategy || onlyStrategy === 'identity_attr') && identity.attributes) {
@@ -1311,7 +1330,9 @@ export class FlowExecutor {
             });
             return selector;
           }
-        } catch {}
+        } catch (_e) {
+          // Intentionally ignored: identity_attr healing strategy failed for this attribute
+        }
       }
     }
 
@@ -1331,7 +1352,9 @@ export class FlowExecutor {
             return selector;
           }
         }
-      } catch {}
+      } catch (_e) {
+        // Intentionally ignored: identity_parent healing strategy failed
+      }
     }
 
     return null;
@@ -1407,7 +1430,9 @@ export class FlowExecutor {
           }),
         { timeout }
       )
-      .catch(() => {});
+      .catch((_e) => {
+        // Intentionally ignored: DOM stable wait timed out, continuing
+      });
   }
 
   getHealingLog(): HealingLogEntry[] {

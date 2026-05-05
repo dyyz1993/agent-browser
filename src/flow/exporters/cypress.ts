@@ -78,6 +78,213 @@ export class CypressExporter implements ScriptExporter {
         break;
       }
 
+      case 'extract': {
+        const container = step.container || 'body';
+        const fields = step.fields || {};
+        const varName = step.outputVar || 'extracted';
+        const entries = Object.entries(fields).map(([name, def]) => {
+          if (typeof def === 'string') {
+            return `${name}: el.querySelector('${def}')?.textContent?.trim() || ''`;
+          }
+          return `${name}: el.querySelector('${def.selector}')?.textContent?.trim() || ''`;
+        });
+        lines.push(`${indent}const ${varName} = [];`);
+        lines.push(`${indent}cy.get('${escape(container)}').each((el) => {`);
+        lines.push(`${indent}  ${varName}.push({ ${entries.join(', ')} });`);
+        lines.push(`${indent}});`);
+        break;
+      }
+
+      case 'eval': {
+        const script = step.value || '';
+        lines.push(`${indent}cy.window().then((win) => {`);
+        lines.push(`${indent}  win.eval('${escape(script)}');`);
+        lines.push(`${indent}});`);
+        break;
+      }
+
+      case 'screenshot': {
+        if (step.selector) {
+          lines.push(`${indent}cy.get('${escape(step.selector)}').screenshot();`);
+        } else {
+          lines.push(`${indent}cy.screenshot();`);
+        }
+        break;
+      }
+
+      case 'scrollUntil': {
+        const direction = step.scrollDirection || 'down';
+        const amount = step.scrollAmount || 300;
+        const sel = step.selector || step.scrollContainer || '';
+        if (sel) {
+          lines.push(
+            `${indent}cy.get('${escape(sel)}').scrollTo('${direction === 'down' ? 'bottom' : 'top'}');`
+          );
+        } else {
+          lines.push(`${indent}cy.scrollTo(0, ${direction === 'down' ? amount : -amount});`);
+        }
+        break;
+      }
+
+      case 'paginate': {
+        const nextSel = step.nextSelector || '';
+        if (nextSel) {
+          lines.push(`${indent}cy.get('${escape(nextSel)}').click();`);
+        }
+        break;
+      }
+
+      case 'forEach':
+      case 'forEachItem': {
+        const itemSel = step.itemSelector || step.container || '';
+        const subSteps = step.subSteps || step.itemSteps || [];
+        if (itemSel) {
+          lines.push(`${indent}cy.get('${escape(itemSel)}').each((el) => {`);
+          for (const sub of subSteps) {
+            const subLines = this.exportStep(sub);
+            for (const line of subLines) {
+              lines.push(`${indent}  ${line.trim()}`);
+            }
+          }
+          lines.push(`${indent}});`);
+        }
+        break;
+      }
+
+      case 'condition': {
+        const cond = step.condition || step.conditionJs || '';
+        const thenSteps = step.thenSteps || [];
+        const elseSteps = step.elseSteps || [];
+        if (cond) {
+          lines.push(`${indent}cy.window().then((win) => {`);
+          lines.push(`${indent}  if (win.eval('${escape(cond)}')) {`);
+          for (const s of thenSteps) {
+            const subLines = this.exportStep(s);
+            for (const line of subLines) {
+              lines.push(`${indent}    ${line.trim()}`);
+            }
+          }
+          if (elseSteps.length > 0) {
+            lines.push(`${indent}  } else {`);
+            for (const s of elseSteps) {
+              const subLines = this.exportStep(s);
+              for (const line of subLines) {
+                lines.push(`${indent}    ${line.trim()}`);
+              }
+            }
+          }
+          lines.push(`${indent}  }`);
+          lines.push(`${indent}});`);
+        }
+        break;
+      }
+
+      case 'repeatWhile': {
+        const loopSteps = step.loopSteps || step.subSteps || [];
+        const cond = step.condition || step.conditionJs || '';
+        lines.push(`${indent}// repeatWhile: ${cond || 'loop'}`);
+        for (const s of loopSteps) {
+          lines.push(...this.exportStep(s));
+        }
+        break;
+      }
+
+      case 'collectAll': {
+        const collectSteps = step.collectSteps || step.subSteps || [];
+        lines.push(`${indent}// collectAll`);
+        for (const s of collectSteps) {
+          lines.push(...this.exportStep(s));
+        }
+        break;
+      }
+
+      case 'smartExtract': {
+        const config = step.smartExtractConfig;
+        if (config?.container) {
+          lines.push(`${indent}// smartExtract on '${escape(config.container)}'`);
+        } else {
+          lines.push(`${indent}// smartExtract`);
+        }
+        break;
+      }
+
+      case 'detectBlocking': {
+        lines.push(`${indent}// detectBlocking - manual review needed`);
+        break;
+      }
+
+      case 'humanHelp':
+      case 'waitForHuman': {
+        lines.push(
+          `${indent}// ${step.action}: ${escape(step.intervention?.message || 'requires human intervention')}`
+        );
+        break;
+      }
+
+      case 'autoRecover': {
+        lines.push(`${indent}// autoRecover`);
+        break;
+      }
+
+      case 'captureScript': {
+        lines.push(`${indent}// captureScript: ${escape(step.file || '')}`);
+        break;
+      }
+
+      case 'readCapture': {
+        lines.push(`${indent}// readCapture: ${escape(step.file || '')}`);
+        break;
+      }
+
+      case 'captureAPI': {
+        const apiUrl = step.apiUrl || '';
+        lines.push(`${indent}cy.intercept('${escape(apiUrl)}').as('capturedApi');`);
+        break;
+      }
+
+      case 'readAPI': {
+        lines.push(`${indent}cy.wait('@capturedApi').then((interception) => {`);
+        lines.push(
+          `${indent}  // ${escape(step.outputVar || 'apiData')} = interception.response.body`
+        );
+        lines.push(`${indent}});`);
+        break;
+      }
+
+      case 'interceptRoute': {
+        const apiUrl = step.apiUrl || '';
+        const mockResponse = step.mockResponse || '';
+        const mockStatus = step.mockStatus || 200;
+        lines.push(`${indent}cy.intercept('${escape(apiUrl)}', {`);
+        lines.push(`${indent}  statusCode: ${mockStatus},`);
+        lines.push(`${indent}  body: '${escape(mockResponse)}'`);
+        lines.push(`${indent}});`);
+        break;
+      }
+
+      case 'removeRoute': {
+        lines.push(`${indent}// removeRoute - Cypress routes are request-scoped`);
+        break;
+      }
+
+      case 'formatOutput': {
+        lines.push(`${indent}// formatOutput: ${escape(step.outputFormat || '')}`);
+        break;
+      }
+
+      case 'deduplicate': {
+        lines.push(`${indent}// deduplicate on field: ${escape(step.dedupField || '')}`);
+        break;
+      }
+
+      case 'clickPaginate': {
+        const nextSel = step.nextSelector || '';
+        if (nextSel) {
+          lines.push(`${indent}cy.get('${escape(nextSel)}').click();`);
+        }
+        break;
+      }
+
       case 'snapshot':
         break;
 

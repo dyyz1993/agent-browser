@@ -1,0 +1,157 @@
+export const metadata = { title: 'Recording & Replay' };
+
+# Recording & Replay
+
+Record browser interactions and replay them later. Useful for building test scripts, reproducing bugs, and automating repetitive flows.
+
+## Basic recording
+
+### Start recording
+
+```bash
+agent-browser record start
+# Recording started (session: default)
+```
+
+All subsequent commands are captured in the recording buffer.
+
+### Stop recording
+
+```bash
+agent-browser record stop
+# Recording stopped. 7 actions captured.
+```
+
+### Replay a recording
+
+```bash
+agent-browser flow run <flow-file>
+```
+
+## Full workflow
+
+```bash
+# 1. Open a page
+agent-browser open https://example.com
+
+# 2. Start recording
+agent-browser record start
+
+# 3. Perform actions (these are recorded)
+agent-browser fill "#email" "user@example.com"
+agent-browser fill "#password" "s3cret"
+agent-browser click "#submit"
+agent-browser wait --text "Dashboard"
+
+# 4. Stop recording
+agent-browser record stop
+
+# 5. Export the recording
+agent-browser export playwright --output tests/login.spec.ts
+
+# 6. Or save as a flow for later replay
+agent-browser flow save login-flow
+
+# 7. Replay the flow
+agent-browser flow run login-flow
+```
+
+## Enhanced recording features
+
+### Fallback selectors
+
+Each recorded action stores multiple selector strategies. If the primary selector breaks during replay, fallback selectors are tried automatically.
+
+```bash
+agent-browser record start
+# Each action stores:
+#   primary:   #submit-btn
+#   fallbacks: [data-testid=submit], button:has-text("Submit"), role=button[name="Submit"]
+agent-browser record stop
+```
+
+This pairs with the [self-healing](/self-healing) system during replay.
+
+### Element identity tracking
+
+Recordings track element identity beyond just selectors. When the page structure changes, the replay engine uses identity heuristics to find the right element.
+
+Tracked identity properties:
+
+- **Text content** - Visible text of the element
+- **ARIA role + name** - Semantic identity
+- **Position hint** - Relative position in the DOM tree
+- **Nearby landmarks** - Parent form, heading, or section
+
+### SPA URL detection
+
+Single-page application navigations are detected and recorded properly:
+
+```bash
+agent-browser record start
+agent-browser click "#nav-link"      # SPA route change (no full page load)
+agent-browser wait --url "**/dashboard"
+agent-browser click "#settings-tab"  # Another SPA route change
+agent-browser record stop
+# Recording captures:
+#   action: click #nav-link
+#   expected_url: /dashboard
+#   wait_strategy: url_pattern
+```
+
+During replay, the engine waits for the URL to match before proceeding to the next action, even without a full page reload.
+
+### DOM stability detection
+
+Before recording each action, the engine waits for the DOM to stabilize. This prevents recording actions against elements that are still animating or loading.
+
+```bash
+agent-browser record start --stability-timeout 2000
+# Waits up to 2000ms for DOM mutations to settle between actions
+```
+
+Stability is detected by monitoring:
+
+1. No new DOM mutations for 500ms
+2. Network requests have settled (no pending XHR)
+3. No active CSS transitions or animations
+
+## Recording options
+
+| Option                     | Description                                                |
+| -------------------------- | ---------------------------------------------------------- |
+| `--stability-timeout <ms>` | Max wait for DOM stability between actions (default: 1000) |
+| `--include-screenshots`    | Capture screenshot after each action                       |
+| `--include-network`        | Record network requests in the flow                        |
+| `--capture-html`           | Save HTML snapshot at each step                            |
+
+## Flow management
+
+```bash
+agent-browser flow save <name>              # Save current recording as a flow
+agent-browser flow run <name>               # Replay a saved flow
+agent-browser flow list                     # List saved flows
+agent-browser flow delete <name>            # Delete a saved flow
+agent-browser flow export <name> <format>   # Export flow to test script
+```
+
+### Run options
+
+```bash
+agent-browser flow run <name> --speed 0.5   # Slow replay (0.1 - 2.0, default 1.0)
+agent-browser flow run <name> --headless    # Run in headless mode
+agent-browser flow run <name> --stop-on-error  # Stop on first failure
+agent-browser flow run <name> --session ci  # Use named session
+```
+
+## Combining with script export
+
+See [Script Export](/script-export) for converting recordings to Playwright, Cypress, Selenium, or Python test scripts.
+
+## Best practices
+
+1. Use `--stability-timeout` on dynamic sites to avoid recording mid-transition
+2. Add explicit `wait` commands in your recording for reliable replay
+3. Export to a test framework for CI/CD integration
+4. Use `--include-screenshots` to create visual documentation of flows
+5. Combine with [self-healing](/self-healing) for resilient replays on changing pages

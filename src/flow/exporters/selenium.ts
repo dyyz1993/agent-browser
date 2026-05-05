@@ -1,4 +1,4 @@
-import type { FlowStep } from '../types.js';
+import type { FlowStep, ExtractField } from '../types.js';
 import type { ScriptExporter, ExportOptions } from './types.js';
 
 export class SeleniumExporter implements ScriptExporter {
@@ -15,7 +15,9 @@ export class SeleniumExporter implements ScriptExporter {
     lines.push('from selenium.webdriver.common.by import By');
     lines.push('from selenium.webdriver.common.keys import Keys');
     lines.push('from selenium.webdriver.support.ui import WebDriverWait');
+    lines.push('from selenium.webdriver.support.ui import Select');
     lines.push('from selenium.webdriver.support import expected_conditions as EC');
+    lines.push('from selenium.webdriver.common.action_chains import ActionChains');
     lines.push('import time');
     lines.push('');
     lines.push('');
@@ -107,6 +109,245 @@ export class SeleniumExporter implements ScriptExporter {
         break;
       }
 
+      case 'extract': {
+        const container = step.container || 'body';
+        const fields = step.fields || {};
+        const varName = step.outputVar || 'extracted';
+        lines.push(`${indent}${varName} = []`);
+        lines.push(
+          `${indent}elements = driver.find_elements(By.CSS_SELECTOR, '${escape(container)}')`
+        );
+        lines.push(`${indent}for el in elements:`);
+        const entries = Object.entries(fields);
+        for (const [name, def] of entries) {
+          if (typeof def === 'string') {
+            lines.push(
+              `${indent}    ${name} = el.find_element(By.CSS_SELECTOR, '${escape(def)}').text.strip() if el.find_elements(By.CSS_SELECTOR, '${escape(def)}') else ''`
+            );
+          } else {
+            const ef = def as ExtractField;
+            if (ef.attribute) {
+              lines.push(
+                `${indent}    ${name} = el.find_element(By.CSS_SELECTOR, '${escape(ef.selector)}').get_attribute('${escape(ef.attribute)}') if el.find_elements(By.CSS_SELECTOR, '${escape(ef.selector)}') else ''`
+              );
+            } else {
+              lines.push(
+                `${indent}    ${name} = el.find_element(By.CSS_SELECTOR, '${escape(ef.selector)}').text.strip() if el.find_elements(By.CSS_SELECTOR, '${escape(ef.selector)}') else ''`
+              );
+            }
+          }
+        }
+        if (entries.length > 0) {
+          lines.push(
+            `${indent}    ${varName}.append({ ${entries.map(([n]) => `'${n}': ${n}`).join(', ')} })`
+          );
+        }
+        break;
+      }
+
+      case 'eval': {
+        const script = step.value || '';
+        const varName = step.outputVar;
+        if (varName) {
+          lines.push(`${indent}${varName} = driver.execute_script('${escapePy(script)}')`);
+        } else {
+          lines.push(`${indent}driver.execute_script('${escapePy(script)}')`);
+        }
+        break;
+      }
+
+      case 'screenshot': {
+        const file = step.file || 'screenshot.png';
+        if (step.selector) {
+          lines.push(
+            `${indent}element = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '${escape(
+              step.selector
+            )}')))`
+          );
+          lines.push(`${indent}element.screenshot('${escape(file)}')`);
+        } else {
+          lines.push(`${indent}driver.save_screenshot('${escape(file)}')`);
+        }
+        break;
+      }
+
+      case 'scrollUntil': {
+        const direction = step.scrollDirection || 'down';
+        const amount = step.scrollAmount || 300;
+        const sign = direction === 'up' ? '-' : '';
+        lines.push(`${indent}driver.execute_script("window.scrollBy(0, ${sign}${amount})")`);
+        break;
+      }
+
+      case 'paginate': {
+        const nextSel = step.nextSelector || '';
+        if (nextSel) {
+          lines.push(
+            `${indent}element = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, '${escape(
+              nextSel
+            )}')))`
+          );
+          lines.push(`${indent}element.click()`);
+        }
+        break;
+      }
+
+      case 'clickPaginate': {
+        const nextSel = step.nextSelector || '';
+        if (nextSel) {
+          lines.push(
+            `${indent}element = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, '${escape(
+              nextSel
+            )}')))`
+          );
+          lines.push(`${indent}element.click()`);
+        }
+        break;
+      }
+
+      case 'forEach':
+      case 'forEachItem': {
+        const itemSel = step.itemSelector || step.container || '';
+        const subSteps = step.subSteps || step.itemSteps || [];
+        if (itemSel) {
+          lines.push(
+            `${indent}items = driver.find_elements(By.CSS_SELECTOR, '${escape(itemSel)}')`
+          );
+          lines.push(`${indent}for item in items:`);
+          if (subSteps.length === 0) {
+            lines.push(`${indent}    pass`);
+          }
+          for (const sub of subSteps) {
+            const subLines = this.exportStep(sub);
+            for (const line of subLines) {
+              lines.push(`    ${line}`);
+            }
+          }
+        }
+        break;
+      }
+
+      case 'condition': {
+        const cond = step.condition || step.conditionJs || '';
+        const thenSteps = step.thenSteps || [];
+        const elseSteps = step.elseSteps || [];
+        if (cond) {
+          lines.push(`${indent}if driver.execute_script('${escapePy(cond)}'):`);
+          for (const s of thenSteps) {
+            const subLines = this.exportStep(s);
+            for (const line of subLines) {
+              lines.push(`    ${line}`);
+            }
+          }
+          if (elseSteps.length > 0) {
+            lines.push(`${indent}else:`);
+            for (const s of elseSteps) {
+              const subLines = this.exportStep(s);
+              for (const line of subLines) {
+                lines.push(`    ${line}`);
+              }
+            }
+          }
+        }
+        break;
+      }
+
+      case 'repeatWhile': {
+        const loopSteps = step.loopSteps || step.subSteps || [];
+        const cond = step.condition || step.conditionJs || '';
+        lines.push(`${indent}while driver.execute_script('${escapePy(cond || 'true')}'):`);
+        if (loopSteps.length === 0) {
+          lines.push(`${indent}    break`);
+        }
+        for (const s of loopSteps) {
+          const subLines = this.exportStep(s);
+          for (const line of subLines) {
+            lines.push(`    ${line}`);
+          }
+        }
+        break;
+      }
+
+      case 'collectAll': {
+        const collectSteps = step.collectSteps || step.subSteps || [];
+        lines.push(`${indent}# collectAll`);
+        for (const s of collectSteps) {
+          lines.push(...this.exportStep(s));
+        }
+        break;
+      }
+
+      case 'smartExtract': {
+        const config = step.smartExtractConfig;
+        lines.push(`${indent}# smartExtract`);
+        if (config?.container) {
+          lines.push(`${indent}# container: ${escape(config.container)}`);
+        }
+        break;
+      }
+
+      case 'detectBlocking': {
+        lines.push(`${indent}# detectBlocking - manual review needed`);
+        break;
+      }
+
+      case 'humanHelp':
+      case 'waitForHuman': {
+        lines.push(
+          `${indent}# ${step.action}: ${escape(step.intervention?.message || 'requires human intervention')}`
+        );
+        break;
+      }
+
+      case 'autoRecover': {
+        lines.push(`${indent}# autoRecover`);
+        break;
+      }
+
+      case 'captureScript': {
+        lines.push(`${indent}# captureScript: ${escape(step.file || '')}`);
+        break;
+      }
+
+      case 'readCapture': {
+        lines.push(`${indent}# readCapture: ${escape(step.file || '')}`);
+        break;
+      }
+
+      case 'captureAPI': {
+        lines.push(`${indent}# captureAPI: ${escape(step.apiUrl || '')}`);
+        break;
+      }
+
+      case 'readAPI': {
+        lines.push(`${indent}# readAPI: ${escape(step.apiUrl || '')}`);
+        break;
+      }
+
+      case 'interceptRoute': {
+        const apiUrl = step.apiUrl || '';
+        const mockResponse = step.mockResponse || '';
+        const mockStatus = step.mockStatus || 200;
+        lines.push(`${indent}# interceptRoute: ${escape(apiUrl)} -> ${mockStatus}`);
+        lines.push(`${indent}# Selenium does not support request interception natively`);
+        break;
+      }
+
+      case 'removeRoute': {
+        lines.push(`${indent}# removeRoute - not supported in Selenium`);
+        break;
+      }
+
+      case 'formatOutput': {
+        lines.push(`${indent}# formatOutput: ${escape(step.outputFormat || '')}`);
+        break;
+      }
+
+      case 'deduplicate': {
+        lines.push(`${indent}# deduplicate on field: ${escape(step.dedupField || '')}`);
+        break;
+      }
+
       case 'snapshot':
         break;
 
@@ -120,4 +361,8 @@ export class SeleniumExporter implements ScriptExporter {
 
 function escape(str: string): string {
   return str.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+function escapePy(s: string): string {
+  return s.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n');
 }

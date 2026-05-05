@@ -638,7 +638,7 @@ export async function startDaemon(options?: { provider?: string }): Promise<void
                   const tipsArray = Array.isArray(existingTips) ? existingTips : [existingTips];
                   (response as any).tips = [urlTip, ...tipsArray];
                 } else {
-                  (response as any).tips = [urlTip];
+                  (response as { tips?: string[] }).tips = [urlTip];
                 }
               }
               lastUrl = currentUrl;

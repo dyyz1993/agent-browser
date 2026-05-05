@@ -636,7 +636,9 @@ export async function generateStableSelectors(
             const uniqueSelector = makeUniqueWithNth(element, baseSelector);
             try {
               if (document.querySelectorAll(uniqueSelector).length === 1) return uniqueSelector;
-            } catch {}
+            } catch (_e) {
+              // Intentionally ignored: invalid CSS selector in tryNthChild
+            }
             return null;
           }
 
@@ -719,7 +721,9 @@ export async function generateStableSelectors(
           xpath: selectorData.xpath,
         };
       }
-    } catch {}
+    } catch (_e) {
+      // Intentionally ignored: element ref generation failed for this element
+    }
   }
 
   return result;

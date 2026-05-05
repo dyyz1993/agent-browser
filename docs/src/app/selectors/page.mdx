@@ -1,6 +1,23 @@
-export const metadata = { title: "Selectors" }
+export const metadata = { title: 'Selectors' };
 
 # Selectors
+
+## 8-strategy selector algorithm
+
+When you pass a selector to any command, agent-browser tries 8 strategies in order until one resolves to a DOM element:
+
+| Priority | Strategy      | Example                            | Match by                             |
+| -------- | ------------- | ---------------------------------- | ------------------------------------ |
+| 1        | Ref           | `@e3`                              | Snapshot ref from accessibility tree |
+| 2        | CSS ID        | `#submit-btn`                      | Element `id` attribute               |
+| 3        | CSS class     | `.btn-primary`                     | CSS class selector                   |
+| 4        | CSS attribute | `[data-testid='submit']`           | Attribute selector                   |
+| 5        | Text          | `text=Submit`                      | Visible text content                 |
+| 6        | XPath         | `xpath=//button[@type='submit']`   | XPath expression                     |
+| 7        | Role + name   | `role=button[name="Submit"]`       | ARIA role and accessible name        |
+| 8        | Structural    | `form > div:nth-child(2) > button` | DOM tree path                        |
+
+The first strategy that matches exactly one element wins. If multiple elements match, the selector is narrowed using visibility and position heuristics.
 
 ## Refs (recommended)
 
@@ -32,12 +49,12 @@ agent-browser hover @e4                   # Hover the link
 
 ### Supported ref formats
 
-| Format | Example | Notes |
-|--------|---------|-------|
-| `@eN` | `@e2` | Recommended, concise |
+| Format     | Example     | Notes                                |
+| ---------- | ----------- | ------------------------------------ |
+| `@eN`      | `@e2`       | Recommended, concise                 |
 | `[ref=eN]` | `[ref=e16]` | AI-friendly, matches snapshot output |
-| `eN` | `e2` | Bare ref name |
-| `ref=eN` | `ref=e2` | Alternative prefix format |
+| `eN`       | `e2`        | Bare ref name                        |
+| `ref=eN`   | `ref=e2`    | Alternative prefix format            |
 
 ## CSS selectors
 
@@ -65,3 +82,72 @@ agent-browser find label "Email" fill "test@test.com"
 agent-browser find placeholder "Search..." fill "query"
 agent-browser find testid "submit-btn" click
 ```
+
+## Snapshot selector tools
+
+Inspect and validate selectors without performing actions:
+
+```bash
+agent-browser snapshot --selector-for "#submit"    # Show which element a selector matches
+agent-browser snapshot --selectors-of "@e3"         # Show all selectors for a ref
+agent-browser snapshot --validate "#submit"          # Check if selector resolves (exit code 0/1)
+```
+
+### --selector-for
+
+Given a CSS selector, shows the matching element and its ref:
+
+```bash
+agent-browser snapshot --selector-for "#email"
+# Matches: @e3 [textbox] "Email" placeholder="Enter email"
+# Strategy: CSS ID
+```
+
+### --selectors-of
+
+Given a ref, shows all possible selectors for that element:
+
+```bash
+agent-browser snapshot --selectors-of "@e3"
+# Ref @e3 resolves to:
+#   CSS:     #email
+#   CSS:     input[name="email"]
+#   CSS:     [data-testid="email-input"]
+#   Text:    label "Email"
+#   XPath:   //input[@type="email"]
+#   Role:    role=textbox[name="Email"]
+```
+
+### --validate
+
+Check if a selector resolves without error. Returns exit code 0 if found, 1 if not:
+
+```bash
+agent-browser snapshot --validate "#submit-btn"
+# Valid: resolves to 1 element
+
+agent-browser snapshot --validate ".nonexistent"
+# Invalid: no elements found (exit code 1)
+```
+
+Useful in CI scripts to verify selectors before running tests.
+
+## Lazy selector generation
+
+Selectors are generated lazily when first needed, not upfront. This means:
+
+- **Less overhead** - Selectors for unused elements are never computed
+- **Faster snapshots** - Only refs are returned immediately
+- **On-demand detail** - Use `--selectors-of` to generate when needed
+
+## Session scope
+
+Selectors and refs are scoped to the current session. Each session maintains its own selector cache:
+
+```bash
+agent-browser --session test1 snapshot -i
+agent-browser --session test2 snapshot -i
+# Each session has independent refs and selector state
+```
+
+See [Sessions](/sessions) for more on isolated browser instances.

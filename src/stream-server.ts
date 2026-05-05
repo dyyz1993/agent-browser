@@ -895,7 +895,9 @@ export class StreamServer {
       const viewport = page.viewportSize();
       viewportWidth = viewport?.width;
       viewportHeight = viewport?.height;
-    } catch {}
+    } catch (_e) {
+      // Intentionally ignored: browser page not available during status check
+    }
 
     const message: StatusMessage = {
       type: 'status',
@@ -1019,7 +1021,9 @@ export class StreamServer {
             document.body.style.opacity = '';
           });
         });
-      } catch {}
+      } catch (_e) {
+        // Intentionally ignored: force re-render eval failed
+      }
     } catch (error) {
       this.isScreencasting = false;
       throw error;

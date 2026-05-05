@@ -1,0 +1,37 @@
+name: form-fill-example
+description: "Example: Fill and submit a login form"
+
+steps:
+  - action: navigate
+    url: "https://example.com/login"
+  - action: fill
+    selector: "input[name='username']"
+    fallbackSelectors:
+      - "#username"
+      - "[data-testid='username-input']"
+    elementIdentity:
+      tagName: "input"
+      attributes:
+        name: "username"
+    value: "testuser"
+  - action: fill
+    selector: "input[name='password']"
+    fallbackSelectors:
+      - "#password"
+      - "[type='password']"
+    value: "testpass123"
+  - action: click
+    selector: "button[type='submit']"
+    fallbackSelectors:
+      - ".login-btn"
+      - "[data-testid='login-button']"
+    elementIdentity:
+      tagName: "button"
+      textContent: "Login"
+  - action: wait
+    value: "2000"
+
+healing:
+  enabled: true
+  strategies: [fallback, identity_text, identity_attr]
+  maxAttempts: 3

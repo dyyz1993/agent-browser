@@ -1,16 +1,16 @@
-import { codeToHtml } from "shiki";
-import { CopyButton } from "./copy-button";
+import { codeToHtml } from 'shiki';
+import { CopyButton } from './copy-button';
 
 interface CodeBlockProps {
   code: string;
   lang?: string;
 }
 
-export async function CodeBlock({ code, lang = "bash" }: CodeBlockProps) {
+export async function CodeBlock({ code, lang = 'bash' }: CodeBlockProps) {
   const trimmedCode = code.trim();
   const html = await codeToHtml(trimmedCode, {
     lang,
-    theme: "github-dark-default",
+    theme: 'github-dark-default',
   });
 
   return (
