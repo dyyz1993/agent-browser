@@ -21,7 +21,8 @@ describe('network command', () => {
       const cmd = parseCliArgs(['network', 'route', '**/api/**', '--body', '{"status":200}']);
       expect(cmd.action).toBe('route');
       expect(cmd.url).toBe('**/api/**');
-      expect(cmd.body).toBe('{"status":200}');
+      expect(cmd.response).toBeDefined();
+      expect((cmd.response as any).body).toBe('{"status":200}');
     });
 
     it('should throw error when URL is missing', () => {
