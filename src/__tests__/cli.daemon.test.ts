@@ -31,7 +31,7 @@ function runCli(
     if (CHROMIUM_PATH) {
       env.AGENT_BROWSER_EXECUTABLE_PATH = CHROMIUM_PATH;
     }
-    const proc = spawn('npx', ['tsx', CLI_PATH, ...args], {
+    const proc = spawn('node', ['--import', 'tsx', CLI_PATH, ...args], {
       env,
       shell: true,
     });
