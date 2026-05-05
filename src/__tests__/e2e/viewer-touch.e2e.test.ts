@@ -3,9 +3,9 @@ import http from 'http';
 import { BrowserManager } from '../../browser.js';
 import { StreamServer } from '../../stream-server.js';
 import { getViewerHtml } from '../../viewer-html.js';
-import { getFixturePath } from './utils/test-helpers.js';
+import { getFixturePath, getChromiumExecutablePath } from './utils/test-helpers.js';
 
-const EXEC = '/Applications/Chromium.app/Contents/MacOS/Chromium';
+const EXEC = getChromiumExecutablePath();
 
 describe('Virtual Touchpad - Touch -> Mouse -> WebSocket Pipeline', () => {
   let browser: BrowserManager;

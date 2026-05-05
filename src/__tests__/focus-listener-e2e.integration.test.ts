@@ -1,6 +1,15 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { chromium, type Browser, type Page, type CDPSession } from 'playwright';
 
+function getChromiumPath(): string | undefined {
+  if (process.env.AGENT_BROWSER_EXECUTABLE_PATH) return process.env.AGENT_BROWSER_EXECUTABLE_PATH;
+  try {
+    return chromium.executablePath();
+  } catch {
+    return undefined;
+  }
+}
+
 describe.skip('injectFocusListener - E2E integration (real browser)', () => {
   let browser: Browser;
   let page: Page;
@@ -9,7 +18,7 @@ describe.skip('injectFocusListener - E2E integration (real browser)', () => {
 
   beforeAll(async () => {
     browser = await chromium.launch({
-      executablePath: '/Applications/Chromium.app/Contents/MacOS/Chromium',
+      executablePath: getChromiumPath(),
       headless: true,
     });
     const context = await browser.newContext();

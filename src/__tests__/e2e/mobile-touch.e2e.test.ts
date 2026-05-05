@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { BrowserManager } from '../../browser.js';
-import { getFixturePath } from './utils/test-helpers.js';
+import { getFixturePath, getChromiumExecutablePath } from './utils/test-helpers.js';
 import type { CDPSession } from 'playwright-core';
 
-const EXECUTABLE_PATH = '/Applications/Chromium.app/Contents/MacOS/Chromium';
+const EXECUTABLE_PATH = getChromiumExecutablePath();
 
 describe('Mobile Touch Events - E2E Tests', () => {
   let browser: BrowserManager;

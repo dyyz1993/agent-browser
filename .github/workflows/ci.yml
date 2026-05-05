@@ -50,6 +50,20 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps chromium
 
+      - name: Set Chromium path
+        run: |
+          CHROMIUM_PATH=$(pnpm exec playwright-core install --dry-run chromium 2>/dev/null | grep -oP '/[^ ]*chrome[^ ]*' | head -1 || true)
+          if [ -z "$CHROMIUM_PATH" ]; then
+            CHROMIUM_PATH=$(find ~/.cache/ms-playwright -name "chrome" -o -name "chromium" -o -name "chrome-headless-shell" 2>/dev/null | head -1 || true)
+          fi
+          if [ -n "$CHROMIUM_PATH" ]; then
+            echo "AGENT_BROWSER_EXECUTABLE_PATH=$CHROMIUM_PATH" >> $GITHUB_ENV
+            echo "Chromium path: $CHROMIUM_PATH"
+          else
+            echo "Warning: Could not find Chromium path"
+          fi
+        shell: bash
+
       - name: Run unit tests
         run: pnpm test
 

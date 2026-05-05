@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
 import WebSocket from 'ws';
 import { BrowserManager } from '../../browser.js';
 import { StreamServer, type FrameMessage, type StatusMessage } from '../../stream-server.js';
-import { getFixturePath } from './utils/test-helpers.js';
+import { getFixturePath, getChromiumExecutablePath } from './utils/test-helpers.js';
 import sharp from 'sharp';
 
 describe('Element Selector Mode - Real E2E Tests', () => {
@@ -16,7 +16,7 @@ describe('Element Selector Mode - Real E2E Tests', () => {
       action: 'launch',
       id: 'test-selector-launch',
       headless: true,
-      executablePath: '/Applications/Chromium.app/Contents/MacOS/Chromium',
+      executablePath: getChromiumExecutablePath(),
     });
 
     wsPort = 5010 + Math.floor(Math.random() * 1000);
