@@ -128,6 +128,88 @@ jobs:
       - name: Run E2E snapshot selector tests
         run: pnpm test:e2e
 
+  exporter-tests:
+    name: Exporter Tests
+    needs: typescript
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - name: Run exporter tests
+        run: pnpm exec vitest run src/__tests__/flow-exporters.test.ts src/__tests__/flow-cypress-selenium.test.ts --reporter=verbose
+
+  healing-config-tests:
+    name: Healing Config Tests
+    needs: typescript
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - name: Run healing config tests
+        run: pnpm exec vitest run src/__tests__/flow-self-healing.test.ts src/__tests__/flow-healing-config.test.ts src/__tests__/flow-env-signals.test.ts --reporter=verbose
+
+  benchmark-tests:
+    name: Benchmark Tests
+    needs: typescript
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - name: Run benchmark tests
+        run: pnpm exec vitest run src/__tests__/benchmark-selector-generation.test.ts --reporter=verbose
+
+  e2e-self-healing:
+    name: E2E Self-Healing Tests
+    needs: typescript
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - name: Install Chromium
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y chromium-browser
+          echo "AGENT_BROWSER_EXECUTABLE_PATH=$(which chromium-browser)" >> $GITHUB_ENV
+      - name: Run E2E self-healing tests
+        run: pnpm exec vitest run --config vitest.integration.config.ts src/__tests__/e2e/self-healing-replay.e2e.test.ts --reporter=verbose
+
   rust:
     name: Rust (${{ matrix.os }} - ${{ matrix.target }})
     runs-on: ${{ matrix.os }}
@@ -358,10 +440,10 @@ jobs:
   feishu-notify:
     name: Feishu Notification
     if: always()
-    needs: [typescript, rust, windows-integration, serverless-chromium, global-install, e2e-snapshot]
+    needs: [typescript, rust, windows-integration, serverless-chromium, global-install, e2e-snapshot, exporter-tests, healing-config-tests, benchmark-tests, e2e-self-healing]
     uses: dyyz1993/ci-tools/.github/workflows/feishu-notify.yml@main
     with:
-      jobs: '{"typescript":"${{ needs.typescript.result }}","rust":"${{ needs.rust.result }}","windows":"${{ needs.windows-integration.result }}","serverless":"${{ needs.serverless-chromium.result }}","global":"${{ needs.global-install.result }}","e2e-snapshot":"${{ needs.e2e-snapshot.result }}"}'
+      jobs: '{"typescript":"${{ needs.typescript.result }}","rust":"${{ needs.rust.result }}","windows":"${{ needs.windows-integration.result }}","serverless":"${{ needs.serverless-chromium.result }}","global":"${{ needs.global-install.result }}","e2e-snapshot":"${{ needs.e2e-snapshot.result }}","exporter":"${{ needs.exporter-tests.result }}","healing":"${{ needs.healing-config-tests.result }}","benchmark":"${{ needs.benchmark-tests.result }}","e2e-self-healing":"${{ needs.e2e-self-healing.result }}"}'
       sha: ${{ github.sha }}
       ref: ${{ github.ref_name }}
       actor: ${{ github.actor }}

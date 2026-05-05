@@ -81,13 +81,30 @@
 - **备选**: 文件持久化 / 内存+导出
 
 ## 进度跟踪
-- [ ] T1: SnapshotStore 内存存储
-- [ ] T2: 增强选择器生成器
-- [ ] T3: snapshot -i 输出增强
-- [ ] T4: --selector-for 命令
-- [ ] T5: --selectors-of 命令
-- [ ] T6: --validate 命令
-- [ ] T7: CLI 参数解析（Rust 侧）
+
+### Progress
+
+#### Done
+- [x] T1: SnapshotStore 内存存储
+- [x] T2: 增强选择器生成器
+- [x] T3: snapshot -i 输出增强
+- [x] T4: --selector-for 命令
+- [x] T5: --selectors-of 命令
+- [x] T6: --validate 命令
+- [x] T7: CLI 参数解析（Rust 侧）
+- Phase 2-4 unit tests: 42 new tests (14 exporters + 17 self-healing + 11 env signals)
+- Documentation updates: help.ts (selector commands, flow export), SKILL.md (self-healing, script export, enhanced recording)
+- KB knowledge article: .kb/recording-replay-enhancements.md
+- All committed: 0d1b86f (5 files, +638 lines)
+
+#### In Progress
+_(none)_
+
+### Next Steps
+- Phase 5 polish: config API for healing parameters, more exporter formats (Cypress, Selenium)
+- E2E tests for self-healing replay (requires real browser + page mutations)
+- Performance benchmarks for selector generation on complex pages
+- User documentation: blog post or tutorial for the new features
 
 ## 技术栈
 - TypeScript (snapshot.ts, browser.ts)

@@ -16,6 +16,8 @@ import type {
   HealingLogEntry,
   StateCheckpoint,
   CheckpointResult,
+  HealingConfig,
+  RetryConfig,
 } from './types.js';
 import { PluginManager } from './plugin-system.js';
 import type { HookType } from './plugin-system.js';
@@ -27,6 +29,8 @@ export class FlowExecutor {
   private pluginManager: PluginManager | null;
   private healingLog: HealingLogEntry[] = [];
   private checkpointResults: CheckpointResult[] = [];
+  private flowHealing: HealingConfig = {};
+  private flowRetry: RetryConfig = {};
 
   constructor(browser: BrowserManager, pluginManager?: PluginManager) {
     this.browser = browser;
@@ -49,6 +53,8 @@ export class FlowExecutor {
 
     this.healingLog = [];
     this.checkpointResults = [];
+    this.flowHealing = flow.healing || {};
+    this.flowRetry = flow.retry || {};
 
     this.context = {
       variables: { baseUrl: site.baseUrl || '' },
@@ -170,12 +176,17 @@ export class FlowExecutor {
     step: FlowStep,
     errors: Array<{ step: string; error: string }>
   ): Promise<void> {
-    if (!step.retry) {
+    const retryConfig = this.flowRetry;
+    const maxAttempts = step.retry?.maxAttempts ?? retryConfig.maxAttempts ?? 3;
+    const delayMs = step.retry?.delayMs ?? retryConfig.delayMs ?? 1000;
+    const strategy = step.retry?.strategy ?? retryConfig.strategy ?? 'fixed';
+    const backoffMultiplier = retryConfig.backoffMultiplier ?? 2;
+
+    if (!step.retry && !this.flowRetry.maxAttempts) {
       await this.executeStep(step, errors);
       return;
     }
 
-    const { maxAttempts, delayMs, strategy } = step.retry;
     let lastError: unknown;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -185,7 +196,10 @@ export class FlowExecutor {
       } catch (err: unknown) {
         lastError = err;
         if (attempt < maxAttempts) {
-          const delay = strategy === 'exponential' ? delayMs * Math.pow(2, attempt - 1) : delayMs;
+          const delay =
+            strategy === 'exponential'
+              ? delayMs * Math.pow(backoffMultiplier, attempt - 1)
+              : delayMs;
           await new Promise((r) => setTimeout(r, delay));
         }
       }
@@ -1189,6 +1203,20 @@ export class FlowExecutor {
       return primarySelector;
     }
 
+    const healingConfig = this.flowHealing;
+    if (healingConfig.enabled === false) {
+      return primarySelector;
+    }
+
+    const strategies = healingConfig.strategies ?? [
+      'fallback',
+      'identity_text',
+      'identity_attr',
+      'identity_parent',
+    ];
+    const maxAttempts = healingConfig.maxAttempts ?? 3;
+    const attemptDelayMs = healingConfig.attemptDelayMs ?? 300;
+
     const frame: Page | Frame = step.inFrame
       ? this.browser.getFrame(step.inFrame)
       : this.browser.getPage();
@@ -1200,35 +1228,58 @@ export class FlowExecutor {
       }
     } catch {}
 
-    if (step.fallbackSelectors && step.fallbackSelectors.length > 0) {
-      for (const fallback of step.fallbackSelectors) {
-        await new Promise((r) => setTimeout(r, 300));
-        try {
-          const loc = frame.locator(fallback);
-          if ((await loc.count()) > 0) {
-            this.healingLog.push({
-              stepId: step.id || '',
-              originalSelector: primarySelector,
-              healedSelector: fallback,
-              strategy: 'fallback',
-            });
-            return fallback;
-          }
-        } catch {}
+    let attemptCount = 0;
+
+    for (const strategy of strategies) {
+      if (attemptCount >= maxAttempts) break;
+
+      if (strategy === 'fallback' && step.fallbackSelectors && step.fallbackSelectors.length > 0) {
+        for (const fallback of step.fallbackSelectors) {
+          attemptCount++;
+          if (attemptCount > maxAttempts) break;
+          await new Promise((r) => setTimeout(r, attemptDelayMs));
+          try {
+            const loc = frame.locator(fallback);
+            if ((await loc.count()) > 0) {
+              this.healingLog.push({
+                stepId: step.id || '',
+                originalSelector: primarySelector,
+                healedSelector: fallback,
+                strategy: 'fallback',
+              });
+              return fallback;
+            }
+          } catch {}
+        }
+      } else if (
+        strategy === 'identity_text' ||
+        strategy === 'identity_attr' ||
+        strategy === 'identity_parent'
+      ) {
+        const identityResult = await this.healByIdentity(step, frame, strategy);
+        if (identityResult) {
+          attemptCount++;
+          return identityResult;
+        }
       }
     }
-
-    const identityResult = await this.healByIdentity(step, frame);
-    if (identityResult) return identityResult;
 
     throw new Error(`Element not found: "${primarySelector}" (all healing strategies exhausted)`);
   }
 
-  private async healByIdentity(step: FlowStep, frame: Page | Frame): Promise<string | null> {
+  private async healByIdentity(
+    step: FlowStep,
+    frame: Page | Frame,
+    onlyStrategy?: string
+  ): Promise<string | null> {
     const identity = step.elementIdentity;
     if (!identity) return null;
 
-    if (identity.textContent && identity.textContent.length > 0) {
+    if (
+      (!onlyStrategy || onlyStrategy === 'identity_text') &&
+      identity.textContent &&
+      identity.textContent.length > 0
+    ) {
       const text = identity.textContent.slice(0, 30);
       try {
         const selector = `${identity.tagName}:text-is("${text}")`;
@@ -1245,7 +1296,7 @@ export class FlowExecutor {
       } catch {}
     }
 
-    if (identity.attributes) {
+    if ((!onlyStrategy || onlyStrategy === 'identity_attr') && identity.attributes) {
       for (const [attr, value] of Object.entries(identity.attributes)) {
         if (!value) continue;
         try {
@@ -1264,7 +1315,7 @@ export class FlowExecutor {
       }
     }
 
-    if (identity.parentSignature) {
+    if ((!onlyStrategy || onlyStrategy === 'identity_parent') && identity.parentSignature) {
       try {
         const parent = frame.locator(identity.parentSignature);
         if ((await parent.count()) > 0) {

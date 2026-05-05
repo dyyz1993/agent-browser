@@ -158,12 +158,30 @@ export interface FlowStep {
   };
 }
 
+export type HealingStrategy = 'fallback' | 'identity_text' | 'identity_attr' | 'identity_parent';
+
+export interface HealingConfig {
+  enabled?: boolean;
+  strategies?: HealingStrategy[];
+  maxAttempts?: number;
+  attemptDelayMs?: number;
+}
+
+export interface RetryConfig {
+  maxAttempts?: number;
+  delayMs?: number;
+  strategy?: 'fixed' | 'exponential';
+  backoffMultiplier?: number;
+}
+
 export interface FlowDefinition {
   id: string;
   description?: string;
   params?: FlowParam[];
   steps: FlowStep[];
   output?: string[];
+  healing?: HealingConfig;
+  retry?: RetryConfig;
 }
 
 export interface SiteDefinition {

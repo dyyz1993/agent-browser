@@ -168,7 +168,12 @@ import {
 } from './flow/yaml-parser.js';
 import { recorderToFlowFromFile, siteToYamlString } from './flow/recorder-to-flow.js';
 import { FlowExecutor } from './flow/flow-executor.js';
-import { PlaywrightExporter, PythonExporter } from './flow/exporters/index.js';
+import {
+  PlaywrightExporter,
+  PythonExporter,
+  CypressExporter,
+  SeleniumExporter,
+} from './flow/exporters/index.js';
 import type { ScriptExporter } from './flow/exporters/types.js';
 
 // Callback for screencast frames - will be set by the daemon when streaming is active
@@ -3546,6 +3551,8 @@ function handleFlowExport(command: any): Response {
   const exporterMap: Record<string, ScriptExporter> = {
     playwright: new PlaywrightExporter(),
     python: new PythonExporter(),
+    cypress: new CypressExporter(),
+    selenium: new SeleniumExporter(),
   };
 
   const exporter = exporterMap[format];

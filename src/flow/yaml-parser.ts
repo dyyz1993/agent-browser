@@ -8,6 +8,8 @@ import type {
   FlowParam,
   StepAction,
   ExtractField,
+  HealingConfig,
+  RetryConfig,
 } from './types.js';
 
 interface YamlSiteFile {
@@ -24,6 +26,8 @@ interface YamlFlow {
   params?: YamlParam[];
   steps: YamlStep[];
   output?: string[];
+  healing?: HealingConfig;
+  retry?: RetryConfig;
 }
 
 interface YamlParam {
@@ -136,6 +140,8 @@ function parseYamlFlow(name: string, yamlFlow: YamlFlow): FlowDefinition {
     params: yamlFlow.params?.map(parseYamlParam),
     steps: yamlFlow.steps?.map(parseYamlStep) || [],
     output: yamlFlow.output,
+    healing: yamlFlow.healing,
+    retry: yamlFlow.retry,
   };
 }
 
