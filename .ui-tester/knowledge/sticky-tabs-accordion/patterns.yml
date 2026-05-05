@@ -1,0 +1,178 @@
+# Module: sticky-tabs-accordion
+# Reusable operation sequences with stable CSS selectors
+# Last updated: 2026-04-30 (Round 3 Agent C)
+
+tab_switch:
+  description: "Switch tabs using data attribute click"
+  steps:
+    - action: eval
+      js: "document.querySelector('[data-tab=<TAB>]').click()"
+      description: "Click tab by data-tab attribute"
+  wait_after: 300
+  notes: "Cannot use find text due to strict mode (tab text matches heading text)"
+
+accordion_toggle:
+  description: "Expand accordion by index"
+  steps:
+    - action: eval
+      js: "document.querySelectorAll('.accordion-header')[<INDEX>].click()"
+      description: "Click accordion header by index (0=Work, 1=Education, 2=Skills)"
+  wait_after: 400
+  notes: "Accordions toggle open/close via CSS class. First accordion starts open."
+
+full_fill_flow:
+  description: "Fill all form fields across all tabs and submit"
+  steps:
+    # Tab 1: Profile
+    - action: fill
+      selector: "#p-name"
+      value: "Tab Navigator"
+      description: "Fill display name"
+    - action: fill
+      selector: "#p-title"
+      value: "QA Engineer"
+      description: "Fill job title"
+
+    # Tab 2: Details (switch + fill accordions)
+    - action: eval
+      js: "document.querySelector('[data-tab=details]').click()"
+      description: "Switch to Details tab"
+    - action: wait
+      ms: 500
+      description: "Wait for tab transition"
+    - action: fill
+      selector: "#d-company"
+      value: "Test Corp"
+      description: "Fill company name"
+    - action: fill
+      selector: "#d-years"
+      value: "5"
+      description: "Fill years of experience"
+    - action: eval
+      js: "document.querySelector('.accordion-header').click()"
+      description: "Expand Education accordion [0]"
+    - action: wait
+      ms: 500
+      description: "Wait for accordion animation"
+    - action: fill
+      selector: "#d-university"
+      value: "Tech University"
+      description: "Fill university name"
+    - action: fill
+      selector: "#d-degree"
+      value: "BS CS"
+      description: "Fill degree"
+    - action: eval
+      js: "document.querySelectorAll('.accordion-header')[1].click()"
+      description: "Expand Skills accordion [1]"
+    - action: wait
+      ms: 500
+      description: "Wait for accordion animation"
+    - action: fill
+      selector: "#d-skill1"
+      value: "Automation"
+      description: "Fill skill 1"
+    - action: fill
+      selector: "#d-skill2"
+      value: "Performance Testing"
+      description: "Fill skill 2"
+
+    # Tab 3: Settings
+    - action: eval
+      js: "document.querySelector('[data-tab=settings]').click()"
+      description: "Switch to Settings tab"
+    - action: wait
+      ms: 500
+      description: "Wait for tab transition"
+    - action: select
+      selector: "#s-theme"
+      value: "dark"
+      description: "Select dark theme"
+    - action: click
+      selector: "#s-notif"
+      description: "Toggle notifications checkbox"
+    - action: select
+      selector: "#s-lang"
+      value: "zh"
+      description: "Select Chinese language"
+
+    # Tab 4: Review + Submit
+    - action: eval
+      js: "document.querySelector('[data-tab=review]').click()"
+      description: "Switch to Review tab"
+    - action: wait
+      ms: 500
+      description: "Wait for tab transition"
+    - action: click
+      selector: "#btn-final-submit"
+      description: "Click Submit All button"
+  expected_result: "#final contains '=== ALL DATA SUBMITTED ==='"
+
+submit_flow:
+  description: "Review and submit all data"
+  steps:
+    - action: eval
+      js: "document.querySelector('[data-tab=review]').click()"
+    - action: click
+      selector: "#btn-final-submit"
+  expected_result: "#final contains '=== ALL DATA SUBMITTED ==='"
+
+minimal_fill_flow:
+  description: "Fill only required fields, skip optional sections (Details accordions)"
+  steps:
+    # Tab 1: Profile (name only)
+    - action: fill
+      selector: "#p-name"
+      value: "Minimal Name"
+      description: "Fill display name ONLY"
+    # Skip Details tab entirely
+    # Tab 3: Settings (switch directly)
+    - action: eval
+      js: "document.querySelector('[data-tab=settings]').click()"
+      description: "Skip Details, go straight to Settings"
+    - action: wait
+      ms: 500
+      description: "Wait for tab transition"
+    - action: select
+      selector: "#s-theme"
+      value: "light"
+      description: "Select theme"
+    - action: select
+      selector: "#s-lang"
+      value: "en"
+      description: "Select language"
+    # Tab 4: Review + Submit
+    - action: eval
+      js: "document.querySelector('[data-tab=review]').click()"
+      description: "Switch to Review tab"
+    - action: click
+      selector: "#btn-final-submit"
+      description: "Click Submit All button"
+  expected_result: "#final contains submitted data; unfilled fields retain previous values"
+  notes: "Form accumulates data -- skipped fields keep their old values from prior fills"
+
+tab_stress_test:
+  description: "Rapid tab switching to verify state preservation"
+  pattern: |
+    Profile -> Details -> Settings -> Profile -> Details -> Settings -> Review -> Submit
+  switches_per_round: 7
+  wait_between_switches: 300
+  notes: |
+    State IS preserved across all switches.
+    Fill data on each tab during switching to verify persistence.
+    Use get text to verify values after returning to a tab.
+
+tips:
+  - "Tab switching must use eval with data-tab attribute; find text fails due to strict mode"
+  - "Accordion animation is CSS-based (max-height transition), 400ms wait is sufficient"
+  - "Settings values (theme, notifications, language) are NOT in auto-save formData, but ARE read from DOM at submit time"
+  - "Review summary only shows auto-saved formData, not settings fields - this is by design"
+  - "Auto-save has 500ms debounce - wait 600ms+ before checking formData"
+  - "All accordion inputs are in the DOM even when collapsed; use eval to check visibility via offsetParent"
+  - "History only records interaction commands (fill/select/click), NOT eval/wait/snapshot - expect ~12 entries for full flow"
+  - "0 iframes, 0 shadow DOM, 0 contenteditable on this page - safe for standard automation"
+  - "select command may timeout at 10000ms; use 15000ms timeout for select operations (especially #s-lang)"
+  - "eval workaround for select (set value + dispatchEvent change) works but may not trigger proper form events"
+  - "Invalid selectors (#nonexistent) fail gracefully with exit code 1 and clear error message; session remains alive"
+  - "Form accumulates data across rounds -- unfilled fields retain previous values; no explicit clear/reset needed"
+  - "Tab state preservation confirmed across 7+ rapid switches with 300ms intervals"

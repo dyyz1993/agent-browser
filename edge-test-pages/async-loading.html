@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Edge B: Async Progressive Loading</title>
+  <style>
+    body { font-family: monospace; max-width: 700px; margin: 40px auto; padding: 20px; }
+    .section { margin: 16px 0; padding: 16px; border: 1px solid #ccc; opacity: 0; transition: opacity 0.5s; }
+    .section.visible { opacity: 1; }
+    .loader { color: #999; font-style: italic; }
+    .field { margin: 8px 0; }
+    label { display: block; font-weight: bold; margin-bottom: 4px; }
+    input, select { padding: 8px; width: 300px; box-sizing: border-box; font-family: monospace; }
+    button { padding: 10px 20px; cursor: pointer; margin: 4px; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    #final { margin-top: 20px; padding: 16px; border: 2px solid green; display: none; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>Edge B: Async Progressive Loading</h1>
+  <p>Sections appear one by one. The submit button only enables after all sections are loaded AND filled.</p>
+
+  <div class="section" id="sec-1" style="opacity:1">
+    <h2>Section 1: Identity (loaded)</h2>
+    <div class="field">
+      <label for="f-name">Full Name</label>
+      <input type="text" id="f-name">
+    </div>
+  </div>
+
+  <div class="section" id="sec-2">
+    <h2>Section 2: Contact</h2>
+    <div class="loader" id="sec-2-loader">Loading...</div>
+    <div id="sec-2-content" style="display:none">
+      <div class="field">
+        <label for="f-email">Email</label>
+        <input type="email" id="f-email">
+      </div>
+      <div class="field">
+        <label for="f-phone">Phone</label>
+        <input type="tel" id="f-phone" placeholder="+1-xxx-xxx-xxxx">
+      </div>
+    </div>
+  </div>
+
+  <div class="section" id="sec-3">
+    <h2>Section 3: Preferences</h2>
+    <div class="loader" id="sec-3-loader">Loading...</div>
+    <div id="sec-3-content" style="display:none">
+      <div class="field">
+        <label for="f-lang">Language</label>
+        <select id="f-lang">
+          <option value="">-- pick --</option>
+          <option value="en">English</option>
+          <option value="zh">Chinese</option>
+          <option value="ja">Japanese</option>
+        </select>
+      </div>
+      <div class="field">
+        <label><input type="checkbox" id="f-tos"> Accept Terms of Service</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="section" id="sec-4">
+    <h2>Section 4: Verification</h2>
+    <div class="loader" id="sec-4-loader">Loading...</div>
+    <div id="sec-4-content" style="display:none">
+      <div id="verify-summary"></div>
+    </div>
+  </div>
+
+  <div style="margin-top: 16px;">
+    <button id="btn-submit" disabled>Submit Application</button>
+  </div>
+  <div id="final"></div>
+
+  <script>
+    const SEC_DELAYS = [0, 2000, 4500, 7000];
+
+    function revealSection(n) {
+      const sec = document.getElementById('sec-' + n);
+      const loader = document.getElementById('sec-' + n + '-loader');
+      const content = document.getElementById('sec-' + n + '-content');
+      sec.classList.add('visible');
+      if (loader) loader.style.display = 'none';
+      if (content) content.style.display = 'block';
+    }
+
+    SEC_DELAYS.forEach((delay, i) => {
+      setTimeout(() => {
+        if (i > 0) revealSection(i + 1);
+        if (i === 3) document.getElementById('btn-submit').disabled = false;
+      }, delay);
+    });
+
+    function checkReady() {
+      const name = document.getElementById('f-name').value;
+      const email = document.getElementById('f-email')?.value;
+      const phone = document.getElementById('f-phone')?.value;
+      const lang = document.getElementById('f-lang')?.value;
+      const tos = document.getElementById('f-tos')?.checked;
+      const btn = document.getElementById('btn-submit');
+
+      if (name && email && phone && lang && tos) {
+        btn.disabled = false;
+      }
+
+      const summary = document.getElementById('verify-summary');
+      if (summary) {
+        summary.textContent = JSON.stringify({ name, email, phone, lang, tos }, null, 2);
+      }
+    }
+
+    document.addEventListener('input', checkReady);
+    document.addEventListener('change', checkReady);
+
+    document.getElementById('btn-submit').addEventListener('click', () => {
+      const data = {
+        name: document.getElementById('f-name').value,
+        email: document.getElementById('f-email').value,
+        phone: document.getElementById('f-phone').value,
+        language: document.getElementById('f-lang').value,
+        tos: document.getElementById('f-tos').checked,
+        submittedAt: new Date().toISOString()
+      };
+      const el = document.getElementById('final');
+      el.style.display = 'block';
+      el.textContent = '=== APPLICATION SUBMITTED ===\n' + JSON.stringify(data, null, 2);
+    });
+  </script>
+</body>
+</html>

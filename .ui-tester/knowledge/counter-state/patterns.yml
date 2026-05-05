@@ -1,0 +1,35 @@
+# Module: counter-state
+# Reusable operation sequences
+
+set_counter_flow:
+  description: "Set counter to a specific value"
+  steps:
+    - action: fill
+      selector: "#set-value"
+      description: "Fill the desired number"
+    - action: click
+      selector: "#btn-set"
+      description: "Click Set Value button"
+  expected_result: "Counter display updates, log shows 'set -> <value>'"
+
+increment_flow:
+  description: "Increment counter by N"
+  steps:
+    - action: click
+      selector: "#btn-inc"
+      description: "Click +1 button N times"
+  expected_result: "Counter increases, log shows 'inc -> <value>'"
+
+decrement_flow:
+  description: "Decrement counter by N"
+  steps:
+    - action: click
+      selector: "#btn-dec"
+      description: "Click -1 button N times"
+  expected_result: "Counter decreases, log shows 'dec -> <value>'"
+
+tips:
+  - "snapshot -i does not show counter display text; use 'get text body' to read counter value"
+  - "Log entries are prepended (newest first), verify order accordingly"
+  - "Page is fully client-side, no network calls needed"
+  - "Session isolation works correctly - no cross-session state leakage observed"

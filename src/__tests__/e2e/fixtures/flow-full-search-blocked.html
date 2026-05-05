@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Search Results (Blocked)</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    .search-results { margin: 20px 0; }
+    .result-item { padding: 10px; margin-bottom: 8px; border: 1px solid #ddd; }
+    .result-item .title { font-weight: bold; color: #1a0dab; text-decoration: none; display: block; margin-bottom: 4px; }
+    .result-item .link { color: #006621; font-size: 13px; text-decoration: none; display: block; margin-bottom: 4px; }
+    .result-item .abstract { color: #545454; font-size: 14px; }
+    .pagination { margin-top: 20px; padding: 10px 0; }
+    .pagination a { margin: 0 8px; padding: 6px 12px; border: 1px solid #ccc; text-decoration: none; color: #333; }
+    .current-page { color: #666; margin: 0 8px; }
+    #api-status { color: #999; font-size: 12px; margin-top: 10px; }
+    .captcha-modal {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;
+    }
+    .captcha-modal .captcha-box {
+      background: white; padding: 30px; border-radius: 8px; text-align: center;
+    }
+    .captcha-modal .captcha-box p { margin-bottom: 15px; font-size: 16px; }
+    .captcha-modal .captcha-box button { padding: 8px 20px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>Search Results</h1>
+  <div class="captcha-modal" id="captcha-modal">
+    <div class="captcha-box">
+      <p>请完成验证</p>
+      <button id="captcha-resolve" onclick="resolveCaptcha()">I am not a robot</button>
+    </div>
+  </div>
+  <div class="search-results" id="results"></div>
+  <div class="pagination" id="pagination"></div>
+  <div id="api-status">Loading API...</div>
+  <script>
+    var ITEMS_PER_PAGE = 10;
+    var TOTAL_PAGES = 5;
+    var params = new URLSearchParams(window.location.search);
+    var keyword = params.get('q') || 'test';
+    var currentPage = parseInt(params.get('page')) || 1;
+    var BLOCK_DURATION = 3000;
+
+    function showCaptcha() {
+      document.getElementById('captcha-modal').style.display = 'flex';
+      setTimeout(function() {
+        resolveCaptcha();
+      }, BLOCK_DURATION);
+    }
+
+    function resolveCaptcha() {
+      var modal = document.getElementById('captcha-modal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    function renderResults() {
+      var container = document.getElementById('results');
+      container.innerHTML = '';
+      var start = (currentPage - 1) * ITEMS_PER_PAGE;
+      for (var i = 0; i < ITEMS_PER_PAGE; i++) {
+        var idx = start + i + 1;
+        var div = document.createElement('div');
+        div.className = 'result-item';
+        div.innerHTML =
+          '<a class="title" href="/detail/' + idx + '">Result ' + idx + ' for "' + keyword + '"</a>' +
+          '<a class="link" href="/detail/' + idx + '">http://localhost:18925/detail/' + idx + '</a>' +
+          '<p class="abstract">Abstract text for result ' + idx + ' about ' + keyword + '</p>';
+        container.appendChild(div);
+      }
+    }
+
+    function renderPagination() {
+      var container = document.getElementById('pagination');
+      var html = '';
+      if (currentPage > 1) {
+        html += '<a class="prev-page" href="/search?q=' + encodeURIComponent(keyword) + '&page=' + (currentPage - 1) + '">Prev</a>';
+      }
+      html += '<span class="current-page">Page ' + currentPage + ' of ' + TOTAL_PAGES + '</span>';
+      if (currentPage < TOTAL_PAGES) {
+        html += '<a class="next-page" href="/search?q=' + encodeURIComponent(keyword) + '&page=' + (currentPage + 1) + '">Next</a>';
+      }
+      container.innerHTML = html;
+    }
+
+    function loadApiData() {
+      fetch('/api/search?q=' + encodeURIComponent(keyword) + '&page=' + currentPage)
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          window.__apiData = d;
+          document.getElementById('api-status').textContent =
+            'API loaded: ' + d.data.items.length + ' items, page ' + d.data.page;
+        })
+        .catch(function(e) {
+          document.getElementById('api-status').textContent = 'API error: ' + e.message;
+        });
+    }
+
+    renderResults();
+    renderPagination();
+    loadApiData();
+    showCaptcha();
+  </script>
+</body>
+</html>

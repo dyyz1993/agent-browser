@@ -1,0 +1,35 @@
+# Module: animated-transitions
+# Site: http://localhost:18931/animated-transitions.html
+# Last updated: 2026-04-29
+
+wizard_page:
+  url: "http://localhost:18931/animated-transitions.html"
+
+step1:
+  task_name_input: "#h-task"
+  priority_select: "#h-priority"
+  next_button: "#btn-next-1"
+
+step2:
+  countdown_display: "#countdown"
+  loading_panel: "#step2-loading"
+  content_panel: "#step2-content"
+  show_option_a_button: "button[data-target='panel-a']"
+  show_option_b_button: "button[data-target='panel-b']"
+  option_a_input: "#h-opt-a"
+  option_b_input: "#h-opt-b"
+  panel_a: "#panel-a"
+  panel_b: "#panel-b"
+  next_button: "#btn-next-2"
+
+step3:
+  confirm_name_input: "#h-confirm-name"
+  notes_input: "#h-notes"
+  fade_1: "#fade-1"
+  fade_2: "#fade-2"
+  fade_3: "#fade-3"
+  submit_button: "#btn-submit"
+
+result:
+  result_display: "#result"
+  completion_text: "ANIMATED FORM COMPLETE"

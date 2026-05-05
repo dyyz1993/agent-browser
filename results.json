@@ -1,0 +1,535 @@
+{
+  "total": 40,
+  "pass": 30,
+  "partial": 10,
+  "fail": 0,
+  "skip": 0,
+  "elapsed_seconds": 0.01,
+  "results": [
+    {
+      "id": "EC-001",
+      "template": "list",
+      "category": "EC",
+      "difficulty": "medium",
+      "status": "PASS",
+      "items": 4,
+      "issues": [],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-002",
+      "template": "detail",
+      "category": "EC",
+      "difficulty": "medium",
+      "status": "PASS",
+      "items": 1,
+      "issues": [],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-003",
+      "template": "list",
+      "category": "EC",
+      "difficulty": "medium-hard",
+      "status": "PASS",
+      "items": 4,
+      "issues": [],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-004",
+      "template": "list",
+      "category": "EC",
+      "difficulty": "medium-hard",
+      "status": "PASS",
+      "items": 4,
+      "issues": [],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-005",
+      "template": "list",
+      "category": "EC",
+      "difficulty": "medium",
+      "status": "PASS",
+      "items": 4,
+      "issues": [],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-006",
+      "template": "dashboard",
+      "category": "EC",
+      "difficulty": "medium",
+      "status": "PARTIAL",
+      "items": 4,
+      "issues": [
+        "Expected 1 items, got 4"
+      ],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-007",
+      "template": "list",
+      "category": "EC",
+      "difficulty": "medium-hard",
+      "status": "PASS",
+      "items": 4,
+      "issues": [],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-008",
+      "template": "list",
+      "category": "EC",
+      "difficulty": "hard",
+      "status": "PASS",
+      "items": 4,
+      "issues": [],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-009",
+      "template": "list",
+      "category": "EC",
+      "difficulty": "hard",
+      "status": "PASS",
+      "items": 4,
+      "issues": [],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-010",
+      "template": "dashboard",
+      "category": "EC",
+      "difficulty": "hard",
+      "status": "PARTIAL",
+      "items": 4,
+      "issues": [
+        "Expected 1 items, got 4",
+        "Rule failed: 'status必须是有效状态' -- status=待发货, status=已发货, status=待付款"
+      ],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-011",
+      "template": "list",
+      "category": "EC",
+      "difficulty": "medium",
+      "status": "PASS",
+      "items": 4,
+      "issues": [],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-012",
+      "template": "detail",
+      "category": "EC",
+      "difficulty": "medium",
+      "status": "PASS",
+      "items": 1,
+      "issues": [],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-013",
+      "template": "list",
+      "category": "EC",
+      "difficulty": "easy",
+      "status": "PASS",
+      "items": 4,
+      "issues": [],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-014",
+      "template": "list",
+      "category": "EC",
+      "difficulty": "medium",
+      "status": "PASS",
+      "items": 4,
+      "issues": [],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-015",
+      "template": "list",
+      "category": "EC",
+      "difficulty": "easy",
+      "status": "PASS",
+      "items": 4,
+      "issues": [],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-016",
+      "template": "list",
+      "category": "EC",
+      "difficulty": "medium",
+      "status": "PASS",
+      "items": 4,
+      "issues": [],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-017",
+      "template": "list",
+      "category": "EC",
+      "difficulty": "easy",
+      "status": "PASS",
+      "items": 4,
+      "issues": [],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-018",
+      "template": "dashboard",
+      "category": "EC",
+      "difficulty": "hard",
+      "status": "PARTIAL",
+      "items": 4,
+      "issues": [
+        "Expected 1 items, got 4"
+      ],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-019",
+      "template": "list",
+      "category": "EC",
+      "difficulty": "medium",
+      "status": "PASS",
+      "items": 4,
+      "issues": [],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-020",
+      "template": "detail",
+      "category": "EC",
+      "difficulty": "medium",
+      "status": "PASS",
+      "items": 1,
+      "issues": [],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-021",
+      "template": "detail",
+      "category": "EC",
+      "difficulty": "medium",
+      "status": "PASS",
+      "items": 1,
+      "issues": [],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-022",
+      "template": "detail",
+      "category": "EC",
+      "difficulty": "hard",
+      "status": "PASS",
+      "items": 1,
+      "issues": [],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-023",
+      "template": "list",
+      "category": "EC",
+      "difficulty": "easy",
+      "status": "PASS",
+      "items": 4,
+      "issues": [],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-024",
+      "template": "list",
+      "category": "EC",
+      "difficulty": "medium",
+      "status": "PASS",
+      "items": 4,
+      "issues": [],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-025",
+      "template": "list",
+      "category": "EC",
+      "difficulty": "easy",
+      "status": "PASS",
+      "items": 4,
+      "issues": [],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-026",
+      "template": "list",
+      "category": "EC",
+      "difficulty": "easy",
+      "status": "PASS",
+      "items": 4,
+      "issues": [],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-027",
+      "template": "list",
+      "category": "EC",
+      "difficulty": "easy",
+      "status": "PASS",
+      "items": 4,
+      "issues": [],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-028",
+      "template": "list",
+      "category": "EC",
+      "difficulty": "medium",
+      "status": "PASS",
+      "items": 4,
+      "issues": [],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-029",
+      "template": "detail",
+      "category": "EC",
+      "difficulty": "medium-hard",
+      "status": "PASS",
+      "items": 1,
+      "issues": [],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-030",
+      "template": "list",
+      "category": "EC",
+      "difficulty": "easy",
+      "status": "PASS",
+      "items": 4,
+      "issues": [],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-031",
+      "template": "form",
+      "category": "EC",
+      "difficulty": "easy",
+      "status": "PARTIAL",
+      "items": 5,
+      "issues": [
+        "Missing fields: agreement, confirmPassword, password, phone, username",
+        "Expected 1 items, got 5"
+      ],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-032",
+      "template": "form",
+      "category": "EC",
+      "difficulty": "medium",
+      "status": "PARTIAL",
+      "items": 4,
+      "issues": [
+        "Missing fields: captcha, password, remember, username",
+        "Expected 1 items, got 4"
+      ],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-033",
+      "template": "form",
+      "category": "EC",
+      "difficulty": "medium",
+      "status": "PARTIAL",
+      "items": 3,
+      "issues": [
+        "Expected 1 items, got 3"
+      ],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-034",
+      "template": "form",
+      "category": "EC",
+      "difficulty": "easy",
+      "status": "PARTIAL",
+      "items": 4,
+      "issues": [
+        "Expected 1 items, got 4"
+      ],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-035",
+      "template": "form",
+      "category": "EC",
+      "difficulty": "hard",
+      "status": "PASS",
+      "items": 1,
+      "issues": [],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-036",
+      "template": "form",
+      "category": "EC",
+      "difficulty": "medium",
+      "status": "PARTIAL",
+      "items": 5,
+      "issues": [
+        "Missing fields: amount, description, evidence, reason, refundType",
+        "Expected 1 items, got 5"
+      ],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-037",
+      "template": "form",
+      "category": "EC",
+      "difficulty": "medium",
+      "status": "PARTIAL",
+      "items": 4,
+      "issues": [
+        "Missing fields: content, images, isAnonymous, rating",
+        "Expected 1 items, got 4"
+      ],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-038",
+      "template": "list",
+      "category": "EC",
+      "difficulty": "easy",
+      "status": "PASS",
+      "items": 4,
+      "issues": [],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-039",
+      "template": "form",
+      "category": "EC",
+      "difficulty": "easy",
+      "status": "PARTIAL",
+      "items": 4,
+      "issues": [
+        "Expected 1 items, got 4"
+      ],
+      "api_url": "",
+      "api_status": null
+    },
+    {
+      "id": "EC-040",
+      "template": "list",
+      "category": "EC",
+      "difficulty": "hard",
+      "status": "PASS",
+      "items": 4,
+      "issues": [],
+      "api_url": "",
+      "api_status": null
+    }
+  ],
+  "by_template": {
+    "list": {
+      "pass": 23,
+      "partial": 0,
+      "fail": 0,
+      "skip": 0
+    },
+    "detail": {
+      "pass": 6,
+      "partial": 0,
+      "fail": 0,
+      "skip": 0
+    },
+    "dashboard": {
+      "pass": 0,
+      "partial": 3,
+      "fail": 0,
+      "skip": 0
+    },
+    "form": {
+      "pass": 1,
+      "partial": 7,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  "by_category": {
+    "EC": {
+      "pass": 30,
+      "partial": 10,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  "by_difficulty": {
+    "medium": {
+      "pass": 12,
+      "partial": 5,
+      "fail": 0,
+      "skip": 0
+    },
+    "medium-hard": {
+      "pass": 4,
+      "partial": 0,
+      "fail": 0,
+      "skip": 0
+    },
+    "hard": {
+      "pass": 5,
+      "partial": 2,
+      "fail": 0,
+      "skip": 0
+    },
+    "easy": {
+      "pass": 9,
+      "partial": 3,
+      "fail": 0,
+      "skip": 0
+    }
+  }
+}

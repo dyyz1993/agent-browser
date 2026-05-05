@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Scenario 5: Complex Form Flow</title>
+  <style>
+    body { font-family: monospace; max-width: 700px; margin: 40px auto; padding: 20px; }
+    .step { display: none; margin: 16px 0; padding: 16px; border: 1px solid #ccc; }
+    .step.active { display: block; }
+    .field { margin: 8px 0; }
+    label { display: block; font-weight: bold; margin-bottom: 4px; }
+    input, select { padding: 8px; width: 100%; box-sizing: border-box; font-family: monospace; }
+    button { padding: 10px 20px; margin: 4px; cursor: pointer; }
+    .error { color: red; font-size: 13px; display: none; }
+    #progress { margin: 12px 0; }
+    #final-result { margin-top: 20px; padding: 16px; border: 2px solid green; display: none; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>Scenario 5: Multi-Step Form Flow</h1>
+  <div id="progress">Step <span id="step-num">1</span> of 3</div>
+
+  <div class="step active" id="step-1">
+    <h2>Step 1: Personal Info</h2>
+    <div class="field">
+      <label>Full Name:</label>
+      <input type="text" id="fullname">
+      <div class="error" id="err-fullname">Name is required</div>
+    </div>
+    <div class="field">
+      <label>Age:</label>
+      <input type="number" id="age" min="18" max="120">
+      <div class="error" id="err-age">Must be 18-120</div>
+    </div>
+    <button id="next-1">Next</button>
+  </div>
+
+  <div class="step" id="step-2">
+    <h2>Step 2: Preferences</h2>
+    <div class="field">
+      <label>Category:</label>
+      <select id="category">
+        <option value="">-- pick --</option>
+        <option value="tech">Technology</option>
+        <option value="science">Science</option>
+        <option value="art">Art</option>
+      </select>
+      <div class="error" id="err-category">Pick a category</div>
+    </div>
+    <div class="field">
+      <label>Newsletter:</label>
+      <input type="checkbox" id="newsletter" checked> Subscribe
+    </div>
+    <button id="prev-2">Back</button>
+    <button id="next-2">Next</button>
+  </div>
+
+  <div class="step" id="step-3">
+    <h2>Step 3: Confirmation</h2>
+    <div id="summary-box"></div>
+    <button id="prev-3">Back</button>
+    <button id="submit-final">Submit</button>
+  </div>
+
+  <div id="final-result"></div>
+
+  <script>
+    let currentStep = 1;
+    const data = {};
+
+    function showStep(n) {
+      document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+      document.getElementById('step-' + n).classList.add('active');
+      document.getElementById('step-num').textContent = n;
+      currentStep = n;
+      if (n === 3) {
+        document.getElementById('summary-box').textContent = JSON.stringify({
+          fullname: document.getElementById('fullname').value,
+          age: document.getElementById('age').value,
+          category: document.getElementById('category').value,
+          newsletter: document.getElementById('newsletter').checked
+        }, null, 2);
+      }
+    }
+
+    document.getElementById('next-1').addEventListener('click', () => {
+      let ok = true;
+      const name = document.getElementById('fullname').value;
+      const age = parseInt(document.getElementById('age').value, 10);
+      if (!name) { document.getElementById('err-fullname').style.display = 'block'; ok = false; }
+      else { document.getElementById('err-fullname').style.display = 'none'; }
+      if (isNaN(age) || age < 18 || age > 120) { document.getElementById('err-age').style.display = 'block'; ok = false; }
+      else { document.getElementById('err-age').style.display = 'none'; }
+      if (ok) showStep(2);
+    });
+
+    document.getElementById('next-2').addEventListener('click', () => {
+      const cat = document.getElementById('category').value;
+      if (!cat) { document.getElementById('err-category').style.display = 'block'; return; }
+      document.getElementById('err-category').style.display = 'none';
+      showStep(3);
+    });
+
+    document.getElementById('prev-2').addEventListener('click', () => showStep(1));
+    document.getElementById('prev-3').addEventListener('click', () => showStep(2));
+
+    document.getElementById('submit-final').addEventListener('click', () => {
+      const result = {
+        fullname: document.getElementById('fullname').value,
+        age: document.getElementById('age').value,
+        category: document.getElementById('category').value,
+        newsletter: document.getElementById('newsletter').checked,
+        submittedAt: new Date().toISOString()
+      };
+      const el = document.getElementById('final-result');
+      el.style.display = 'block';
+      el.textContent = '=== SUBMISSION SUCCESS ===\n' + JSON.stringify(result, null, 2);
+      document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+      document.getElementById('progress').textContent = 'Complete!';
+    });
+  </script>
+</body>
+</html>

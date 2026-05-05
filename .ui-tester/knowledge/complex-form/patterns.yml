@@ -1,0 +1,37 @@
+# Module: complex-form
+# Reusable interaction patterns
+
+complete_form_flow:
+  description: "Complete the multi-step form from start to submission"
+  steps:
+    - action: fill
+      selector: "#fullname"
+      value: "<name>"
+      description: "Fill full name"
+    - action: fill
+      selector: "#age"
+      value: "<age>"
+      description: "Fill age (18-120)"
+    - action: click
+      selector: "#next-1"
+      description: "Go to Step 2"
+    - action: select
+      selector: "#category"
+      value: "<category>"
+      description: "Select category (Technology/Science/Art)"
+    - action: click
+      selector: "#next-2"
+      description: "Go to Step 3"
+    - action: click
+      selector: "#submit-final"
+      description: "Submit form"
+  expected_result: "Shows === SUBMISSION SUCCESS === with JSON data"
+
+tips:
+  - "Newsletter checkbox is checked by default, no action needed unless unchecking"
+  - "Category dropdown value is lowercase in JSON (science not Science)"
+  - "Age validation: must be 18-120, integer"
+  - "Full name validation: must be non-empty"
+  - "Category validation: must not be empty (not '-- pick --')"
+  - "Steps use CSS class 'active' to show/hide"
+  - "get text body returns all step content (hidden steps still in DOM)"

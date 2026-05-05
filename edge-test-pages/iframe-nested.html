@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Edge G: Iframe Isolation</title>
+  <style>
+    body { font-family: monospace; max-width: 700px; margin: 40px auto; padding: 20px; }
+    iframe { width: 100%; height: 350px; border: 2px solid #333; margin: 12px 0; }
+    button { padding: 8px 16px; cursor: pointer; }
+    #result { margin-top: 16px; padding: 16px; border: 2px solid #333; display: none; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>Edge G: Iframe Isolation</h1>
+  <p>Two iframes, each with its own form. Fill both and submit from the parent page.</p>
+
+  <h3>Iframe A: Personal Info</h3>
+  <iframe id="frame-a" srcdoc='
+    <html><body style="font-family:monospace;padding:12px;">
+      <div style="margin:8px 0;"><label style="display:block;font-weight:bold">First Name</label><input type="text" id="fa-first" style="padding:6px;width:90%"></div>
+      <div style="margin:8px 0;"><label style="display:block;font-weight:bold">Last Name</label><input type="text" id="fa-last" style="padding:6px;width:90%"></div>
+      <div style="margin:8px 0;"><label style="display:block;font-weight:bold">Age</label><input type="number" id="fa-age" style="padding:6px;width:90%"></div>
+    </body></html>
+  '></iframe>
+
+  <h3>Iframe B: Address (nested: B contains a mini iframe)</h3>
+  <iframe id="frame-b" srcdoc='
+    <html><body style="font-family:monospace;padding:12px;">
+      <div style="margin:8px 0;"><label style="display:block;font-weight:bold">Street</label><input type="text" id="fb-street" style="padding:6px;width:90%"></div>
+      <div style="margin:8px 0;"><label style="display:block;font-weight:bold">City</label><input type="text" id="fb-city" style="padding:6px;width:90%"></div>
+      <div style="margin:8px 0;">
+        <label style="display:block;font-weight:bold">Country (inner iframe)</label>
+        <iframe id="frame-c" srcdoc="<html><body style=font-family:monospace;padding:4px><select id=fc-country style=padding:6px;width:95%><option value=>-- pick --</option><option value=US>United States</option><option value=CN>China</option><option value=JP>Japan</option></select></body></html>" style="width:95%;height:50px;border:1px solid #999;"></iframe>
+      </div>
+    </body></html>
+  '></iframe>
+
+  <div style="margin-top: 12px;">
+    <button id="btn-collect">Collect & Submit</button>
+  </div>
+  <div id="result"></div>
+
+  <script>
+    document.getElementById('btn-collect').addEventListener('click', () => {
+      const frameA = document.getElementById('frame-a').contentDocument;
+      const frameB = document.getElementById('frame-b').contentDocument;
+      const frameC = frameB.getElementById('frame-c').contentDocument;
+
+      const data = {
+        firstName: frameA.getElementById('fa-first').value,
+        lastName: frameA.getElementById('fa-last').value,
+        age: frameA.getElementById('fa-age').value,
+        street: frameB.getElementById('fb-street').value,
+        city: frameB.getElementById('fb-city').value,
+        country: frameC.getElementById('fc-country').value,
+        collectedAt: new Date().toISOString()
+      };
+
+      const el = document.getElementById('result');
+      el.style.display = 'block';
+      const allFilled = Object.values(data).every(v => v);
+      el.style.borderColor = allFilled ? 'green' : 'red';
+      el.textContent = (allFilled ? '=== ALL DATA COLLECTED ===' : '=== INCOMPLETE DATA ===') + '\n' + JSON.stringify(data, null, 2);
+    });
+  </script>
+</body>
+</html>

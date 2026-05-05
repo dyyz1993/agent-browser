@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Scenario 4: Headless Detection</title>
+  <style>
+    body { font-family: monospace; max-width: 700px; margin: 40px auto; padding: 20px; }
+    .check { margin: 8px 0; padding: 8px 12px; border-left: 4px solid #ccc; }
+    .pass { border-color: green; } .fail { border-color: red; }
+    .pass::before { content: 'PASS: '; font-weight: bold; color: green; }
+    .fail::before { content: 'FAIL: '; font-weight: bold; color: red; }
+    #summary { margin-top: 20px; padding: 16px; border: 2px solid; font-size: 18px; text-align: center; }
+  </style>
+</head>
+<body>
+  <h1>Scenario 4: Headless Detection</h1>
+  <p>Verify whether the browser is running in headless mode by checking various signals.</p>
+
+  <div id="checks"></div>
+  <div id="summary"></div>
+
+  <script>
+    const checks = [];
+    const results = document.getElementById('checks');
+    const summary = document.getElementById('summary');
+
+    function addCheck(label, passed, detail) {
+      checks.push({ label, passed, detail });
+      const div = document.createElement('div');
+      div.className = passed ? 'check pass' : 'check fail';
+      div.textContent = `${label} - ${detail}`;
+      results.appendChild(div);
+    }
+
+    // Check 1: navigator.webdriver
+    const webdriver = navigator.webdriver;
+    addCheck('navigator.webdriver', !webdriver, `webdriver = ${webdriver}`);
+
+    // Check 2: User-Agent contains "HeadlessChrome"
+    const ua = navigator.userAgent;
+    const hasHeadlessUA = ua.includes('HeadlessChrome');
+    addCheck('User-Agent clean', !hasHeadlessUA, `contains "HeadlessChrome": ${hasHeadlessUA}`);
+
+    // Check 3: Chrome plugin count
+    const plugins = navigator.plugins?.length || 0;
+    addCheck('navigator.plugins', plugins > 0, `plugin count = ${plugins}`);
+
+    // Check 4: Window dimensions (headless often has 0x0 or 800x600)
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const dimOk = w > 0 && h > 0;
+    addCheck('Window dimensions', dimOk, `${w}x${h}`);
+
+    // Check 5: navigator.languages
+    const langs = navigator.languages?.length || 0;
+    addCheck('navigator.languages', langs > 0, `language count = ${langs}`);
+
+    // Check 6: WebGL renderer
+    try {
+      const canvas = document.createElement('canvas');
+      const gl = canvas.getContext('webgl');
+      const dbg = gl?.getExtension('WEBGL_debug_renderer_info');
+      const renderer = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : 'N/A';
+      addCheck('WebGL renderer', renderer !== 'N/A', renderer);
+    } catch (e) {
+      addCheck('WebGL renderer', false, e.message);
+    }
+
+    const passCount = checks.filter(c => c.passed).length;
+    const total = checks.length;
+    const isHeadless = passCount < total - 1;
+
+    summary.style.borderColor = isHeadless ? 'red' : 'green';
+    summary.textContent = `VERDICT: ${isHeadless ? 'HEADLESS DETECTED' : 'APPEARS HEADED'} (${passCount}/${total} checks passed)`;
+
+    // Expose for programmatic access
+    window.__headlessCheckResults = { checks, isHeadless, passCount, total };
+  </script>
+</body>
+</html>

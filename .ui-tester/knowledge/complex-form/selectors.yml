@@ -1,0 +1,25 @@
+# Module: complex-form
+# Site: http://localhost:18930/complex-form.html
+# Last updated: 2026-04-29
+
+multi_step_form:
+  url: "http://localhost:18930/complex-form.html"
+  step1:
+    fullname_input: "#fullname"
+    age_input: "#age"
+    next_button: "#next-1"
+    err_fullname: "#err-fullname"
+    err_age: "#err-age"
+  step2:
+    category_select: "#category"
+    newsletter_checkbox: "#newsletter"
+    next_button: "#next-2"
+    back_button: "#prev-2"
+    err_category: "#err-category"
+  step3:
+    summary_box: "#summary-box"
+    submit_button: "#submit-final"
+    back_button: "#prev-3"
+  result:
+    final_result: "#final-result"
+    progress: "#progress"

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Counter Page</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; text-align: center; }
+    #counter { font-size: 48px; font-weight: bold; margin: 30px 0; }
+    #increment-btn { padding: 12px 24px; font-size: 18px; cursor: pointer; }
+    #status { margin-top: 20px; color: #666; }
+  </style>
+</head>
+<body>
+  <h1>Counter</h1>
+  <div id="counter">0</div>
+  <button id="increment-btn">Increment</button>
+  <div id="status">Keep clicking until you reach 5</div>
+  <script>
+    var count = 0;
+    var btn = document.getElementById('increment-btn');
+    btn.addEventListener('click', function() {
+      count++;
+      document.getElementById('counter').textContent = count;
+      if (count >= 5) {
+        document.getElementById('status').textContent = 'Target reached!';
+        btn.disabled = true;
+        btn.textContent = 'Done';
+      }
+    });
+  </script>
+</body>
+</html>

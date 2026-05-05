@@ -1,0 +1,19 @@
+# Module: async-form
+# Site: http://localhost:18931/async-loading.html
+# Last updated: 2026-04-29
+
+async_loading_page:
+  url: "http://localhost:18931/async-loading.html"
+  full_name_input: "#f-name"
+  email_input: "#f-email"
+  phone_input: "#f-phone"
+  language_select: "#f-lang"
+  terms_checkbox: "#f-tos"
+  submit_button: "#btn-submit"
+  summary_element: "#verify-summary"
+  final_result: "#final"
+  sections:
+    section1: "#sec-1"
+    section2: "#sec-2"
+    section3: "#sec-3"
+    section4: "#sec-4"

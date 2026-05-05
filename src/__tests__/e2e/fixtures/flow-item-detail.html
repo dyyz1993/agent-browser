@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Item Detail</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    .detail { max-width: 600px; }
+    .detail h2 { margin-bottom: 8px; }
+    .detail .price { font-size: 24px; color: #007bff; margin: 10px 0; }
+    .detail .description { color: #555; line-height: 1.6; }
+    .detail .meta { margin-top: 15px; color: #888; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="detail" id="detail-container">
+    <h2 id="detail-name">Widget Alpha</h2>
+    <div class="price" id="detail-price">$49.99</div>
+    <div class="description" id="detail-desc">A versatile widget for all purposes. High quality materials and precision engineering.</div>
+    <div class="meta" id="detail-meta">SKU: WA-001 | Category: Widgets</div>
+  </div>
+  <script>
+    var params = new URLSearchParams(window.location.search);
+    var itemId = parseInt(params.get('id')) || 1;
+    var names = ['Widget Alpha', 'Gadget Beta', 'Tool Gamma', 'Device Delta', 'Instrument Epsilon'];
+    var descs = [
+      'A versatile widget for all purposes. High quality materials and precision engineering.',
+      'Advanced gadget with smart features. Connects via Bluetooth and WiFi.',
+      'Precision tool for professional use. Made from hardened steel.',
+      'Compact device with high performance. Battery lasts 48 hours.',
+      'Sensitive instrument for measurements. Accuracy to 0.001 units.'
+    ];
+    var skus = ['WA-001', 'GB-002', 'TG-003', 'DD-004', 'IE-005'];
+    var cats = ['Widgets', 'Gadgets', 'Tools', 'Devices', 'Instruments'];
+    var idx = itemId - 1;
+    if (idx >= 0 && idx < names.length) {
+      document.getElementById('detail-name').textContent = names[idx];
+      document.getElementById('detail-price').textContent = '$' + ((idx + 1) * 49.99).toFixed(2);
+      document.getElementById('detail-desc').textContent = descs[idx];
+      document.getElementById('detail-meta').textContent = 'SKU: ' + skus[idx] + ' | Category: ' + cats[idx];
+      document.title = names[idx] + ' - Detail';
+    }
+  </script>
+</body>
+</html>

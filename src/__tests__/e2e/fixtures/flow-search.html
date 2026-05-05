@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Search Test Page</title>
+  <style>
+    .form-group { margin-bottom: 15px; }
+    #content_left { display: none; margin-top: 20px; }
+    #content_left.visible { display: block; }
+    .result { padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; }
+    .result h3 a { color: #1a0dab; text-decoration: none; }
+    .c-abstract { color: #545454; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>Search Page</h1>
+  <form id="form" onsubmit="return doSearch(event)">
+    <div class="form-group">
+      <input type="text" id="kw" name="keyword" placeholder="Search...">
+      <input type="submit" id="su" value="Search">
+    </div>
+  </form>
+  <div id="content_left">
+    <div class="result">
+      <h3><a href="https://example.com/1">Test Result One for query</a></h3>
+      <div class="c-abstract">This is the first search result abstract with some details.</div>
+    </div>
+    <div class="result">
+      <h3><a href="https://example.com/2">Test Result Two for query</a></h3>
+      <div class="c-abstract">This is the second search result abstract with more info.</div>
+    </div>
+    <div class="result">
+      <h3><a href="https://example.com/3">Test Result Three for query</a></h3>
+      <div class="c-abstract">Third result abstract content goes here.</div>
+    </div>
+  </div>
+  <script>
+    function doSearch(e) {
+      e.preventDefault();
+      var keyword = document.getElementById('kw').value;
+      var results = document.querySelectorAll('.result h3 a');
+      results.forEach(function(a) {
+        a.textContent = a.textContent.replace(/for \w+/, 'for ' + keyword);
+      });
+      document.getElementById('content_left').classList.add('visible');
+      return false;
+    }
+  </script>
+</body>
+</html>

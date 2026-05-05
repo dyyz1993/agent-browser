@@ -1,0 +1,24 @@
+# Module: drag-sort-rich-text
+# Site: http://localhost:18931/drag-sort-rich-text.html
+# Last updated: 2026-04-29
+
+page:
+  url: "http://localhost:18931/drag-sort-rich-text.html"
+  title: "Edge E: Drag Sort + Content Editable"
+
+sort_list:
+  container: "#sort-list"
+  items: "#sort-list li"
+  data_attribute: "data-priority"
+  values: ["critical", "high", "medium", "low", "minimal"]
+
+rich_editor:
+  editor: "#rich-editor"
+  contenteditable: true
+  toolbar_bold: "#tb-bold"
+  toolbar_italic: "#tb-italic"
+  toolbar_code: "#tb-code"
+
+submit:
+  button: "#btn-submit"
+  result: "#result"

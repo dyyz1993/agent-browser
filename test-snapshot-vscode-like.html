@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cursor-like Editor (minimal ARIA)</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; display: flex; height: 100vh; background: #1e1e1e; color: #ccc; }
+.sidebar { width: 240px; background: #252526; border-right: 1px solid #333; }
+.sidebar-title { padding: 10px 20px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #bbbbbb; font-weight: 600; }
+.monaco-tree { padding: 0; }
+.monaco-tree-row { display: flex; align-items: center; height: 22px; padding: 0 8px; font-size: 13px; cursor: pointer; }
+.monaco-tree-row:hover { background: #2a2d2e; }
+.monaco-tree-row .label-name { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.monaco-tree-row .codicon { width: 16px; margin-right: 4px; font-size: 12px; text-align: center; }
+.indent { display: inline-block; width: 16px; }
+
+/* No ARIA roles at all - just divs and spans */
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-title">explorer: agent-browser</div>
+  <div class="monaco-tree">
+    <div class="monaco-tree-row">
+      <span class="codicon">&#9660;</span>
+      <span class="label-name" style="font-weight:600">src</span>
+    </div>
+    <div class="monaco-tree-row">
+      <span class="indent"></span>
+      <span class="codicon">&#8226;</span>
+      <span class="label-name">actions.ts</span>
+    </div>
+    <div class="monaco-tree-row">
+      <span class="indent"></span>
+      <span class="codicon">&#8226;</span>
+      <span class="label-name">browser.ts</span>
+    </div>
+    <div class="monaco-tree-row">
+      <span class="indent"></span>
+      <span class="codicon">&#8226;</span>
+      <span class="label-name">snapshot.ts</span>
+    </div>
+    <div class="monaco-tree-row">
+      <span class="indent"></span>
+      <span class="codicon">&#8226;</span>
+      <span class="label-name">types.ts</span>
+    </div>
+    <div class="monaco-tree-row">
+      <span class="indent"></span>
+      <span class="codicon">&#9654;</span>
+      <span class="label-name" style="font-weight:600">cli</span>
+    </div>
+    <div class="monaco-tree-row">
+      <span class="indent"></span><span class="indent"></span>
+      <span class="codicon">&#9654;</span>
+      <span class="label-name" style="font-weight:600">src</span>
+    </div>
+    <div class="monaco-tree-row">
+      <span class="indent"></span><span class="indent"></span>
+      <span class="codicon">&#8226;</span>
+      <span class="label-name">commands.rs</span>
+    </div>
+    <div class="monaco-tree-row">
+      <span class="indent"></span><span class="indent"></span>
+      <span class="codicon">&#8226;</span>
+      <span class="label-name">main.rs</span>
+    </div>
+    <div class="monaco-tree-row">
+      <span class="codicon">&#9660;</span>
+      <span class="label-name" style="font-weight:600">test</span>
+    </div>
+    <div class="monaco-tree-row">
+      <span class="indent"></span>
+      <span class="codicon">&#8226;</span>
+      <span class="label-name">actions.test.ts</span>
+    </div>
+    <div class="monaco-tree-row">
+      <span class="indent"></span>
+      <span class="codicon">&#8226;</span>
+      <span class="label-name">browser.test.ts</span>
+    </div>
+    <div class="monaco-tree-row">
+      <span class="codicon">&#8226;</span>
+      <span class="label-name">package.json</span>
+    </div>
+    <div class="monaco-tree-row">
+      <span class="codicon">&#8226;</span>
+      <span class="label-name">tsconfig.json</span>
+    </div>
+    <!-- The target file -->
+    <div class="monaco-tree-row">
+      <span class="codicon">&#8226;</span>
+      <span class="label-name">test-ui-auto-verify.md</span>
+    </div>
+  </div>
+</div>
+
+<div style="flex:1; display:flex; align-items:center; justify-content:center; color:#555; font-size:14px;">
+  Editor area - click a file to open
+</div>
+
+<script>
+document.querySelectorAll('.monaco-tree-row').forEach(row => {
+  row.addEventListener('click', () => {
+    const name = row.querySelector('.label-name').textContent;
+    console.log('Clicked: ' + name);
+  });
+});
+</script>
+</body>
+</html>

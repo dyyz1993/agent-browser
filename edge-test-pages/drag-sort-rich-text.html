@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Edge E: Drag Sort + Content Editable</title>
+  <style>
+    body { font-family: monospace; max-width: 700px; margin: 40px auto; padding: 20px; }
+    h2 { margin-top: 24px; }
+    #sort-list { list-style: none; padding: 0; }
+    #sort-list li { padding: 10px 14px; border: 1px solid #ddd; margin: 4px 0; cursor: grab; user-select: none; display: flex; justify-content: space-between; align-items: center; }
+    #sort-list li:active { cursor: grabbing; }
+    #sort-list li.dragging { opacity: 0.5; background: #e8e8e8; }
+    .drag-handle { color: #999; font-size: 18px; margin-right: 8px; }
+    #rich-editor { border: 2px solid #333; min-height: 150px; padding: 12px; font-family: monospace; outline: none; margin-top: 8px; }
+    #rich-editor:focus { border-color: #4A90D9; }
+    .toolbar { display: flex; gap: 4px; margin-top: 8px; margin-bottom: 4px; }
+    .toolbar button { padding: 6px 12px; cursor: pointer; }
+    .toolbar button.active { background: #333; color: white; }
+    button { padding: 8px 16px; cursor: pointer; }
+    #result { margin-top: 20px; padding: 16px; border: 2px solid #333; display: none; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>Edge E: Drag Sort + Rich Text</h1>
+
+  <h2>Part 1: Sort the List</h2>
+  <p>Drag items to reorder them into the correct priority order (1=highest, 5=lowest).</p>
+  <p>Target order: Critical > High > Medium > Low > Minimal</p>
+  <ul id="sort-list">
+    <li draggable="true" data-priority="low"><span class="drag-handle">&#9776;</span> <span class="item-text">Low Priority Task</span> <span class="item-id" style="color:#999">[P3]</span></li>
+    <li draggable="true" data-priority="critical"><span class="drag-handle">&#9776;</span> <span class="item-text">Critical Issue</span> <span class="item-id" style="color:#999">[P0]</span></li>
+    <li draggable="true" data-priority="minimal"><span class="drag-handle">&#9776;</span> <span class="item-text">Minimal Effort Task</span> <span class="item-id" style="color:#999">[P4]</span></li>
+    <li draggable="true" data-priority="high"><span class="drag-handle">&#9776;</span> <span class="item-text">High Priority Bug</span> <span class="item-id" style="color:#999">[P1]</span></li>
+    <li draggable="true" data-priority="medium"><span class="drag-handle">&#9776;</span> <span class="item-text">Medium Feature Request</span> <span class="item-id" style="color:#999">[P2]</span></li>
+  </ul>
+
+  <h2>Part 2: Rich Text Editor</h2>
+  <div class="toolbar">
+    <button id="tb-bold" title="Bold"><b>B</b></button>
+    <button id="tb-italic" title="Italic"><i>I</i></button>
+    <button id="tb-code" title="Code">{ }</button>
+  </div>
+  <div id="rich-editor" contenteditable="true">Type your report summary here...</div>
+
+  <div style="margin-top: 16px;">
+    <button id="btn-submit">Submit Both</button>
+  </div>
+  <div id="result"></div>
+
+  <script>
+    // Drag and drop
+    const list = document.getElementById('sort-list');
+    let dragItem = null;
+
+    list.querySelectorAll('li').forEach(item => {
+      item.addEventListener('dragstart', (e) => {
+        dragItem = item;
+        item.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      item.addEventListener('dragend', () => {
+        item.classList.remove('dragging');
+        dragItem = null;
+      });
+      item.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if (dragItem && dragItem !== item) {
+          const rect = item.getBoundingClientRect();
+          const mid = rect.top + rect.height / 2;
+          if (e.clientY < mid) {
+            list.insertBefore(dragItem, item);
+          } else {
+            list.insertBefore(dragItem, item.nextSibling);
+          }
+        }
+      });
+    });
+
+    // Toolbar
+    document.getElementById('tb-bold').addEventListener('click', () => document.execCommand('bold'));
+    document.getElementById('tb-italic').addEventListener('click', () => document.execCommand('italic'));
+    document.getElementById('tb-code').addEventListener('click', () => {
+      const sel = window.getSelection();
+      if (sel.rangeCount) {
+        const range = sel.getRangeAt(0);
+        const code = document.createElement('code');
+        code.style.background = '#f0f0f0';
+        code.style.padding = '2px 4px';
+        range.surroundContents(code);
+      }
+    });
+
+    // Submit
+    document.getElementById('btn-submit').addEventListener('click', () => {
+      const items = list.querySelectorAll('li');
+      const order = Array.from(items).map(li => li.dataset.priority);
+      const correct = ['critical', 'high', 'medium', 'low', 'minimal'];
+      const isCorrect = JSON.stringify(order) === JSON.stringify(correct);
+      const editorContent = document.getElementById('rich-editor').innerText;
+
+      const el = document.getElementById('result');
+      el.style.display = 'block';
+      el.style.borderColor = isCorrect ? 'green' : 'red';
+      el.textContent = `=== SUBMISSION RESULT ===\nSort Order: ${isCorrect ? 'CORRECT' : 'INCORRECT'}\nYour order: ${order.join(' > ')}\nExpected:  ${correct.join(' > ')}\n\nRich Text Content:\n${editorContent}`;
+    });
+  </script>
+</body>
+</html>

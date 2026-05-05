@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html><head><title>Popup Modal Test</title></head>
+<body>
+<div id="popup-overlay" class="modal-popup" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:9999;">
+  <div style="margin:150px auto; padding:30px; background:white; text-align:center; max-width:400px;">
+    <h2>Special Offer!</h2>
+    <p>Subscribe to our newsletter</p>
+    <button id="close-popup" onclick="closePopup()">No thanks</button>
+  </div>
+</div>
+<div id="main-content">
+  <h1>Main Page Content</h1>
+  <p class="info">This is the main content behind the popup.</p>
+</div>
+<script>
+  function closePopup() {
+    var overlay = document.getElementById('popup-overlay');
+    if (overlay) overlay.remove();
+  }
+  setTimeout(function() {
+    var overlay = document.getElementById('popup-overlay');
+    if (overlay) overlay.remove();
+  }, 3000);
+</script>
+</body></html>

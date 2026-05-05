@@ -1,0 +1,15 @@
+url: https://httpbin.org
+title: httpbin.org
+snapshot:
+  - ref: e1
+    role: link
+    name: "View source on Github"
+  - ref: e2
+    role: link
+    name: "the developer - Website"
+  - ref: e3
+    role: link
+    name: "Send email to the developer"
+  - ref: e4
+    role: link
+    name: "Flasgger"

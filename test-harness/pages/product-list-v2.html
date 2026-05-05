@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>TechStore - 全新产品中心</title>
+<style>
+body { font-family: sans-serif; margin: 0; background: #1a1a2e; color: #eee; }
+header { background: #16213e; padding: 20px; text-align: center; }
+header h1 { margin: 0; color: #e94560; }
+header p { color: #aaa; margin-top: 8px; }
+.products-container { max-width: 1200px; margin: 20px auto; padding: 0 20px; }
+.product-row { display: flex; align-items: center; background: #16213e; border-radius: 12px; padding: 16px; margin-bottom: 12px; border-left: 4px solid #e94560; }
+.product-row [data-field="title"] { font-size: 20px; font-weight: bold; flex: 2; }
+.product-row [data-field="cat"] { font-size: 13px; color: #e94560; border: 1px solid #e94560; padding: 2px 10px; border-radius: 20px; margin: 0 16px; }
+.product-row [data-field="cost"] { font-size: 24px; color: #0f3460; background: #e94560; padding: 4px 12px; border-radius: 6px; font-weight: bold; }
+.product-row [data-field="remaining"] { font-size: 14px; color: #53d769; margin-left: 16px; min-width: 80px; }
+</style>
+</head>
+<body>
+<header>
+  <h1 data-role="main-title">TechStore 全新产品中心</h1>
+  <p data-role="summary">精选 <span data-role="count">20</span> 款科技好物</p>
+</header>
+<div class="products-container" data-role="product-list"></div>
+<script>
+const products = [
+  {id:1,name:"MacBook Pro 16",price:18999,stock:45,category:"笔记本"},
+  {id:2,name:"iPhone 15 Pro Max",price:9999,stock:120,category:"手机"},
+  {id:3,name:"iPad Air",price:4799,stock:88,category:"平板"},
+  {id:4,name:"AirPods Pro 2",price:1899,stock:200,category:"耳机"},
+  {id:5,name:"Apple Watch Ultra",price:6299,stock:33,category:"手表"},
+  {id:6,name:"Mac Mini M2",price:4499,stock:67,category:"台式机"},
+  {id:7,name:"Studio Display",price:11499,stock:22,category:"显示器"},
+  {id:8,name:"Magic Keyboard",price:699,stock:150,category:"配件"},
+  {id:9,name:"HomePod Mini",price:749,stock:95,category:"音箱"},
+  {id:10,name:"AirTag 4件装",price:779,stock:300,category:"配件"},
+  {id:11,name:"MacBook Air 15",price:10499,stock:56,category:"笔记本"},
+  {id:12,name:"iPhone 15",price:5999,stock:180,category:"手机"},
+  {id:13,name:"iPad Pro 12.9",price:8999,stock:41,category:"平板"},
+  {id:14,name:"Apple Pencil Pro",price:999,stock:210,category:"配件"},
+  {id:15,name:"Mac Studio",price:14999,stock:18,category:"台式机"},
+  {id:16,name:"Vision Pro",price:29999,stock:5,category:"XR"},
+  {id:17,name:"AirPods Max",price:4399,stock:42,category:"耳机"},
+  {id:18,name:"Apple TV 4K",price:1399,stock:73,category:"电视盒"},
+  {id:19,name:"MagSafe充电器",price:399,stock:500,category:"配件"},
+  {id:20,name:"Thunderbolt 4线缆",price:549,stock:250,category:"配件"}
+];
+
+const container = document.querySelector('[data-role="product-list"]');
+products.forEach(p => {
+  const row = document.createElement('div');
+  row.className = 'product-row';
+  row.setAttribute('data-product-id', p.id);
+  row.innerHTML = `
+    <div data-field="title">${p.name}</div>
+    <div data-field="cat">${p.category}</div>
+    <div data-field="cost">¥${p.price.toLocaleString()}</div>
+    <div data-field="remaining">余${p.stock}件</div>
+  `;
+  container.appendChild(row);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+# Module: storage-isolation
+# Reusable operation sequences
+
+storage_write_read_flow:
+  description: "Write a key-value pair to localStorage and verify isolation"
+  steps:
+    - action: click
+      selector: "button#btn-clear"
+      description: "Clear localStorage to start fresh"
+    - action: fill
+      selector: "input#ls-key"
+      description: "Fill localStorage key"
+    - action: fill
+      selector: "input#ls-value"
+      description: "Fill localStorage value"
+    - action: click
+      selector: "button#btn-write"
+      description: "Write to localStorage"
+    - action: click
+      selector: "button#btn-read"
+      description: "Read all localStorage to verify"
+  expected_result: "Output shows only the agent's own key-value pair"
+
+tips:
+  - "Each session has its own browser context, so localStorage is naturally isolated between sessions"
+  - "The output area (#output) shows JSON-formatted localStorage contents"
+  - "Snapshot may not show the output text, use 'get text body' to see full page content including output"

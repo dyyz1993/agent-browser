@@ -1,0 +1,24 @@
+# Module: iframe-isolation
+# Site: http://localhost:18931/iframe-nested.html
+# Last updated: 2026-04-29
+
+parent_page:
+  url: "http://localhost:18931/iframe-nested.html"
+  submit_button: "#btn-collect"
+  result_display: "#result"
+
+iframe_a:
+  selector: "#frame-a"
+  first_name_input: "#fa-first"
+  last_name_input: "#fa-last"
+  age_input: "#fa-age"
+
+iframe_b:
+  selector: "#frame-b"
+  street_input: "#fb-street"
+  city_input: "#fb-city"
+
+iframe_c_nested:
+  selector: "#frame-b/#frame-c"
+  country_select: "#fc-country"
+  note: "Nested inside iframe B, use --in-frame '#frame-b/#frame-c'"

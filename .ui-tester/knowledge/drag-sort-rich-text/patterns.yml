@@ -1,0 +1,35 @@
+# Module: drag-sort-rich-text
+# Reusable operation sequences
+
+sort_programmatic:
+  description: "Reorder list items via JS eval (reliable alternative to HTML5 drag-and-drop)"
+  eval: |
+    const list = document.getElementById('sort-list');
+    const items = Array.from(list.children);
+    const order = ['critical','high','medium','low','minimal'];
+    order.forEach(p => {
+      const item = items.find(i => i.dataset.priority === p);
+      if(item) list.appendChild(item);
+    });
+  expected_result: "Items in order: critical, high, medium, low, minimal"
+
+rich_text_edit:
+  description: "Edit contenteditable div - clear, type, format"
+  steps:
+    - action: eval
+      code: "editor.focus(); editor.innerText = '';"
+      description: "Focus and clear editor"
+    - action: type
+      selector: "#rich-editor"
+      description: "Type text content"
+    - action: eval
+      code: "Set innerHTML with proper HTML tags for formatting"
+      description: "Apply formatting via innerHTML (more reliable than selection+execCommand)"
+  note: "Using innerHTML to set formatted content is more reliable than selecting text and clicking toolbar buttons"
+
+tips:
+  - "HTML5 drag-and-drop is not reliably automatable via Playwright - use eval for programmatic reorder"
+  - "contenteditable divs don't appear in accessibility snapshot - use CSS selectors or eval"
+  - "execCommand('bold') after selectAll continues bold mode for subsequent typing - use innerHTML instead"
+  - "Toolbar buttons (B, I) appear in snapshot but their click effect depends on selection state"
+  - "Sort verification: check result div innerText for 'Sort Order: CORRECT'"

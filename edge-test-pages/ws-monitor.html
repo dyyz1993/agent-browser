@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>WebSocket Test: Multi-Connection</title>
+  <style>
+    body { font-family: monospace; max-width: 900px; margin: 40px auto; padding: 20px; }
+    .panel { border: 1px solid #ccc; padding: 12px; margin: 12px 0; }
+    .panel h3 { margin: 0 0 8px 0; }
+    #log { height: 300px; overflow-y: auto; border: 1px solid #ccc; padding: 8px; font-size: 13px; background: #fafafa; }
+    .log-conn { color: blue; }
+    .log-send { color: green; }
+    .log-recv { color: #333; }
+    .log-err { color: red; }
+    .log-close { color: orange; }
+    button { padding: 8px 16px; cursor: pointer; margin: 4px; }
+    #summary { margin-top: 16px; padding: 16px; border: 2px solid #333; white-space: pre-wrap; display: none; }
+  </style>
+</head>
+<body>
+  <h1>WebSocket Multi-Connection Test</h1>
+  <p>Tests: auto-connect, manual connect, send/recv, multiple connections, close, error</p>
+
+  <div class="panel">
+    <h3>Controls</h3>
+    <button id="btn-connect-echo">Connect Echo Server</button>
+    <button id="btn-connect-invalid">Connect Invalid WS (error)</button>
+    <button id="btn-send">Send Message</button>
+    <button id="btn-close-all">Close All</button>
+    <button id="btn-auto-test">Run Auto Test</button>
+    <button id="btn-summary">Get Summary</button>
+  </div>
+
+  <div class="panel">
+    <h3>Send Message</h3>
+    <input type="text" id="msg-input" value="test-message-001" style="padding:8px;width:300px;font-family:monospace;">
+  </div>
+
+  <div id="log"></div>
+  <div id="summary"></div>
+
+  <script>
+    const logEl = document.getElementById('log');
+    const connections = [];
+    let msgCounter = 0;
+
+    function log(msg, cls) {
+      const d = document.createElement('div');
+      d.className = cls || '';
+      d.textContent = `[${new Date().toISOString().slice(11,23)}] ${msg}`;
+      logEl.appendChild(d);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function createWS(url, label) {
+      log(`[${label}] Connecting to ${url}`, 'log-conn');
+      try {
+        const ws = new WebSocket(url);
+        ws._label = label;
+        ws._messages = [];
+        ws.onopen = () => {
+          log(`[${label}] Connected`, 'log-conn');
+          connections.push(ws);
+        };
+        ws.onmessage = (e) => {
+          log(`[${label}] Recv: ${e.data}`, 'log-recv');
+          ws._messages.push({dir:'recv', data:e.data, ts:Date.now()});
+        };
+        ws.onerror = () => {
+          log(`[${label}] Error`, 'log-err');
+        };
+        ws.onclose = (e) => {
+          log(`[${label}] Closed (code=${e.code})`, 'log-close');
+          const idx = connections.indexOf(ws);
+          if (idx >= 0) connections.splice(idx, 1);
+        };
+        return ws;
+      } catch(e) {
+        log(`[${label}] Failed: ${e.message}`, 'log-err');
+        return null;
+      }
+    }
+
+    document.getElementById('btn-connect-echo').addEventListener('click', () => {
+      createWS('wss://echo.websocket.org', 'echo-' + (++msgCounter));
+    });
+
+    document.getElementById('btn-connect-invalid').addEventListener('click', () => {
+      createWS('wss://invalid.nonexistent.example.com', 'invalid-' + (++msgCounter));
+    });
+
+    document.getElementById('btn-send').addEventListener('click', () => {
+      const msg = document.getElementById('msg-input').value;
+      connections.forEach(ws => {
+        log(`[${ws._label}] Send: ${msg}`, 'log-send');
+        ws._messages.push({dir:'send', data:msg, ts:Date.now()});
+        ws.send(msg);
+      });
+    });
+
+    document.getElementById('btn-close-all').addEventListener('click', () => {
+      connections.forEach(ws => ws.close());
+    });
+
+    document.getElementById('btn-auto-test').addEventListener('click', () => {
+      // Auto test sequence
+      const ws1 = createWS('wss://echo.websocket.org', 'auto-echo-1');
+      ws1.addEventListener('open', () => {
+        ws1.send('first-auto-msg');
+        setTimeout(() => {
+          const ws2 = createWS('wss://echo.websocket.org', 'auto-echo-2');
+          ws2.addEventListener('open', () => {
+            ws2.send('second-auto-msg');
+            setTimeout(() => {
+              ws1.close();
+              setTimeout(() => ws2.close(), 500);
+            }, 1000);
+          });
+        }, 500);
+      });
+    });
+
+    document.getElementById('btn-summary').addEventListener('click', () => {
+      const data = {
+        activeConnections: connections.length,
+        totalMessages: connections.reduce((sum, ws) => sum + ws._messages.length, 0),
+        connectionDetails: connections.map(ws => ({
+          label: ws._label,
+          url: ws.url,
+          readyState: ['CONNECTING','OPEN','CLOSING','CLOSED'][ws.readyState],
+          messageCount: ws._messages.length
+        }))
+      };
+      const el = document.getElementById('summary');
+      el.style.display = 'block';
+      el.textContent = '=== WS SUMMARY ===\n' + JSON.stringify(data, null, 2);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+# Module: sticky-tabs-accordion
+# Site: http://localhost:18931/sticky-tabs-accordion.html
+# Last updated: 2026-04-30 (Round 1 Agent C)
+
+sticky_header:
+  container: ".sticky-header"
+  title: ".sticky-header h1"
+  tabs: ".tab"
+  active_tab: ".tab.active"
+
+tabs:
+  profile: "[data-tab='profile']"
+  details: "[data-tab='details']"
+  settings: "[data-tab='settings']"
+  review: "[data-tab='review']"
+
+panels:
+  profile: "#panel-profile"
+  details: "#panel-details"
+  settings: "#panel-settings"
+  review: "#panel-review"
+  active_panel: ".tab-panel.active"
+
+profile_fields:
+  display_name: "#p-name"
+  title_field: "#p-title"
+
+details_accordions:
+  work_experience:
+    container: "#acc-1"
+    header: ".accordion-header"  # [0] - starts open
+    company: "#d-company"
+    years: "#d-years"
+  education:
+    container: "#acc-2"
+    header: ".accordion-header"  # [1]
+    university: "#d-university"
+    degree: "#d-degree"
+  skills:
+    container: "#acc-3"
+    header: ".accordion-header"  # [2]
+    skill1: "#d-skill1"
+    skill2: "#d-skill2"
+
+settings_fields:
+  theme: "#s-theme"
+  notifications: "#s-notif"
+  language: "#s-lang"
+
+review:
+  summary: "#review-summary"
+  submit_button: "#btn-final-submit"
+  final_output: "#final"

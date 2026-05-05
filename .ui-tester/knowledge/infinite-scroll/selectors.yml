@@ -1,0 +1,27 @@
+# Module: infinite-scroll
+# Site: http://localhost:18931/infinite-scroll.html
+# Last updated: 2026-04-29
+
+page:
+  url: "http://localhost:18931/infinite-scroll.html"
+  title: "Edge C: Infinite Scroll List"
+
+elements:
+  search_input: "#search-box"
+  search_button: "#btn-search"
+  reset_button: "#btn-reset-search"
+  verify_button: "#btn-verify"
+  item_list: "#item-list"
+  item_class: ".item"
+  item_name_class: ".item-name"
+  item_meta_class: ".item-meta"
+  tag_class: ".tag"
+  status_div: "#status"
+  loading_div: "#loading"
+
+items:
+  total: 500
+  page_size: 20
+  categories: ["alpha", "beta", "gamma", "delta", "epsilon"]
+  statuses: ["active", "inactive", "pending"]
+  # Note: NO "critical" status exists in the dataset

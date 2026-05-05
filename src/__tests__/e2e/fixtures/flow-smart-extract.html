@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Smart Extract Test Page</title>
+  <style>
+    .item { padding: 10px; margin: 5px 0; border: 1px solid #ccc; }
+    .item .name { font-weight: bold; }
+    .item .price { color: green; }
+  </style>
+</head>
+<body>
+  <h1>Products</h1>
+  <div id="status">Loading...</div>
+  <div id="product-list">
+    <div class="item" data-id="1">
+      <span class="name">Widget A</span>
+      <span class="price">$10</span>
+    </div>
+    <div class="item" data-id="2">
+      <span class="name">Widget B</span>
+      <span class="price">$20</span>
+    </div>
+    <div class="item" data-id="3">
+      <span class="name">Widget C</span>
+      <span class="price">$30</span>
+    </div>
+    <div class="item" data-id="1">
+      <span class="name">Widget A</span>
+      <span class="price">$10</span>
+    </div>
+  </div>
+  <script>
+    fetch('/api/products')
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        window.__apiData = d;
+        document.getElementById('status').textContent = 'API loaded: ' + d.products.length + ' items';
+      })
+      .catch(function(e) {
+        document.getElementById('status').textContent = 'API error';
+      });
+
+    console.log('Page loaded with 4 products');
+    console.warn('Duplicate product exists: Widget A');
+  </script>
+</body>
+</html>

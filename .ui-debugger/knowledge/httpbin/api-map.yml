@@ -1,0 +1,22 @@
+base_url: https://httpbin.org
+network_resources:
+  document:
+    - url: https://httpbin.org/
+      status: 200
+      protocol: h2
+      transfer_size: 9893
+  stylesheets:
+    - url: https://fonts.googleapis.com/css?family=Open+Sans:400,700|Source+Code+Pro:300,600|Titillium+Web:400,600,700
+    - url: https://httpbin.org/flasgger_static/swagger-ui.css
+  scripts:
+    - url: https://httpbin.org/flasgger_static/swagger-ui-bundle.js
+    - url: https://httpbin.org/flasgger_static/swagger-ui-standalone-preset.js
+      transfer_size: 145825
+      duration_ms: 30650
+    - url: https://httpbin.org/flasgger_static/lib/jquery.min.js
+  fonts:
+    - url: https://fonts.gstatic.com/s/opensans/v44/memvYaGs126MiZpBA-UvWbX2vVnXBbObj2OVTS-mu0SC55I.woff2
+    - url: https://fonts.gstatic.com/s/sourcecodepro/v31/HI_SiYsKILxRpg3hIP6sJ7fM7PqlPevWnsUnxg.woff2
+    - url: https://fonts.gstatic.com/s/titilliumweb/v19/NaPDcZTIAOhVxoMyOr9n_E7ffHjDGItzY5abuWI.woff2
+api_endpoints_visible: false
+note: "httpbin.org serves a Swagger UI page. API endpoints are /get, /post, /put, /delete, /status/:code, /headers, /json, etc."

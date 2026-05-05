@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Scenario 3: Storage Isolation</title>
+  <style>
+    body { font-family: monospace; max-width: 700px; margin: 40px auto; padding: 20px; }
+    .field { margin: 12px 0; }
+    label { display: block; font-weight: bold; margin-bottom: 4px; }
+    input { padding: 8px; width: 300px; font-family: monospace; }
+    button { padding: 10px 20px; margin: 4px; cursor: pointer; }
+    #output { margin-top: 20px; padding: 16px; border: 2px solid #333; white-space: pre-wrap; min-height: 100px; }
+    .pass { color: green; } .fail { color: red; }
+  </style>
+</head>
+<body>
+  <h1>Scenario 3: Storage Isolation</h1>
+  <p>Each agent writes a <strong>unique key-value pair</strong> to localStorage, then verifies only its own data is present.</p>
+
+  <div class="field">
+    <label for="ls-key">localStorage Key:</label>
+    <input type="text" id="ls-key" placeholder="e.g. agent1_data">
+  </div>
+  <div class="field">
+    <label for="ls-value">localStorage Value:</label>
+    <input type="text" id="ls-value" placeholder="e.g. session-alpha">
+  </div>
+  <div style="margin-top: 12px;">
+    <button id="btn-write">Write to localStorage</button>
+    <button id="btn-read">Read All localStorage</button>
+    <button id="btn-clear">Clear localStorage</button>
+  </div>
+
+  <div id="output">Ready.</div>
+
+  <script>
+    const output = document.getElementById('output');
+
+    function show(msg) { output.textContent = msg; }
+
+    document.getElementById('btn-write').addEventListener('click', () => {
+      const k = document.getElementById('ls-key').value;
+      const v = document.getElementById('ls-value').value;
+      if (k && v) {
+        localStorage.setItem(k, v);
+        show(`Written: ${k} = ${v}\n\nAll keys:\n` + JSON.stringify(Object.fromEntries(
+          Object.keys(localStorage).map(k => [k, localStorage.getItem(k)])
+        ), null, 2));
+      }
+    });
+
+    document.getElementById('btn-read').addEventListener('click', () => {
+      const all = Object.fromEntries(
+        Object.keys(localStorage).map(k => [k, localStorage.getItem(k)])
+      );
+      show('=== ALL localStorage ===\n' + JSON.stringify(all, null, 2));
+    });
+
+    document.getElementById('btn-clear').addEventListener('click', () => {
+      localStorage.clear();
+      show('localStorage cleared.');
+    });
+  </script>
+</body>
+</html>

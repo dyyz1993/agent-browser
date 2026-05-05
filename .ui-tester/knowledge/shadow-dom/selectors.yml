@@ -1,0 +1,39 @@
+# Module: shadow-dom
+# Site: http://localhost:18931/shadow-dom.html
+# Last updated: 2026-04-30 (r1a session)
+# Source: snapshot -i --selectors
+
+registration_form:
+  custom_element: "user-registration-form"
+  shadow_mode: "open"
+  fields:
+    name_input: "#name"
+    email_input: "#email"
+    password_input: "#password"
+    role_select: "#role"
+  indicators:
+    password_strength_bar: "#str-bar"
+    password_strength_text: "#str-text"
+  validation_errors:
+    name_error: "#name-err"
+    email_error: "#email-err"
+
+submit_button:
+  selector: "#external-submit"
+  location: "main document (NOT in shadow DOM)"
+
+result_area:
+  selector: "#result"
+  location: "main document"
+
+# Ref-to-stable-selector mapping (from snapshot -i --selectors)
+ref_map:
+  e1: "#name"           # textbox "Your name"
+  e2: "#email"          # textbox "you@example.com"
+  e3: "#password"       # textbox "Min 8 chars"
+  e4: "#role"           # combobox (role select)
+  e5: "-- select --"    # option [selected]
+  e6: "Developer"       # option
+  e7: "Designer"        # option
+  e8: "Product Manager" # option
+  e9: "#external-submit" # button "Submit from Outside"

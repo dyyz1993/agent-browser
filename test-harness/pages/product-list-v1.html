@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>TechStore - 产品列表</title>
+<style>
+body { font-family: sans-serif; margin: 20px; background: #f5f5f5; }
+.product-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.product-card { background: white; border-radius: 8px; padding: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+.product-card .item-name { font-size: 18px; font-weight: bold; color: #333; margin-bottom: 8px; }
+.product-card .item-price { font-size: 22px; color: #e74c3c; font-weight: bold; }
+.product-card .item-stock { font-size: 14px; color: #27ae60; margin-top: 4px; }
+.product-card .item-category { font-size: 12px; color: #888; background: #eee; display: inline-block; padding: 2px 8px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<h1 class="page-title">TechStore 产品列表</h1>
+<p class="page-desc">共 20 款热销产品</p>
+<div class="product-grid" id="productGrid"></div>
+<script>
+const products = [
+  {id:1,name:"MacBook Pro 16",price:18999,stock:45,category:"笔记本"},
+  {id:2,name:"iPhone 15 Pro Max",price:9999,stock:120,category:"手机"},
+  {id:3,name:"iPad Air",price:4799,stock:88,category:"平板"},
+  {id:4,name:"AirPods Pro 2",price:1899,stock:200,category:"耳机"},
+  {id:5,name:"Apple Watch Ultra",price:6299,stock:33,category:"手表"},
+  {id:6,name:"Mac Mini M2",price:4499,stock:67,category:"台式机"},
+  {id:7,name:"Studio Display",price:11499,stock:22,category:"显示器"},
+  {id:8,name:"Magic Keyboard",price:699,stock:150,category:"配件"},
+  {id:9,name:"HomePod Mini",price:749,stock:95,category:"音箱"},
+  {id:10,name:"AirTag 4件装",price:779,stock:300,category:"配件"},
+  {id:11,name:"MacBook Air 15",price:10499,stock:56,category:"笔记本"},
+  {id:12,name:"iPhone 15",price:5999,stock:180,category:"手机"},
+  {id:13,name:"iPad Pro 12.9",price:8999,stock:41,category:"平板"},
+  {id:14,name:"Apple Pencil Pro",price:999,stock:210,category:"配件"},
+  {id:15,name:"Mac Studio",price:14999,stock:18,category:"台式机"},
+  {id:16,name:"Vision Pro",price:29999,stock:5,category:"XR"},
+  {id:17,name:"AirPods Max",price:4399,stock:42,category:"耳机"},
+  {id:18,name:"Apple TV 4K",price:1399,stock:73,category:"电视盒"},
+  {id:19,name:"MagSafe充电器",price:399,stock:500,category:"配件"},
+  {id:20,name:"Thunderbolt 4线缆",price:549,stock:250,category:"配件"}
+];
+
+const grid = document.getElementById('productGrid');
+products.forEach(p => {
+  const card = document.createElement('div');
+  card.className = 'product-card';
+  card.innerHTML = `
+    <div class="item-name">${p.name}</div>
+    <span class="item-category">${p.category}</span>
+    <div class="item-price">¥${p.price.toLocaleString()}</div>
+    <div class="item-stock">库存: ${p.stock}件</div>
+  `;
+  grid.appendChild(card);
+});
+</script>
+</body>
+</html>

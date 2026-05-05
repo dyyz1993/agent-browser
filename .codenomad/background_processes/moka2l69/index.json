@@ -1,0 +1,13 @@
+[
+  {
+    "id": "proc_2026-04-30T0125_b510f7",
+    "workspaceId": "moka2l69",
+    "title": "Edge Test Server (port 18931)",
+    "command": "node /Users/xuyingzhou/Project/temporary/agent-browser/edge-test-server.cjs",
+    "cwd": "/Users/xuyingzhou/Project/temporary/agent-browser",
+    "status": "running",
+    "pid": 28554,
+    "startedAt": "2026-04-30T01:25:04.318Z",
+    "outputSizeBytes": 0
+  }
+]

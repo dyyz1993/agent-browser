@@ -1,0 +1,13 @@
+# Module: counter-state
+# Site: http://localhost:18930/counter-state.html
+# Last updated: 2026-04-29
+
+counter_page:
+  url: "http://localhost:18930/counter-state.html"
+  counter_display: "#counter-display"
+  inc_button: "#btn-inc"
+  dec_button: "#btn-dec"
+  reset_button: "#btn-reset"
+  set_value_input: "#set-value"
+  set_value_button: "#btn-set"
+  log_container: "#log"

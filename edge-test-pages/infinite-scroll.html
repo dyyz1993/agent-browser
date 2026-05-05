@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Edge C: Infinite Scroll List</title>
+  <style>
+    body { font-family: monospace; max-width: 700px; margin: 40px auto; padding: 20px; }
+    #search-box { padding: 8px; width: 300px; font-family: monospace; }
+    #item-list { height: 400px; overflow-y: auto; border: 1px solid #ccc; margin-top: 12px; position: relative; }
+    .item { padding: 10px 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; }
+    .item:hover { background: #f5f5f5; }
+    .item-name { font-weight: bold; }
+    .item-meta { color: #666; font-size: 12px; }
+    #loading { text-align: center; padding: 12px; color: #999; display: none; }
+    #status { margin-top: 12px; padding: 12px; border: 1px solid; }
+    .tag { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-left: 4px; }
+    .tag-active { background: #d4edda; color: #155724; }
+    .tag-inactive { background: #f8d7da; color: #721c24; }
+    .tag-pending { background: #fff3cd; color: #856404; }
+    button { padding: 8px 16px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>Edge C: Infinite Scroll Data List</h1>
+  <p>500 items, loaded 20 at a time. Find specific items and verify them.</p>
+
+  <div style="margin-bottom: 12px;">
+    <input type="text" id="search-box" placeholder="Search items...">
+    <button id="btn-search">Search</button>
+    <button id="btn-reset-search">Reset</button>
+  </div>
+
+  <div id="item-list"></div>
+  <div id="loading">Loading more items...</div>
+
+  <div style="margin-top: 12px;">
+    <button id="btn-verify">Verify Findings</button>
+  </div>
+  <div id="status"></div>
+
+  <script>
+    const ALL_ITEMS = [];
+    const CATEGORIES = ['alpha', 'beta', 'gamma', 'delta', 'epsilon'];
+    const STATUSES = ['active', 'inactive', 'pending'];
+    const PAGE_SIZE = 20;
+    let loadedCount = 0;
+    let filteredItems = null;
+
+    for (let i = 1; i <= 500; i++) {
+      ALL_ITEMS.push({
+        id: i,
+        name: `Item-${String(i).padStart(4, '0')}`,
+        category: CATEGORIES[i % CATEGORIES.length],
+        status: STATUSES[i % STATUSES.length],
+        value: Math.round(Math.random() * 10000) / 100
+      });
+    }
+
+    const listEl = document.getElementById('item-list');
+    const loadingEl = document.getElementById('loading');
+
+    function renderItems(items, append) {
+      if (!append) listEl.innerHTML = '';
+      items.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'item';
+        div.dataset.id = item.id;
+        div.innerHTML = `
+          <span class="item-name">${item.name}</span>
+          <span>
+            <span class="item-meta">${item.category}</span>
+            <span class="tag tag-${item.status}">${item.status}</span>
+            <span class="item-meta">$${item.value.toFixed(2)}</span>
+          </span>
+        `;
+        listEl.appendChild(div);
+      });
+    }
+
+    function loadMore() {
+      const source = filteredItems || ALL_ITEMS;
+      const next = source.slice(loadedCount, loadedCount + PAGE_SIZE);
+      if (next.length === 0) return;
+      loadingEl.style.display = 'block';
+      setTimeout(() => {
+        renderItems(next, true);
+        loadedCount += next.length;
+        loadingEl.style.display = 'none';
+      }, 300);
+    }
+
+    listEl.addEventListener('scroll', () => {
+      const source = filteredItems || ALL_ITEMS;
+      if (listEl.scrollTop + listEl.clientHeight >= listEl.scrollHeight - 50) {
+        if (loadedCount < source.length) loadMore();
+      }
+    });
+
+    loadMore();
+
+    document.getElementById('btn-search').addEventListener('click', () => {
+      const q = document.getElementById('search-box').value.trim().toLowerCase();
+      if (!q) return;
+      filteredItems = ALL_ITEMS.filter(item =>
+        item.name.toLowerCase().includes(q) || item.category.includes(q) || item.status.includes(q)
+      );
+      loadedCount = 0;
+      loadMore();
+    });
+
+    document.getElementById('btn-reset-search').addEventListener('click', () => {
+      document.getElementById('search-box').value = '';
+      filteredItems = null;
+      loadedCount = 0;
+      loadMore();
+    });
+
+    document.getElementById('btn-verify').addEventListener('click', () => {
+      const rendered = listEl.querySelectorAll('.item');
+      const visibleItems = [];
+      rendered.forEach(el => {
+        visibleItems.push({
+          id: el.dataset.id,
+          name: el.querySelector('.item-name').textContent
+        });
+      });
+      const source = filteredItems || ALL_ITEMS;
+      const el = document.getElementById('status');
+      el.style.borderColor = 'green';
+      el.textContent = `=== VERIFICATION ===\nVisible items: ${visibleItems.length}\nTotal loaded: ${loadedCount}\nTotal in dataset: ${source.length}\nLast visible: ${visibleItems[visibleItems.length - 1]?.name || 'none'}\nFirst visible: ${visibleItems[0]?.name || 'none'}`;
+    });
+  </script>
+</body>
+</html>

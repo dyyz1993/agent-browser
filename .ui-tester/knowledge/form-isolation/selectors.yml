@@ -1,0 +1,19 @@
+# Module: form-isolation
+# Site: http://localhost:18930/form-isolation.html
+# Last updated: 2026-04-29
+
+form_page:
+  url: "http://localhost:18930/form-isolation.html"
+  username_input: "#username"
+  email_input: "#email"
+  color_select: "#color"
+  comment_input: "#comment"
+  agree_checkbox: "#agree"
+  rating_radios: "input[name='rating']"
+  submit_button: "#submit-btn"
+  result_display: "#result"
+
+submit_button_behavior:
+  description: "Submit button is disabled until agree checkbox is checked"
+  disabled_by_default: true
+  enabled_when: "agree checkbox is checked"

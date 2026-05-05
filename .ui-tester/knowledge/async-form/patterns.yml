@@ -1,0 +1,45 @@
+# Module: async-form
+# Reusable operation sequences
+
+async_progressive_form_flow:
+  description: "Fill a form where sections appear progressively with delays"
+  steps:
+    - action: fill
+      selector: "#f-name"
+      value: "Async Loader"
+      description: "Fill Full Name (Section 1 - immediate)"
+    - action: wait
+      duration: 2500
+      description: "Wait for Section 2 to appear (~2s delay)"
+    - action: fill
+      selector: "#f-email"
+      value: "async@test.dev"
+      description: "Fill Email (Section 2)"
+    - action: fill
+      selector: "#f-phone"
+      value: "+1-555-0123"
+      description: "Fill Phone (Section 2)"
+    - action: wait
+      duration: 3000
+      description: "Wait for Section 3 to appear (~4.5s total delay)"
+    - action: select
+      selector: "#f-lang"
+      value: "English"
+      description: "Select Language (Section 3)"
+    - action: click
+      selector: "#f-tos"
+      description: "Check Terms of Service (Section 3)"
+    - action: wait
+      duration: 3000
+      description: "Wait for Section 4 summary (~7s total delay)"
+    - action: click
+      selector: "#btn-submit"
+      description: "Submit the application"
+  expected_result: "=== APPLICATION SUBMITTED === text with JSON data"
+
+tips:
+  - "Sections use CSS display toggle; accessibility tree may show elements before they are visually visible"
+  - "Submit button starts disabled, enables when all fields filled AND all sections loaded"
+  - "Section delays: 0s, 2s, 4.5s, 7s from page load"
+  - "Summary in Section 4 auto-updates via input/change event listeners"
+  - "get text body is reliable for verifying final submission result"

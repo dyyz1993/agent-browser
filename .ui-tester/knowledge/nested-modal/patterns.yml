@@ -1,0 +1,53 @@
+# Module: nested-modal
+# Reusable operation sequences (stable selectors only, no @refs)
+# Last updated: 2026-04-30 (r3b stress test verified - 5/5 cycles)
+
+nested_modal_flow:
+  description: "Complete 3-level nested modal workflow: select card, edit, confirm, add note"
+  steps:
+    - action: find
+      selector: 'text "Project Beta"'
+      sub_action: click
+      description: "Click Project Beta card to open Modal 1"
+    - action: fill
+      selector: "#m1-newname"
+      value: "Beta Updated"
+      description: "Update project name in Modal 1"
+    - action: select
+      selector: "#m1-status"
+      value: "active"
+      description: "Select status in Modal 1"
+    - action: click
+      selector: "#btn-open-confirm"
+      description: "Save Changes - opens Modal 2"
+    - action: click
+      selector: "#btn-confirm"
+      description: "Confirm - opens Modal 3"
+    - action: fill
+      selector: "#m3-reason"
+      value: "Reactivating project"
+      description: "Fill change reason in Modal 3"
+    - action: click
+      selector: "#btn-final-submit"
+      description: "Submit Change - closes all modals"
+  expected_result: "All modals close, #final shows CHANGE COMPLETE"
+
+# --selectors output per modal level:
+#   Modal 1 (edit): #m1-newname, #m1-status, #btn-open-confirm
+#   Modal 2 (confirm): + #btn-confirm
+#   Modal 3 (final note): + #m3-reason, #btn-final-submit
+
+tips:
+  - "Modals stack with z-index; always interact with topmost modal"
+  - "Toast notifications auto-dismiss after ~2 seconds - screenshot quickly"
+  - "snapshot -i shows all interactive elements across all open modals"
+  - "CSS selectors (#id) are more reliable than @ref for hidden modals"
+  - "The close 'x' buttons are small modal-close elements with data-close attribute"
+  - "If reason field is empty on submit, toast shows 'Reason is required!'"
+  - ".card elements have no ARIA role — use 'find text' or eval to interact"
+  - "--selectors outputs stable #id selectors for all form inputs and buttons"
+  - "history only records direct element interactions (fill/select/click), not navigation/snapshot/find"
+  - "STRICT MODE: find text fails when log area contains same text as card name (after edits). Use eval .card[N] click instead"
+  - "eval card click fallback: document.querySelectorAll('.card')[N].click() where N=0(Alpha),1(Beta),2(Gamma)"
+  - "Rapid-fire stress test: 5 cycles x 6 actions = 30 interactions, all #id selectors stable, zero staleness"
+  - "Connection timeout can occur during rapid fire; confirm session alive with 'get url' then retry"

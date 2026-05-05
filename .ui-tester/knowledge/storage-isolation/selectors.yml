@@ -1,0 +1,12 @@
+# Module: storage-isolation
+# Site: http://localhost:18930/storage-isolation.html
+# Last updated: 2026-04-29
+
+storage_page:
+  url: "http://localhost:18930/storage-isolation.html"
+  key_input: "input#ls-key"
+  value_input: "input#ls-value"
+  write_button: "button#btn-write"
+  read_button: "button#btn-read"
+  clear_button: "button#btn-clear"
+  output_area: "#output"

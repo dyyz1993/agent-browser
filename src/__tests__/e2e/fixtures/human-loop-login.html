@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html><head><title>Login Required</title></head>
+<body>
+<div id="login-form" style="max-width:300px; margin:100px auto; padding:20px; border:1px solid #ccc;">
+  <h2>Please log in</h2>
+  <p>Please enter your credentials to continue</p>
+  <input type="text" id="username" placeholder="Username">
+  <input type="password" id="password" placeholder="Password">
+  <button onclick="doLogin()">Login</button>
+</div>
+<script>
+  function doLogin() {
+    document.getElementById('login-form').remove();
+    var content = document.createElement('div');
+    content.id = 'logged-in-content';
+    content.innerHTML = '<h1>Welcome back!</h1><p class="dashboard">Dashboard content here</p>';
+    document.body.appendChild(content);
+  }
+  setTimeout(function() {
+    var form = document.getElementById('login-form');
+    if (form) {
+      form.remove();
+      var content = document.createElement('div');
+      content.id = 'logged-in-content';
+      content.innerHTML = '<h1>Welcome back!</h1><p class="dashboard">Dashboard content here</p>';
+      document.body.appendChild(content);
+    }
+  }, 3000);
+</script>
+</body></html>

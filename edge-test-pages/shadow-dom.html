@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Edge A: Shadow DOM Components</title>
+  <style>
+    body { font-family: monospace; max-width: 700px; margin: 40px auto; padding: 20px; }
+    #result { margin-top: 20px; padding: 16px; border: 2px solid #333; white-space: pre-wrap; display: none; }
+    button { padding: 10px 20px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>Edge A: Shadow DOM Registration</h1>
+  <p>Form is built with Web Components. Fields are inside Shadow DOM.</p>
+
+  <user-registration-form id="reg-form"></user-registration-form>
+
+  <div style="margin-top: 16px;">
+    <button id="external-submit">Submit from Outside</button>
+  </div>
+  <div id="result"></div>
+
+  <script>
+    class UserRegistrationForm extends HTMLElement {
+      constructor() {
+        super();
+        this.attachShadow({ mode: 'open' });
+        this.shadowRoot.innerHTML = `
+          <style>
+            .field { margin: 10px 0; }
+            label { display: block; font-weight: bold; margin-bottom: 4px; font-size: 14px; }
+            input, select { padding: 8px; width: 300px; box-sizing: border-box; font-family: monospace; }
+            .hint { color: #666; font-size: 12px; margin-top: 2px; }
+            .error { color: red; font-size: 12px; display: none; margin-top: 2px; }
+            .strength { height: 4px; width: 300px; background: #eee; margin-top: 4px; }
+            .strength-bar { height: 100%; width: 0; transition: width 0.3s, background 0.3s; }
+          </style>
+          <div class="field">
+            <label>Display Name</label>
+            <input type="text" id="name" placeholder="Your name" autocomplete="off">
+            <div class="hint">2-30 characters, letters and spaces only</div>
+            <div class="error" id="name-err">Invalid name</div>
+          </div>
+          <div class="field">
+            <label>Email Address</label>
+            <input type="email" id="email" placeholder="you@example.com">
+            <div class="error" id="email-err">Invalid email format</div>
+          </div>
+          <div class="field">
+            <label>Password</label>
+            <input type="password" id="password" placeholder="Min 8 chars">
+            <div class="strength"><div class="strength-bar" id="str-bar"></div></div>
+            <div class="hint" id="str-text">Password strength: none</div>
+          </div>
+          <div class="field">
+            <label>Role</label>
+            <select id="role">
+              <option value="">-- select --</option>
+              <option value="dev">Developer</option>
+              <option value="designer">Designer</option>
+              <option value="pm">Product Manager</option>
+            </select>
+          </div>
+        `;
+        this.shadowRoot.getElementById('password').addEventListener('input', (e) => {
+          const v = e.target.value;
+          const bar = this.shadowRoot.getElementById('str-bar');
+          const txt = this.shadowRoot.getElementById('str-text');
+          const s = v.length === 0 ? 0 : v.length < 6 ? 1 : v.length < 10 ? 2 : 3;
+          const labels = ['none', 'weak', 'medium', 'strong'];
+          const colors = ['#eee', 'red', 'orange', 'green'];
+          bar.style.width = (s * 33.3) + '%';
+          bar.style.background = colors[s];
+          txt.textContent = 'Password strength: ' + labels[s];
+        });
+      }
+
+      validate() {
+        let ok = true;
+        const name = this.shadowRoot.getElementById('name').value;
+        const email = this.shadowRoot.getElementById('email').value;
+        const password = this.shadowRoot.getElementById('password').value;
+        const role = this.shadowRoot.getElementById('role').value;
+
+        const nameErr = this.shadowRoot.getElementById('name-err');
+        const emailErr = this.shadowRoot.getElementById('email-err');
+
+        if (!name || name.length < 2 || name.length > 30 || !/^[a-zA-Z\s]+$/.test(name)) {
+          nameErr.style.display = 'block'; ok = false;
+        } else { nameErr.style.display = 'none'; }
+
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          emailErr.style.display = 'block'; ok = false;
+        } else { emailErr.style.display = 'none'; }
+
+        if (!password || password.length < 8) ok = false;
+        if (!role) ok = false;
+
+        return ok ? { name, email, password: '***', role } : null;
+      }
+
+      getData() {
+        return {
+          name: this.shadowRoot.getElementById('name').value,
+          email: this.shadowRoot.getElementById('email').value,
+          password: this.shadowRoot.getElementById('password').value,
+          role: this.shadowRoot.getElementById('role').value
+        };
+      }
+    }
+    customElements.define('user-registration-form', UserRegistrationForm);
+
+    document.getElementById('external-submit').addEventListener('click', () => {
+      const form = document.getElementById('reg-form');
+      const data = form.validate();
+      const el = document.getElementById('result');
+      el.style.display = 'block';
+      if (data) {
+        el.textContent = '=== REGISTRATION SUCCESS ===\n' + JSON.stringify(data, null, 2);
+      } else {
+        el.textContent = '=== VALIDATION FAILED ===\nPlease fix the highlighted fields.';
+      }
+    });
+  </script>
+</body>
+</html>

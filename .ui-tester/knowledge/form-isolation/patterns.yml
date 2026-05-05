@@ -1,0 +1,34 @@
+# Module: form-isolation
+# Reusable operation sequences
+
+form_fill_and_submit:
+  description: "Standard form fill + submit flow"
+  steps:
+    - action: fill
+      selector: "#username"
+      description: "Fill username"
+    - action: fill
+      selector: "#email"
+      description: "Fill email"
+    - action: select
+      selector: "#color"
+      description: "Select color from dropdown"
+    - action: fill
+      selector: "#comment"
+      description: "Fill comment"
+    - action: click
+      selector: "#agree"
+      description: "Check agree checkbox to enable submit"
+    - action: click
+      selector: "input[name='rating'][value='5']"
+      description: "Select rating radio"
+    - action: click
+      selector: "#submit-btn"
+      description: "Click submit button"
+  expected_result: "Result JSON displayed in #result element"
+
+tips:
+  - "Submit button is disabled by default - must check agree checkbox first"
+  - "Button ref (@e16) has quotes in name which can cause ref resolution issues - use find by role instead"
+  - "Result is displayed inline via JS (no page navigation), same refs remain valid"
+  - "Rating radios: value=1 is e11, value=2 is e12, value=3 is e13, value=4 is e14, value=5 is e15"

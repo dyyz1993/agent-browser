@@ -1,0 +1,37 @@
+# Module: iframe-isolation
+# Reusable operation sequences
+
+iframe_fill_flow:
+  description: "Fill forms in nested iframes and submit from parent"
+  steps:
+    - action: snapshot
+      args: "-i --in-frame '#frame-a'"
+      description: "Snapshot iframe A to get refs"
+    - action: fill
+      in_frame: "#frame-a"
+      description: "Fill first name, last name, age"
+    - action: snapshot
+      args: "-i --in-frame '#frame-b'"
+      description: "Snapshot iframe B to get refs"
+    - action: fill
+      in_frame: "#frame-b"
+      description: "Fill street, city"
+    - action: snapshot
+      args: "-i --in-frame '#frame-b/#frame-c'"
+      description: "Snapshot nested iframe C"
+    - action: select
+      in_frame: "#frame-b/#frame-c"
+      description: "Select country using 'select @combobox_ref value' syntax"
+    - action: snapshot
+      args: "-i"
+      description: "Re-snapshot parent page for submit button ref"
+    - action: click
+      description: "Click submit on parent page"
+
+tips:
+  - "Use --in-frame '#frame-id' for single iframe, --in-frame '#outer/#inner' for nested"
+  - "select command needs both a selector ref AND a value: 'select @e1 China'"
+  - "snapshot -i from parent only shows parent-level elements, not iframe contents"
+  - "After filling iframes, re-snapshot parent page before clicking submit"
+  - "These are srcdoc iframes (same-origin), so cross-frame access works"
+  - "Country select returns ISO code (e.g., 'CN' for China), not display name"

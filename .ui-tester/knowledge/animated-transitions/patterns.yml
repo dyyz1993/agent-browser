@@ -1,0 +1,56 @@
+# Module: animated-transitions
+# Reusable operation sequences
+
+complete_wizard_flow:
+  description: "Full wizard with animated transitions, loading spinners, staggered fade-ins"
+  steps:
+    - action: fill
+      selector: "#h-task"
+      value: "Test Task"
+      description: "Fill task name"
+    - action: select
+      selector: "#h-priority"
+      value: "Normal"
+      description: "Select priority"
+    - action: click
+      selector: "#btn-next-1"
+      description: "Go to step 2"
+    - action: wait
+      duration: 4000
+      description: "Wait for 3-second countdown loading spinner"
+    - action: click
+      selector: "button[data-target='panel-a']"
+      description: "Reveal Option A panel"
+    - action: wait
+      duration: 600
+      description: "Wait for slide animation"
+    - action: fill
+      selector: "#h-opt-a"
+      value: "Option A chosen"
+      description: "Fill Option A detail"
+    - action: click
+      selector: "#btn-next-2"
+      description: "Go to step 3"
+    - action: wait
+      duration: 3000
+      description: "Wait for staggered fade-in (500ms, 1500ms, 2500ms delays)"
+    - action: fill
+      selector: "#h-notes"
+      value: "Notes text"
+      description: "Fill notes field"
+    - action: click
+      selector: "#btn-submit"
+      description: "Submit form"
+    - action: verify
+      selector: "#result"
+      expected: "ANIMATED FORM COMPLETE"
+      description: "Verify completion"
+  expected_result: "ANIMATED FORM COMPLETE with JSON output"
+
+tips:
+  - "Loading spinner is a 3-second countdown, use wait 4000 to be safe"
+  - "CSS transitions: elements exist in DOM but hidden (opacity:0, display:none). snapshot -i may not show them until visible"
+  - "Step 3 fade-ins are staggered at 500ms, 1500ms, 2500ms. Use wait 3000 to ensure all are visible"
+  - "Result element (#result) is dynamically added and may not appear in snapshot. Use get text body or eval to verify"
+  - "Slide panel animation is ~300ms, use wait 600 for safety margin"
+  - "Confirm Name field (#h-confirm-name) is auto-filled from task name via JS"

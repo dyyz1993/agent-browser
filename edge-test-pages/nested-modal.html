@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Edge D: Nested Modal Workflow</title>
+  <style>
+    body { font-family: monospace; max-width: 700px; margin: 40px auto; padding: 20px; }
+    .card { padding: 16px; border: 1px solid #ccc; margin: 12px 0; cursor: pointer; }
+    .card:hover { background: #f9f9f9; }
+    .overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.5); display: none; z-index: 10; justify-content: center; align-items: center; }
+    .overlay.active { display: flex; }
+    .modal { background: white; padding: 24px; border-radius: 8px; max-width: 500px; width: 90%; position: relative; }
+    .modal h2 { margin-top: 0; }
+    .modal-close { position: absolute; top: 8px; right: 12px; background: none; border: none; font-size: 20px; cursor: pointer; }
+    .overlay-2 { z-index: 20; }
+    .overlay-3 { z-index: 30; }
+    .field { margin: 8px 0; }
+    label { display: block; font-weight: bold; margin-bottom: 4px; }
+    input { padding: 8px; width: 250px; box-sizing: border-box; font-family: monospace; }
+    button { padding: 8px 16px; cursor: pointer; margin: 4px; }
+    .toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 20px; background: #333; color: white; border-radius: 6px; display: none; z-index: 50; transition: opacity 0.3s; }
+    #log { margin-top: 16px; padding: 12px; border: 1px solid #ccc; max-height: 200px; overflow-y: auto; font-size: 13px; }
+    #final { margin-top: 16px; padding: 16px; border: 2px solid green; display: none; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>Edge D: Nested Modal Workflow</h1>
+  <p>A 3-level modal flow: select card -> edit -> confirm. Toast notifications appear and auto-dismiss.</p>
+
+  <div class="card" id="card-1" data-name="Project Alpha">
+    <strong>Project Alpha</strong> - Status: Active<br>
+    <small>Click to edit details</small>
+  </div>
+  <div class="card" id="card-2" data-name="Project Beta">
+    <strong>Project Beta</strong> - Status: Pending<br>
+    <small>Click to edit details</small>
+  </div>
+  <div class="card" id="card-3" data-name="Project Gamma">
+    <strong>Project Gamma</strong> - Status: Inactive<br>
+    <small>Click to edit details</small>
+  </div>
+
+  <div class="overlay" id="modal-1">
+    <div class="modal">
+      <button class="modal-close" data-close="modal-1">&times;</button>
+      <h2>Edit Project: <span id="m1-name"></span></h2>
+      <div class="field">
+        <label>Project Name</label>
+        <input type="text" id="m1-newname">
+      </div>
+      <div class="field">
+        <label>Status</label>
+        <select id="m1-status" style="padding:8px;width:250px;font-family:monospace;">
+          <option value="active">Active</option>
+          <option value="pending">Pending</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </div>
+      <button id="btn-open-confirm">Save Changes</button>
+      <button data-close="modal-1">Cancel</button>
+    </div>
+  </div>
+
+  <div class="overlay overlay-2" id="modal-2">
+    <div class="modal">
+      <button class="modal-close" data-close="modal-2">&times;</button>
+      <h2>Confirm Changes</h2>
+      <div id="confirm-summary"></div>
+      <button id="btn-confirm">Confirm</button>
+      <button data-close="modal-2">Go Back</button>
+    </div>
+  </div>
+
+  <div class="overlay overlay-3" id="modal-3">
+    <div class="modal">
+      <h2>Final Step: Add Note</h2>
+      <div class="field">
+        <label>Change Reason</label>
+        <input type="text" id="m3-reason" placeholder="Why are you changing this?">
+      </div>
+      <button id="btn-final-submit">Submit Change</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <div id="log"></div>
+  <div id="final"></div>
+
+  <script>
+    const logEl = document.getElementById('log');
+    const toastEl = document.getElementById('toast');
+    let currentCard = null;
+
+    function log(msg) {
+      const d = document.createElement('div');
+      d.textContent = `[${new Date().toISOString().slice(11,19)}] ${msg}`;
+      logEl.prepend(d);
+    }
+
+    function showToast(msg, duration = 2000) {
+      toastEl.textContent = msg;
+      toastEl.style.display = 'block';
+      toastEl.style.opacity = '1';
+      setTimeout(() => {
+        toastEl.style.opacity = '0';
+        setTimeout(() => { toastEl.style.display = 'none'; }, 300);
+      }, duration);
+    }
+
+    function openModal(id) {
+      document.getElementById(id).classList.add('active');
+      log('Opened ' + id);
+    }
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('active');
+      log('Closed ' + id);
+    }
+
+    document.querySelectorAll('.card').forEach(card => {
+      card.addEventListener('click', () => {
+        currentCard = card;
+        document.getElementById('m1-name').textContent = card.dataset.name;
+        document.getElementById('m1-newname').value = card.dataset.name;
+        openModal('modal-1');
+      });
+    });
+
+    document.querySelectorAll('.modal-close, [data-close]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = btn.dataset.close;
+        if (target) closeModal(target);
+      });
+    });
+
+    document.getElementById('btn-open-confirm').addEventListener('click', () => {
+      const newName = document.getElementById('m1-newname').value;
+      const status = document.getElementById('m1-status').value;
+      document.getElementById('confirm-summary').textContent = JSON.stringify({
+        originalName: currentCard.dataset.name,
+        newName,
+        newStatus: status
+      }, null, 2);
+      openModal('modal-2');
+    });
+
+    document.getElementById('btn-confirm').addEventListener('click', () => {
+      openModal('modal-3');
+    });
+
+    document.getElementById('btn-final-submit').addEventListener('click', () => {
+      const reason = document.getElementById('m3-reason').value;
+      if (!reason) { showToast('Reason is required!', 1500); return; }
+
+      const newName = document.getElementById('m1-newname').value;
+      const status = document.getElementById('m1-status').value;
+
+      currentCard.dataset.name = newName;
+      currentCard.querySelector('strong').textContent = newName;
+
+      closeModal('modal-3');
+      closeModal('modal-2');
+      closeModal('modal-1');
+
+      showToast('Changes saved successfully!');
+
+      const el = document.getElementById('final');
+      el.style.display = 'block';
+      el.textContent = '=== CHANGE COMPLETE ===\n' + JSON.stringify({
+        project: newName,
+        status,
+        reason,
+        changedAt: new Date().toISOString()
+      }, null, 2);
+
+      log('Change submitted for ' + newName);
+    });
+  </script>
+</body>
+</html>

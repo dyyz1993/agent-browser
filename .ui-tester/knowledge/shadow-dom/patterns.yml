@@ -1,0 +1,54 @@
+# Module: shadow-dom
+# Reusable operation sequences
+# Last updated: 2026-04-30 (r1a session)
+# All selectors are STABLE CSS selectors (NOT @refs)
+
+shadow_dom_form_fill:
+  description: "Fill registration form inside Shadow DOM custom element"
+  steps:
+    - action: fill
+      selector: "#name"
+      value: "Agent Alpha"
+      description: "Fill Display Name in shadow DOM"
+    - action: fill
+      selector: "#email"
+      value: "alpha@test.dev"
+      description: "Fill Email in shadow DOM"
+    - action: fill
+      selector: "#password"
+      value: "AlphaP@ss2024!"
+      description: "Fill Password in shadow DOM"
+    - action: select
+      selector: "#role"
+      value: "Developer"
+      description: "Select Role in shadow DOM (options: Developer/Designer/Product Manager)"
+    - action: click
+      selector: "#external-submit"
+      description: "Click submit button in main document (NOT in shadow DOM)"
+  expected_result: "REGISTRATION SUCCESS message in #result element with JSON data"
+
+shadow_dom_eval_access:
+  description: "Access shadow DOM fields via JavaScript eval when snapshot doesn't work"
+  pattern: |
+    document.querySelector('user-registration-form').shadowRoot.getElementById('name').value = 'Shadow Tester'
+    document.querySelector('user-registration-form').shadowRoot.getElementById('email').value = 'shadow@test.dev'
+    document.querySelector('user-registration-form').shadowRoot.getElementById('password').value = 'Str0ngP@ss!'
+    document.querySelector('user-registration-form').shadowRoot.getElementById('role').value = 'dev'
+
+tips:
+  - "snapshot -i successfully pierces open Shadow DOM for this page, returning refs for all form fields"
+  - "snapshot -i --selectors outputs a ## Selectors section mapping each @ref to its stable CSS selector"
+  - "Role internal values: dev=Developer, designer=Designer, pm=Product Manager"
+  - "Password strength calculation: length 0=none, <6=weak, <10=medium, >=10=strong"
+  - "Submit button is in the main document, NOT in shadow DOM"
+  - "Result is displayed in #result element in the main document"
+  - "Password is masked as '***' in the success output"
+  - "If snapshot doesn't pierce Shadow DOM, use eval with document.querySelector('user-registration-form').shadowRoot as fallback"
+  - "history --json returns structured operation log with timestamps and success status"
+  - "NAME VALIDATION: only letters and spaces allowed (regex: /^[a-zA-Z\\s]+$/), 2-30 chars. No hyphens, numbers, or special chars"
+  - "EDGE CASE: fill command does NOT accept empty string — use eval to clear fields: form.shadowRoot.getElementById('name').value = ''"
+  - "EDGE CASE: XSS in name field is blocked by regex validation (script tags treated as plain text, never executed)"
+  - "EDGE CASE: Special chars (quotes, $, @) in email/password stored as literal strings, no injection risk"
+  - "EDGE CASE: Long values (200+ chars) handled gracefully — validation rejects without crash or buffer overflow"
+  - "EDGE CASE: Form fully recovers after edge case abuse — no state corruption between submissions"
+  - "EDGE CASE: eval operations are NOT tracked in history --json (only fill/click/select are logged)"

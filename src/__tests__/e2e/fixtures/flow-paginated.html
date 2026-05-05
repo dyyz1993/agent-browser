@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Paginated List Test</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    .item { padding: 10px; margin-bottom: 8px; border: 1px solid #ddd; }
+    .item .name { font-weight: bold; }
+    .pagination { margin-top: 20px; }
+    .pagination a { margin: 0 8px; padding: 6px 12px; border: 1px solid #ccc; text-decoration: none; color: #333; }
+    .pagination a.active { background: #007bff; color: white; border-color: #007bff; }
+    .pagination a.disabled { color: #ccc; pointer-events: none; }
+    #page-info { margin: 10px 0; color: #666; }
+  </style>
+</head>
+<body>
+  <h1>Paginated Items</h1>
+  <div id="items"></div>
+  <div id="page-info">Page <span id="current-page">1</span> of 5</div>
+  <div class="pagination">
+    <a id="prev-btn" class="disabled" href="#">&laquo; Prev</a>
+    <a class="page-link active" href="?page=1">1</a>
+    <a class="page-link" href="?page=2">2</a>
+    <a class="page-link" href="?page=3">3</a>
+    <a class="page-link" href="?page=4">4</a>
+    <a class="page-link" href="?page=5">5</a>
+    <a id="next-btn" href="?page=2">Next &raquo;</a>
+  </div>
+  <script>
+    var ITEMS_PER_PAGE = 10;
+    var TOTAL_PAGES = 5;
+    var params = new URLSearchParams(window.location.search);
+    var currentPage = parseInt(params.get('page')) || 1;
+
+    function renderItems() {
+      var container = document.getElementById('items');
+      container.innerHTML = '';
+      var start = (currentPage - 1) * ITEMS_PER_PAGE;
+      for (var i = 0; i < ITEMS_PER_PAGE; i++) {
+        var idx = start + i + 1;
+        var div = document.createElement('div');
+        div.className = 'item';
+        div.innerHTML = '<div class="name">Product ' + idx + '</div><div class="price">$' + (idx * 9.99).toFixed(2) + '</div>';
+        container.appendChild(div);
+      }
+      document.getElementById('current-page').textContent = currentPage;
+
+      var prevBtn = document.getElementById('prev-btn');
+      var nextBtn = document.getElementById('next-btn');
+
+      if (currentPage <= 1) {
+        prevBtn.classList.add('disabled');
+        prevBtn.removeAttribute('href');
+      } else {
+        prevBtn.classList.remove('disabled');
+        prevBtn.href = '?page=' + (currentPage - 1);
+      }
+
+      if (currentPage >= TOTAL_PAGES) {
+        nextBtn.classList.add('disabled');
+        nextBtn.removeAttribute('href');
+        nextBtn.style.display = 'none';
+      } else {
+        nextBtn.classList.remove('disabled');
+        nextBtn.href = '?page=' + (currentPage + 1);
+        nextBtn.style.display = '';
+      }
+
+      var pageLinks = document.querySelectorAll('.page-link');
+      pageLinks.forEach(function(link) {
+        link.classList.remove('active');
+        if (parseInt(link.textContent) === currentPage) {
+          link.classList.add('active');
+        }
+      });
+
+      document.title = 'Page ' + currentPage + ' - Paginated Items';
+    }
+
+    document.getElementById('next-btn').addEventListener('click', function(e) {
+      if (currentPage < TOTAL_PAGES) {
+        e.preventDefault();
+        window.location.href = '?page=' + (currentPage + 1);
+      }
+    });
+
+    renderItems();
+  </script>
+</body>
+</html>

@@ -1,0 +1,79 @@
+{
+  "test_suite": "Browser Harness Self-Healing v2",
+  "version": "2.0",
+  "date": "2026-05-01",
+
+  "test_cases": [
+    {
+      "id": "TC-001",
+      "name": "网站改版 - 选择器全面变更",
+      "difficulty": "medium",
+      "description": "网站从 class-based 选择器改为 data-attribute 选择器，布局从卡片网格改为行列表，颜色风格从浅色改为深色",
+      "user_intent": "帮我获取这个页面所有产品的名称和价格",
+      "v1_page": "pages/product-list-v1.html",
+      "v2_page": "pages/product-list-v2.html",
+      "v1_selectors": {
+        "product_name": ".item-name",
+        "product_price": ".item-price",
+        "product_category": ".item-category",
+        "product_stock": ".item-stock"
+      },
+      "v2_selectors": {
+        "product_name": "[data-field='title']",
+        "product_price": "[data-field='cost']",
+        "product_category": "[data-field='cat']",
+        "product_stock": "[data-field='remaining']"
+      },
+      "ground_truth": {
+        "total_products": 20,
+        "sample": {"id": 1, "name": "MacBook Pro 16", "price": 18999, "stock": 45, "category": "笔记本"},
+        "validation": "所有20条产品的名称和价格必须与 ground truth 完全一致"
+      },
+      "expected_failure_type": "SELECTOR_STALE",
+      "scoring": {
+        "detection": {
+          "max_score": 25,
+          "criteria": [
+            "是否检测到提取失败（返回 null/空）: 10分",
+            "是否在输出结果前就发现了问题（而非输出了错误数据）: 15分"
+          ]
+        },
+        "diagnosis": {
+          "max_score": 25,
+          "criteria": [
+            "是否正确识别为 SELECTOR_STALE 类型: 10分",
+            "是否识别出是选择器从 class 变为 data-attribute: 10分",
+            "是否记录了有意义的 root_cause: 5分"
+          ]
+        },
+        "repair": {
+          "max_score": 25,
+          "criteria": [
+            "修复后的数据是否完整（20条全拿到）: 10分",
+            "数据是否准确（名称和价格与 ground truth 一致）: 10分",
+            "是否在2次尝试内完成修复: 5分"
+          ]
+        },
+        "learning": {
+          "max_score": 25,
+          "criteria": [
+            "是否更新了知识库中的选择器: 10分",
+            "lesson 是否有指导意义（如'该站使用 data-attribute，优先用 [data-field]'）: 10分",
+            "confidence 是否合理调整（降低而非维持 1.0）: 5分"
+          ]
+        }
+      }
+    }
+  ],
+
+  "scoring_rubric": {
+    "total": 100,
+    "grades": {
+      "A": {"min": 90, "description": "完美自愈，检测快、诊断准、修复完整、lesson有价值"},
+      "B": {"min": 70, "description": "基本自愈，但诊断不够精确或修复有小遗漏"},
+      "C": {"min": 50, "description": "能发现问题但修复不完整，或缺少诊断/学习"},
+      "D": {"min": 30, "description": "只能重试，没有真正的诊断和学习能力"},
+      "F": {"min": 0, "description": "未能自愈，输出了错误数据或完全失败"}
+    }
+  }
+}

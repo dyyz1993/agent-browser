@@ -1,0 +1,57 @@
+# Module: infinite-scroll
+# Interaction patterns for infinite scroll page
+
+scrolling:
+  description: "Scroll the #item-list container (NOT the page body)"
+  container: "#item-list"
+  scroll_command: 'eval "document.getElementById(''item-list'').scrollTop += 500"'
+  notes:
+    - "The scroll container is #item-list (overflow-y: auto, height: 400px)"
+    - "Page scroll does NOT trigger infinite loading"
+    - "Items load 20 at a time when scrolled to bottom (within 50px)"
+    - "300ms delay on load with loading indicator"
+
+search_flow:
+  description: "Search items by name, category, or status"
+  steps:
+    - action: fill
+      selector: "#search-box"
+      description: "Type search query"
+    - action: click
+      selector: "#btn-search"
+      description: "Click Search button"
+  notes:
+    - "Search is case-insensitive on name, category, and status"
+    - "No 'critical' items exist in the dataset"
+    - "Valid search terms: 'alpha', 'beta', 'active', 'inactive', 'pending', 'Item-0001'"
+
+reset_flow:
+  description: "Reset search to show all items"
+  steps:
+    - action: click
+      selector: "#btn-reset-search"
+      description: "Click Reset button"
+  notes:
+    - "BUG: Reset appends first 20 items without clearing existing DOM items"
+    - "This causes duplicate items in the list"
+
+verify_flow:
+  description: "Click Verify Findings to get page statistics"
+  steps:
+    - action: click
+      selector: "#btn-verify"
+      description: "Click Verify Findings button"
+  output:
+    - "Visible items: count of .item elements in DOM"
+    - "Total loaded: internal loadedCount variable"
+    - "Total in dataset: full dataset size (500 or filtered)"
+    - "First/Last visible: names of first and last DOM items"
+  notes:
+    - "Output appears in #status div"
+    - "Can be read with: eval 'document.getElementById(\"status\")?.textContent'"
+
+tips:
+  - "snapshot -i only shows interactive elements (search, buttons), NOT list items"
+  - "Use eval to inspect list contents and item count"
+  - "Items have data-id attributes for identification"
+  - "DOM accumulation bug: search/reset does not clear existing items before appending"

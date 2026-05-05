@@ -1,0 +1,40 @@
+# Module: nested-modal
+# Site: http://localhost:18931/nested-modal.html
+# Last updated: 2026-04-30 (r1b session verified)
+# Quality: All selectors are #id or attribute-based, zero @refs
+
+cards:
+  card_alpha: "#card-1"
+  card_beta: "#card-2"
+  card_gamma: "#card-3"
+
+modal_1_edit:
+  overlay: "#modal-1"
+  title_span: "#m1-name"
+  name_input: "#m1-newname"
+  status_select: "#m1-status"
+  save_button: "#btn-open-confirm"
+  cancel_button: "[data-close='modal-1']:not(.modal-close)"
+  close_x: "[data-close='modal-1'].modal-close"
+
+modal_2_confirm:
+  overlay: "#modal-2"
+  summary: "#confirm-summary"
+  confirm_button: "#btn-confirm"
+  go_back_button: "[data-close='modal-2']:not(.modal-close)"
+  close_x: "[data-close='modal-2'].modal-close"
+
+modal_3_final:
+  overlay: "#modal-3"
+  reason_input: "#m3-reason"
+  submit_button: "#btn-final-submit"
+
+result:
+  final_div: "#final"
+  toast: "#toast"
+  log: "#log"
+
+# --selectors output mapping (snapshot -i --selectors):
+# Modal 1: e2=#m1-newname | e3=#m1-status | e7=#btn-open-confirm
+# Modal 2: +e10=#btn-confirm
+# Modal 3: +e12=#m3-reason | e13=#btn-final-submit

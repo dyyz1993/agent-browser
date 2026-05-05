@@ -1,0 +1,64 @@
+{
+  "id": "techstore-product-list-v2",
+  "title": "TechStore - Product List Extraction - Selectors & Workflow (v2 healed)",
+  "tags": ["reference"],
+  "keywords": ["techstore", "product-list", "browser-automation"],
+  "content": {
+    "site": "TechStore",
+    "task_type": "product-list-extraction",
+    "url": "file:///Users/xuyingzhou/Project/temporary/agent-browser/test-harness/pages/product-list-v2.html",
+    "api": null,
+    "selectors": {
+      "v1": {
+        "container": ".product-grid",
+        "card": ".product-card",
+        "name": ".item-name",
+        "price": ".item-price",
+        "category": ".item-category",
+        "stock": ".item-stock"
+      },
+      "v2": {
+        "container": ".products-container",
+        "card": ".product-row",
+        "name": "[data-field=\"title\"]",
+        "price": "[data-field=\"cost\"]",
+        "category": "[data-field=\"cat\"]",
+        "stock": "[data-field=\"remaining\"]"
+      }
+    },
+    "validation_rules": {
+      "expected_fields": ["name", "price", "category", "stock"],
+      "field_types": {"name": "string", "price": "string", "category": "string", "stock": "string"},
+      "expected_count": {"min": 20, "max": 20}
+    },
+    "last_extraction": {
+      "count": 20,
+      "sample": ["MacBook Pro 16 - ¥18,999", "iPhone 15 Pro Max - ¥9,999"],
+      "timestamp": "2026-05-01T00:00:00Z"
+    },
+    "confidence": 0.8,
+    "last_success": "2026-05-01T00:00:00Z",
+    "failure_history": [
+      {
+        "timestamp": "2026-05-01T00:00:00Z",
+        "failure_type": "SELECTOR_STALE",
+        "page": "product-list-v2.html",
+        "old_selectors": {".product-card": "returned 0 elements"},
+        "new_selectors": {".product-row": "returned 20 elements"},
+        "root_cause": "v2 page replaced CSS classes with data-attribute selectors",
+        "lesson": "Site redesign changed from class-based to data-attribute selectors. Always try [data-field=...] patterns as fallback."
+      }
+    ],
+    "heal_history": [
+      {
+        "timestamp": "2026-05-01T00:00:00Z",
+        "failure_type": "SELECTOR_STALE",
+        "old_selectors": [" .product-card", ".item-name", ".item-price", ".item-category", ".item-stock"],
+        "new_selectors": [".product-row", "[data-field=\"title\"]", "[data-field=\"cost\"]", "[data-field=\"cat\"]", "[data-field=\"remaining\"]"],
+        "root_cause": "Complete class naming scheme changed to data-attribute scheme",
+        "repair_action": "Inspected DOM, identified new data-field attribute pattern, replaced all selectors"
+      }
+    ],
+    "notes": "v1 uses class-based selectors, v2 uses data-attribute selectors. Both pages contain same 20 products with same names/prices but different stock formatting."
+  }
+}

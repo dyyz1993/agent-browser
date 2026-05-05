@@ -1,0 +1,137 @@
+site:
+  name: baidu-search
+  description: "Baidu search with pagination extraction"
+  baseUrl: "https://www.baidu.com"
+
+flows:
+  search-and-extract:
+    description: "Search keyword and extract results from N pages"
+    params:
+      - name: keyword
+        type: string
+        required: true
+      - name: maxPages
+        type: number
+        default: 2
+    steps:
+      - id: navigate
+        action: navigate
+        url: "${baseUrl}"
+      - id: fill-search
+        action: fill
+        selector: "#kw"
+        value: "${keyword}"
+      - id: click-search
+        action: click
+        selector: "#su"
+        waitAfter: "load"
+      - id: wait-results
+        action: wait
+        selector: "#content_left"
+        timeout: 5000
+      - id: extract-results
+        action: extract
+        container: ".result"
+        fields:
+          title: "h3 a"
+          url:
+            selector: "h3 a"
+            attribute: "href"
+          abstract: ".c-abstract"
+        outputVar: results
+    output:
+      - results
+
+  search-full-pipeline:
+    description: "Full pipeline: captureScript + captureAPI + extract (DOM) + clickPaginate + autoRecover"
+    params:
+      - name: keyword
+        type: string
+        required: true
+      - name: maxPages
+        type: number
+        default: 3
+      - name: captureMode
+        type: string
+        default: all
+    steps:
+      - id: inject-capture
+        action: captureScript
+        captureFilter: "/api/"
+        outputVar: capturedApiData
+
+      - id: start-network
+        action: captureAPI
+        apiUrl: "/api/"
+        outputVar: networkApiData
+
+      - id: navigate
+        action: navigate
+        url: "${baseUrl}/search?q=${keyword}"
+
+      - id: wait-results
+        action: wait
+        selector: ".search-results"
+        timeout: 5000
+
+      - id: wait-api-load
+        action: wait
+        timeout: 3000
+
+      - id: read-api
+        action: readAPI
+        apiUrl: "/api/"
+        outputVar: apiResults
+
+      - id: read-capture
+        action: readCapture
+        outputVar: scriptResults
+
+      - id: extract-dom
+        action: extract
+        container: ".result-item"
+        fields:
+          title: ".title"
+          url:
+            selector: ".link"
+            attribute: "href"
+          abstract: ".abstract"
+        outputVar: domResults
+
+      - id: check-blocking
+        action: autoRecover
+        blockingConditions:
+          - selector: ".captcha-modal"
+          - selector: ".popup-blocker"
+          - textContains: "请完成验证"
+        intervention:
+          message: "Search blocked by captcha/popup, please resolve via Viewer"
+          openViewer: true
+          mode: wait
+        resolveTimeout: 10000
+        checkInterval: 1000
+
+      - id: paginate
+        action: clickPaginate
+        nextSelector: ".next-page"
+        waitForNavigation: domcontentloaded
+        termination:
+          maxIterations: "${maxPages}"
+          elementDisappears: ".next-page"
+        extractBeforeClick:
+          id: extract-page
+          action: extract
+          container: ".result-item"
+          fields:
+            title: ".title"
+            url:
+              selector: ".link"
+              attribute: "href"
+            abstract: ".abstract"
+          outputVar: results
+
+    output:
+      - apiResults
+      - scriptResults
+      - domResults
+      - results

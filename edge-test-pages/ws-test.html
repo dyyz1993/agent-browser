@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html><body style="font-family:monospace;padding:20px">
+<h1>WebSocket Test Page</h1>
+<p>Auto-connects to echo server on load.</p>
+<div id="log"></div>
+<script>
+var logEl = document.getElementById('log');
+function log(m) { var d=document.createElement('div'); d.textContent=m; logEl.appendChild(d); }
+log('Creating WebSocket...');
+var ws = new WebSocket('wss://echo.websocket.org');
+log('WS created, readyState=' + ws.readyState);
+ws.onopen = function() { log('connected! sending...'); ws.send('hello-from-ws-page'); };
+ws.onmessage = function(e) { log('received: ' + e.data); ws.send('second-message'); };
+ws.onerror = function() { log('error!'); };
+ws.onclose = function(e) { log('closed code=' + e.code); };
+</script>
+</body></html>

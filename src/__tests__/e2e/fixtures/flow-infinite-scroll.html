@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Infinite Scroll Test</title>
+  <style>
+    body { margin: 0; padding: 20px; font-family: sans-serif; }
+    #item-list { max-width: 600px; }
+    .item { padding: 12px; margin-bottom: 8px; border: 1px solid #ddd; border-radius: 4px; }
+    .item .title { font-weight: bold; color: #333; }
+    .item .desc { color: #666; font-size: 14px; margin-top: 4px; }
+    #loading { display: none; text-align: center; padding: 20px; color: #999; }
+    #sentinel { height: 1px; }
+  </style>
+</head>
+<body>
+  <h1>Items List (Infinite Scroll)</h1>
+  <div id="item-list"></div>
+  <div id="loading">Loading more items...</div>
+  <div id="sentinel"></div>
+  <script>
+    var BATCH_SIZE = 10;
+    var TOTAL_BATCHES = 5;
+    var loadedBatches = 0;
+
+    function addBatch() {
+      if (loadedBatches >= TOTAL_BATCHES) return;
+      var list = document.getElementById('item-list');
+      var start = loadedBatches * BATCH_SIZE;
+      for (var i = 0; i < BATCH_SIZE; i++) {
+        var idx = start + i + 1;
+        var div = document.createElement('div');
+        div.className = 'item';
+        div.setAttribute('data-id', String(idx));
+        div.innerHTML = '<div class="title">Item ' + idx + '</div><div class="desc">Description for item ' + idx + ' in batch ' + (loadedBatches + 1) + '</div>';
+        list.appendChild(div);
+      }
+      loadedBatches++;
+      document.body.setAttribute('data-loaded', loadedBatches);
+    }
+
+    addBatch();
+
+    window.addEventListener('scroll', function() {
+      var sentinel = document.getElementById('sentinel');
+      var rect = sentinel.getBoundingClientRect();
+      if (rect.top < window.innerHeight + 200 && loadedBatches < TOTAL_BATCHES) {
+        var loading = document.getElementById('loading');
+        loading.style.display = 'block';
+        setTimeout(function() {
+          addBatch();
+          loading.style.display = 'none';
+        }, 100);
+      }
+    });
+  </script>
+</body>
+</html>
