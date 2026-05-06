@@ -48,7 +48,7 @@ interface YamlStep {
   timeout?: number;
   inFrame?: string;
   container?: string;
-  fields?: Record<string, any>;
+  fields?: Record<string, unknown>;
   outputVar?: string;
   nextSelector?: string;
   strategy?: string;
@@ -92,7 +92,7 @@ interface YamlStep {
     openViewer?: boolean;
     screenshot?: boolean;
     timeout?: number;
-    resolvedCondition?: any;
+    resolvedCondition?: Record<string, unknown>;
     mode?: 'ask' | 'wait' | 'askAndWait';
   };
   checkInterval?: number;
@@ -194,7 +194,7 @@ function parseYamlStep(yamlStep: YamlStep): FlowStep {
 
   for (const field of simpleFields) {
     if (yamlStep[field] !== undefined) {
-      (step as any)[field] = yamlStep[field];
+      (step as unknown as Record<string, unknown>)[field as string] = yamlStep[field];
     }
   }
 

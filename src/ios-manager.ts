@@ -55,6 +55,8 @@ interface SimctlDevice {
 function findDeviceByUdid(deviceList: unknown[], udid: string): SimctlDevice | undefined {
   return deviceList.find((d) => (d as SimctlDevice).udid === udid) as SimctlDevice | undefined;
 }
+const APPIUM_RETRY_DELAY_MS = 1000;
+
 export class IOSManager {
   private simctl: Simctl;
   private browser: WDIOBrowser | null = null;
@@ -367,7 +369,7 @@ export class IOSManager {
             return;
           }
         }
-        await new Promise((r) => setTimeout(r, 1000));
+        await new Promise((r) => setTimeout(r, APPIUM_RETRY_DELAY_MS));
         attempts++;
       }
 

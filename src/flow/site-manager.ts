@@ -70,8 +70,8 @@ export class SiteManager {
   ): Promise<{ siteName: string; targetPath: string }> {
     const { fetch } = await import('undici');
     const response = await fetch(url);
-    if (!(response as any).ok) {
-      throw new Error(`Failed to fetch site YAML from ${url}: ${(response as any).status}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch site YAML from ${url}: ${response.status}`);
     }
     const content = await response.text();
 

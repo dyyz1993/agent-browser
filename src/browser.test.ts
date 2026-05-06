@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi, afterEach } from 'vitest';
 import { BrowserManager } from './browser.js';
-import { chromium } from 'playwright-core';
+import { chromium, Browser } from 'playwright-core';
 
 // 模拟浏览器的存储
 const mockLocalStorage: Record<string, string> = {};
@@ -26,20 +26,20 @@ let mockClickResult = '';
 const mockRoutes: Map<string, Function> = new Map();
 
 // Track CDP session per page (using WeakMap to associate with page objects)
-let mockCDPSession: any = null;
+let mockCDPSession: Record<string, unknown> | null = null;
 
 // Track if we should simulate invalid executablePath error
 let shouldThrowInvalidPath = false;
 
 // Track screencast state
 let screencastActive = false;
-let screencastFrames: any[] = [];
+let screencastFrames: Record<string, unknown>[] = [];
 
 // Create mock CDP session
 const createMockCDPSession = () => {
-  const session: any = {
+  const session: Record<string, unknown> = {
     _handlers: {} as Record<string, Function>,
-    send: vi.fn((method: string, params?: any) => {
+    send: vi.fn((method: string, params?: Record<string, unknown>) => {
       if (method === 'Page.startScreencast') {
         screencastActive = true;
         // Simulate a frame after a short delay
@@ -121,7 +121,7 @@ const createMockFrame = () => ({
       click: vi.fn(() => Promise.resolve()),
     })),
   })),
-  evaluate: vi.fn((fn: Function | string, ...args: any[]) => {
+  evaluate: vi.fn((fn: Function | string, ...args: unknown[]) => {
     if (typeof fn === 'string') {
       return Promise.resolve(undefined);
     }
@@ -231,7 +231,7 @@ const createMockFrame = () => ({
 });
 
 // 创建 mock page 对象
-const createMockPage = (sharedContext?: any) => {
+const createMockPage = (sharedContext?: Record<string, unknown>) => {
   const pageListeners: Map<string, Function[]> = new Map();
   // Each page has its own CDP session
   const pageCDPSession = createMockCDPSession();
@@ -255,7 +255,7 @@ const createMockPage = (sharedContext?: any) => {
       const index = handlers.indexOf(handler);
       if (index > -1) handlers.splice(index, 1);
     }),
-    emit: vi.fn((event: string, data: any) => {
+    emit: vi.fn((event: string, data: unknown) => {
       const handlers = pageListeners.get(event) || [];
       handlers.forEach((h) => h(data));
     }),
@@ -302,7 +302,7 @@ const createMockPage = (sharedContext?: any) => {
       })),
     })),
     screenshot: vi.fn(() => Promise.resolve(Buffer.from('test'))),
-    evaluate: vi.fn((fn: Function | string, ...args: any[]) => {
+    evaluate: vi.fn((fn: Function | string, ...args: unknown[]) => {
       // 处理字符串形式的脚本
       if (typeof fn === 'string') {
         // Handle window.__AGENT_BROWSER_REFS__ injection
@@ -534,7 +534,7 @@ const createMockPage = (sharedContext?: any) => {
 // 创建 mock browser context 对象
 const createMockContext = () => {
   const contextListeners: Map<string, Function[]> = new Map();
-  const pages: any[] = [];
+  const pages: Record<string, unknown>[] = [];
 
   const context = {
     pages: vi.fn(() => pages),
@@ -553,7 +553,7 @@ const createMockContext = () => {
       return newPage;
     }),
     cookies: vi.fn(() => Promise.resolve([...mockCookies])),
-    addCookies: vi.fn((cookies: any[]) => {
+    addCookies: vi.fn((cookies: Record<string, unknown>[]) => {
       mockCookies.push(...cookies);
       return Promise.resolve();
     }),
@@ -634,7 +634,7 @@ vi.mock('playwright-core', () => ({
       }
       return Promise.resolve(createMockBrowser());
     }),
-    launch: vi.fn((options?: any) => {
+    launch: vi.fn((options?: Record<string, unknown>) => {
       // Simulate error for invalid executablePath
       if (options?.executablePath && options.executablePath.includes('nonexistent')) {
         return Promise.reject(
@@ -1195,7 +1195,7 @@ describe('BrowserManager', () => {
             },
           ],
           close: vi.fn(),
-        } as any);
+        } as unknown as Browser);
       });
 
       const cdpBrowser = new BrowserManager();

@@ -446,7 +446,7 @@ export function siteToYamlString(site: SiteDefinition): string {
       description: site.description,
       baseUrl: site.baseUrl,
     },
-    flows: {} as Record<string, any>,
+    flows: {} as Record<string, Record<string, unknown>>,
   };
 
   for (const [flowId, flow] of Object.entries(site.flows)) {
@@ -461,8 +461,8 @@ export function siteToYamlString(site: SiteDefinition): string {
   return yaml.dump(obj, { lineWidth: 120, noRefs: true, sortKeys: false });
 }
 
-function serializeStep(step: FlowStep): any {
-  const result: any = { id: step.id, action: step.action };
+function serializeStep(step: FlowStep): Record<string, unknown> {
+  const result: Record<string, unknown> = { id: step.id, action: step.action };
 
   const simpleKeys: (keyof FlowStep)[] = [
     'selector',

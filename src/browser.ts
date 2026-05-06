@@ -2977,7 +2977,7 @@ export class BrowserManager {
     // 注意：必须设置 xyzSessionId，否则 inject.js 会跳过初始化
     // 使用时间戳来确保只有最新的会话 ID 被设置
     const sessionIdTimestamp =
-      parseInt(this.recorderSessionId.replace('recorder-', '')) || Date.now();
+      parseInt(this.recorderSessionId.replace('recorder-', ''), 10) || Date.now();
     await context.addInitScript({
       content: `
         // 只有当新的会话 ID 更新时才设置

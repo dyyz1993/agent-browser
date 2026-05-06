@@ -164,7 +164,7 @@ async function moveTo(page: Page, to: Point, config: HumanConfig) {
   lastPos = to;
 }
 
-export async function humanMoveTo(page: Page, to: Point, config: HumanConfig) {
+export async function humanMoveTo(page: Page, to: Point, config: HumanConfig): Promise<void> {
   await moveTo(page, to, config);
 }
 
@@ -195,7 +195,7 @@ export async function humanClick(
   await page.mouse.up({ button: options?.button ?? 'left', clickCount: options?.clickCount ?? 1 });
 }
 
-export async function humanType(page: Page, text: string, config: HumanConfig) {
+export async function humanType(page: Page, text: string, config: HumanConfig): Promise<void> {
   for (const char of text) {
     await sleep(rand(50, 150));
     await page.keyboard.type(char);

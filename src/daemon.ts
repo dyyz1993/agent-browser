@@ -645,10 +645,10 @@ export async function startDaemon(options?: { provider?: string }): Promise<void
                 const currentUrl = manager.getPage().url();
                 if (lastUrl !== null && currentUrl !== lastUrl) {
                   const urlTip = `URL changed: ${lastUrl} -> ${currentUrl}`;
-                  const existingTips = (response as any).tips;
+                  const existingTips = response.tips;
                   if (existingTips) {
                     const tipsArray = Array.isArray(existingTips) ? existingTips : [existingTips];
-                    (response as any).tips = [urlTip, ...tipsArray];
+                    response.tips = [urlTip, ...tipsArray];
                   } else {
                     (response as { tips?: string[] }).tips = [urlTip];
                   }

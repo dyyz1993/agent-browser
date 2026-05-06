@@ -161,7 +161,11 @@ export class PluginManager {
 
     for (const callback of callbacks) {
       try {
-        await callback(this.context, step || { id: '', action: '' as any }, result);
+        await callback(
+          this.context,
+          step || { id: '', action: '' as unknown as import('./types.js').StepAction },
+          result
+        );
       } catch (e) {
         console.warn(`[PluginManager] Hook ${hookType} error: ${e}`);
       }

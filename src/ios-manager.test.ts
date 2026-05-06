@@ -1,6 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { IOSManager } from './ios-manager.js';
 
+interface RefData {
+  selector: string;
+  role: string;
+  name: string;
+}
+
+interface IOSManagerTestAccess {
+  getRefData(ref: string): RefData | null;
+  refMap: Record<string, RefData>;
+}
+
 // Mock node-simctl
 vi.mock('node-simctl', () => {
   return {
@@ -73,44 +84,44 @@ describe('IOSManager', () => {
   describe('getRefData', () => {
     it('should return null for unknown refs', () => {
       // Access private method via bracket notation for testing
-      const result = (manager as any).getRefData('@e99');
+      const result = (manager as unknown as IOSManagerTestAccess).getRefData('@e99');
       expect(result).toBeNull();
     });
 
     it('should handle @-prefixed refs', () => {
       // Set up a ref in the refMap
-      (manager as any).refMap = {
+      (manager as unknown as IOSManagerTestAccess).refMap = {
         e1: { selector: 'button', role: 'button', name: 'Submit' },
       };
 
-      const result = (manager as any).getRefData('@e1');
+      const result = (manager as unknown as IOSManagerTestAccess).getRefData('@e1');
       expect(result).toEqual({ selector: 'button', role: 'button', name: 'Submit' });
     });
 
     it('should handle ref= prefixed refs', () => {
-      (manager as any).refMap = {
+      (manager as unknown as IOSManagerTestAccess).refMap = {
         e2: { selector: 'a', role: 'link', name: 'Learn more' },
       };
 
-      const result = (manager as any).getRefData('ref=e2');
+      const result = (manager as unknown as IOSManagerTestAccess).getRefData('ref=e2');
       expect(result).toEqual({ selector: 'a', role: 'link', name: 'Learn more' });
     });
 
     it('should handle [ref=eX] bracketed refs', () => {
-      (manager as any).refMap = {
+      (manager as unknown as IOSManagerTestAccess).refMap = {
         e4: { selector: 'button', role: 'button', name: 'Click me' },
       };
 
-      const result = (manager as any).getRefData('[ref=e4]');
+      const result = (manager as unknown as IOSManagerTestAccess).getRefData('[ref=e4]');
       expect(result).toEqual({ selector: 'button', role: 'button', name: 'Click me' });
     });
 
     it('should handle bare ref names', () => {
-      (manager as any).refMap = {
+      (manager as unknown as IOSManagerTestAccess).refMap = {
         e3: { selector: 'input', role: 'textbox', name: 'Email' },
       };
 
-      const result = (manager as any).getRefData('e3');
+      const result = (manager as unknown as IOSManagerTestAccess).getRefData('e3');
       expect(result).toEqual({ selector: 'input', role: 'textbox', name: 'Email' });
     });
   });

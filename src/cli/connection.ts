@@ -45,6 +45,7 @@ export interface DaemonOptions {
 const isWindows = process.platform === 'win32';
 const STREAM_SERVER_PID_FILE = 'stream-server.pid';
 const STREAM_SERVER_IPC_FILE = 'stream-server.ipc';
+const SOCKET_TIMEOUT_MS = 30000;
 
 export function genId(): string {
   return `n${Date.now() % 1000000}`;
@@ -148,8 +149,8 @@ async function acquireLock(session: string, timeoutMs: number = 10000): Promise<
       fs.writeSync(fd, `${process.pid}\n`);
       fs.closeSync(fd);
       return;
-    } catch (e: any) {
-      if (e.code === 'EEXIST') {
+    } catch (e: unknown) {
+      if (e instanceof Error && 'code' in e && e.code === 'EEXIST') {
         const lockAge = Date.now() - (fs.statSync(lockPath).mtimeMs || 0);
         if (lockAge > 30000) {
           try {
@@ -496,7 +497,7 @@ export function sendCommandOnce(cmd: Command, session: string): Promise<Response
         return;
       }
 
-      socket.setTimeout(30000);
+      socket.setTimeout(SOCKET_TIMEOUT_MS);
 
       let buffer = '';
       const commandId = (cmd as { id?: string }).id;

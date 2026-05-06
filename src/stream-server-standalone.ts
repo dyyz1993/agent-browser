@@ -60,6 +60,7 @@ interface StreamMessage {
   y?: number;
   focused?: boolean;
   tag?: string;
+  text?: string;
 }
 
 class StreamServerStandalone {
@@ -399,7 +400,7 @@ class StreamServerStandalone {
   }
 
   private handleClientMessage(session: string, message: StreamMessage): void {
-    const msgType = (message as any).type;
+    const msgType = message.type;
     if (msgType === 'input_fill') {
       logDiag(
         '[CM] input_fill SESSION=' +
@@ -407,7 +408,7 @@ class StreamServerStandalone {
           ' socket_exists=' +
           !!this.daemonSockets.get(session) +
           ' text=' +
-          ((message as any).text || '')
+          (message.text || '')
       );
     }
 
@@ -686,7 +687,7 @@ class StreamServerStandalone {
       case 'input_focused':
       case 'input_value':
       case 'input_blur':
-        logDiag('[IPC] ' + String((message as any).type) + ' clients=' + this.clients.size);
+        logDiag('[IPC] ' + String(message.type) + ' clients=' + this.clients.size);
         for (const [, clients] of this.clients) {
           for (const client of clients) {
             if (client.readyState === WebSocket.OPEN) {

@@ -500,8 +500,8 @@ export function printResponse(resp: Response, jsonMode: boolean, action?: string
           `${successIndicator()} Recorded ${data.steps} steps, saved to ${green(data.path)}`
         );
         // 显示 YAML 内容
-        if ('yaml' in data && typeof (data as any).yaml === 'string') {
-          console.log((data as any).yaml);
+        if ('yaml' in data && typeof data.yaml === 'string') {
+          console.log(data.yaml);
         }
         // 显示 tips（完整文件路径）
         if ('tip' in data && typeof data.tip === 'string') {

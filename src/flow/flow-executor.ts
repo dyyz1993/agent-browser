@@ -24,6 +24,10 @@ import { PluginManager } from './plugin-system.js';
 import type { HookType } from './plugin-system.js';
 import type { Page, Frame } from 'playwright-core';
 
+const WAIT_DELAY_MS = 2000;
+const NAVIGATION_WAIT_MS = 3000;
+const LOOP_DELAY_MS = 1000;
+
 function sanitizeSelector(selector: string): string {
   return selector.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"');
 }
@@ -372,7 +376,7 @@ export class FlowExecutor {
     if (step.waitAfter) {
       await executeCommand(parseCliArgs(['wait', '--load', step.waitAfter]), this.browser);
     } else {
-      await new Promise((r) => setTimeout(r, 2000));
+      await new Promise((r) => setTimeout(r, WAIT_DELAY_MS));
     }
   }
 
@@ -480,7 +484,7 @@ export class FlowExecutor {
       if (page < maxPages && step.nextSelector) {
         try {
           await executeCommand(parseCliArgs(['click', step.nextSelector]), this.browser);
-          await new Promise((r) => setTimeout(r, 3000));
+          await new Promise((r) => setTimeout(r, NAVIGATION_WAIT_MS));
         } catch (err: unknown) {
           console.warn(
             `Pagination stopped at page ${page}: ${
@@ -687,7 +691,7 @@ export class FlowExecutor {
 
         await executeCommand(parseCliArgs(['click', nextSelector]), this.browser);
         await executeCommand(parseCliArgs(['wait', '--load', waitForNav]), this.browser);
-        await new Promise((r) => setTimeout(r, 1000));
+        await new Promise((r) => setTimeout(r, LOOP_DELAY_MS));
       }
     }
   }

@@ -1,3 +1,5 @@
+const RECONNECT_DELAY_MS = 2000;
+
 export interface ViewerConfig {
   wsProtocol: string;
   hostname: string;
@@ -104,7 +106,7 @@ export function sendUserActivity(
   }
   state.userActivityTimeout = setTimeout(() => {
     qualityBadge.textContent = 'static';
-  }, 2000);
+  }, RECONNECT_DELAY_MS);
 
   qualityBadge.textContent = 'interacting';
 }

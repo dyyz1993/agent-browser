@@ -509,9 +509,9 @@ async function main(): Promise<void> {
           const existingTips = resp.tips;
           if (existingTips) {
             const tipsArray = Array.isArray(existingTips) ? existingTips : [existingTips];
-            (resp as any).tips = [...tipsArray, ...idleTips];
+            resp.tips = [...tipsArray, ...idleTips];
           } else {
-            (resp as any).tips = idleTips;
+            resp.tips = idleTips;
           }
         }
       } catch {
