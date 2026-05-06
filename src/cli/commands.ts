@@ -136,6 +136,13 @@ export function parseCommand(args: string[], flags: Flags): Command {
       if (flags.timeout) {
         navCmd.timeout = parseInt(flags.timeout, 10);
       }
+      if (flags.waitUntil) {
+        navCmd.waitUntil = flags.waitUntil as
+          | 'load'
+          | 'domcontentloaded'
+          | 'networkidle'
+          | 'commit';
+      }
       return navCmd;
     }
     case 'back':

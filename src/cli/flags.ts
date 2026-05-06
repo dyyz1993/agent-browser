@@ -22,6 +22,7 @@ export interface Flags {
   device?: string;
   human: HumanConfig;
   timeout?: string;
+  waitUntil?: string;
 
   cliExecutablePath: boolean;
   cliExtensions: boolean;
@@ -60,6 +61,7 @@ const GLOBAL_FLAGS_WITH_VALUE: string[] = [
   '--provider',
   '--device',
   '--timeout',
+  '--wait-until',
 ];
 
 export function parseFlags(args: string[]): Flags {
@@ -90,6 +92,7 @@ export function parseFlags(args: string[]): Flags {
     allowFileAccess: process.env.AGENT_BROWSER_ALLOW_FILE_ACCESS === '1',
     human: getHumanConfigFromEnv(),
     timeout: undefined,
+    waitUntil: undefined,
     cliExecutablePath: false,
     cliExtensions: false,
     cliProfile: false,
@@ -216,6 +219,12 @@ export function parseFlags(args: string[]): Flags {
       case '--timeout':
         if (nextArg) {
           flags.timeout = nextArg;
+          i++;
+        }
+        break;
+      case '--wait-until':
+        if (nextArg) {
+          flags.waitUntil = nextArg;
           i++;
         }
         break;

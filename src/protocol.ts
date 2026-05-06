@@ -63,7 +63,7 @@ const launchSchema = baseCommandSchema.extend({
 const navigateSchema = baseCommandSchema.extend({
   action: z.literal('navigate'),
   url: z.string().min(1),
-  waitUntil: z.enum(['load', 'domcontentloaded', 'networkidle']).optional(),
+  waitUntil: z.enum(['load', 'domcontentloaded', 'networkidle', 'commit']).optional(),
   headers: z.record(z.string()).optional(),
 });
 

@@ -640,8 +640,8 @@ async function handleNavigate(
   }
 
   await page.goto(command.url, {
-    waitUntil: command.waitUntil ?? 'load',
-    timeout: command.timeout,
+    waitUntil: command.waitUntil ?? 'domcontentloaded',
+    timeout: command.timeout ?? 30000,
   });
 
   if (browser.isRecordingSession()) {

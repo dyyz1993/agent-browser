@@ -48,7 +48,7 @@ export interface LaunchCommand extends BaseCommand {
 export interface NavigateCommand extends BaseCommand {
   action: 'navigate';
   url: string;
-  waitUntil?: 'load' | 'domcontentloaded' | 'networkidle';
+  waitUntil?: 'load' | 'domcontentloaded' | 'networkidle' | 'commit';
   headers?: Record<string, string>;
   timeout?: number;
 }
