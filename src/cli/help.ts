@@ -446,6 +446,50 @@ Examples:
   agent-browser tab 2
   agent-browser tab close
 `,
+  kill: `
+agent-browser kill - Kill the daemon process
+
+Usage: agent-browser kill [--all] [--force]
+
+Kills the daemon process for the current session (or all sessions with --all).
+
+Options:
+  --all                 Kill all session daemons and Stream Server
+  --force               Force kill (SIGKILL instead of SIGTERM)
+
+Examples:
+  agent-browser kill              # Kill current session daemon
+  agent-browser kill --all        # Kill all daemons + Stream Server
+  agent-browser kill --force      # Force kill current daemon
+`,
+  update: `
+agent-browser update - Update agent-browser to latest version
+
+Usage: agent-browser update [--check] [--version <ver>]
+
+Checks npm for the latest version and installs it globally.
+Kills the current daemon before updating.
+
+Options:
+  --check               Check for updates without installing
+  --version <ver>       Install a specific version
+
+Examples:
+  agent-browser update              # Update to latest
+  agent-browser update --check      # Check only
+  agent-browser update --version 0.24.1  # Specific version
+`,
+  restart: `
+agent-browser restart - Restart the daemon process
+
+Usage: agent-browser restart
+
+Kills the current session daemon. The next command will
+auto-start a fresh daemon.
+
+Examples:
+  agent-browser restart
+`,
   session: `
 agent-browser session - Manage sessions
 
@@ -994,7 +1038,13 @@ Debug:
 Sessions:
   session                    Show current session name
   session list               List active sessions
-  kill                       Kill all daemons and Stream Server
+  kill                       Kill daemon process
+  kill --all                 Kill all daemons and Stream Server
+  kill --force               Force kill (SIGKILL)
+  restart                    Restart the daemon process
+  update                     Update to latest version
+  update --check             Check for updates only
+  update --version <ver>     Install specific version
 
 Remote:
   viewer                     Get viewer URL for browser session

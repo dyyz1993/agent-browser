@@ -19,7 +19,7 @@ use windows_sys::Win32::Foundation::CloseHandle;
 use windows_sys::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION};
 
 use commands::{gen_id, parse_command, ParseError};
-use connection::{ensure_daemon, get_socket_dir, send_command};
+use connection::{ensure_daemon, get_socket_dir, kill_all_daemons, kill_daemon_by_session, send_command};
 use flags::{clean_args, parse_flags};
 use install::run_install;
 use output::{print_command_help, print_help, print_response, print_version};
@@ -170,6 +170,178 @@ fn main() {
     // Handle session separately (doesn't need daemon)
     if clean.get(0).map(|s| s.as_str()) == Some("session") {
         run_session(&clean, &flags.session, flags.json);
+        return;
+    }
+
+    // Handle kill separately (doesn't need daemon)
+    if clean.get(0).map(|s| s.as_str()) == Some("kill") {
+        let kill_all_flag = args.iter().any(|a| a == "--all");
+        if kill_all_flag {
+            let result = kill_all_daemons();
+            if flags.json {
+                println!(
+                    "{}",
+                    serde_json::json!({
+                        "success": true,
+                        "daemons": result.daemons,
+                        "streamServer": result.stream_server
+                    })
+                );
+            } else {
+                if !result.daemons.is_empty() {
+                    println!("✓ Killed daemons: {}", result.daemons.join(", "));
+                } else {
+                    println!("✓ No daemons running");
+                }
+                if result.stream_server {
+                    println!("✓ Stream Server killed");
+                } else {
+                    println!("✓ No Stream Server running");
+                }
+            }
+        } else {
+            let killed = kill_daemon_by_session(&flags.session);
+            if flags.json {
+                println!(
+                    "{}",
+                    serde_json::json!({
+                        "success": true,
+                        "session": flags.session,
+                        "killed": killed
+                    })
+                );
+            } else if killed {
+                println!("✓ Daemon killed (session: {})", flags.session);
+            } else {
+                println!("✓ No daemon running (session: {})", flags.session);
+            }
+        }
+        return;
+    }
+
+    // Handle restart separately (doesn't need daemon)
+    if clean.get(0).map(|s| s.as_str()) == Some("restart") {
+        let killed = kill_daemon_by_session(&flags.session);
+        if flags.json {
+            println!(
+                "{}",
+                serde_json::json!({
+                    "success": true,
+                    "session": flags.session,
+                    "killed": killed
+                })
+            );
+        } else {
+            if killed {
+                println!("✓ Daemon restarted (session: {})", flags.session);
+            } else {
+                println!("✓ No daemon was running (session: {})", flags.session);
+            }
+            println!("  Next command will auto-start a fresh daemon.");
+        }
+        return;
+    }
+
+    // Handle update separately (doesn't need daemon)
+    if clean.get(0).map(|s| s.as_str()) == Some("update") {
+        let check_only = args.iter().any(|a| a == "--check");
+        let version_idx = args.iter().position(|a| a == "--version");
+        let target_version = version_idx.and_then(|i| args.get(i + 1)).map(|s| s.as_str());
+
+        let current_version = env!("CARGO_PKG_VERSION");
+
+        let latest_version = match std::process::Command::new("npm")
+            .args(["view", "@dyyz1993/agent-browser", "version"])
+            .output()
+        {
+            Ok(output) if output.status.success() => {
+                String::from_utf8_lossy(&output.stdout).trim().to_string()
+            }
+            _ => {
+                if flags.json {
+                    println!(
+                        "{}",
+                        serde_json::json!({"success": false, "error": "Failed to check for updates"})
+                    );
+                } else {
+                    eprintln!("{} Failed to check for updates. Are you online?", color::error_indicator());
+                }
+                exit(1);
+            }
+        };
+
+        if check_only {
+            let up_to_date = latest_version == current_version;
+            if flags.json {
+                println!(
+                    "{}",
+                    serde_json::json!({
+                        "success": true,
+                        "current": current_version,
+                        "latest": latest_version,
+                        "upToDate": up_to_date
+                    })
+                );
+            } else if up_to_date {
+                println!("Already up to date (v{})", current_version);
+            } else {
+                println!("Update available: v{} → v{}", current_version, latest_version);
+            }
+            return;
+        }
+
+        if latest_version == current_version && target_version.is_none() {
+            if flags.json {
+                println!(
+                    "{}",
+                    serde_json::json!({"success": true, "current": current_version, "latest": latest_version, "upToDate": true})
+                );
+            } else {
+                println!("Already up to date (v{})", current_version);
+            }
+            return;
+        }
+
+        let install_version = target_version.unwrap_or(&latest_version);
+
+        let _ = kill_daemon_by_session(&flags.session);
+
+        let install_result = std::process::Command::new("npm")
+            .args([
+                "install",
+                "-g",
+                &format!("@dyyz1993/agent-browser@{}", install_version),
+            ])
+            .status();
+
+        match install_result {
+            Ok(status) if status.success() => {
+                if flags.json {
+                    println!(
+                        "{}",
+                        serde_json::json!({"success": true, "previous": current_version, "installed": install_version})
+                    );
+                } else {
+                    println!("✓ Updated to v{}", install_version);
+                }
+            }
+            _ => {
+                if flags.json {
+                    println!(
+                        "{}",
+                        serde_json::json!({"success": false, "error": format!("Failed to install v{}", install_version)})
+                    );
+                } else {
+                    eprintln!(
+                        "{} Failed to install v{}. Try: npm install -g @dyyz1993/agent-browser@{}",
+                        color::error_indicator(),
+                        install_version,
+                        install_version
+                    );
+                }
+                exit(1);
+            }
+        }
         return;
     }
 

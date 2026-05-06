@@ -1394,6 +1394,8 @@ export function parseCommand(args: string[], flags: Flags): Command {
         'state',
         'session',
         'kill',
+        'update',
+        'restart',
         'viewer',
         'ask',
         'config',

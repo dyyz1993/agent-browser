@@ -558,6 +558,107 @@ fn send_command_once(cmd: &Value, session: &str) -> Result<Response, String> {
     serde_json::from_str(&response_line).map_err(|e| format!("Invalid response: {}", e))
 }
 
+#[cfg(unix)]
+fn send_signal(pid: i32, sig: i32) -> bool {
+    unsafe { libc::kill(pid, sig) == 0 }
+}
+
+#[cfg(windows)]
+fn send_signal(_pid: i32, _sig: i32) -> bool {
+    false
+}
+
+pub fn kill_daemon_by_session(session: &str) -> bool {
+    let pid_path = get_pid_path(session);
+    if !pid_path.exists() {
+        return false;
+    }
+
+    if let Ok(pid_str) = fs::read_to_string(&pid_path) {
+        if let Ok(pid) = pid_str.trim().parse::<i32>() {
+            #[cfg(unix)]
+            {
+                if send_signal(pid, libc::SIGTERM) {
+                    for _ in 0..10 {
+                        thread::sleep(Duration::from_millis(200));
+                        if !send_signal(pid, 0) {
+                            break;
+                        }
+                    }
+                    if send_signal(pid, 0) {
+                        send_signal(pid, libc::SIGKILL);
+                        thread::sleep(Duration::from_millis(500));
+                    }
+                }
+            }
+            #[cfg(windows)]
+            {
+                let _ = pid;
+            }
+        }
+    }
+
+    cleanup_stale_files(session);
+    let stream_path = get_socket_dir().join(format!("{}.stream", session));
+    let _ = fs::remove_file(&stream_path);
+
+    true
+}
+
+pub struct KillAllResult {
+    pub daemons: Vec<String>,
+    pub stream_server: bool,
+}
+
+pub fn kill_all_daemons() -> KillAllResult {
+    let socket_dir = get_socket_dir();
+    let mut killed_daemons: Vec<String> = Vec::new();
+    let mut killed_stream_server = false;
+
+    if let Ok(entries) = fs::read_dir(&socket_dir) {
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if name.ends_with(".pid") && name != "stream-server.pid" {
+                let session_name = name.strip_suffix(".pid").unwrap_or("").to_string();
+                if !session_name.is_empty() && kill_daemon_by_session(&session_name) {
+                    killed_daemons.push(session_name);
+                }
+            }
+        }
+    }
+
+    let stream_pid_path = socket_dir.join("stream-server.pid");
+    if let Ok(pid_str) = fs::read_to_string(&stream_pid_path) {
+        if let Ok(pid) = pid_str.trim().parse::<i32>() {
+            #[cfg(unix)]
+            {
+                if send_signal(pid, libc::SIGTERM) {
+                    for _ in 0..10 {
+                        thread::sleep(Duration::from_millis(200));
+                        if !send_signal(pid, 0) {
+                            break;
+                        }
+                    }
+                    if send_signal(pid, 0) {
+                        send_signal(pid, libc::SIGKILL);
+                        thread::sleep(Duration::from_millis(500));
+                    }
+                    killed_stream_server = true;
+                }
+            }
+        }
+    }
+
+    let _ = fs::remove_file(&stream_pid_path);
+    let ipc_path = socket_dir.join("stream-server.ipc");
+    let _ = fs::remove_file(&ipc_path);
+
+    KillAllResult {
+        daemons: killed_daemons,
+        stream_server: killed_stream_server,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

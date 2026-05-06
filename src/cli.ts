@@ -301,27 +301,170 @@ async function main(): Promise<void> {
   }
 
   if (args[0] === 'kill') {
+    const killAllFlag = rawArgs.includes('--all');
+    const forceKill = rawArgs.includes('--force');
     try {
-      const result = await killAll();
-      if (flags.json) {
-        console.log(
-          JSON.stringify({
-            success: true,
-            daemons: result.daemons,
-            streamServer: result.streamServer,
-          })
-        );
+      if (killAllFlag) {
+        const result = await killAll();
+        if (flags.json) {
+          console.log(
+            JSON.stringify({
+              success: true,
+              daemons: result.daemons,
+              streamServer: result.streamServer,
+            })
+          );
+        } else {
+          if (result.daemons.length > 0) {
+            console.log(`✓ Killed daemons: ${result.daemons.join(', ')}`);
+          } else {
+            console.log('✓ No daemons running');
+          }
+          if (result.streamServer) {
+            console.log('✓ Stream Server killed');
+          } else {
+            console.log('✓ No Stream Server running');
+          }
+        }
       } else {
-        if (result.daemons.length > 0) {
-          console.log(`✓ Killed daemons: ${result.daemons.join(', ')}`);
+        const killed = await killDaemon(flags.session);
+        if (flags.json) {
+          console.log(
+            JSON.stringify({
+              success: true,
+              session: flags.session,
+              killed,
+            })
+          );
         } else {
-          console.log('✓ No daemons running');
+          if (killed) {
+            console.log(`✓ Daemon killed (session: ${flags.session})`);
+          } else {
+            console.log(`✓ No daemon running (session: ${flags.session})`);
+          }
         }
-        if (result.streamServer) {
-          console.log('✓ Stream Server killed');
+      }
+    } catch (e) {
+      printError(e instanceof Error ? e.message : String(e), flags.json);
+      process.exit(1);
+    }
+    return;
+  }
+
+  if (args[0] === 'update') {
+    const checkOnly = rawArgs.includes('--check');
+    const versionIdx = rawArgs.indexOf('--version');
+    const targetVersion = versionIdx !== -1 ? rawArgs[versionIdx + 1] : undefined;
+
+    try {
+      const currentVersion = (await import('./../package.json', { assert: { type: 'json' } }))
+        .default.version as string;
+
+      let latestVersion: string;
+      try {
+        const { execSync } = await import('child_process');
+        latestVersion = execSync('npm view @dyyz1993/agent-browser version', {
+          encoding: 'utf-8',
+        }).trim();
+      } catch (_e) {
+        printError('Failed to check for updates. Are you online?', flags.json);
+        process.exit(1);
+        return;
+      }
+
+      if (checkOnly) {
+        if (latestVersion === currentVersion) {
+          if (flags.json) {
+            console.log(
+              JSON.stringify({
+                success: true,
+                current: currentVersion,
+                latest: latestVersion,
+                upToDate: true,
+              })
+            );
+          } else {
+            console.log(`Already up to date (v${currentVersion})`);
+          }
         } else {
-          console.log('✓ No Stream Server running');
+          if (flags.json) {
+            console.log(
+              JSON.stringify({
+                success: true,
+                current: currentVersion,
+                latest: latestVersion,
+                upToDate: false,
+              })
+            );
+          } else {
+            console.log(`Update available: v${currentVersion} → v${latestVersion}`);
+          }
         }
+        return;
+      }
+
+      if (latestVersion === currentVersion && !targetVersion) {
+        if (flags.json) {
+          console.log(
+            JSON.stringify({
+              success: true,
+              current: currentVersion,
+              latest: latestVersion,
+              upToDate: true,
+            })
+          );
+        } else {
+          console.log(`Already up to date (v${currentVersion})`);
+        }
+        return;
+      }
+
+      const installVersion = targetVersion || latestVersion;
+
+      try {
+        await killDaemon(flags.session);
+      } catch (_e) {
+        // Daemon not running, ok
+      }
+
+      const { execSync } = await import('child_process');
+      try {
+        execSync(`npm install -g @dyyz1993/agent-browser@${installVersion}`, {
+          stdio: 'inherit',
+        });
+        if (flags.json) {
+          console.log(
+            JSON.stringify({ success: true, previous: currentVersion, installed: installVersion })
+          );
+        } else {
+          console.log(`✓ Updated to v${installVersion}`);
+        }
+      } catch (_e) {
+        printError(
+          `Failed to install v${installVersion}. Try: npm install -g @dyyz1993/agent-browser@${installVersion}`,
+          flags.json
+        );
+        process.exit(1);
+      }
+    } catch (e) {
+      printError(e instanceof Error ? e.message : String(e), flags.json);
+      process.exit(1);
+    }
+    return;
+  }
+
+  if (args[0] === 'restart') {
+    try {
+      const killed = await killDaemon(flags.session);
+      if (flags.json) {
+        console.log(JSON.stringify({ success: true, session: flags.session, killed }));
+      } else {
+        if (killed) {
+          console.log(`✓ Daemon restarted (session: ${flags.session})`);
+        } else {
+          console.log(`✓ No daemon was running (session: ${flags.session})`);
+        }
+        console.log('  Next command will auto-start a fresh daemon.');
       }
     } catch (e) {
       printError(e instanceof Error ? e.message : String(e), flags.json);
