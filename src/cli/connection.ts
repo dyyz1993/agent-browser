@@ -422,7 +422,6 @@ export async function ensureDaemon(options: DaemonOptions): Promise<DaemonResult
     if (options.profile) env.AGENT_BROWSER_PROFILE = options.profile;
     if (options.state) env.AGENT_BROWSER_STATE = options.state;
     if (options.provider) env.AGENT_BROWSER_PROVIDER = options.provider;
-    if (options.device) env.AGENT_BROWSER_IOS_DEVICE = options.device;
 
     const logFile = path.join(socketDir, `${session}.log`);
     const logStream = fs.openSync(logFile, 'a');

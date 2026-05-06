@@ -582,17 +582,6 @@ Examples:
   agent-browser state save ./auth-state.json
   agent-browser --state ./auth-state.json open example.com
 `,
-  device: `
-agent-browser device - Manage iOS simulators
-
-Usage: agent-browser device [list]
-
-Operations:
-  list                List available iOS simulators
-
-Examples:
-  agent-browser device list
-`,
   hover: `
 agent-browser hover - Hover over an element
 
@@ -1054,8 +1043,7 @@ Options:
   --proxy-bypass <hosts>     Bypass proxy for these hosts
   --ignore-https-errors      Ignore HTTPS certificate errors
   --allow-file-access        Allow file:// URLs to access local files
-  -p, --provider <name>      Browser provider: ios, browserbase, kernel
-  --device <name>            iOS device name
+  -p, --provider <name>      Browser provider: browserbase, kernel
   --json                     JSON output
   --full, -f                 Full page screenshot
   --headed                   Show browser window
@@ -1067,9 +1055,7 @@ Options:
 Environment:
   AGENT_BROWSER_SESSION          Session name (default: "default")
   AGENT_BROWSER_EXECUTABLE_PATH  Custom browser executable path
-  AGENT_BROWSER_PROVIDER         Browser provider (ios, browserbase, kernel, browseruse)
-  AGENT_BROWSER_IOS_DEVICE       Default iOS device name
-  AGENT_BROWSER_IOS_UDID         iOS device UDID
+  AGENT_BROWSER_PROVIDER         Browser provider (browserbase, kernel, browseruse)
   AGENT_BROWSER_STREAM_PORT      Stream Server port (default: 5005)
   AGENT_BROWSER_VIEWER_HOST      Viewer URL host (default: http://localhost)
   AGENT_BROWSER_SOCKET_DIR       Custom socket directory
@@ -1113,12 +1099,6 @@ Examples:
   agent-browser screenshot --full
   agent-browser --cdp 9222 snapshot
   agent-browser --profile ~/.myapp open example.com
-
-iOS Simulator (requires Xcode and Appium):
-  agent-browser -p ios open example.com
-  agent-browser -p ios --device "iPhone 15 Pro" open url
-  agent-browser -p ios device list
-  agent-browser -p ios swipe up
 `);
 }
 

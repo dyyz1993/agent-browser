@@ -590,17 +590,6 @@ export interface InputTouchCommand extends BaseCommand {
   modifiers?: number;
 }
 
-// iOS-specific commands
-export interface SwipeCommand extends BaseCommand {
-  action: 'swipe';
-  direction: 'up' | 'down' | 'left' | 'right';
-  distance?: number;
-}
-
-export interface DeviceListCommand extends BaseCommand {
-  action: 'device_list';
-}
-
 export interface ViewerCommand extends BaseCommand {
   action: 'viewer';
 }
@@ -1122,8 +1111,6 @@ export type Command =
   | InputMouseCommand
   | InputKeyboardCommand
   | InputTouchCommand
-  | SwipeCommand
-  | DeviceListCommand
   | ViewerCommand
   | AskCommand
   | ConfigCommand

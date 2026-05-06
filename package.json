@@ -60,11 +60,9 @@
   "homepage": "https://github.com/xuyingzhou/agent-browser#readme",
   "dependencies": {
     "js-yaml": "^4.1.1",
-    "node-simctl": "^7.4.0",
     "playwright-core": "^1.57.0",
     "sharp": "^0.34.5",
     "undici": "^7.25.0",
-    "webdriverio": "^9.15.0",
     "ws": "^8.19.0",
     "zod": "^3.22.4"
   },

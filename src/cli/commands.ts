@@ -136,9 +136,6 @@ export function parseCommand(args: string[], flags: Flags): Command {
       if (flags.timeout) {
         navCmd.timeout = parseInt(flags.timeout, 10);
       }
-      if (flags.provider === 'ios' && flags.device) {
-        navCmd.iosDevice = flags.device;
-      }
       return navCmd;
     }
     case 'back':
@@ -1160,12 +1157,6 @@ export function parseCommand(args: string[], flags: Flags): Command {
       return cmd;
     }
 
-    case 'device': {
-      const subcmd = rest[0];
-      if (!subcmd || subcmd === 'list') return { id, action: 'device_list' };
-      error('Unknown device command', 'agent-browser device [list]');
-    }
-
     case 'viewer':
     case 'preview': {
       return { id, action: 'viewer' };
@@ -1400,7 +1391,6 @@ export function parseCommand(args: string[], flags: Flags): Command {
         'ask',
         'config',
         'install',
-        'device',
         'dialog',
         'window',
         'history',

@@ -17,7 +17,6 @@ const navigation = [
   { name: 'Script Export', href: '/script-export' },
   { name: 'Streaming', href: '/streaming' },
   { name: 'CDP Mode', href: '/cdp-mode' },
-  { name: 'iOS Simulator', href: '/ios' },
   { name: 'Changelog', href: '/changelog' },
 ];
 

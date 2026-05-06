@@ -1372,13 +1372,6 @@ export function parseCliArgs(args: string[]): Command {
       return cmd;
     }
 
-    case 'device': {
-      const { inFrame, remaining } = parseInFrame(rest);
-      const subcmd = remaining[0];
-      if (!subcmd || subcmd === 'list') return { id, action: 'device_list', inFrame };
-      error('Unknown device command', 'agent-browser device [list] [--in-frame <path>]');
-    }
-
     case 'config': {
       const json = rest.includes('--json');
       return { id, action: 'config', json };
@@ -1436,7 +1429,6 @@ export function parseCliArgs(args: string[]): Command {
         'ask',
         'config',
         'install',
-        'device',
         'dialog',
         'window',
       ];

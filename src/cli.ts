@@ -138,7 +138,6 @@ function runConfig(flags: Flags): void {
     userAgent: process.env.AGENT_BROWSER_USER_AGENT || null,
     provider: process.env.AGENT_BROWSER_PROVIDER || null,
     allowFileAccess: process.env.AGENT_BROWSER_ALLOW_FILE_ACCESS === '1',
-    iosDevice: process.env.AGENT_BROWSER_IOS_DEVICE || null,
     streamPort: process.env.AGENT_BROWSER_STREAM_PORT || null,
     headed: flags.headed,
     human: humanConfig,

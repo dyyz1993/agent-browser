@@ -4,14 +4,10 @@ import * as path from 'path';
 import * as os from 'os';
 import { randomUUID } from 'crypto';
 import { BrowserManager } from './browser.js';
-import { IOSManager } from './ios-manager.js';
 import { parseCommand, serializeResponse, errorResponse, successResponse } from './protocol.js';
 import { executeCommand } from './actions.js';
-import { executeIOSCommand } from './ios-actions.js';
 import { getExecutablePath } from './rc-config.js';
 import { StreamServerProxy, getStreamServerIpcPath } from './stream-server.js';
-
-type Manager = BrowserManager | IOSManager;
 
 const isWindows = process.platform === 'win32';
 
@@ -305,12 +301,11 @@ export async function startDaemon(options?: { provider?: string }): Promise<void
   cleanupSocket();
 
   const provider = options?.provider ?? process.env.AGENT_BROWSER_PROVIDER;
-  const isIOS = provider === 'ios';
 
-  const manager: Manager = isIOS ? new IOSManager() : new BrowserManager();
+  const manager = new BrowserManager();
   let shuttingDown = false;
 
-  if (!isIOS && manager instanceof BrowserManager) {
+  {
     const ipcPath = getStreamServerIpcPath();
     if (fs.existsSync(ipcPath)) {
       streamServerProxy = new StreamServerProxy(manager);
@@ -463,7 +458,7 @@ export async function startDaemon(options?: { provider?: string }): Promise<void
               if (quickParse && action === '_ping') {
                 try {
                   const tabList =
-                    !isIOS && manager instanceof BrowserManager && manager.isLaunched()
+                    manager instanceof BrowserManager && manager.isLaunched()
                       ? await manager.listTabs()
                       : [];
                   socket.write(
@@ -495,42 +490,13 @@ export async function startDaemon(options?: { provider?: string }): Promise<void
               continue;
             }
 
-            // Handle device_list specially - it works without a session and always uses IOSManager
-            if (parseResult.command.action === 'device_list') {
-              const iosManager = new IOSManager();
-              try {
-                const devices = await iosManager.listAllDevices();
-                const response = {
-                  id: parseResult.command.id,
-                  success: true as const,
-                  data: { devices },
-                };
-                socket.write(serializeResponse(response) + '\n');
-              } catch (err) {
-                const message = err instanceof Error ? err.message : String(err);
-                socket.write(
-                  serializeResponse(errorResponse(parseResult.command.id, message)) + '\n'
-                );
-              }
-              continue;
-            }
-
             // Auto-launch if not already launched and this isn't a launch/close command
             if (
               !manager.isLaunched() &&
               parseResult.command.action !== 'launch' &&
               parseResult.command.action !== 'close'
             ) {
-              if (isIOS && manager instanceof IOSManager) {
-                // Auto-launch iOS Safari
-                // Check for device in command first (for reused daemons), then fall back to env vars
-                const cmd = parseResult.command as { iosDevice?: string };
-                const iosDevice = cmd.iosDevice || process.env.AGENT_BROWSER_IOS_DEVICE;
-                await manager.launch({
-                  device: iosDevice,
-                  udid: process.env.AGENT_BROWSER_IOS_UDID,
-                });
-              } else if (manager instanceof BrowserManager) {
+              if (manager instanceof BrowserManager) {
                 // Auto-launch desktop browser
                 const extensions = process.env.AGENT_BROWSER_EXTENSIONS
                   ? (process.env.AGENT_BROWSER_EXTENSIONS || '')
@@ -579,10 +545,7 @@ export async function startDaemon(options?: { provider?: string }): Promise<void
 
             // Handle close command specially - shuts down daemon
             if (parseResult.command.action === 'close') {
-              const response =
-                isIOS && manager instanceof IOSManager
-                  ? await executeIOSCommand(parseResult.command, manager)
-                  : await executeCommand(parseResult.command, manager as BrowserManager);
+              const response = await executeCommand(parseResult.command, manager as BrowserManager);
               socket.write(serializeResponse(response) + '\n');
 
               if (!shuttingDown) {
@@ -630,17 +593,9 @@ export async function startDaemon(options?: { provider?: string }): Promise<void
             lastActivityAt = Date.now();
 
             // Execute command with appropriate handler
-            let response =
-              isIOS && manager instanceof IOSManager
-                ? await executeIOSCommand(parseResult.command, manager)
-                : await executeCommand(parseResult.command, manager as BrowserManager);
+            let response = await executeCommand(parseResult.command, manager as BrowserManager);
 
-            if (
-              response.success &&
-              !isIOS &&
-              manager instanceof BrowserManager &&
-              manager.isLaunched()
-            ) {
+            if (response.success && manager instanceof BrowserManager && manager.isLaunched()) {
               try {
                 const currentUrl = manager.getPage().url();
                 if (lastUrl !== null && currentUrl !== lastUrl) {

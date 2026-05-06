@@ -3178,7 +3178,6 @@ interface ConfigData {
     userAgent: string | null;
     provider: string | null;
     allowFileAccess: boolean;
-    iosDevice: string | null;
     streamPort: number;
     headed: boolean;
     human: HumanConfig;
@@ -3204,7 +3203,6 @@ function handleConfig(
     userAgent: process.env.AGENT_BROWSER_USER_AGENT || null,
     provider: process.env.AGENT_BROWSER_PROVIDER || null,
     allowFileAccess: process.env.AGENT_BROWSER_ALLOW_FILE_ACCESS === '1',
-    iosDevice: process.env.AGENT_BROWSER_IOS_DEVICE || null,
     streamPort: getViewerPort(),
     headed: process.env.AGENT_BROWSER_HEADED === '1',
     human: humanConfig,

@@ -844,17 +844,6 @@ const inputBlurSchema = z.object({
   type: z.literal('input_blur'),
 });
 
-// iOS-specific schemas
-const swipeSchema = baseCommandSchema.extend({
-  action: z.literal('swipe'),
-  direction: z.enum(['up', 'down', 'left', 'right']),
-  distance: z.number().positive().optional(),
-});
-
-const deviceListSchema = baseCommandSchema.extend({
-  action: z.literal('device_list'),
-});
-
 const viewerSchema = baseCommandSchema.extend({
   action: z.literal('viewer'),
 });
@@ -1134,8 +1123,6 @@ const commandSchema = z.discriminatedUnion('action', [
   inputMouseSchema,
   inputKeyboardSchema,
   inputTouchSchema,
-  swipeSchema,
-  deviceListSchema,
   viewerSchema,
   askSchema,
   configSchema,

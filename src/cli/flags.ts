@@ -88,7 +88,6 @@ export function parseFlags(args: string[]): Flags {
     provider: process.env.AGENT_BROWSER_PROVIDER,
     ignoreHttpsErrors: false,
     allowFileAccess: process.env.AGENT_BROWSER_ALLOW_FILE_ACCESS === '1',
-    device: process.env.AGENT_BROWSER_IOS_DEVICE,
     human: getHumanConfigFromEnv(),
     timeout: undefined,
     cliExecutablePath: false,

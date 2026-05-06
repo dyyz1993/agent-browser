@@ -264,42 +264,6 @@ export function printResponse(resp: Response, jsonMode: boolean, action?: string
     return;
   }
 
-  if (Array.isArray(data.devices)) {
-    if (data.devices.length === 0) {
-      console.log('No iOS devices available. Open Xcode to download simulator runtimes.');
-      return;
-    }
-
-    const realDevices = data.devices.filter((d: Record<string, unknown>) => d.isRealDevice);
-    const simulators = data.devices.filter((d: Record<string, unknown>) => !d.isRealDevice);
-
-    if (realDevices.length > 0) {
-      console.log('Connected Devices:\n');
-      for (const device of realDevices) {
-        const name = (device as Record<string, unknown>).name || 'Unknown';
-        const runtime = (device as Record<string, unknown>).runtime || '';
-        const udid = (device as Record<string, unknown>).udid || '';
-        console.log(`  ${green('●')} ${name} (${runtime})`);
-        console.log(`    ${dim(String(udid))}`);
-      }
-      console.log();
-    }
-
-    if (simulators.length > 0) {
-      console.log('Simulators:\n');
-      for (const device of simulators) {
-        const name = (device as Record<string, unknown>).name || 'Unknown';
-        const runtime = (device as Record<string, unknown>).runtime || '';
-        const state = (device as Record<string, unknown>).state || 'Unknown';
-        const udid = (device as Record<string, unknown>).udid || '';
-        const stateIndicator = state === 'Booted' ? green('●') : dim('○');
-        console.log(`  ${stateIndicator} ${name} (${runtime})`);
-        console.log(`    ${dim(String(udid))}`);
-      }
-    }
-    return;
-  }
-
   if (Array.isArray(data.tabs)) {
     for (let i = 0; i < data.tabs.length; i++) {
       const tab = data.tabs[i] as Record<string, unknown>;
