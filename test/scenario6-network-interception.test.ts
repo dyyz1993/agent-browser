@@ -429,11 +429,7 @@ describe('Scenario 6: Network Request Interception Tests', () => {
         return [res1, res2, res3];
       });
 
-      expect(results).toEqual([
-        { id: 1 },
-        { id: 2 },
-        { id: 3 },
-      ]);
+      expect(results).toEqual([{ id: 1 }, { id: 2 }, { id: 3 }]);
 
       // Clean up
       await browser.removeRoute();

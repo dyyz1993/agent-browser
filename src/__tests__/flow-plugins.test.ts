@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { PluginManager } from '../flow/plugin-system.js';
+import type { FlowStep } from '../flow/types.js';
 import type { FlowPlugin, HookType } from '../flow/plugin-system.js';
 import { createWebhookPlugin } from '../flow/plugins/webhook-plugin.js';
 
@@ -190,7 +191,7 @@ describe('PluginManager', () => {
     });
 
     await expect(
-      manager.executeAction('unknown', { id: 's1', action: 'unknown' as any })
+      manager.executeAction('unknown', { id: 's1', action: 'unknown' } as FlowStep)
     ).rejects.toThrow('Unknown custom action: unknown');
   });
 
@@ -201,9 +202,9 @@ describe('PluginManager', () => {
       actions: { act: vi.fn() },
     });
 
-    await expect(manager.executeAction('act', { id: 's1', action: 'act' as any })).rejects.toThrow(
-      'PluginManager context not initialized'
-    );
+    await expect(
+      manager.executeAction('act', { id: 's1', action: 'act' } as FlowStep)
+    ).rejects.toThrow('PluginManager context not initialized');
   });
 
   it('should skip triggerHook when no context set', async () => {

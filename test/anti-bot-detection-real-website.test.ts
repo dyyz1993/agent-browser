@@ -13,25 +13,25 @@ describe('Anti-Bot Detection - Real Website Tests', () => {
 
   describe('bot.sannysoft.com detection tests', () => {
     it('should NOT be detected as bot with default anti-detection settings', async () => {
-    browser = new BrowserManager();
-    const launchOptions: Partial<LaunchCommand> = {
-      headless: true,
-    };
-    await browser.launch(launchOptions as LaunchCommand);
+      browser = new BrowserManager();
+      const launchOptions: Partial<LaunchCommand> = {
+        headless: true,
+      };
+      await browser.launch(launchOptions as LaunchCommand);
 
-    const page = browser.getPage();
-    await page.goto('https://bot.sannysoft.com/', { waitUntil: 'networkidle' });
+      const page = browser.getPage();
+      await page.goto('https://bot.sannysoft.com/', { waitUntil: 'networkidle' });
 
-    const webdriver = await page.evaluate(() => navigator.webdriver);
-    const pluginsCount = await page.evaluate(() => navigator.plugins.length);
-    const mimeTypesCount = await page.evaluate(() => navigator.mimeTypes.length);
-    const hasChrome = await page.evaluate(() => typeof (window as any).chrome !== 'undefined');
+      const webdriver = await page.evaluate(() => navigator.webdriver);
+      const pluginsCount = await page.evaluate(() => navigator.plugins.length);
+      const mimeTypesCount = await page.evaluate(() => navigator.mimeTypes.length);
+      const hasChrome = await page.evaluate(() => typeof (window as any).chrome !== 'undefined');
 
-    expect(webdriver).toBe(false);
-    expect(pluginsCount).toBeGreaterThan(0);
-    expect(mimeTypesCount).toBeGreaterThan(0);
-    expect(hasChrome).toBe(true);
-  }, 60000);
+      expect(webdriver).toBe(false);
+      expect(pluginsCount).toBeGreaterThan(0);
+      expect(mimeTypesCount).toBeGreaterThan(0);
+      expect(hasChrome).toBe(true);
+    }, 60000);
 
     it('should hide webdriver with anti-detection settings', async () => {
       browser = new BrowserManager();
@@ -193,35 +193,41 @@ describe('Anti-Bot Detection - Real Website Tests', () => {
         return Array.from(pres).map((pre, index) => ({
           index,
           text: pre.textContent?.trim(),
-          startsWithBrace: pre.textContent?.trim().startsWith('{')
+          startsWithBrace: pre.textContent?.trim().startsWith('{'),
         }));
       });
-      
+
       console.log('Website structure:', JSON.stringify(htmlStructure, null, 2));
-      
+
       // Now parse the detection results
       const websiteDetection = await page.evaluate(() => {
         // Get the text content of the first pre element
         const pre = document.querySelector('pre');
         if (pre) {
           const text = pre.textContent || '';
-          
+
           // Extract fields using regular expressions
           const userAgentMatch = text.match(/"userAgent"\s*:\s*"([^"]+)"/);
           const webDriverValueMatch = text.match(/"webDriverValue"\s*:\s*(true|false)/);
           const pluginsMatch = text.match(/"plugins"\s*:\s*\[(.*?)\]/s);
           const attributesFoundMatch = text.match(/"attributesFound"\s*:\s*\[(.*?)\]/s);
-          
+
           return {
             userAgent: userAgentMatch ? userAgentMatch[1] : '',
-            webdriver: webDriverValueMatch ? (webDriverValueMatch[1] === 'true') : false,
-            plugins: pluginsMatch ? pluginsMatch[1].trim() === '' ? [] : pluginsMatch[1].split(',').map(item => item.trim()) : [],
-            attributesFound: attributesFoundMatch ? attributesFoundMatch[1].split(',').map(item => item.trim() === 'true') : []
+            webdriver: webDriverValueMatch ? webDriverValueMatch[1] === 'true' : false,
+            plugins: pluginsMatch
+              ? pluginsMatch[1].trim() === ''
+                ? []
+                : pluginsMatch[1].split(',').map((item) => item.trim())
+              : [],
+            attributesFound: attributesFoundMatch
+              ? attributesFoundMatch[1].split(',').map((item) => item.trim() === 'true')
+              : [],
           };
         }
         return {};
       });
-      
+
       console.log('Detection results:', JSON.stringify(websiteDetection, null, 2));
 
       expect(websiteDetection.userAgent).toBe(customUA);

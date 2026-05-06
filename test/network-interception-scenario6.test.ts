@@ -16,7 +16,7 @@ describe('Scenario 6: Network Request Interception', () => {
       // Log the request
       apiRequests.push({
         url: req.url || '',
-        method: req.method || 'GET'
+        method: req.method || 'GET',
       });
 
       // Handle different endpoints
@@ -100,8 +100,8 @@ describe('Scenario 6: Network Request Interception', () => {
         response: {
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ status: 'mocked', data: 'mocked-data' })
-        }
+          body: JSON.stringify({ status: 'mocked', data: 'mocked-data' }),
+        },
       });
 
       // Navigate to test page
@@ -111,7 +111,7 @@ describe('Scenario 6: Network Request Interception', () => {
       await page.waitForSelector('#data-result', { timeout: 5000 });
 
       // Verify the response was mocked
-      const dataResult = await page.$eval('#data-result', el => el.textContent);
+      const dataResult = await page.$eval('#data-result', (el) => el.textContent);
       expect(dataResult).toContain('mocked-data');
       expect(dataResult).not.toContain('original-data');
     });
@@ -127,16 +127,16 @@ describe('Scenario 6: Network Request Interception', () => {
         response: {
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ custom: 'data-response' })
-        }
+          body: JSON.stringify({ custom: 'data-response' }),
+        },
       });
 
       await browser.addRoute('**/api/ads', {
         response: {
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ custom: 'ads-response' })
-        }
+          body: JSON.stringify({ custom: 'ads-response' }),
+        },
       });
 
       // Navigate to test page
@@ -146,8 +146,8 @@ describe('Scenario 6: Network Request Interception', () => {
       await page.waitForSelector('#data-result', { timeout: 5000 });
 
       // Verify both routes worked
-      const dataResult = await page.$eval('#data-result', el => el.textContent);
-      const adsResult = await page.$eval('#ads-result', el => el.textContent);
+      const dataResult = await page.$eval('#data-result', (el) => el.textContent);
+      const adsResult = await page.$eval('#ads-result', (el) => el.textContent);
 
       expect(dataResult).toContain('data-response');
       expect(adsResult).toContain('ads-response');
@@ -163,12 +163,12 @@ describe('Scenario 6: Network Request Interception', () => {
 
       // Set up route to abort ad requests
       await browser.addRoute('**/api/ads', {
-        abort: true
+        abort: true,
       });
 
       // Track console errors for aborted requests
       const consoleErrors: string[] = [];
-      page.on('console', msg => {
+      page.on('console', (msg) => {
         if (msg.type() === 'error') {
           consoleErrors.push(msg.text());
         }
@@ -184,11 +184,11 @@ describe('Scenario 6: Network Request Interception', () => {
       await page.waitForTimeout(1000);
 
       // Verify that ads request was aborted (no success, just error or no change)
-      const adsResult = await page.$eval('#ads-result', el => el.textContent);
+      const adsResult = await page.$eval('#ads-result', (el) => el.textContent);
       expect(adsResult).toBe('Loading...'); // Should still be loading because request was aborted
 
       // Verify the data request succeeded
-      const dataResult = await page.$eval('#data-result', el => el.textContent);
+      const dataResult = await page.$eval('#data-result', (el) => el.textContent);
       expect(dataResult).not.toBe('Loading...');
     });
   });
@@ -205,15 +205,15 @@ describe('Scenario 6: Network Request Interception', () => {
         response: {
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ status: 'mocked' })
-        }
+          body: JSON.stringify({ status: 'mocked' }),
+        },
       });
 
       // Navigate and verify mocking works
       await page.goto(`http://localhost:${testServerPort}/test`);
       await page.waitForSelector('#data-result', { timeout: 5000 });
 
-      let dataResult = await page.$eval('#data-result', el => el.textContent);
+      let dataResult = await page.$eval('#data-result', (el) => el.textContent);
       expect(dataResult).toContain('mocked');
 
       // Remove the route
@@ -223,7 +223,7 @@ describe('Scenario 6: Network Request Interception', () => {
       await page.reload();
       await page.waitForSelector('#data-result', { timeout: 5000 });
 
-      dataResult = await page.$eval('#data-result', el => el.textContent);
+      dataResult = await page.$eval('#data-result', (el) => el.textContent);
       expect(dataResult).toContain('original-data');
       expect(dataResult).not.toContain('mocked');
     });
@@ -239,16 +239,16 @@ describe('Scenario 6: Network Request Interception', () => {
         response: {
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ mocked: 'data' })
-        }
+          body: JSON.stringify({ mocked: 'data' }),
+        },
       });
 
       await browser.addRoute('**/api/ads', {
         response: {
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ mocked: 'ads' })
-        }
+          body: JSON.stringify({ mocked: 'ads' }),
+        },
       });
 
       // Remove all routes
@@ -258,7 +258,7 @@ describe('Scenario 6: Network Request Interception', () => {
       await page.goto(`http://localhost:${testServerPort}/test`);
       await page.waitForSelector('#data-result', { timeout: 5000 });
 
-      const dataResult = await page.$eval('#data-result', el => el.textContent);
+      const dataResult = await page.$eval('#data-result', (el) => el.textContent);
       expect(dataResult).toContain('original-data');
       expect(dataResult).not.toContain('mocked');
     });
@@ -353,8 +353,8 @@ describe('Scenario 6: Network Request Interception', () => {
         requests.push({
           url: req.url || '',
           headers: {
-            'x-custom-header': req.headers['x-custom-header'] as string || ''
-          }
+            'x-custom-header': (req.headers['x-custom-header'] as string) || '',
+          },
         });
 
         if (req.url === '/test') {
@@ -378,7 +378,7 @@ describe('Scenario 6: Network Request Interception', () => {
       await page.route('**/test', async (route) => {
         const headers = {
           ...route.request().headers(),
-          'x-custom-header': 'custom-value'
+          'x-custom-header': 'custom-value',
         };
         await route.continue({ headers });
       });
@@ -404,8 +404,8 @@ describe('Scenario 6: Network Request Interception', () => {
         response: {
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ wildcard: 'matched' })
-        }
+          body: JSON.stringify({ wildcard: 'matched' }),
+        },
       });
 
       // Make requests to different API endpoints

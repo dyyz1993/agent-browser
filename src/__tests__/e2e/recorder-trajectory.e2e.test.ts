@@ -1166,7 +1166,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       expect(result.success).toBe(true);
     }, 60000); // 增加超时时间
 
-    it.skip('should handle missing delay value', async () => {
+    it('should handle missing delay value', async () => {
       // Missing delay should default to 0
       const result = await executeCommand(
         parseCliArgs(['mouse', 'trajectory', '100:100;200:150:50', '--no-human']),
@@ -1176,14 +1176,15 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       expect(result.success).toBe(true);
     }, 45000);
 
-    it.skip('should handle malformed trajectory string', async () => {
-      // Various malformed inputs
+    it('should handle malformed trajectory string', async () => {
+      // parseTrajectoryData coerces non-numeric parts to NaN → 0,
+      // so every input produces valid points and the command succeeds.
       const malformedInputs = ['not:a:trajectory', ';;;', 'abc:def:ghi', '100', ''];
 
       for (const input of malformedInputs) {
         const result = await executeCommand(parseCliArgs(['mouse', 'trajectory', input]), browser);
 
-        // Should not crash
+        // Should not crash - parseTrajectoryData defaults invalid values to 0
         expect(result.success).toBe(true);
       }
     }, 30000);

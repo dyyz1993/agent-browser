@@ -1,8 +1,10 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { spawn, ChildProcess } from 'child_process';
+import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
+import { spawn } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
+
+const CLI_PATH = path.resolve(__dirname, '../cli.ts');
 
 function getChromiumPath(): string | undefined {
   if (process.env.AGENT_BROWSER_EXECUTABLE_PATH) {
@@ -17,16 +19,20 @@ function getChromiumPath(): string | undefined {
 }
 
 const CHROMIUM_PATH = getChromiumPath();
-const SESSION = `test-daemon-${Date.now()}`;
+
+function makeSession(): string {
+  return `test-daemon-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
 
 function runCli(
   args: string[],
+  session: string,
   timeout = 10000
 ): Promise<{ stdout: string; stderr: string; code: number | null }> {
   return new Promise((resolve, reject) => {
     const env: Record<string, string> = {
       ...process.env,
-      AGENT_BROWSER_SESSION: SESSION,
+      AGENT_BROWSER_SESSION: session,
     } as Record<string, string>;
     if (CHROMIUM_PATH) {
       env.AGENT_BROWSER_EXECUTABLE_PATH = CHROMIUM_PATH;
@@ -63,12 +69,12 @@ function getSocketDir(): string {
   return process.env.AGENT_BROWSER_SOCKET_DIR || path.join(os.homedir(), '.agent-browser');
 }
 
-function getPidFile(): string {
-  return path.join(getSocketDir(), `${SESSION}.pid`);
+function getPidFile(session: string): string {
+  return path.join(getSocketDir(), `${session}.pid`);
 }
 
-function cleanupDaemon(): void {
-  const pidFile = getPidFile();
+function cleanupDaemon(session: string): void {
+  const pidFile = getPidFile(session);
   if (fs.existsSync(pidFile)) {
     try {
       const pid = parseInt(fs.readFileSync(pidFile, 'utf8').trim(), 10);
@@ -82,72 +88,89 @@ function cleanupDaemon(): void {
       // Ignore
     }
   }
+
+  const socketPath = path.join(getSocketDir(), `${session}.sock`);
+  try {
+    if (fs.existsSync(socketPath)) fs.unlinkSync(socketPath);
+  } catch {
+    // Ignore
+  }
+
+  const lockPath = path.join(getSocketDir(), `${session}.lock`);
+  try {
+    if (fs.existsSync(lockPath)) fs.unlinkSync(lockPath);
+  } catch {
+    // Ignore
+  }
 }
 
-const describeIfLocal = process.env.CI ? describe.skip : describe;
+describe('CLI daemon management', () => {
+  const sessions: string[] = [];
 
-describeIfLocal('CLI daemon management', () => {
-  beforeAll(() => {
-    cleanupDaemon();
-  });
+  function freshSession(): string {
+    const s = makeSession();
+    sessions.push(s);
+    return s;
+  }
 
   afterAll(() => {
-    cleanupDaemon();
+    for (const s of sessions) {
+      cleanupDaemon(s);
+    }
   });
 
   it('should start daemon and not block on open command', async () => {
-    const result = await runCli(['open', 'about:blank'], 15000);
+    const session = freshSession();
+    const result = await runCli(['open', 'about:blank'], session, 30000);
 
     expect(result.code).toBe(0);
     expect(result.stdout).toContain('blank');
-  });
+  }, 45000);
 
   it('should reuse existing daemon for subsequent commands', async () => {
-    // First command should start daemon
-    const result1 = await runCli(['open', 'about:blank'], 15000);
+    const session = freshSession();
+
+    const result1 = await runCli(['open', 'about:blank'], session, 30000);
     expect(result1.code).toBe(0);
 
-    // Wait a bit for daemon to be fully ready
-    await new Promise((r) => setTimeout(r, 500));
+    await new Promise((r) => setTimeout(r, 1000));
 
-    // Second command should reuse daemon (should be fast)
-    const result2 = await runCli(['get', 'url'], 5000);
+    const result2 = await runCli(['get', 'url'], session, 10000);
     if (result2.code !== 0) {
       console.log('stderr:', result2.stderr);
       console.log('stdout:', result2.stdout);
     }
     expect(result2.code).toBe(0);
     expect(result2.stdout).toContain('about:blank');
-  });
+  }, 60000);
 
   it('should close browser and daemon properly', async () => {
-    // Start daemon
-    const result1 = await runCli(['open', 'about:blank'], 15000);
+    const session = freshSession();
+
+    const result1 = await runCli(['open', 'about:blank'], session, 30000);
     expect(result1.code).toBe(0);
 
-    // Close browser
-    const result2 = await runCli(['close'], 5000);
+    const result2 = await runCli(['close'], session, 10000);
     expect(result2.code).toBe(0);
 
-    // Daemon should still be running (can accept new open)
-    const result3 = await runCli(['open', 'about:blank'], 15000);
+    const result3 = await runCli(['open', 'about:blank'], session, 30000);
     expect(result3.code).toBe(0);
-  });
+  }, 75000);
 
   it('should handle multiple rapid commands', async () => {
-    // Start daemon
-    await runCli(['open', 'about:blank'], 15000);
+    const session = freshSession();
 
-    // Send multiple commands rapidly
+    await runCli(['open', 'about:blank'], session, 30000);
+
     const results = await Promise.all([
-      runCli(['get', 'url'], 5000),
-      runCli(['get', 'url'], 5000),
-      runCli(['get', 'url'], 5000),
+      runCli(['get', 'url'], session, 10000),
+      runCli(['get', 'url'], session, 10000),
+      runCli(['get', 'url'], session, 10000),
     ]);
 
     for (const result of results) {
       expect(result.code).toBe(0);
       expect(result.stdout).toContain('about:blank');
     }
-  });
+  }, 60000);
 });

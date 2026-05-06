@@ -1,29 +1,66 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { chromium, type Browser, type Page, type CDPSession } from 'playwright';
+import type { Page } from 'playwright-core';
+import { BrowserManager } from '../browser.js';
 
-function getChromiumPath(): string | undefined {
-  if (process.env.AGENT_BROWSER_EXECUTABLE_PATH) return process.env.AGENT_BROWSER_EXECUTABLE_PATH;
-  try {
-    return chromium.executablePath();
-  } catch {
-    return undefined;
-  }
-}
+const executablePath = process.env.AGENT_BROWSER_EXECUTABLE_PATH;
 
-describe.skip('injectFocusListener - E2E integration (real browser)', () => {
-  let browser: Browser;
+const injectScript = `
+  (function() {
+    if (window.__agentBrowserListenerInjected) return;
+    window.__agentBrowserListenerInjected = true;
+
+    document.addEventListener('focus', function(e) {
+      var el = e.target;
+      if (!el) return;
+      var tag = el.tagName;
+      if (tag !== 'INPUT' && tag !== 'TEXTAREA' && !el.isContentEditable) return;
+      try {
+        window.__agentBrowserInputEvent({
+          type: 'input_focused',
+          tag: tag,
+          inputType: el.type || '',
+          value: typeof el.value === 'string' ? el.value : '',
+          placeholder: el.placeholder || '',
+          id: el.id || ''
+        });
+      } catch(ex) {}
+    }, true);
+
+    document.addEventListener('input', function(e) {
+      var el = e.target;
+      if (!el) return;
+      var tag = el.tagName;
+      if (tag !== 'INPUT' && tag !== 'TEXTAREA' && !el.isContentEditable) return;
+      try {
+        window.__agentBrowserInputEvent({
+          type: 'input_value',
+          text: typeof el.value === 'string' ? el.value : ''
+        });
+      } catch(ex) {}
+    }, true);
+
+    document.addEventListener('blur', function() {
+      try {
+        window.__agentBrowserInputEvent({ type: 'input_blur' });
+      } catch(ex) {}
+    }, true);
+  })();
+`;
+
+describe('injectFocusListener - E2E integration (real browser)', () => {
+  let browser: BrowserManager;
   let page: Page;
-  let cdp: CDPSession;
   let receivedEvents: Array<Record<string, unknown>> = [];
 
   beforeAll(async () => {
-    browser = await chromium.launch({
-      executablePath: getChromiumPath(),
+    browser = new BrowserManager();
+    await browser.launch({
+      action: 'launch',
+      id: 'test-focus-listener-e2e',
       headless: true,
+      executablePath,
     });
-    const context = await browser.newContext();
-    page = await context.newPage();
-    cdp = await context.newCDPSession(page);
+    page = browser.getPage();
 
     await page.setContent(`
       <!DOCTYPE html>
@@ -38,93 +75,30 @@ describe.skip('injectFocusListener - E2E integration (real browser)', () => {
       </body>
       </html>
     `);
+
+    await page.exposeFunction('__agentBrowserInputEvent', (data: unknown) => {
+      receivedEvents.push(data as Record<string, unknown>);
+    });
+    await page.addInitScript(injectScript);
+    await page.evaluate(injectScript);
   }, 30000);
 
   afterAll(async () => {
     await browser.close();
   }, 10000);
 
-  async function injectFocusListener(
-    p: Page,
-    session: CDPSession,
-    onEvent: (data: Record<string, unknown>) => void
-  ): Promise<void> {
-    await p.exposeFunction('__agentBrowserInputEvent', (data: unknown) => {
-      onEvent(data as Record<string, unknown>);
-    });
-
-    const injectScript = `
-      (function() {
-        if (window.__agentBrowserListenerInjected) return;
-        window.__agentBrowserListenerInjected = true;
-
-        document.addEventListener('focus', function(e) {
-          var el = e.target;
-          if (!el) return;
-          var tag = el.tagName;
-          if (tag !== 'INPUT' && tag !== 'TEXTAREA' && !el.isContentEditable) return;
-          try {
-            window.__agentBrowserInputEvent({
-              type: 'input_focused',
-              tag: tag,
-              inputType: el.type || '',
-              value: typeof el.value === 'string' ? el.value : '',
-              placeholder: el.placeholder || '',
-              id: el.id || ''
-            });
-          } catch(ex) {}
-        }, true);
-
-        document.addEventListener('input', function(e) {
-          var el = e.target;
-          if (!el) return;
-          var tag = el.tagName;
-          if (tag !== 'INPUT' && tag !== 'TEXTAREA' && !el.isContentEditable) return;
-          try {
-            window.__agentBrowserInputEvent({
-              type: 'input_value',
-              text: typeof el.value === 'string' ? el.value : ''
-            });
-          } catch(ex) {}
-        }, true);
-
-        document.addEventListener('blur', function() {
-          try {
-            window.__agentBrowserInputEvent({ type: 'input_blur' });
-          } catch(ex) {}
-        }, true);
-      })();
-    `;
-
-    await p.addInitScript(injectScript);
-    await p.evaluate(injectScript);
-  }
-
   it('exposes __agentBrowserInputEvent as function on page after injection', async () => {
-    await injectFocusListener(page, cdp, (data) => {
-      receivedEvents.push(data);
-    });
-
     const result = await page.evaluate(() => typeof window.__agentBrowserInputEvent);
     expect(result).toBe('function');
   });
 
   it('sets injection guard flag after evaluation', async () => {
-    receivedEvents = [];
-    await injectFocusListener(page, cdp, (data) => {
-      receivedEvents.push(data);
-    });
-
     const result = await page.evaluate(() => window.__agentBrowserListenerInjected);
     expect(result).toBe(true);
   });
 
   it('focusing input triggers input_focused callback with correct data', async () => {
     receivedEvents = [];
-    await injectFocusListener(page, cdp, (data) => {
-      receivedEvents.push(data);
-    });
-
     await page.focus('#text-input');
     await page.waitForTimeout(100);
 
@@ -139,10 +113,6 @@ describe.skip('injectFocusListener - E2E integration (real browser)', () => {
 
   it('focusing textarea triggers input_focused with TEXTAREA tag', async () => {
     receivedEvents = [];
-    await injectFocusListener(page, cdp, (data) => {
-      receivedEvents.push(data);
-    });
-
     await page.focus('#textarea-input');
     await page.waitForTimeout(100);
 
@@ -154,10 +124,6 @@ describe.skip('injectFocusListener - E2E integration (real browser)', () => {
 
   it('typing in input triggers input_value callback', async () => {
     receivedEvents = [];
-    await injectFocusListener(page, cdp, (data) => {
-      receivedEvents.push(data);
-    });
-
     await page.focus('#text-input');
     await page.waitForTimeout(50);
     await page.type('#text-input', 'hello world');
@@ -171,10 +137,6 @@ describe.skip('injectFocusListener - E2E integration (real browser)', () => {
 
   it('blurring input triggers input_blur callback', async () => {
     receivedEvents = [];
-    await injectFocusListener(page, cdp, (data) => {
-      receivedEvents.push(data);
-    });
-
     await page.focus('#text-input');
     await page.waitForTimeout(50);
     await page.click('#clickable');
@@ -186,10 +148,6 @@ describe.skip('injectFocusListener - E2E integration (real browser)', () => {
 
   it('clicking non-input element does NOT trigger input_focused', async () => {
     receivedEvents = [];
-    await injectFocusListener(page, cdp, (data) => {
-      receivedEvents.push(data);
-    });
-
     await page.click('#btn');
     await page.waitForTimeout(100);
 
@@ -199,10 +157,6 @@ describe.skip('injectFocusListener - E2E integration (real browser)', () => {
 
   it('focusing contentEditable div triggers input_focused', async () => {
     receivedEvents = [];
-    await injectFocusListener(page, cdp, (data) => {
-      receivedEvents.push(data);
-    });
-
     await page.focus('#editable');
     await page.waitForTimeout(100);
 

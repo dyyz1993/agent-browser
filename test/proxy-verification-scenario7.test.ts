@@ -24,7 +24,7 @@ describe('Scenario 7: Proxy Settings Verification', () => {
     targetServer = http.createServer((req, res) => {
       targetRequests.push({
         method: req.method || 'GET',
-        url: req.url || ''
+        url: req.url || '',
       });
 
       res.writeHead(200, { 'Content-Type': 'text/html' });
@@ -44,7 +44,7 @@ describe('Scenario 7: Proxy Settings Verification', () => {
       proxyRequests.push({
         method: req.method || 'GET',
         url: req.url || '',
-        headers: req.headers as Record<string, string>
+        headers: req.headers as Record<string, string>,
       });
 
       // Parse the URL from the request
@@ -56,7 +56,7 @@ describe('Scenario 7: Proxy Settings Verification', () => {
         port: targetPort,
         path: parsedUrl.path,
         method: req.method,
-        headers: req.headers
+        headers: req.headers,
       };
 
       const proxyReq = http.request(options, (proxyRes) => {
@@ -78,7 +78,7 @@ describe('Scenario 7: Proxy Settings Verification', () => {
       proxyRequests.push({
         method: 'CONNECT',
         url: req.url || '',
-        headers: req.headers as Record<string, string>
+        headers: req.headers as Record<string, string>,
       });
 
       const { port, hostname } = url.parse(`http://${req.url}`);
@@ -126,8 +126,8 @@ describe('Scenario 7: Proxy Settings Verification', () => {
       await browser.launch({
         headless: true,
         proxy: {
-          server: `http://localhost:${proxyPort}`
-        }
+          server: `http://localhost:${proxyPort}`,
+        },
       });
 
       expect(browser.isLaunched()).toBe(true);
@@ -142,7 +142,7 @@ describe('Scenario 7: Proxy Settings Verification', () => {
 
       // Verify the request went through the proxy
       expect(proxyRequests.length).toBeGreaterThan(0);
-      expect(proxyRequests.some(req => req.url.includes('/test'))).toBe(true);
+      expect(proxyRequests.some((req) => req.url.includes('/test'))).toBe(true);
     });
 
     it('should use proxy for multiple requests', async () => {
@@ -150,8 +150,8 @@ describe('Scenario 7: Proxy Settings Verification', () => {
       await browser.launch({
         headless: true,
         proxy: {
-          server: `http://localhost:${proxyPort}`
-        }
+          server: `http://localhost:${proxyPort}`,
+        },
       });
 
       const page = browser.getPage();
@@ -166,9 +166,9 @@ describe('Scenario 7: Proxy Settings Verification', () => {
 
       // Verify all requests went through the proxy
       expect(proxyRequests.length).toBeGreaterThanOrEqual(3);
-      expect(proxyRequests.some(req => req.url.includes('/page1'))).toBe(true);
-      expect(proxyRequests.some(req => req.url.includes('/page2'))).toBe(true);
-      expect(proxyRequests.some(req => req.url.includes('/page3'))).toBe(true);
+      expect(proxyRequests.some((req) => req.url.includes('/page1'))).toBe(true);
+      expect(proxyRequests.some((req) => req.url.includes('/page2'))).toBe(true);
+      expect(proxyRequests.some((req) => req.url.includes('/page3'))).toBe(true);
     });
   });
 
@@ -179,8 +179,8 @@ describe('Scenario 7: Proxy Settings Verification', () => {
         headless: true,
         proxy: {
           server: `http://localhost:${proxyPort}`,
-          bypass: 'localhost'
-        }
+          bypass: 'localhost',
+        },
       });
 
       const page = browser.getPage();
@@ -204,8 +204,8 @@ describe('Scenario 7: Proxy Settings Verification', () => {
         headless: true,
         proxy: {
           server: `http://localhost:${proxyPort}`,
-          bypass: 'localhost,*.internal.com,192.168.*'
-        }
+          bypass: 'localhost,*.internal.com,192.168.*',
+        },
       });
 
       expect(browser.isLaunched()).toBe(true);
@@ -234,8 +234,8 @@ describe('Scenario 7: Proxy Settings Verification', () => {
         proxy: {
           server: `http://localhost:${proxyPort}`,
           username: 'testuser',
-          password: 'testpass'
-        }
+          password: 'testpass',
+        },
       });
 
       expect(browser.isLaunched()).toBe(true);
@@ -250,16 +250,14 @@ describe('Scenario 7: Proxy Settings Verification', () => {
       await browser.launch({
         headless: true,
         proxy: {
-          server: 'http://127.0.0.1:59999' // Non-existent proxy
-        }
+          server: 'http://127.0.0.1:59999', // Non-existent proxy
+        },
       });
 
       const page = browser.getPage();
 
       // Try to navigate - should fail because proxy is unreachable
-      await expect(
-        page.goto('http://example.com', { timeout: 5000 })
-      ).rejects.toThrow();
+      await expect(page.goto('http://example.com', { timeout: 5000 })).rejects.toThrow();
     });
 
     it('should handle proxy server timeout', async () => {
@@ -279,8 +277,8 @@ describe('Scenario 7: Proxy Settings Verification', () => {
       await browser.launch({
         headless: true,
         proxy: {
-          server: `http://localhost:${slowProxyPort}`
-        }
+          server: `http://localhost:${slowProxyPort}`,
+        },
       });
 
       const page = browser.getPage();
@@ -308,8 +306,8 @@ describe('Scenario 7: Proxy Settings Verification', () => {
       const launchOptions = {
         headless: true,
         proxy: {
-          server: `http://localhost:${proxyPort}`
-        }
+          server: `http://localhost:${proxyPort}`,
+        },
       };
 
       await browser.launch(launchOptions);
@@ -326,9 +324,9 @@ describe('Scenario 7: Proxy Settings Verification', () => {
       await browser.launch({
         headless: true,
         proxy: {
-          server: `http://localhost:${proxyPort}`
+          server: `http://localhost:${proxyPort}`,
         },
-        userAgent: customUA
+        userAgent: customUA,
       });
 
       const page = browser.getPage();
@@ -349,9 +347,9 @@ describe('Scenario 7: Proxy Settings Verification', () => {
       await browser.launch({
         headless: true,
         proxy: {
-          server: `http://localhost:${proxyPort}`
+          server: `http://localhost:${proxyPort}`,
         },
-        args: ['--disable-blink-features=AutomationControlled']
+        args: ['--disable-blink-features=AutomationControlled'],
       });
 
       const page = browser.getPage();
@@ -375,8 +373,8 @@ describe('Scenario 7: Proxy Settings Verification', () => {
       await browser.launch({
         headless: true,
         proxy: {
-          server: `http://localhost:${proxyPort}`
-        }
+          server: `http://localhost:${proxyPort}`,
+        },
       });
 
       const page = browser.getPage();
@@ -385,7 +383,7 @@ describe('Scenario 7: Proxy Settings Verification', () => {
       const urls = [
         `http://localhost:${targetPort}/page1`,
         `http://localhost:${targetPort}/page2`,
-        `http://localhost:${targetPort}/page3`
+        `http://localhost:${targetPort}/page3`,
       ];
 
       for (const url of urls) {
@@ -403,8 +401,8 @@ describe('Scenario 7: Proxy Settings Verification', () => {
       await browser.launch({
         headless: true,
         proxy: {
-          server: `http://localhost:${proxyPort}`
-        }
+          server: `http://localhost:${proxyPort}`,
+        },
       });
 
       let page = browser.getPage();
@@ -431,8 +429,8 @@ describe('Scenario 7: Proxy Settings Verification', () => {
       const launchOptions = {
         headless: true,
         proxy: {
-          server: `http://localhost:${proxyPort}`
-        }
+          server: `http://localhost:${proxyPort}`,
+        },
       };
 
       await browser.launch(launchOptions);
@@ -453,15 +451,15 @@ describe('Scenario 7: Proxy Settings Verification', () => {
       await browser.launch({
         headless: true,
         proxy: {
-          server: `http://localhost:${proxyPort}`
-        }
+          server: `http://localhost:${proxyPort}`,
+        },
       });
 
       const page = browser.getPage();
 
       // Set custom headers
       await page.setExtraHTTPHeaders({
-        'X-Custom-Header': 'test-value'
+        'X-Custom-Header': 'test-value',
       });
 
       await page.goto(`http://localhost:${targetPort}/headers-test`);
@@ -469,7 +467,7 @@ describe('Scenario 7: Proxy Settings Verification', () => {
 
       // Verify headers were preserved through proxy
       expect(proxyRequests.length).toBeGreaterThan(0);
-      const testRequest = proxyRequests.find(req => req.url.includes('/headers-test'));
+      const testRequest = proxyRequests.find((req) => req.url.includes('/headers-test'));
       expect(testRequest).toBeDefined();
       expect(testRequest?.headers['x-custom-header']).toBe('test-value');
     });
@@ -479,8 +477,8 @@ describe('Scenario 7: Proxy Settings Verification', () => {
       await browser.launch({
         headless: true,
         proxy: {
-          server: `http://localhost:${proxyPort}`
-        }
+          server: `http://localhost:${proxyPort}`,
+        },
       });
 
       const page = browser.getPage();
@@ -498,10 +496,10 @@ describe('Scenario 7: Proxy Settings Verification', () => {
 
       // Verify all methods went through proxy
       expect(proxyRequests.length).toBeGreaterThanOrEqual(4);
-      expect(proxyRequests.some(req => req.method === 'GET')).toBe(true);
-      expect(proxyRequests.some(req => req.method === 'POST')).toBe(true);
-      expect(proxyRequests.some(req => req.method === 'PUT')).toBe(true);
-      expect(proxyRequests.some(req => req.method === 'DELETE')).toBe(true);
+      expect(proxyRequests.some((req) => req.method === 'GET')).toBe(true);
+      expect(proxyRequests.some((req) => req.method === 'POST')).toBe(true);
+      expect(proxyRequests.some((req) => req.method === 'PUT')).toBe(true);
+      expect(proxyRequests.some((req) => req.method === 'DELETE')).toBe(true);
     });
   });
 });

@@ -30,10 +30,7 @@ describe('Launch Options', () => {
       browser = new BrowserManager();
       await browser.launch({
         headless: true,
-        args: [
-          '--disable-blink-features=AutomationControlled',
-          '--disable-dev-shm-usage',
-        ],
+        args: ['--disable-blink-features=AutomationControlled', '--disable-dev-shm-usage'],
       });
 
       expect(browser.isLaunched()).toBe(true);
