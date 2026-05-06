@@ -35,11 +35,11 @@ describe('Fill with @ref selector', () => {
     const snapResult = await executeCommand(parseCliArgs(['snapshot', '-i']), browser);
     expect(snapResult.success).toBe(true);
 
-    const refs = (snapResult.data as any).refs;
+    const refs = (snapResult.data as Record<string, unknown>).refs;
     expect(refs).toBeDefined();
 
     const refEntries = Object.entries(refs).filter(
-      ([_, data]: [string, any]) => data.role === 'textbox'
+      ([_, data]: [string, Record<string, unknown>]) => data.role === 'textbox'
     );
     expect(refEntries.length).toBeGreaterThan(0);
 
@@ -60,9 +60,9 @@ describe('Fill with @ref selector', () => {
 
   it('should fill multiple inputs using @ref selectors', async () => {
     const snapResult = await executeCommand(parseCliArgs(['snapshot', '-i']), browser);
-    const refs = (snapResult.data as any).refs;
+    const refs = (snapResult.data as Record<string, unknown>).refs;
     const textboxRefs = Object.entries(refs).filter(
-      ([_, data]: [string, any]) => data.role === 'textbox'
+      ([_, data]: [string, Record<string, unknown>]) => data.role === 'textbox'
     );
 
     if (textboxRefs.length >= 2) {
@@ -85,9 +85,9 @@ describe('Fill with @ref selector', () => {
 
   it('should not throw querySelector error when filling with @ref', async () => {
     const snapResult = await executeCommand(parseCliArgs(['snapshot', '-i']), browser);
-    const refs = (snapResult.data as any).refs;
+    const refs = (snapResult.data as Record<string, unknown>).refs;
     const textboxRefs = Object.entries(refs).filter(
-      ([_, data]: [string, any]) => data.role === 'textbox'
+      ([_, data]: [string, Record<string, unknown>]) => data.role === 'textbox'
     );
     if (!textboxRefs.length) return;
 

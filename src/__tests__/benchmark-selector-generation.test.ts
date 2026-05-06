@@ -70,7 +70,7 @@ class MockElement implements Element {
             if (i < self._children.length) {
               return { value: self._children[i++], done: false };
             }
-            return { value: undefined as any, done: true };
+            return { value: undefined as unknown, done: true };
           },
         };
       },
@@ -90,7 +90,7 @@ class MockElement implements Element {
             if (i < classArray.length) {
               return { value: classArray[i++], done: false };
             }
-            return { value: undefined as any, done: true };
+            return { value: undefined as unknown, done: true };
           },
         };
       },

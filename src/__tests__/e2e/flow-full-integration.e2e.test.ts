@@ -140,7 +140,7 @@ describe('Flow Engine Full Integration', { sequential: true }, () => {
     expect(result.errors).toEqual([]);
 
     expect(result.data.domResults).toBeDefined();
-    const domResults = result.data.domResults as any[];
+    const domResults = result.data.domResults as Record<string, unknown>[];
     expect(Array.isArray(domResults)).toBe(true);
     expect(domResults.length).toBe(10);
     console.log('DOM results:', domResults.length, 'items (page 1)');
@@ -150,7 +150,7 @@ describe('Flow Engine Full Integration', { sequential: true }, () => {
     expect(domResults[0].title).toContain('agent-browser');
 
     expect(result.data.results).toBeDefined();
-    const paginatedResults = result.data.results as any[];
+    const paginatedResults = result.data.results as Record<string, unknown>[];
     expect(Array.isArray(paginatedResults)).toBe(true);
     expect(paginatedResults.length).toBe(30);
     console.log('Paginated results:', paginatedResults.length, 'items (3 pages)');

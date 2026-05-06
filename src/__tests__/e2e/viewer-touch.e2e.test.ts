@@ -54,10 +54,12 @@ describe('Virtual Touchpad - Touch -> Mouse -> WebSocket Pipeline', () => {
         writable: true,
       });
       const orig = WebSocket.prototype.send;
-      (window as any).__wsMsgs = [];
-      WebSocket.prototype.send = function (data: any) {
+      (window as Record<string, unknown>).__wsMsgs = [];
+      WebSocket.prototype.send = function (data: unknown) {
         try {
-          (window as any).__wsMsgs.push(JSON.parse(data));
+          ((window as Record<string, unknown>).__wsMsgs as unknown[]).push(
+            JSON.parse(data as string)
+          );
         } catch {}
         return orig.call(this, data);
       };
@@ -86,7 +88,7 @@ describe('Virtual Touchpad - Touch -> Mouse -> WebSocket Pipeline', () => {
 
   beforeEach(async () => {
     await vPage.evaluate(() => {
-      (window as any).__wsMsgs = [];
+      (window as Record<string, unknown>).__wsMsgs = [];
     });
   });
 
@@ -111,9 +113,11 @@ describe('Virtual Touchpad - Touch -> Mouse -> WebSocket Pipeline', () => {
     });
   }
 
-  async function getMouseMsgs(): Promise<any[]> {
-    const all = await vPage.evaluate(() => (window as any).__wsMsgs);
-    return all.filter((m: any) => m.type === 'input_mouse');
+  async function getMouseMsgs(): Promise<Record<string, unknown>[]> {
+    const all = await vPage.evaluate(
+      () => (window as Record<string, unknown>).__wsMsgs as Record<string, unknown>[]
+    );
+    return all.filter((m: Record<string, unknown>) => m.type === 'input_mouse');
   }
 
   async function getTouchpadBox() {
@@ -161,7 +165,7 @@ describe('Virtual Touchpad - Touch -> Mouse -> WebSocket Pipeline', () => {
     expect(msgs.find((m) => m.eventType === 'mousePressed')).toBeTruthy();
 
     await vPage.evaluate(() => {
-      (window as any).__wsMsgs = [];
+      (window as Record<string, unknown>).__wsMsgs = [];
     });
 
     await tMove([{ x: ex, y: ey, id: 0 }]);
@@ -186,7 +190,7 @@ describe('Virtual Touchpad - Touch -> Mouse -> WebSocket Pipeline', () => {
     await vPage.waitForTimeout(100);
 
     await vPage.evaluate(() => {
-      (window as any).__wsMsgs = [];
+      (window as Record<string, unknown>).__wsMsgs = [];
     });
 
     await tMove([

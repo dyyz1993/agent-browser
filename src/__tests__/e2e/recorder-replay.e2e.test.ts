@@ -8,6 +8,34 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { getAppDir } from '../../daemon.js';
 
+interface ReplayData {
+  path?: string;
+  file?: string;
+  successCount?: number;
+  totalCommands?: number;
+  [key: string]: unknown;
+}
+
+interface RecorderWindow extends Window {
+  xyzActive: boolean;
+  xyzStopped: boolean;
+  xyzInited: boolean;
+  xyzInitializedSessionId?: string;
+  xyzSessionId?: string;
+  xyzQueue: unknown[];
+  xyzPaused: boolean;
+  [key: string]: unknown;
+}
+
+function isReplayData(data: unknown): data is ReplayData {
+  return typeof data === 'object' && data !== null;
+}
+
+function castReplayData(data: unknown): ReplayData | undefined {
+  if (typeof data === 'object' && data !== null) return data as ReplayData;
+  return undefined;
+}
+
 describe('Recorder Replay E2E Test', { sequential: true }, () => {
   let browser: BrowserManager;
   let recordedYamlPath: string | undefined;
@@ -74,7 +102,7 @@ describe('Recorder Replay E2E Test', { sequential: true }, () => {
       try {
         await page.evaluate(() => {
           // Reset all recorder-related window variables
-          const win = window as any;
+          const win = window as RecorderWindow;
           win.xyzActive = false;
           win.xyzStopped = true;
           win.xyzInited = false;
@@ -107,7 +135,7 @@ describe('Recorder Replay E2E Test', { sequential: true }, () => {
     const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
     expect(isSuccessResponse(stopResult)).toBe(true);
 
-    const data = isSuccessResponse(stopResult) ? (stopResult.data as any) : undefined;
+    const data = isSuccessResponse(stopResult) ? castReplayData(stopResult.data) : undefined;
     expect(data?.path).toBeDefined();
     recordedYamlPath = data?.path;
 
@@ -149,7 +177,9 @@ describe('Recorder Replay E2E Test', { sequential: true }, () => {
     const pageUrl = page.url();
     console.log('[Test 1] Page URL:', pageUrl);
 
-    const replayData = isSuccessResponse(replayResult) ? (replayResult.data as any) : undefined;
+    const replayData = isSuccessResponse(replayResult)
+      ? castReplayData(replayResult.data)
+      : undefined;
     if (replayResult.success && replayData?.successCount > 0) {
       expect(usernameValue).toBe('testuser');
     } else {
@@ -178,7 +208,9 @@ describe('Recorder Replay E2E Test', { sequential: true }, () => {
     await new Promise((resolve) => setTimeout(resolve, 800)); // 增加等待时间
 
     const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
-    const recentPath = isSuccessResponse(stopResult) ? (stopResult.data as any)?.path : undefined;
+    const recentPath = isSuccessResponse(stopResult)
+      ? castReplayData(stopResult.data)?.path
+      : undefined;
     console.log('[Test] Recent recording saved to:', recentPath);
     console.log('[Test] Stop result success:', stopResult.success);
     if (isSuccessResponse(stopResult)) {
@@ -203,7 +235,7 @@ describe('Recorder Replay E2E Test', { sequential: true }, () => {
     console.log('[Test] Replay without path result:', replayResult.success);
     if (isSuccessResponse(replayResult)) {
       console.log('[Test] Replay result data:', JSON.stringify(replayResult.data, null, 2));
-      const data = replayResult.data as any;
+      const data = replayResult.data as ReplayData;
       console.log('[Test] Replay file used:', data.file);
       console.log('[Test] Commands executed:', data.successCount);
     }
@@ -221,7 +253,9 @@ describe('Recorder Replay E2E Test', { sequential: true }, () => {
     });
     console.log('[Test] Email value after replay:', emailValue);
     // Only assert if replay actually executed commands
-    const replayData = isSuccessResponse(replayResult) ? (replayResult.data as any) : undefined;
+    const replayData = isSuccessResponse(replayResult)
+      ? castReplayData(replayResult.data)
+      : undefined;
     if (replayResult.success && replayData?.successCount > 0) {
       expect(emailValue).toBe('test@example.com');
     } else {
@@ -243,7 +277,9 @@ describe('Recorder Replay E2E Test', { sequential: true }, () => {
 
     const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
     expect(isSuccessResponse(stopResult)).toBe(true);
-    const yamlPath = isSuccessResponse(stopResult) ? (stopResult.data as any)?.path : undefined;
+    const yamlPath = isSuccessResponse(stopResult)
+      ? castReplayData(stopResult.data)?.path
+      : undefined;
 
     // Verify YAML contains click commands
     if (yamlPath && fs.existsSync(yamlPath)) {
@@ -274,7 +310,9 @@ describe('Recorder Replay E2E Test', { sequential: true }, () => {
     });
 
     console.log('[Test] cb1 checked after replay:', cb1Checked);
-    const replayData = isSuccessResponse(replayResult) ? (replayResult.data as any) : undefined;
+    const replayData = isSuccessResponse(replayResult)
+      ? castReplayData(replayResult.data)
+      : undefined;
     console.log('[Test] Replay result:', replayResult.success, replayData?.successCount);
 
     // Only assert if replay actually executed commands
@@ -317,7 +355,9 @@ describe('Recorder Replay E2E Test', { sequential: true }, () => {
 
     const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
     expect(isSuccessResponse(stopResult)).toBe(true);
-    const yamlPath = isSuccessResponse(stopResult) ? (stopResult.data as any)?.path : undefined;
+    const yamlPath = isSuccessResponse(stopResult)
+      ? castReplayData(stopResult.data)?.path
+      : undefined;
     console.log('[Test] Fill operations YAML saved to:', yamlPath);
 
     // Verify YAML contains fill commands
@@ -382,7 +422,9 @@ describe('Recorder Replay E2E Test', { sequential: true }, () => {
 
     const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
     expect(isSuccessResponse(stopResult)).toBe(true);
-    const yamlPath = isSuccessResponse(stopResult) ? (stopResult.data as any)?.path : undefined;
+    const yamlPath = isSuccessResponse(stopResult)
+      ? castReplayData(stopResult.data)?.path
+      : undefined;
     if (!yamlPath) {
       console.log('[Test 5] No yamlPath, skipping test');
       return;
@@ -411,7 +453,9 @@ describe('Recorder Replay E2E Test', { sequential: true }, () => {
       return (document.querySelector('#username') as HTMLInputElement)?.value;
     });
 
-    const replayData = isSuccessResponse(replayResult) ? (replayResult.data as any) : undefined;
+    const replayData = isSuccessResponse(replayResult)
+      ? castReplayData(replayResult.data)
+      : undefined;
     if (replayResult.success && replayData?.successCount > 0) {
       expect(username).toBe('trajectory_user');
     } else {
@@ -439,7 +483,9 @@ describe('Recorder Replay E2E Test', { sequential: true }, () => {
 
     const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
     expect(isSuccessResponse(stopResult)).toBe(true);
-    const yamlPath = isSuccessResponse(stopResult) ? (stopResult.data as any)?.path : undefined;
+    const yamlPath = isSuccessResponse(stopResult)
+      ? castReplayData(stopResult.data)?.path
+      : undefined;
 
     expect(yamlPath).toBeDefined();
 
@@ -507,7 +553,9 @@ describe('Recorder Replay E2E Test', { sequential: true }, () => {
 
     const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
     expect(isSuccessResponse(stopResult)).toBe(true);
-    const yamlPath = isSuccessResponse(stopResult) ? (stopResult.data as any)?.path : undefined;
+    const yamlPath = isSuccessResponse(stopResult)
+      ? castReplayData(stopResult.data)?.path
+      : undefined;
 
     expect(yamlPath).toBeDefined();
 
@@ -530,7 +578,9 @@ describe('Recorder Replay E2E Test', { sequential: true }, () => {
       return (document.querySelector('#username') as HTMLInputElement)?.value;
     });
 
-    const replayData = isSuccessResponse(replayResult) ? (replayResult.data as any) : undefined;
+    const replayData = isSuccessResponse(replayResult)
+      ? castReplayData(replayResult.data)
+      : undefined;
     if (replayResult.success && replayData?.successCount > 0) {
       expect(username).toBe('user100');
     } else {
@@ -571,7 +621,7 @@ describe('Recorder Replay E2E Test', { sequential: true }, () => {
     const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
     expect(isSuccessResponse(stopResult)).toBe(true);
 
-    const data = isSuccessResponse(stopResult) ? (stopResult.data as any) : undefined;
+    const data = isSuccessResponse(stopResult) ? castReplayData(stopResult.data) : undefined;
     expect(data?.path).toBeDefined();
     const yamlPath = data?.path;
 
@@ -597,7 +647,9 @@ describe('Recorder Replay E2E Test', { sequential: true }, () => {
     );
 
     expect(replayResult.success).toBe(true);
-    const replayData = isSuccessResponse(replayResult) ? (replayResult.data as any) : undefined;
+    const replayData = isSuccessResponse(replayResult)
+      ? castReplayData(replayResult.data)
+      : undefined;
     expect(replayData?.totalCommands).toBeGreaterThan(0);
 
     // 清理

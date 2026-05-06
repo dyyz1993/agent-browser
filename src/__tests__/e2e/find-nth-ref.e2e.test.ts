@@ -58,7 +58,9 @@ describe('Find nth with @ref selector', () => {
     const snapResult = await executeCommand(parseCliArgs(['snapshot', '-i']), browser);
     expect(snapResult.success).toBe(true);
 
-    const buttons = snapResult.data.elements?.filter((el: any) => el.role === 'button');
+    const buttons = snapResult.data.elements?.filter(
+      (el: Record<string, unknown>) => el.role === 'button'
+    );
     if (!buttons?.length) return;
 
     const firstBtnRef = buttons[0].ref;

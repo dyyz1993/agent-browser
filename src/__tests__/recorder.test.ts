@@ -269,7 +269,12 @@ describe('Recorder Unit Tests', () => {
   });
 });
 
-function generateYaml(sessionId: string, startTime: number, endTime: number, steps: any[]): string {
+function generateYaml(
+  sessionId: string,
+  startTime: number,
+  endTime: number,
+  steps: Record<string, unknown>[]
+): string {
   const lines: string[] = [];
 
   lines.push('session:');
@@ -287,7 +292,7 @@ function generateYaml(sessionId: string, startTime: number, endTime: number, ste
   return lines.join('\n');
 }
 
-function formatStep(step: any): string {
+function formatStep(step: Record<string, unknown>): string {
   const lines: string[] = [];
 
   lines.push(`  - id: ${step.id}`);

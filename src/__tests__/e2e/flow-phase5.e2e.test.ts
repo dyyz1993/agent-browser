@@ -127,7 +127,7 @@ describe('Flow Engine Phase 5 - Plugin System', { sequential: true, timeout: 600
               { id: 'nav', action: 'navigate', url: '${baseUrl}/greet' },
               {
                 id: 'greet',
-                action: 'customGreet' as any,
+                action: 'customGreet' as string,
                 value: 'FlowPlugin',
                 outputVar: 'greeting',
               },
@@ -227,7 +227,7 @@ describe('Flow Engine Phase 5 - Plugin System', { sequential: true, timeout: 600
             id: 'errorTest',
             steps: [
               { id: 'nav', action: 'navigate', url: '${baseUrl}/greet' },
-              { id: 'fail', action: 'throwError' as any },
+              { id: 'fail', action: 'throwError' as string },
             ],
           },
         },

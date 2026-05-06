@@ -12,6 +12,19 @@ import {
 import type { RecorderYaml, SiteDefinition, FlowDefinition, FlowStep } from '../../flow/index.js';
 import { parseYamlSiteFile } from '../../flow/yaml-parser.js';
 
+interface FlowFromRecorderCommand {
+  action: string;
+  subcommand?: string;
+  recorderFile?: string;
+  siteName?: string;
+  outputFile?: string;
+  flowId?: string;
+  baseUrl?: string;
+  description?: string;
+  maxPaginateIterations?: number;
+  [key: string]: unknown;
+}
+
 const TEST_DIR = resolve('/tmp/flow-phase4-test');
 
 const mockRecorderYaml: RecorderYaml = {
@@ -405,10 +418,10 @@ steps:
       ]);
 
       expect(cmd.action).toBe('flow');
-      expect((cmd as any).subcommand).toBe('from-recorder');
-      expect((cmd as any).recorderFile).toBe('recording.yaml');
-      expect((cmd as any).siteName).toBe('my-site');
-      expect((cmd as any).outputFile).toBe('out.yaml');
+      expect((cmd as FlowFromRecorderCommand).subcommand).toBe('from-recorder');
+      expect((cmd as FlowFromRecorderCommand).recorderFile).toBe('recording.yaml');
+      expect((cmd as FlowFromRecorderCommand).siteName).toBe('my-site');
+      expect((cmd as FlowFromRecorderCommand).outputFile).toBe('out.yaml');
     });
 
     it('should parse all from-recorder options', async () => {
@@ -429,10 +442,10 @@ steps:
         '5',
       ]);
 
-      expect((cmd as any).flowId).toBe('my-flow');
-      expect((cmd as any).baseUrl).toBe('https://example.com');
-      expect((cmd as any).description).toBe('Test flow');
-      expect((cmd as any).maxPaginateIterations).toBe(5);
+      expect((cmd as FlowFromRecorderCommand).flowId).toBe('my-flow');
+      expect((cmd as FlowFromRecorderCommand).baseUrl).toBe('https://example.com');
+      expect((cmd as FlowFromRecorderCommand).description).toBe('Test flow');
+      expect((cmd as FlowFromRecorderCommand).maxPaginateIterations).toBe(5);
     });
   });
 });

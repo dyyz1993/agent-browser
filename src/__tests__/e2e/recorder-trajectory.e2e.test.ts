@@ -6,6 +6,13 @@ import { getFixturePath } from './utils/test-helpers';
 import { isSuccessResponse } from '../../types.js';
 import * as fs from 'fs';
 
+interface TrajectoryResponseData {
+  path?: string;
+  moved?: boolean;
+  points?: number;
+  [key: string]: unknown;
+}
+
 /**
  * Parse trajectory points from YAML CLI command
  * Format: "x:y:delay;x:y:delay;..."
@@ -170,7 +177,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
-      const data = stopResult.data as any;
+      const data = TrajectoryResponseData;
       expect(data.path).toBeDefined();
       const yamlPath = data.path;
 
@@ -222,7 +229,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
-      const data = stopResult.data as any;
+      const data = TrajectoryResponseData;
       const yamlPath = data.path;
       const yaml = fs.readFileSync(yamlPath, 'utf-8');
       const steps = parseYamlSteps(yaml);
@@ -266,7 +273,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
-      const data = stopResult.data as any;
+      const data = TrajectoryResponseData;
       const yamlPath = data.path;
       const yaml = fs.readFileSync(yamlPath, 'utf-8');
       const steps = parseYamlSteps(yaml);
@@ -313,7 +320,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
-      const data = stopResult.data as any;
+      const data = TrajectoryResponseData;
       const yamlPath = data.path;
       const yaml = fs.readFileSync(yamlPath, 'utf-8');
       const steps = parseYamlSteps(yaml);
@@ -350,7 +357,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
       await new Promise((resolve) => setTimeout(resolve, 200));
 
-      const data = stopResult.data as any;
+      const data = TrajectoryResponseData;
       const yamlPath = data.path;
       const yaml = fs.readFileSync(yamlPath, 'utf-8');
       const steps = parseYamlSteps(yaml);
@@ -398,7 +405,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
       await new Promise((resolve) => setTimeout(resolve, 200));
 
-      const data = stopResult.data as any;
+      const data = TrajectoryResponseData;
       const yamlPath = data.path;
       const yaml = fs.readFileSync(yamlPath, 'utf-8');
       const steps = parseYamlSteps(yaml);
@@ -445,7 +452,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
-      const data = stopResult.data as any;
+      const data = TrajectoryResponseData;
       if (data.path) {
         const yamlPath = data.path;
         const yaml = fs.readFileSync(yamlPath, 'utf-8');
@@ -489,7 +496,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
-      const data = stopResult.data as any;
+      const data = TrajectoryResponseData;
       const yamlPath = data.path;
       const yaml = fs.readFileSync(yamlPath, 'utf-8');
       const steps = parseYamlSteps(yaml);
@@ -533,7 +540,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
       await new Promise((resolve) => setTimeout(resolve, 200));
 
-      const data = stopResult.data as any;
+      const data = TrajectoryResponseData;
       const yamlPath = data.path;
       const yaml = fs.readFileSync(yamlPath, 'utf-8');
 
@@ -574,7 +581,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
-      const data = stopResult.data as any;
+      const data = TrajectoryResponseData;
       const yamlPath = data.path;
       const yaml = fs.readFileSync(yamlPath, 'utf-8');
 
@@ -617,7 +624,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
-      const data = stopResult.data as any;
+      const data = TrajectoryResponseData;
       const yamlPath = data.path;
       const yaml = fs.readFileSync(yamlPath, 'utf-8');
 
@@ -655,7 +662,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
-      const data = stopResult.data as any;
+      const data = TrajectoryResponseData;
       const yamlPath = data.path;
       const yaml = fs.readFileSync(yamlPath, 'utf-8');
 
@@ -701,7 +708,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
-      const data = stopResult.data as any;
+      const data = TrajectoryResponseData;
       const yamlPath = data.path;
       const yaml = fs.readFileSync(yamlPath, 'utf-8');
 
@@ -747,7 +754,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
-      const data = stopResult.data as any;
+      const data = TrajectoryResponseData;
       const yamlPath = data.path;
       const yaml = fs.readFileSync(yamlPath, 'utf-8');
 
@@ -796,7 +803,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
-      const data = stopResult.data as any;
+      const data = TrajectoryResponseData;
       const yamlPath = data.path;
       const yaml = fs.readFileSync(yamlPath, 'utf-8');
 
@@ -826,7 +833,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
-      const data = stopResult.data as any;
+      const data = TrajectoryResponseData;
       const yamlPath = data.path;
       const yaml = fs.readFileSync(yamlPath, 'utf-8');
 
@@ -867,7 +874,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
-      const data = stopResult.data as any;
+      const data = TrajectoryResponseData;
       const yamlPath = data.path;
       const yaml = fs.readFileSync(yamlPath, 'utf-8');
 
@@ -926,7 +933,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
-      const data = stopResult.data as any;
+      const data = TrajectoryResponseData;
       const yamlPath = data.path;
       const yaml = fs.readFileSync(yamlPath, 'utf-8');
 
@@ -983,7 +990,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
-      const data = stopResult.data as any;
+      const data = TrajectoryResponseData;
       const yamlPath = data.path;
 
       // Open fresh page for replay
@@ -1034,7 +1041,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
-      const data = stopResult.data as any;
+      const data = TrajectoryResponseData;
       const yamlPath = data.path;
       const yaml = fs.readFileSync(yamlPath, 'utf-8');
 
@@ -1061,7 +1068,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       );
 
       expect(result.success).toBe(true);
-      const data = result.data as any;
+      const data = result.data as TrajectoryResponseData;
       expect(data.moved).toBe(true);
     }, 15000);
 
@@ -1085,7 +1092,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       );
 
       expect(result.success).toBe(true);
-      const data = result.data as any;
+      const data = result.data as TrajectoryResponseData;
       expect(data.points).toBe(4);
     }, 15000);
 
@@ -1099,7 +1106,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       );
 
       expect(result.success).toBe(true);
-      const data = result.data as any;
+      const data = result.data as TrajectoryResponseData;
       expect(data.moved).toBe(true);
     }, 15000);
 
@@ -1113,7 +1120,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       );
 
       expect(result.success).toBe(true);
-      const data = result.data as any;
+      const data = result.data as TrajectoryResponseData;
       expect(data.moved).toBe(true);
     }, 15000);
   });
@@ -1208,7 +1215,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
-      const data = stopResult.data as any;
+      const data = TrajectoryResponseData;
       const yamlPath = data.path;
       const yaml = fs.readFileSync(yamlPath, 'utf-8');
 
@@ -1262,7 +1269,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
-      const data = stopResult.data as any;
+      const data = TrajectoryResponseData;
       if (data.path) {
         const yamlPath = data.path;
         const yaml = fs.readFileSync(yamlPath, 'utf-8');

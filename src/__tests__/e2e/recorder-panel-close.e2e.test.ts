@@ -48,7 +48,7 @@ describe('Recorder Panel Close E2E Tests', () => {
     if (!page) return false;
 
     return await page.evaluate(() => {
-      return (window as any).xyzInited === true;
+      return (window as Record<string, unknown>).xyzInited === true;
     });
   }
 

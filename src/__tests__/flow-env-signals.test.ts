@@ -93,7 +93,7 @@ describe('Environment Signal Conversion', () => {
           {
             id: 'env-5',
             action: 'environment_signal',
-            signalType: 'network_idle' as any,
+            signalType: 'network_idle' as string,
           },
         ],
       };
@@ -145,7 +145,7 @@ describe('Environment Signal Conversion', () => {
         action: 'click',
         selector: '#btn',
       };
-      expect((step as any).signalType).toBeUndefined();
+      expect((step as Record<string, unknown>).signalType).toBeUndefined();
     });
   });
 

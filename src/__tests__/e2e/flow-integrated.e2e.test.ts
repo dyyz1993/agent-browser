@@ -177,11 +177,13 @@ describe('Flow Engine Integrated E2E', { sequential: true }, () => {
       expect(result.success).toBe(true);
       expect(result.errors.length).toBe(0);
       expect(result.data['capturedApiData']).toBeDefined();
-      const captured = result.data['capturedApiData'] as any[];
+      const captured = result.data['capturedApiData'] as Record<string, unknown>[];
       expect(Array.isArray(captured)).toBe(true);
       expect(captured.length).toBeGreaterThan(0);
 
-      const fetchCapture = captured.find((r: any) => r.url?.includes('/api/json'));
+      const fetchCapture = captured.find(
+        (r: Record<string, unknown>) => typeof r.url === 'string' && r.url.includes('/api/json')
+      );
       expect(fetchCapture).toBeDefined();
       expect(fetchCapture.type).toBe('fetch');
       expect(fetchCapture.status).toBe(200);
@@ -435,12 +437,12 @@ describe('Flow Engine Integrated E2E', { sequential: true }, () => {
       expect(result.errors.length).toBe(0);
 
       expect(result.data['domData']).toBeDefined();
-      const domData = result.data['domData'] as any[];
+      const domData = result.data['domData'] as Record<string, unknown>[];
       expect(Array.isArray(domData)).toBe(true);
       expect(domData.length).toBeGreaterThan(0);
 
       expect(result.data['capturedApiData']).toBeDefined();
-      const captured = result.data['capturedApiData'] as any[];
+      const captured = result.data['capturedApiData'] as Record<string, unknown>[];
       expect(Array.isArray(captured)).toBe(true);
       expect(captured.length).toBeGreaterThan(0);
     }, 60000);

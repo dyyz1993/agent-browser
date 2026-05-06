@@ -2,24 +2,31 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { EventEmitter } from 'events';
 import { WebSocket } from 'ws';
 
+interface MockPage {
+  viewportSize: () => { width: number; height: number };
+  locator: (selector: string) => {
+    boundingBox: () => Promise<{ x: number; y: number; width: number; height: number } | null>;
+  };
+}
+
 interface MockBrowserManager {
-  getPage: () => any;
+  getPage: () => MockPage;
   isConnected: () => boolean;
 }
 
 interface MockStreamServer {
-  clients: Map<WebSocket, any>;
+  clients: Map<WebSocket, unknown>;
   handleConnection: (ws: WebSocket) => void;
-  handleMessage: (ws: WebSocket, data: any) => void;
-  broadcastFrame: (frame: any) => Promise<void>;
-  sendStatus: (ws: WebSocket, clientState?: any) => void;
+  handleMessage: (ws: WebSocket, data: unknown) => void;
+  broadcastFrame: (frame: unknown) => Promise<void>;
+  sendStatus: (ws: WebSocket, clientState?: unknown) => void;
 }
 
 describe('Element Selector - Integration Tests', () => {
   let mockBrowserManager: MockBrowserManager;
-  let mockPage: any;
+  let mockPage: MockPage;
   let mockWebSocketServer: MockStreamServer;
-  let receivedMessages: any[];
+  let receivedMessages: unknown[];
 
   beforeEach(() => {
     receivedMessages = [];

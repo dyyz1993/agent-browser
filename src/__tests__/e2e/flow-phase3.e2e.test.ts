@@ -8,6 +8,20 @@ import { parseCommand } from '../../cli/commands.js';
 import { parseFlags } from '../../cli/flags.js';
 import type { SiteDefinition } from '../../flow/types.js';
 
+interface FlowCommand {
+  action: string;
+  subcommand?: string;
+  json?: boolean;
+  sourceFile?: string;
+  sourceUrl?: string;
+  siteName?: string;
+  siteFlow?: string;
+  params?: Record<string, string>;
+  outputFormat?: string;
+  outputFile?: string;
+  [key: string]: unknown;
+}
+
 const TEST_DIR = resolve('/tmp/flow-phase3-test-sites');
 const TEST_YAML_CONTENT = `site:
   name: test-register
@@ -214,35 +228,35 @@ describe('Flow Engine Phase 3 - Site Manager & CLI', { sequential: true }, () =>
     it('should parse flow list --json', () => {
       const cmd = parse(['flow', 'list', '--json']);
       expect(cmd.action).toBe('flow');
-      expect((cmd as any).subcommand).toBe('list');
-      expect((cmd as any).json).toBe(true);
+      expect((cmd as FlowCommand).subcommand).toBe('list');
+      expect((cmd as FlowCommand).json).toBe(true);
     });
 
     it('should parse flow register --file', () => {
       const cmd = parse(['flow', 'register', '--file', '/path/to/site.yaml']);
       expect(cmd.action).toBe('flow');
-      expect((cmd as any).subcommand).toBe('register');
-      expect((cmd as any).sourceFile).toBe('/path/to/site.yaml');
+      expect((cmd as FlowCommand).subcommand).toBe('register');
+      expect((cmd as FlowCommand).sourceFile).toBe('/path/to/site.yaml');
     });
 
     it('should parse flow register --url', () => {
       const cmd = parse(['flow', 'register', '--url', 'https://example.com/site.yaml']);
       expect(cmd.action).toBe('flow');
-      expect((cmd as any).subcommand).toBe('register');
-      expect((cmd as any).sourceUrl).toBe('https://example.com/site.yaml');
+      expect((cmd as FlowCommand).subcommand).toBe('register');
+      expect((cmd as FlowCommand).sourceUrl).toBe('https://example.com/site.yaml');
     });
 
     it('should parse flow register --file --name', () => {
       const cmd = parse(['flow', 'register', '--file', '/p.yaml', '--name', 'my-site']);
-      expect((cmd as any).sourceFile).toBe('/p.yaml');
-      expect((cmd as any).siteName).toBe('my-site');
+      expect((cmd as FlowCommand).sourceFile).toBe('/p.yaml');
+      expect((cmd as FlowCommand).siteName).toBe('my-site');
     });
 
     it('should parse flow unregister <name>', () => {
       const cmd = parse(['flow', 'unregister', 'my-site']);
       expect(cmd.action).toBe('flow');
-      expect((cmd as any).subcommand).toBe('unregister');
-      expect((cmd as any).siteName).toBe('my-site');
+      expect((cmd as FlowCommand).subcommand).toBe('unregister');
+      expect((cmd as FlowCommand).siteName).toBe('my-site');
     });
 
     it('should parse flow run with --output and --output-file', () => {
@@ -258,11 +272,11 @@ describe('Flow Engine Phase 3 - Site Manager & CLI', { sequential: true }, () =>
         './results.json',
       ]);
       expect(cmd.action).toBe('flow');
-      expect((cmd as any).subcommand).toBe('run');
-      expect((cmd as any).siteFlow).toBe('baidu.search');
-      expect((cmd as any).params).toEqual({ keyword: 'test' });
-      expect((cmd as any).outputFormat).toBe('json');
-      expect((cmd as any).outputFile).toBe('./results.json');
+      expect((cmd as FlowCommand).subcommand).toBe('run');
+      expect((cmd as FlowCommand).siteFlow).toBe('baidu.search');
+      expect((cmd as FlowCommand).params).toEqual({ keyword: 'test' });
+      expect((cmd as FlowCommand).outputFormat).toBe('json');
+      expect((cmd as FlowCommand).outputFile).toBe('./results.json');
     });
 
     it('should error on flow register without --file or --url', () => {

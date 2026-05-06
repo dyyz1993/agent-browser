@@ -602,7 +602,9 @@ export class StreamServer {
               clientState.degraded = false;
             }
           })
-          .catch(() => {});
+          .catch(() => {
+            // Element box check failed, non-fatal
+          });
       }, 2500);
     }
 
@@ -730,7 +732,9 @@ export class StreamServer {
             if (ws.readyState === WebSocket.OPEN) {
               try {
                 ws.send(JSON.stringify(message));
-              } catch (_) {}
+              } catch (_e) {
+                // WebSocket send failed, non-fatal
+              }
             }
           }
           break;
@@ -743,7 +747,9 @@ export class StreamServer {
           const cs = this.clients.get(ws);
           if (cs?.selector) {
             this.sendStatus(ws, cs);
-            this.refreshElementBox(ws, cs).catch(() => {});
+            this.refreshElementBox(ws, cs).catch(() => {
+              // Element box refresh failed, non-fatal
+            });
           } else if (cs) {
             this.sendStatus(ws, cs);
           } else {
@@ -1008,7 +1014,9 @@ export class StreamServer {
             if (ws.readyState === WebSocket.OPEN) {
               try {
                 ws.send(JSON.stringify(data));
-              } catch (_) {}
+              } catch (_e) {
+                // WebSocket send failed, non-fatal
+              }
             }
           }
         });

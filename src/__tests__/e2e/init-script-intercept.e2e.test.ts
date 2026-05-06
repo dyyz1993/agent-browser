@@ -8,6 +8,16 @@ import http from 'http';
 
 const executablePath = process.env.AGENT_BROWSER_EXECUTABLE_PATH;
 
+interface EvalResultData {
+  result?: string;
+  [key: string]: unknown;
+}
+
+function castEvalData(data: unknown): EvalResultData | undefined {
+  if (typeof data === 'object' && data !== null) return data as EvalResultData;
+  return undefined;
+}
+
 function createServer(port: number): Promise<http.Server> {
   return new Promise((resolve) => {
     const server = http.createServer((req, res) => {
@@ -166,15 +176,17 @@ describe('Init Script Interception Verification', { sequential: true }, () => {
       console.log('Captured fetch data:', JSON.stringify(readResult, null, 2));
 
       if (isSuccessResponse(readResult)) {
-        const captured = JSON.parse(String((readResult.data as any).result || '[]'));
+        const captured = JSON.parse(String(castEvalData(readResult.data)?.result || '[]'));
         expect(captured.length).toBeGreaterThan(0);
 
-        const fetchCapture = captured.find((r: any) => r.url?.includes('/api/json'));
+        const fetchCapture = captured.find(
+          (r: Record<string, unknown>) => typeof r.url === 'string' && r.url.includes('/api/json')
+        );
         expect(fetchCapture).toBeDefined();
-        expect(fetchCapture.status).toBe(200);
-        expect(fetchCapture.body).toBeDefined();
+        expect(fetchCapture!.status).toBe(200);
+        expect(fetchCapture!.body).toBeDefined();
 
-        const body = JSON.parse(fetchCapture.body);
+        const body = JSON.parse(fetchCapture!.body as string);
         expect(body.type).toBe('json');
         expect(body.keyword).toBe('hello');
         console.log('Successfully captured fetch response:', body);
@@ -223,10 +235,12 @@ describe('Init Script Interception Verification', { sequential: true }, () => {
       console.log('Captured XHR data:', JSON.stringify(readResult, null, 2));
 
       if (isSuccessResponse(readResult)) {
-        const captured = JSON.parse(String((readResult.data as any).result || '[]'));
+        const captured = JSON.parse(String(castEvalData(readResult.data)?.result || '[]'));
         expect(captured.length).toBeGreaterThan(0);
 
-        const xhrCapture = captured.find((r: any) => r.url?.includes('/api/json'));
+        const xhrCapture = captured.find(
+          (r: Record<string, unknown>) => typeof r.url === 'string' && r.url.includes('/api/json')
+        );
         expect(xhrCapture).toBeDefined();
         console.log('Successfully captured XHR response:', xhrCapture);
       }
@@ -274,7 +288,7 @@ describe('Init Script Interception Verification', { sequential: true }, () => {
       console.log('Protected data result:', JSON.stringify(result, null, 2));
 
       if (isSuccessResponse(result)) {
-        const protectedData = JSON.parse(String((result.data as any).result || '[]'));
+        const protectedData = JSON.parse(String(castEvalData(result.data)?.result || '[]'));
         console.log('Protected captures:', protectedData);
 
         expect(protectedData.length).toBeGreaterThan(0);
@@ -298,7 +312,7 @@ describe('Init Script Interception Verification', { sequential: true }, () => {
       );
 
       if (isSuccessResponse(result)) {
-        const captured = JSON.parse(String((result.data as any).result || '[]'));
+        const captured = JSON.parse(String(castEvalData(result.data)?.result || '[]'));
         console.log('Captured after navigation:', captured.length, 'requests');
         expect(captured.length).toBeGreaterThan(0);
         console.log('Init script persisted across navigation!');
@@ -332,7 +346,7 @@ describe('Init Script Interception Verification', { sequential: true }, () => {
         const data = result.data as { added?: boolean };
         expect(data.added).toBe(true);
 
-        const tips = (result as any).tips;
+        const tips = (result as Record<string, unknown>).tips;
         if (tips && (Array.isArray(tips) ? tips.length : tips)) {
           console.log('Got error tips:', tips);
           const tipText = Array.isArray(tips) ? tips[0] : tips;

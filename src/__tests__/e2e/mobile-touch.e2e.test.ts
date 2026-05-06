@@ -109,15 +109,21 @@ describe('Mobile Touch Events - E2E Tests', () => {
     it('should dispatch touchstart/touchmove/touchend sequence', async () => {
       const page = browser.getPage();
       await page.evaluate(() => {
-        (window as any).__touchLog = [];
+        (window as Record<string, unknown>).__touchLog = [];
         document.getElementById('touch-area').addEventListener('touchstart', (e) => {
-          (window as any).__touchLog.push('start:' + e.touches.length);
+          ((window as Record<string, unknown>).__touchLog as string[]).push(
+            'start:' + e.touches.length
+          );
         });
         document.getElementById('touch-area').addEventListener('touchmove', (e) => {
-          (window as any).__touchLog.push('move:' + e.touches.length);
+          ((window as Record<string, unknown>).__touchLog as string[]).push(
+            'move:' + e.touches.length
+          );
         });
         document.getElementById('touch-area').addEventListener('touchend', (e) => {
-          (window as any).__touchLog.push('end:' + e.changedTouches.length);
+          ((window as Record<string, unknown>).__touchLog as string[]).push(
+            'end:' + e.changedTouches.length
+          );
         });
       });
 
@@ -133,7 +139,9 @@ describe('Mobile Touch Events - E2E Tests', () => {
       await cdpTouchEnd([{ x: startX + 100, y: startY + 100, id: 0 }]);
       await page.waitForTimeout(100);
 
-      const log = await page.evaluate(() => (window as any).__touchLog);
+      const log = await page.evaluate(
+        () => (window as Record<string, unknown>).__touchLog as string[]
+      );
       expect(log).toContain('start:1');
       expect(log).toContain('move:1');
       expect(log).toContain('end:1');
@@ -144,15 +152,21 @@ describe('Mobile Touch Events - E2E Tests', () => {
     it('should dispatch touchstart with 2 touch points', async () => {
       const page = browser.getPage();
       await page.evaluate(() => {
-        (window as any).__touchLog = [];
+        (window as Record<string, unknown>).__touchLog = [];
         document.getElementById('touch-area').addEventListener('touchstart', (e) => {
-          (window as any).__touchLog.push('start:' + e.touches.length);
+          ((window as Record<string, unknown>).__touchLog as string[]).push(
+            'start:' + e.touches.length
+          );
         });
         document.getElementById('touch-area').addEventListener('touchmove', (e) => {
-          (window as any).__touchLog.push('move:' + e.touches.length);
+          ((window as Record<string, unknown>).__touchLog as string[]).push(
+            'move:' + e.touches.length
+          );
         });
         document.getElementById('touch-area').addEventListener('touchend', (e) => {
-          (window as any).__touchLog.push('end:' + e.changedTouches.length);
+          ((window as Record<string, unknown>).__touchLog as string[]).push(
+            'end:' + e.changedTouches.length
+          );
         });
       });
 
@@ -178,7 +192,9 @@ describe('Mobile Touch Events - E2E Tests', () => {
       ]);
       await page.waitForTimeout(100);
 
-      const log = await page.evaluate(() => (window as any).__touchLog);
+      const log = await page.evaluate(
+        () => (window as Record<string, unknown>).__touchLog as string[]
+      );
       expect(log).toContain('start:2');
       expect(log).toContain('move:2');
       expect(log).toContain('end:1');

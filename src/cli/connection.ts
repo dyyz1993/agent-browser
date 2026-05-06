@@ -96,24 +96,32 @@ function cleanupStaleFiles(session: string): void {
   const pidPath = getPidPath(session);
   try {
     if (fs.existsSync(pidPath)) fs.unlinkSync(pidPath);
-  } catch {}
+  } catch (_e) {
+    // Stale PID file cleanup, non-fatal
+  }
 
   // Clean up lock file
   const lockPath = getLockPath(session);
   try {
     if (fs.existsSync(lockPath)) fs.unlinkSync(lockPath);
-  } catch {}
+  } catch (_e) {
+    // Stale lock file cleanup, non-fatal
+  }
 
   if (isWindows) {
     const portPath = getPortPath(session);
     try {
       if (fs.existsSync(portPath)) fs.unlinkSync(portPath);
-    } catch {}
+    } catch (_e) {
+      // Stale port file cleanup, non-fatal
+    }
   } else {
     const socketPath = getSocketPath(session);
     try {
       if (fs.existsSync(socketPath)) fs.unlinkSync(socketPath);
-    } catch {}
+    } catch (_e) {
+      // Stale socket file cleanup, non-fatal
+    }
   }
 }
 
@@ -146,7 +154,9 @@ async function acquireLock(session: string, timeoutMs: number = 10000): Promise<
         if (lockAge > 30000) {
           try {
             fs.unlinkSync(lockPath);
-          } catch {}
+          } catch (_e) {
+            // Stale lock removal, non-fatal
+          }
         }
         await sleep(50);
         continue;
@@ -161,7 +171,9 @@ function releaseLock(session: string): void {
   const lockPath = getLockPath(session);
   try {
     fs.unlinkSync(lockPath);
-  } catch {}
+  } catch (_e) {
+    // Lock release cleanup, non-fatal
+  }
 }
 
 async function withLock<T>(session: string, fn: () => Promise<T>): Promise<T> {
@@ -574,7 +586,9 @@ export async function listSessions(): Promise<string[]> {
       } catch {
         try {
           fs.unlinkSync(pidPath);
-        } catch {}
+        } catch (_e) {
+          // Stale PID file cleanup, non-fatal
+        }
       }
     }
   }
@@ -682,14 +696,18 @@ export async function killDaemon(session: string): Promise<boolean> {
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
     }
-  } catch {}
+  } catch (_e) {
+    // Process kill cleanup, non-fatal
+  }
 
   cleanupStaleFiles(session);
 
   const streamPortFile = path.join(getSocketDir(), `${session}.stream`);
   try {
     if (fs.existsSync(streamPortFile)) fs.unlinkSync(streamPortFile);
-  } catch {}
+  } catch (_e) {
+    // Stream port cleanup, non-fatal
+  }
 
   return true;
 }
@@ -721,7 +739,9 @@ export async function killStreamServer(): Promise<boolean> {
   if (fs.existsSync(pidPath)) {
     try {
       pid = parseInt(fs.readFileSync(pidPath, 'utf8').trim(), 10);
-    } catch {}
+    } catch (_e) {
+      // PID file read failed, non-fatal
+    }
   }
 
   if (!pid) {
@@ -749,13 +769,17 @@ export async function killStreamServer(): Promise<boolean> {
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
     }
-  } catch {}
+  } catch (_e) {
+    // Process kill cleanup, non-fatal
+  }
 
   try {
     if (fs.existsSync(pidPath)) fs.unlinkSync(pidPath);
     const ipcPath = getStreamServerIpcPath();
     if (fs.existsSync(ipcPath)) fs.unlinkSync(ipcPath);
-  } catch {}
+  } catch (_e) {
+    // IPC cleanup, non-fatal
+  }
 
   return true;
 }
@@ -782,7 +806,9 @@ export async function killAll(): Promise<{ daemons: string[]; streamServer: bool
       if (name.endsWith('.lock')) {
         try {
           fs.unlinkSync(path.join(socketDir, name));
-        } catch {}
+        } catch (_e) {
+          // Lock file cleanup, non-fatal
+        }
       }
       // Clean up stale pid files (process not running)
       if (name.endsWith('.pid') && name !== STREAM_SERVER_PID_FILE) {
@@ -796,7 +822,9 @@ export async function killAll(): Promise<{ daemons: string[]; streamServer: bool
           // If we can't read the pid, just remove the file
           try {
             fs.unlinkSync(pidPath);
-          } catch {}
+          } catch (_e) {
+            // Stale PID file cleanup, non-fatal
+          }
         }
       }
     }

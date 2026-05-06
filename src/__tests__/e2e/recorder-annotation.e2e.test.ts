@@ -7,6 +7,23 @@ import type { RecorderStartData } from '../../types.js';
 import { isSuccessResponse } from '../../types.js';
 import * as fs from 'fs';
 
+interface AnnotationRecorderWindow extends Window {
+  xyzQueue: Array<{ id: string; annotation?: Record<string, unknown>; [key: string]: unknown }>;
+  xyzBindingName: string;
+  xyzTrack: (data: string) => void;
+  [key: string]: unknown;
+}
+
+interface AnnotationStopData {
+  path: string;
+  [key: string]: unknown;
+}
+
+interface AnnotationStatusData {
+  steps: number;
+  [key: string]: unknown;
+}
+
 function isRecorderStartData(data: unknown): data is RecorderStartData {
   return typeof data === 'object' && data !== null && 'started' in data && 'sessionId' in data;
 }
@@ -148,8 +165,8 @@ describe('Recorder Annotation E2E Test', () => {
 
     // Step 5: Verify annotation was added to the step in the frontend queue
     const queueResult = await page.evaluate(() => {
-      const steps = (window as any).xyzQueue || [];
-      const stepWithAnnotation = steps.find((s: any) => s.annotation);
+      const steps = (window as AnnotationRecorderWindow).xyzQueue || [];
+      const stepWithAnnotation = steps.find((s: Record<string, unknown>) => s.annotation);
       return {
         stepsCount: steps.length,
         hasAnnotation: !!stepWithAnnotation,
@@ -166,7 +183,7 @@ describe('Recorder Annotation E2E Test', () => {
     const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
     expect(isSuccessResponse(stopResult)).toBe(true);
 
-    const data = stopResult.data as any;
+    const data = stopResult.data as AnnotationStopData;
     expect(data.path).toBeDefined();
     console.log('[Test] YAML saved to:', data.path);
 
@@ -219,13 +236,13 @@ describe('Recorder Annotation E2E Test', () => {
       statusResult.data &&
       typeof statusResult.data === 'object'
     ) {
-      const stepsCount = (statusResult.data as any).steps || 0;
+      const stepsCount = (statusResult.data as AnnotationStatusData).steps || 0;
       console.log('[Test] Steps count:', stepsCount);
     }
 
     // Step 4: Send xyzUpdate event to add annotation
     const updateResult = await page.evaluate(async () => {
-      const steps = (window as any).xyzQueue || [];
+      const steps = (window as AnnotationRecorderWindow).xyzQueue || [];
       if (steps.length === 0) {
         return { success: false, error: 'No steps in queue' };
       }
@@ -237,8 +254,8 @@ describe('Recorder Annotation E2E Test', () => {
       lastStep.annotation = annotation;
 
       // Send xyzUpdate event to backend
-      const bindingName = (window as any).xyzBindingName || 'xyzTrack';
-      const trackFn = (window as any)[bindingName];
+      const bindingName = (window as AnnotationRecorderWindow).xyzBindingName || 'xyzTrack';
+      const trackFn = (window as AnnotationRecorderWindow)[bindingName];
       if (typeof trackFn === 'function') {
         try {
           trackFn(
@@ -268,7 +285,7 @@ describe('Recorder Annotation E2E Test', () => {
 
     expect(isSuccessResponse(stopResult)).toBe(true);
 
-    const data = stopResult.data as any;
+    const data = stopResult.data as AnnotationStopData;
     expect(data.path).toBeDefined();
     console.log('[Test] YAML saved to:', data.path);
 

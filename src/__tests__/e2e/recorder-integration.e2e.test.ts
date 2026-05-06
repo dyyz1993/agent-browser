@@ -8,6 +8,38 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { getAppDir } from '../../daemon.js';
 
+interface IntegrationRecorderWindow extends Window {
+  xyzActive: boolean;
+  xyzStopped: boolean;
+  xyzInited: boolean;
+  xyzInitializedSessionId?: string;
+  xyzSessionId?: string;
+  xyzQueue: unknown[];
+  xyzPaused: boolean;
+  [key: string]: unknown;
+}
+
+interface IntegrationStopData {
+  path: string;
+  [key: string]: unknown;
+}
+
+interface IntegrationReplayData {
+  successCount?: number;
+  totalCommands?: number;
+  [key: string]: unknown;
+}
+
+function castStopData(data: unknown): IntegrationStopData | undefined {
+  if (typeof data === 'object' && data !== null) return data as IntegrationStopData;
+  return undefined;
+}
+
+function castReplayData(data: unknown): IntegrationReplayData | undefined {
+  if (typeof data === 'object' && data !== null) return data as IntegrationReplayData;
+  return undefined;
+}
+
 // Helper function to run with timeout
 async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
@@ -81,7 +113,7 @@ describe('Recorder Integration E2E Test', { sequential: true }, () => {
       try {
         await page.evaluate(() => {
           // Reset all recorder-related window variables
-          const win = window as any;
+          const win = window as IntegrationRecorderWindow;
           win.xyzActive = false;
           win.xyzStopped = true;
           win.xyzInited = false;
@@ -146,7 +178,7 @@ describe('Recorder Integration E2E Test', { sequential: true }, () => {
     const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
     expect(isSuccessResponse(stopResult)).toBe(true);
 
-    const data = stopResult.data as any;
+    const data = stopResult.data as IntegrationStopData;
     expect(data.path).toBeDefined();
     const yamlPath = data.path;
     console.log('[Test 1] YAML saved to:', yamlPath);
@@ -245,7 +277,7 @@ describe('Recorder Integration E2E Test', { sequential: true }, () => {
     }
     expect(isSuccessResponse(stopResult)).toBe(true);
 
-    const data = stopResult.data as any;
+    const data = stopResult.data as IntegrationStopData;
     const yamlPath = data.path;
     console.log('[Test 2] YAML saved to:', yamlPath);
 
@@ -326,7 +358,7 @@ describe('Recorder Integration E2E Test', { sequential: true }, () => {
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
       expect(isSuccessResponse(stopResult)).toBe(true);
 
-      const data = (stopResult as any).data as any;
+      const data = (stopResult as { data?: unknown }).data as IntegrationStopData | undefined;
       yamlPath = data?.path;
       console.log('[Test 3] YAML saved to:', yamlPath);
 
@@ -359,7 +391,9 @@ describe('Recorder Integration E2E Test', { sequential: true }, () => {
       await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Verify checkboxes are checked
-      const replayData = isSuccessResponse(replayResult) ? (replayResult.data as any) : undefined;
+      const replayData = isSuccessResponse(replayResult)
+        ? castReplayData(replayResult.data)
+        : undefined;
       if (replayResult.success && replayData?.successCount > 0) {
         const checkboxes = await page.evaluate(() => {
           return {
@@ -415,7 +449,7 @@ describe('Recorder Integration E2E Test', { sequential: true }, () => {
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
       expect(isSuccessResponse(stopResult)).toBe(true);
 
-      const data = (stopResult as any).data as any;
+      const data = (stopResult as { data?: unknown }).data as IntegrationStopData | undefined;
       yamlPath = data?.path;
       expect(yamlPath).toBeDefined();
 
@@ -461,7 +495,9 @@ describe('Recorder Integration E2E Test', { sequential: true }, () => {
       // Verify that valid actions were still executed
       const page = browser.getPage();
 
-      const replayData = isSuccessResponse(replayResult) ? (replayResult.data as any) : undefined;
+      const replayData = isSuccessResponse(replayResult)
+        ? castReplayData(replayResult.data)
+        : undefined;
       if (replayResult.success && replayData?.successCount > 0) {
         const usernameValue = await page.evaluate(() => {
           return (document.querySelector('#username') as HTMLInputElement)?.value;
@@ -527,7 +563,7 @@ describe('Recorder Integration E2E Test', { sequential: true }, () => {
     const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
     expect(isSuccessResponse(stopResult)).toBe(true);
 
-    const data = stopResult.data as any;
+    const data = stopResult.data as IntegrationStopData;
     const yamlPath = data.path;
     console.log('[Test 5] YAML saved to:', yamlPath);
 
@@ -619,7 +655,7 @@ describe('Recorder Integration E2E Test', { sequential: true }, () => {
 
     // Add annotation via xyzUpdate event
     const updateResult = await page.evaluate(async () => {
-      const steps = (window as any).xyzQueue || [];
+      const steps = (window as IntegrationRecorderWindow).xyzQueue || [];
       if (steps.length === 0) {
         return { success: false, error: 'No steps in queue' };
       }
@@ -631,8 +667,10 @@ describe('Recorder Integration E2E Test', { sequential: true }, () => {
       lastStep.annotation = annotation;
 
       // Send xyzUpdate event to backend
-      const bindingName = (window as any).xyzBindingName || 'xyzTrack';
-      const trackFn = (window as any)[bindingName];
+      const bindingName = (window as IntegrationRecorderWindow).xyzBindingName || 'xyzTrack';
+      const trackFn = (window as IntegrationRecorderWindow)[bindingName] as
+        | ((data: string) => void)
+        | undefined;
       if (typeof trackFn === 'function') {
         try {
           trackFn(
@@ -661,7 +699,7 @@ describe('Recorder Integration E2E Test', { sequential: true }, () => {
     const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
     expect(isSuccessResponse(stopResult)).toBe(true);
 
-    const data = stopResult.data as any;
+    const data = stopResult.data as IntegrationStopData;
     expect(data.path).toBeDefined();
     const yamlPath = data.path;
     console.log('[Test 6] YAML saved to:', yamlPath);

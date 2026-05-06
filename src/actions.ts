@@ -2063,7 +2063,7 @@ async function handleStyles(
   if (browser.isRef(command.selector)) {
     const locator = browser.getLocator(command.selector);
     const element = (await locator.evaluate((el, script) => {
-      const fn = eval(script);
+      const fn = new Function('return ' + script)();
       return fn(el);
     }, extractStylesScript)) as StylesData['elements'][0];
     return successResponse(command.id, { elements: [element] });
@@ -2071,7 +2071,7 @@ async function handleStyles(
 
   // CSS selector - can match multiple elements
   const elements = (await frame.locator(command.selector).evaluateAll((els, script) => {
-    const fn = eval(script);
+    const fn = new Function('return ' + script)();
     return els.map((el) => fn(el));
   }, extractStylesScript)) as StylesData['elements'];
 
@@ -3010,14 +3010,22 @@ async function handleRecorderReplay(
   const envLines = cliCommands.filter((l) => l.startsWith('AGENT_BROWSER_'));
   const cmdLines = cliCommands.filter((l) => l.startsWith('agent-browser '));
 
-  // Set env vars from recording
+  // Set env vars from recording (skip AGENT_BROWSER_HUMAN to avoid
+  // human-mode coordinate issues during replay where elements may be
+  // scrolled off-screen)
   const originalEnv: Record<string, string | undefined> = {};
   for (const envLine of envLines) {
     const eqIdx = envLine.indexOf('=');
     if (eqIdx > 0) {
       const key = envLine.substring(0, eqIdx);
+      if (key === 'AGENT_BROWSER_HUMAN') continue;
+      let value = envLine.substring(eqIdx + 1);
+      const spaceIdx = value.indexOf(' ');
+      if (spaceIdx > 0) {
+        value = value.substring(0, spaceIdx);
+      }
       originalEnv[key] = process.env[key];
-      process.env[key] = envLine.substring(eqIdx + 1);
+      process.env[key] = value;
     }
   }
 

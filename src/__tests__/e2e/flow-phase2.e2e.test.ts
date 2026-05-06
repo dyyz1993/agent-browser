@@ -138,7 +138,7 @@ describe('Flow Engine Phase 2', { sequential: true }, () => {
       const result = await executor.execute(site, 'dom-fallback', {});
 
       expect(result.success).toBe(true);
-      const items = result.data.items as any[];
+      const items = result.data.items as Record<string, unknown>[];
       expect(Array.isArray(items)).toBe(true);
       expect(items.length).toBeGreaterThanOrEqual(1);
     }, 30000);
@@ -178,7 +178,7 @@ describe('Flow Engine Phase 2', { sequential: true }, () => {
       const executor = new FlowExecutor(browser);
       const result = await executor.execute(site, 'api-layer', {});
 
-      const apiProds = result.data.apiProds as any[];
+      const apiProds = result.data.apiProds as Record<string, unknown>[];
       expect(Array.isArray(apiProds)).toBe(true);
       expect(apiProds.length).toBeGreaterThan(0);
     }, 30000);
@@ -211,7 +211,7 @@ describe('Flow Engine Phase 2', { sequential: true }, () => {
       const executor = new FlowExecutor(browser);
       const result = await executor.execute(site, 'preset-fetch', {});
 
-      const captured = result.data.captured as any[];
+      const captured = result.data.captured as Record<string, unknown>[];
       expect(Array.isArray(captured)).toBe(true);
       expect(captured.length).toBeGreaterThan(0);
       expect(captured[0].type).toBe('fetch');
@@ -245,7 +245,7 @@ describe('Flow Engine Phase 2', { sequential: true }, () => {
       const executor = new FlowExecutor(browser);
       const result = await executor.execute(site, 'preset-console', {});
 
-      const output = result.data.consoleOutput as any[];
+      const output = result.data.consoleOutput as Record<string, unknown>[];
       expect(Array.isArray(output)).toBe(true);
       expect(output.length).toBeGreaterThan(0);
     }, 30000);
@@ -394,7 +394,7 @@ describe('Flow Engine Phase 2', { sequential: true }, () => {
       const result = await executor.execute(site, 'dedupe-flow', {});
 
       expect(result.success).toBe(true);
-      const items = result.data.items as any[];
+      const items = result.data.items as Record<string, unknown>[];
       expect(items.length).toBe(3); // A, B, C (deduped from 5)
     }, 30000);
   });

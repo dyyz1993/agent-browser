@@ -22,7 +22,7 @@ describe('network command', () => {
       expect(cmd.action).toBe('route');
       expect(cmd.url).toBe('**/api/**');
       expect(cmd.response).toBeDefined();
-      expect((cmd.response as any).body).toBe('{"status":200}');
+      expect((cmd.response as Record<string, unknown>).body).toBe('{"status":200}');
     });
 
     it('should throw error when URL is missing', () => {

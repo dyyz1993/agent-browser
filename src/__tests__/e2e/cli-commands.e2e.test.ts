@@ -184,7 +184,7 @@ describe('CLI Commands E2E Test', () => {
           const result = await executeCommand(testCase.command(), browser);
           expect(result.success).toBe(testCase.expectSuccess);
         },
-        (testCase as any).timeout || 30000
+        (testCase as Record<string, unknown>).timeout || 30000
       );
     }
   });

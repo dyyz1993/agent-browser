@@ -21,10 +21,10 @@ describe('Selector Uniqueness E2E Tests', () => {
   });
 
   // Helper to get the actual result value from executeCommand response
-  function extractResult(data: any): any {
+  function extractResult(data: unknown): unknown {
     if (data === null || data === undefined) return null;
     if (typeof data === 'object' && 'result' in data) {
-      return extractResult(data.result);
+      return extractResult((data as Record<string, unknown>).result);
     }
     return data;
   }
@@ -453,7 +453,7 @@ describe('Selector Uniqueness E2E Tests', () => {
 
       expect(result.success).toBe(true);
       if (result.success && result.data) {
-        const data = (result.data as any).result || result.data;
+        const data = (result.data as Record<string, unknown>).result || result.data;
         expect(data.hasShadowHost).toBe(true);
         expect(data.hostSelector).toBe('#shadow-btn-1');
         expect(data.innerSelector).toBe('#inner-btn');
@@ -488,7 +488,7 @@ describe('Selector Uniqueness E2E Tests', () => {
 
       expect(result.success).toBe(true);
       if (result.success && result.data) {
-        const data = (result.data as any).result || result.data;
+        const data = (result.data as Record<string, unknown>).result || result.data;
         expect(data.found).toBe(true);
         expect(data.btnId).toBe('deep-shadow-btn');
       }
@@ -512,7 +512,7 @@ describe('Selector Uniqueness E2E Tests', () => {
 
       expect(result.success).toBe(true);
       if (result.success) {
-        const yaml = (result.data as any).yaml;
+        const yaml = (result.data as Record<string, unknown>).yaml;
         expect(yaml).toContain('selector:');
 
         const selectorMatch = yaml.match(/selector:\s*"([^"]+)"/);

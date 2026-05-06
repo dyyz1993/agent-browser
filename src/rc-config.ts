@@ -173,10 +173,7 @@ export function getViewerWsUrl(instanceId: string): string {
 }
 
 export function getMessageBridgeUrl(): string {
-  return (
-    (getEffectiveValue('messageBridge.url') as string) ||
-    'https://message-bridge.docker.19930810.xyz:8443'
-  );
+  return (getEffectiveValue('messageBridge.url') as string) || '';
 }
 
 export function getExecutablePath(): string | undefined {

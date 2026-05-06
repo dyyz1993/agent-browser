@@ -484,37 +484,37 @@ export function parseCliArgs(args: string[]): Command {
           case '--selector-for': {
             if (rest[i + 1]) {
               command.action = 'selector-for';
-              (command as any).target = rest[++i];
+              command.target = rest[++i];
             }
             break;
           }
           case '--selectors-of': {
             if (rest[i + 1]) {
               command.action = 'selectors-of';
-              (command as any).target = rest[++i];
+              command.target = rest[++i];
             }
             break;
           }
           case '--validate': {
             if (rest[i + 1]) {
               command.action = 'validate';
-              (command as any).target = rest[++i];
+              command.target = rest[++i];
             }
             break;
           }
           case '-p':
           case '--path':
-            (command as any).path = true;
+            command.path = true;
             break;
           case '-a':
           case '--attrs':
-            (command as any).attrs = true;
+            command.attrs = true;
             break;
           case '--selectors':
-            (command as any).selectors = true;
+            command.selectors = true;
             break;
           case '--all':
-            (command as any).all = true;
+            command.all = true;
             break;
         }
       }

@@ -69,7 +69,7 @@ describe('Recorder E2E Tests', () => {
         expect(result.data).toHaveProperty('yaml');
         expect(result.data).toHaveProperty('steps');
 
-        const yaml = (result.data as any).yaml;
+        const yaml = (result.data as Record<string, unknown>).yaml;
         expect(yaml).toContain('session:');
         expect(yaml).toContain('steps:');
       }
@@ -96,7 +96,7 @@ describe('Recorder E2E Tests', () => {
 
       expect(result.success).toBe(true);
       if (result.success) {
-        const yaml = (result.data as any).yaml;
+        const yaml = (result.data as Record<string, unknown>).yaml;
 
         // Check YAML structure
         expect(yaml).toContain('id:');

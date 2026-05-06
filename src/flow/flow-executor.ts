@@ -437,7 +437,14 @@ export class FlowExecutor {
     if (isSuccessResponse(result)) {
       const evalResult = result.data as { result?: unknown };
       if (evalResult.result) {
-        const parsed = JSON.parse(String(evalResult.result)) as unknown[];
+        let parsed: unknown[];
+        try {
+          parsed = JSON.parse(String(evalResult.result)) as unknown[];
+        } catch (_e) {
+          throw new Error(
+            `Failed to parse extraction result: ${String(evalResult.result).substring(0, 100)}`
+          );
+        }
         const outputVar = step.outputVar || 'extracted';
         if (this.context.results[outputVar] && Array.isArray(this.context.results[outputVar])) {
           this.context.results[outputVar] = [
@@ -701,9 +708,16 @@ export class FlowExecutor {
     );
 
     if (isSuccessResponse(evalResult)) {
-      const items = JSON.parse(
-        String((evalResult.data as { result: unknown }).result || '[]')
-      ) as Array<Record<string, unknown>>;
+      let items: Array<Record<string, unknown>>;
+      try {
+        items = JSON.parse(
+          String((evalResult.data as { result: unknown }).result || '[]')
+        ) as Array<Record<string, unknown>>;
+      } catch (_e) {
+        throw new Error(
+          `Failed to parse extraction result: ${String((evalResult.data as { result: unknown }).result || '').substring(0, 100)}`
+        );
+      }
       this.context.variables['totalItems'] = items.length;
 
       for (let i = 0; i < items.length; i++) {
@@ -1189,7 +1203,13 @@ export class FlowExecutor {
         )
         .map((item) => {
           const body = (item as Record<string, unknown>).body;
-          return typeof body === 'string' ? JSON.parse(body) : body;
+          let parsedBody: unknown;
+          try {
+            parsedBody = typeof body === 'string' ? JSON.parse(body) : body;
+          } catch (_e) {
+            parsedBody = body;
+          }
+          return parsedBody;
         })
         .filter(Boolean);
     } catch {

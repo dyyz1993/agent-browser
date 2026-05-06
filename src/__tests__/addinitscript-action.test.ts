@@ -16,7 +16,10 @@ function createMockBrowser(pageEvaluateError?: Error) {
     getPage: vi.fn().mockReturnValue(page),
     _page: page,
     _context: context,
-  } as unknown as BrowserManager & { _page: any; _context: any };
+  } as unknown as BrowserManager & {
+    _page: Record<string, unknown>;
+    _context: Record<string, unknown>;
+  };
 }
 
 describe('handleAddInitScript', () => {

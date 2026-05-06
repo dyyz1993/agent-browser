@@ -91,7 +91,7 @@ describe('Recorder Comprehensive E2E Test', () => {
     console.log('[Test] Stop recorder result:', stopResult);
     expect(isSuccessResponse(stopResult)).toBe(true);
 
-    const data = stopResult.data as any;
+    const data = stopResult.data as Record<string, unknown>;
     expect(data.path).toBeDefined();
     recordedYamlPath = data.path;
     console.log('[Test] YAML saved to:', recordedYamlPath);
@@ -158,7 +158,7 @@ describe('Recorder Comprehensive E2E Test', () => {
     console.log('[Test] Stop result:', stopResult);
     expect(isSuccessResponse(stopResult)).toBe(true);
 
-    const recentPath = (stopResult.data as any)?.path;
+    const recentPath = (stopResult.data as Record<string, unknown>)?.path as string | undefined;
     console.log('[Test] Recent recording:', recentPath);
     expect(recentPath).toBeDefined();
 

@@ -132,14 +132,16 @@ describe('Network Capture Capability Verification', { sequential: true }, () => 
       console.log('Capture Result:', JSON.stringify(result, null, 2));
 
       expect(result.success).toBe(true);
-      const data = result.data as { requests?: any[] };
+      const data = result.data as { requests?: Record<string, unknown>[] };
       expect(data.requests).toBeDefined();
       expect(Array.isArray(data.requests)).toBe(true);
 
       const apiRequests = data.requests || [];
       expect(apiRequests.length).toBeGreaterThan(0);
 
-      const productsReq = apiRequests.find((r: any) => r.url?.includes('/api/products'));
+      const productsReq = apiRequests.find(
+        (r: Record<string, unknown>) => typeof r.url === 'string' && r.url.includes('/api/products')
+      );
       expect(productsReq).toBeDefined();
       if (productsReq) {
         console.log(
@@ -186,9 +188,9 @@ describe('Network Capture Capability Verification', { sequential: true }, () => 
       console.log('Search Capture Result:', JSON.stringify(result, null, 2));
 
       expect(result.success).toBe(true);
-      const data = result.data as { requests?: any[] };
-      const searchRequests = (data.requests || []).filter((r: any) =>
-        r.url?.includes('/api/search')
+      const data = result.data as { requests?: Record<string, unknown>[] };
+      const searchRequests = (data.requests || []).filter(
+        (r: Record<string, unknown>) => typeof r.url === 'string' && r.url.includes('/api/search')
       );
 
       console.log(`Captured ${searchRequests.length} search API requests`);
@@ -235,7 +237,7 @@ describe('Network Capture Capability Verification', { sequential: true }, () => 
       console.log('Mocked Response:', JSON.stringify(result, null, 2));
 
       if (result.success) {
-        const text = String((result.data as any).result || '');
+        const text = String((result.data as Record<string, unknown>).result || '');
         const parsed = JSON.parse(text);
         expect(parsed.mocked).toBe(true);
         expect(parsed.data.items[0].name).toBe('Mocked Product');
@@ -262,7 +264,7 @@ describe('Network Capture Capability Verification', { sequential: true }, () => 
       console.log('Blocked Request Result:', JSON.stringify(result, null, 2));
 
       if (result.success) {
-        const outcome = (result.data as any).result;
+        const outcome = (result.data as Record<string, unknown>).result;
         if (typeof outcome === 'object' && outcome !== null) {
           expect(outcome.success).toBe(false);
           console.log('Request was blocked as expected:', outcome.error);

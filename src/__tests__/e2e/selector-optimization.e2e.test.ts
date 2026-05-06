@@ -68,7 +68,7 @@ describe('选择器优化验证测试', () => {
     expect(stopResult.success).toBe(true);
 
     // 验证生成的 YAML
-    const data = stopResult.data as any;
+    const data = stopResult.data as Record<string, unknown>;
     expect(data).toBeDefined();
     expect(data.steps).toBeGreaterThan(0);
 
@@ -128,7 +128,7 @@ describe('选择器优化验证测试', () => {
     const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
     expect(stopResult.success).toBe(true);
 
-    const data = stopResult.data as any;
+    const data = stopResult.data as Record<string, unknown>;
     if (data.path && fs.existsSync(data.path)) {
       const yaml = fs.readFileSync(data.path, 'utf-8');
       console.log('\n=== 百度录制生成的 YAML ===');

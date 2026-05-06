@@ -108,8 +108,9 @@ function getPortForSession(session: string): number {
  */
 export function getAppDir(): string {
   // 1. XDG_RUNTIME_DIR (Linux standard)
-  if (process.env.XDG_RUNTIME_DIR) {
-    return path.join(process.env.XDG_RUNTIME_DIR, 'agent-browser');
+  const runtimeDir = process.env.XDG_RUNTIME_DIR;
+  if (runtimeDir) {
+    return path.join(runtimeDir, 'agent-browser');
   }
 
   // 2. Home directory fallback (like Docker Desktop's ~/.docker/run/)
@@ -360,7 +361,9 @@ export async function startDaemon(options?: { provider?: string }): Promise<void
                   await manager.injectFocusListener((data) => {
                     try {
                       socket.write(JSON.stringify(data) + '\n');
-                    } catch (_) {}
+                    } catch (_e) {
+                      // Socket write to disconnected client, non-fatal
+                    }
                   });
                   socket.write(
                     serializeResponse(successResponse(quickParse.id, { injected: true })) + '\n'
@@ -530,7 +533,8 @@ export async function startDaemon(options?: { provider?: string }): Promise<void
               } else if (manager instanceof BrowserManager) {
                 // Auto-launch desktop browser
                 const extensions = process.env.AGENT_BROWSER_EXTENSIONS
-                  ? process.env.AGENT_BROWSER_EXTENSIONS.split(',')
+                  ? (process.env.AGENT_BROWSER_EXTENSIONS || '')
+                      .split(',')
                       .map((p) => p.trim())
                       .filter(Boolean)
                   : undefined;
@@ -606,7 +610,9 @@ export async function startDaemon(options?: { provider?: string }): Promise<void
                 await manager.injectFocusListener((data) => {
                   try {
                     socket.write(JSON.stringify(data) + '\n');
-                  } catch (_) {}
+                  } catch (_e) {
+                    // Socket write to disconnected client, non-fatal
+                  }
                 });
                 socket.write(
                   serializeResponse(successResponse(parseResult.command.id, { injected: true })) +

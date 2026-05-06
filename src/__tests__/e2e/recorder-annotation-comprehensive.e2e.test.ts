@@ -7,6 +7,18 @@ import type { RecorderStartData } from '../../types.js';
 import { isSuccessResponse } from '../../types.js';
 import * as fs from 'fs';
 
+interface RecorderWindow extends Window {
+  xyzQueue: Array<{ id: string; annotation?: Record<string, unknown>; [key: string]: unknown }>;
+  xyzBindingName: string;
+  xyzTrack: (data: string) => void;
+  [key: string]: unknown;
+}
+
+interface RecorderStopData {
+  path: string;
+  [key: string]: unknown;
+}
+
 function isRecorderStartData(data: unknown): data is RecorderStartData {
   return typeof data === 'object' && data !== null && 'started' in data && 'sessionId' in data;
 }
@@ -148,7 +160,7 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
 
     // Add wait_element annotation
     const updateResult = await page.evaluate(async () => {
-      const steps = (window as any).xyzQueue || [];
+      const steps = (window as RecorderWindow).xyzQueue || [];
       if (steps.length === 0) {
         return { success: false, error: 'No steps in queue' };
       }
@@ -158,8 +170,8 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
 
       lastStep.annotation = annotation;
 
-      const bindingName = (window as any).xyzBindingName || 'xyzTrack';
-      const trackFn = (window as any)[bindingName];
+      const bindingName = (window as RecorderWindow).xyzBindingName || 'xyzTrack';
+      const trackFn = (window as RecorderWindow)[bindingName];
       if (typeof trackFn === 'function') {
         try {
           trackFn(
@@ -185,7 +197,7 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
     const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
     expect(isSuccessResponse(stopResult)).toBe(true);
 
-    const data = stopResult.data as any;
+    const data = stopResult.data as RecorderStopData;
     const yaml = fs.readFileSync(data.path, 'utf-8');
     const steps = parseYamlSteps(yaml);
 
@@ -214,7 +226,7 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
 
     // Add data_container annotation
     const updateResult = await page.evaluate(async () => {
-      const steps = (window as any).xyzQueue || [];
+      const steps = (window as RecorderWindow).xyzQueue || [];
       if (steps.length === 0) {
         return { success: false, error: 'No steps in queue' };
       }
@@ -229,8 +241,8 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
 
       lastStep.annotation = annotation;
 
-      const bindingName = (window as any).xyzBindingName || 'xyzTrack';
-      const trackFn = (window as any)[bindingName];
+      const bindingName = (window as RecorderWindow).xyzBindingName || 'xyzTrack';
+      const trackFn = (window as RecorderWindow)[bindingName];
       if (typeof trackFn === 'function') {
         try {
           trackFn(
@@ -255,7 +267,7 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
     const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
     expect(isSuccessResponse(stopResult)).toBe(true);
 
-    const data = stopResult.data as any;
+    const data = stopResult.data as RecorderStopData;
     const yaml = fs.readFileSync(data.path, 'utf-8');
     const steps = parseYamlSteps(yaml);
 
@@ -286,7 +298,7 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
 
     // Add data_item annotation
     const updateResult = await page.evaluate(async () => {
-      const steps = (window as any).xyzQueue || [];
+      const steps = (window as RecorderWindow).xyzQueue || [];
       if (steps.length === 0) {
         return { success: false, error: 'No steps in queue' };
       }
@@ -300,8 +312,8 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
 
       lastStep.annotation = annotation;
 
-      const bindingName = (window as any).xyzBindingName || 'xyzTrack';
-      const trackFn = (window as any)[bindingName];
+      const bindingName = (window as RecorderWindow).xyzBindingName || 'xyzTrack';
+      const trackFn = (window as RecorderWindow)[bindingName];
       if (typeof trackFn === 'function') {
         try {
           trackFn(
@@ -326,7 +338,7 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
     const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
     expect(isSuccessResponse(stopResult)).toBe(true);
 
-    const data = stopResult.data as any;
+    const data = stopResult.data as RecorderStopData;
     const yaml = fs.readFileSync(data.path, 'utf-8');
     const steps = parseYamlSteps(yaml);
 
@@ -357,7 +369,7 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
 
     // Add pagination annotation
     const updateResult = await page.evaluate(async () => {
-      const steps = (window as any).xyzQueue || [];
+      const steps = (window as RecorderWindow).xyzQueue || [];
       if (steps.length === 0) {
         return { success: false, error: 'No steps in queue' };
       }
@@ -372,8 +384,8 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
 
       lastStep.annotation = annotation;
 
-      const bindingName = (window as any).xyzBindingName || 'xyzTrack';
-      const trackFn = (window as any)[bindingName];
+      const bindingName = (window as RecorderWindow).xyzBindingName || 'xyzTrack';
+      const trackFn = (window as RecorderWindow)[bindingName];
       if (typeof trackFn === 'function') {
         try {
           trackFn(
@@ -398,7 +410,7 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
     const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
     expect(isSuccessResponse(stopResult)).toBe(true);
 
-    const data = stopResult.data as any;
+    const data = stopResult.data as RecorderStopData;
     const yaml = fs.readFileSync(data.path, 'utf-8');
     const steps = parseYamlSteps(yaml);
 
@@ -429,7 +441,7 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
 
     // Add login_check annotation
     const updateResult = await page.evaluate(async () => {
-      const steps = (window as any).xyzQueue || [];
+      const steps = (window as RecorderWindow).xyzQueue || [];
       if (steps.length === 0) {
         return { success: false, error: 'No steps in queue' };
       }
@@ -443,8 +455,8 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
 
       lastStep.annotation = annotation;
 
-      const bindingName = (window as any).xyzBindingName || 'xyzTrack';
-      const trackFn = (window as any)[bindingName];
+      const bindingName = (window as RecorderWindow).xyzBindingName || 'xyzTrack';
+      const trackFn = (window as RecorderWindow)[bindingName];
       if (typeof trackFn === 'function') {
         try {
           trackFn(
@@ -469,7 +481,7 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
     const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
     expect(isSuccessResponse(stopResult)).toBe(true);
 
-    const data = stopResult.data as any;
+    const data = stopResult.data as RecorderStopData;
     const yaml = fs.readFileSync(data.path, 'utf-8');
     const steps = parseYamlSteps(yaml);
 
@@ -499,7 +511,7 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
 
     // Add checkpoint annotation
     const updateResult = await page.evaluate(async () => {
-      const steps = (window as any).xyzQueue || [];
+      const steps = (window as RecorderWindow).xyzQueue || [];
       if (steps.length === 0) {
         return { success: false, error: 'No steps in queue' };
       }
@@ -509,8 +521,8 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
 
       lastStep.annotation = annotation;
 
-      const bindingName = (window as any).xyzBindingName || 'xyzTrack';
-      const trackFn = (window as any)[bindingName];
+      const bindingName = (window as RecorderWindow).xyzBindingName || 'xyzTrack';
+      const trackFn = (window as RecorderWindow)[bindingName];
       if (typeof trackFn === 'function') {
         try {
           trackFn(
@@ -535,7 +547,7 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
     const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
     expect(isSuccessResponse(stopResult)).toBe(true);
 
-    const data = stopResult.data as any;
+    const data = stopResult.data as RecorderStopData;
     const yaml = fs.readFileSync(data.path, 'utf-8');
     const steps = parseYamlSteps(yaml);
 
@@ -564,7 +576,7 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
 
     // Add custom annotation
     const updateResult = await page.evaluate(async () => {
-      const steps = (window as any).xyzQueue || [];
+      const steps = (window as RecorderWindow).xyzQueue || [];
       if (steps.length === 0) {
         return { success: false, error: 'No steps in queue' };
       }
@@ -574,8 +586,8 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
 
       lastStep.annotation = annotation;
 
-      const bindingName = (window as any).xyzBindingName || 'xyzTrack';
-      const trackFn = (window as any)[bindingName];
+      const bindingName = (window as RecorderWindow).xyzBindingName || 'xyzTrack';
+      const trackFn = (window as RecorderWindow)[bindingName];
       if (typeof trackFn === 'function') {
         try {
           trackFn(
@@ -600,7 +612,7 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
     const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
     expect(isSuccessResponse(stopResult)).toBe(true);
 
-    const data = stopResult.data as any;
+    const data = stopResult.data as RecorderStopData;
     const yaml = fs.readFileSync(data.path, 'utf-8');
     const steps = parseYamlSteps(yaml);
 
@@ -629,7 +641,7 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
 
     // Add annotation
     await page.evaluate(async () => {
-      const steps = (window as any).xyzQueue || [];
+      const steps = (window as RecorderWindow).xyzQueue || [];
       if (steps.length === 0) return;
 
       const lastStep = steps[steps.length - 1];
@@ -637,8 +649,8 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
 
       lastStep.annotation = annotation;
 
-      const bindingName = (window as any).xyzBindingName || 'xyzTrack';
-      const trackFn = (window as any)[bindingName];
+      const bindingName = (window as RecorderWindow).xyzBindingName || 'xyzTrack';
+      const trackFn = (window as RecorderWindow)[bindingName];
       if (typeof trackFn === 'function') {
         trackFn(
           JSON.stringify({
@@ -655,7 +667,7 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
     const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
     expect(isSuccessResponse(stopResult)).toBe(true);
 
-    const data = stopResult.data as any;
+    const data = stopResult.data as RecorderStopData;
     const yaml = fs.readFileSync(data.path, 'utf-8');
     const steps = parseYamlSteps(yaml);
 
@@ -686,12 +698,12 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
     await new Promise((resolve) => setTimeout(resolve, 300));
 
     await page.evaluate(async () => {
-      const steps = (window as any).xyzQueue || [];
+      const steps = (window as RecorderWindow).xyzQueue || [];
       const lastStep = steps[steps.length - 1];
       const annotation = { type: 'wait_element', label: 'Wait step 1' };
       lastStep.annotation = annotation;
-      const bindingName = (window as any).xyzBindingName || 'xyzTrack';
-      const trackFn = (window as any)[bindingName];
+      const bindingName = (window as RecorderWindow).xyzBindingName || 'xyzTrack';
+      const trackFn = (window as RecorderWindow)[bindingName];
       if (typeof trackFn === 'function') {
         trackFn(
           JSON.stringify({
@@ -710,12 +722,12 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
     await new Promise((resolve) => setTimeout(resolve, 300));
 
     await page.evaluate(async () => {
-      const steps = (window as any).xyzQueue || [];
+      const steps = (window as RecorderWindow).xyzQueue || [];
       const lastStep = steps[steps.length - 1];
       const annotation = { type: 'checkpoint', label: 'Checkpoint step 2' };
       lastStep.annotation = annotation;
-      const bindingName = (window as any).xyzBindingName || 'xyzTrack';
-      const trackFn = (window as any)[bindingName];
+      const bindingName = (window as RecorderWindow).xyzBindingName || 'xyzTrack';
+      const trackFn = (window as RecorderWindow)[bindingName];
       if (typeof trackFn === 'function') {
         trackFn(
           JSON.stringify({
@@ -734,12 +746,12 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
     await new Promise((resolve) => setTimeout(resolve, 300));
 
     await page.evaluate(async () => {
-      const steps = (window as any).xyzQueue || [];
+      const steps = (window as RecorderWindow).xyzQueue || [];
       const lastStep = steps[steps.length - 1];
       const annotation = { type: 'custom', label: 'Custom step 3' };
       lastStep.annotation = annotation;
-      const bindingName = (window as any).xyzBindingName || 'xyzTrack';
-      const trackFn = (window as any)[bindingName];
+      const bindingName = (window as RecorderWindow).xyzBindingName || 'xyzTrack';
+      const trackFn = (window as RecorderWindow)[bindingName];
       if (typeof trackFn === 'function') {
         trackFn(
           JSON.stringify({
@@ -755,7 +767,7 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
     const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
     expect(isSuccessResponse(stopResult)).toBe(true);
 
-    const data = stopResult.data as any;
+    const data = stopResult.data as RecorderStopData;
     const yaml = fs.readFileSync(data.path, 'utf-8');
     const steps = parseYamlSteps(yaml);
 
@@ -792,7 +804,7 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
 
     // Add data_container annotation with multiple fields
     const updateResult = await page.evaluate(async () => {
-      const steps = (window as any).xyzQueue || [];
+      const steps = (window as RecorderWindow).xyzQueue || [];
       if (steps.length === 0) {
         return { success: false, error: 'No steps in queue' };
       }
@@ -807,8 +819,8 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
 
       lastStep.annotation = annotation;
 
-      const bindingName = (window as any).xyzBindingName || 'xyzTrack';
-      const trackFn = (window as any)[bindingName];
+      const bindingName = (window as RecorderWindow).xyzBindingName || 'xyzTrack';
+      const trackFn = (window as RecorderWindow)[bindingName];
       if (typeof trackFn === 'function') {
         try {
           trackFn(
@@ -834,7 +846,7 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
     const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
     expect(isSuccessResponse(stopResult)).toBe(true);
 
-    const data = stopResult.data as any;
+    const data = stopResult.data as RecorderStopData;
     const yamlPath = data.path;
 
     // Read YAML file

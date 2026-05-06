@@ -65,12 +65,12 @@ describe('Comprehensive Interactions E2E', () => {
     it('re-snapshot after page change returns fresh refs', async () => {
       const first = await executeCommand(parseCliArgs(['snapshot', '-i']), browser);
       expect(first.success).toBe(true);
-      const firstRefs = (first.data as any).refs;
+      const firstRefs = (first.data as Record<string, unknown>).refs;
       expect(firstRefs).toBeDefined();
 
       const second = await executeCommand(parseCliArgs(['snapshot', '-i']), browser);
       expect(second.success).toBe(true);
-      const secondRefs = (second.data as any).refs;
+      const secondRefs = (second.data as Record<string, unknown>).refs;
       expect(secondRefs).toBeDefined();
       expect(Object.keys(secondRefs).length).toBeGreaterThan(0);
     });

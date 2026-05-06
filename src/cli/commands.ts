@@ -129,7 +129,9 @@ export function parseCommand(args: string[], flags: Flags): Command {
       if (flags.headers) {
         try {
           navCmd.headers = JSON.parse(flags.headers);
-        } catch {}
+        } catch (_e) {
+          // Invalid headers JSON, using default
+        }
       }
       if (flags.timeout) {
         navCmd.timeout = parseInt(flags.timeout, 10);
