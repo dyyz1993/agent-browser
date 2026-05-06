@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { Page } from 'playwright-core';
-import { BrowserManager } from '../browser.js';
+import { BrowserManager } from '../browser/index.js';
 
 const executablePath =
   process.env.AGENT_BROWSER_EXECUTABLE_PATH || '/Applications/Chromium.app/Contents/MacOS/Chromium';

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi, afterEach } from 'vitest';
-import { BrowserManager } from './browser.js';
+import { BrowserManager } from './browser/index.js';
 import { chromium, Browser } from 'playwright-core';
 
 // 模拟浏览器的存储

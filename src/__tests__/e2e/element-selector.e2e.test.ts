@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
 import WebSocket from 'ws';
-import { BrowserManager } from '../../browser.js';
+import { BrowserManager } from '../../browser/index.js';
 import { StreamServer, type FrameMessage, type StatusMessage } from '../../stream-server.js';
 import { getFixturePath, getChromiumExecutablePath } from './utils/test-helpers.js';
 import sharp from 'sharp';

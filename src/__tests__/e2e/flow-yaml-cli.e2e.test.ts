@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { BrowserManager } from '../../browser.js';
+import { BrowserManager } from '../../browser/index.js';
 import { FlowExecutor } from '../../flow/flow-executor.js';
 import type { SiteDefinition } from '../../flow/types.js';
 import {

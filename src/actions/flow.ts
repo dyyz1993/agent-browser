@@ -1,6 +1,6 @@
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
-import type { BrowserManager } from '../browser.js';
+import type { BrowserManager } from '../browser/index.js';
 import type { AnyCommand, Response } from '../types.js';
 import { successResponse, errorResponse } from '../protocol.js';
 import {

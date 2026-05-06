@@ -2,11 +2,11 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 
-describe('injectFocusListener - browser.ts method', () => {
+describe('injectFocusListener - browser-manager.ts method', () => {
   let browserCode: string;
 
   beforeAll(() => {
-    browserCode = fs.readFileSync(path.join(__dirname, '../browser.ts'), 'utf-8');
+    browserCode = fs.readFileSync(path.join(__dirname, '../browser/browser-manager.ts'), 'utf-8');
   });
 
   it('has injectFocusListener method', () => {
@@ -104,7 +104,7 @@ describe('injectFocusListener - script content correctness', () => {
   let browserCode: string;
 
   beforeAll(() => {
-    browserCode = fs.readFileSync(path.join(__dirname, '../browser.ts'), 'utf-8');
+    browserCode = fs.readFileSync(path.join(__dirname, '../browser/browser-manager.ts'), 'utf-8');
   });
 
   it('focus event captures tag, inputType, value, placeholder, id', () => {

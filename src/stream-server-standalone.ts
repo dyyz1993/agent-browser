@@ -13,7 +13,7 @@ import { isAllowedOrigin } from './stream-server.js';
 import { getSocketDir, getAppDir } from './daemon.js';
 import { openApiSpec } from './openapi.js';
 import { getSwaggerUiHtml } from './swagger-ui.js';
-import { BrowserManager } from './browser.js';
+import { BrowserManager } from './browser/index.js';
 
 const DEFAULT_STREAM_PORT = parseInt(process.env.AGENT_BROWSER_STREAM_PORT || '5005', 10);
 const STREAM_SERVER_PID_FILE = 'stream-server.pid';

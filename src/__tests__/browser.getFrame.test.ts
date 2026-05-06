@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
-import { BrowserManager } from '../browser.js';
+import { BrowserManager } from '../browser/index.js';
 import { getFixturePath } from './e2e/utils/test-helpers.js';
 
 describe('BrowserManager.getFrame', () => {

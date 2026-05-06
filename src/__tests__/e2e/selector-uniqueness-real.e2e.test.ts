@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { BrowserManager } from '../../browser.js';
+import { BrowserManager } from '../../browser/index.js';
 
 /**
  * 验证优化后的选择器在真实国内网站上的唯一性

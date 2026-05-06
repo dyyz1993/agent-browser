@@ -1,4 +1,4 @@
-import type { BrowserManager } from '../browser.js';
+import type { BrowserManager } from '../browser/index.js';
 import type {
   Command,
   Response,

@@ -1,4 +1,4 @@
-import type { BrowserManager, ScreencastFrame } from '../browser.js';
+import type { BrowserManager, ScreencastFrame } from '../browser/index.js';
 import type {
   Command,
   Response,

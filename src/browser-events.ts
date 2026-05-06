@@ -1,4 +1,4 @@
-import type { ScreencastFrame } from './browser.js';
+import type { ScreencastFrame } from './browser/index.js';
 
 let screencastFrameCallback: ((frame: ScreencastFrame) => void) | null = null;
 

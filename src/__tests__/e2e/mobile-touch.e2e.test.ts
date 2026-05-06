@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
-import { BrowserManager } from '../../browser.js';
+import { BrowserManager } from '../../browser/index.js';
 import { getFixturePath, getChromiumExecutablePath } from './utils/test-helpers.js';
 import type { CDPSession } from 'playwright-core';
 

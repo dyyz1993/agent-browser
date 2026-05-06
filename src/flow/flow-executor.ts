@@ -1,4 +1,4 @@
-import { BrowserManager } from '../browser.js';
+import { BrowserManager } from '../browser/index.js';
 import { executeCommand } from '../actions/index.js';
 import { parseCliArgs } from '../__tests__/utils/parseCli.js';
 import { isSuccessResponse } from '../types.js';

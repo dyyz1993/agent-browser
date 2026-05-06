@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { handleAddInitScript } from '../actions/index.js';
 import type { AddInitScriptCommand } from '../types.js';
-import type { BrowserManager } from '../browser.js';
+import type { BrowserManager } from '../browser/index.js';
 
 function createMockBrowser(pageEvaluateError?: Error) {
   const addInitScript = vi.fn().mockResolvedValue(undefined);

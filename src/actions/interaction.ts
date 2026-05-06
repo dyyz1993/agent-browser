@@ -1,7 +1,7 @@
 import { mkdirSync, existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import type { Page } from 'playwright-core';
-import type { BrowserManager } from '../browser.js';
+import type { BrowserManager } from '../browser/index.js';
 import { getInstanceId, getAppDir } from '../daemon.js';
 import { getEnhancedSnapshot } from '../snapshot.js';
 import { performDiff } from '../diff.js';

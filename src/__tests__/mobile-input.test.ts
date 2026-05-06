@@ -17,7 +17,7 @@ describe('Mobile input mode - injected focus listener', () => {
       'utf-8'
     );
     protocolCode = fs.readFileSync(path.join(__dirname, '../protocol.ts'), 'utf-8');
-    browserCode = fs.readFileSync(path.join(__dirname, '../browser.ts'), 'utf-8');
+    browserCode = fs.readFileSync(path.join(__dirname, '../browser/browser-manager.ts'), 'utf-8');
   });
 
   it('has inputMode state variable', () => {
@@ -401,7 +401,7 @@ describe('Browser injectFocusListener method', () => {
   let browserCode: string;
 
   beforeAll(() => {
-    browserCode = fs.readFileSync(path.join(__dirname, '../browser.ts'), 'utf-8');
+    browserCode = fs.readFileSync(path.join(__dirname, '../browser/browser-manager.ts'), 'utf-8');
   });
 
   it('has injectFocusListener method', () => {

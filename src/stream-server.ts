@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { WebSocketServer, WebSocket } from 'ws';
 import sharp from 'sharp';
-import type { BrowserManager, ScreencastFrame } from './browser.js';
+import type { BrowserManager, ScreencastFrame } from './browser/index.js';
 import { setScreencastFrameCallback, setEventCallbacks } from './browser-events.js';
 import type { Command, Response } from './types.js';
 import { executeCommand } from './actions/index.js';

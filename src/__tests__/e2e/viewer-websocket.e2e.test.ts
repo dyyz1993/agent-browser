@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import WebSocket from 'ws';
-import { BrowserManager } from '../../browser.js';
+import { BrowserManager } from '../../browser/index.js';
 import { StreamServer } from '../../stream-server.js';
 import { getFixturePath } from './utils/test-helpers.js';
 

@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { randomUUID } from 'crypto';
-import { BrowserManager } from './browser.js';
+import { BrowserManager } from './browser/index.js';
 import { parseCommand, serializeResponse, errorResponse, successResponse } from './protocol.js';
 import { executeCommand } from './actions/index.js';
 import { getExecutablePath } from './rc-config.js';

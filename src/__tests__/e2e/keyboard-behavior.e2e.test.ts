@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { BrowserManager } from '../../browser.js';
+import { BrowserManager } from '../../browser/index.js';
 import { getFixturePath } from './utils/test-helpers.js';
 
 describe('Playwright keyboard behavior verification', () => {

@@ -1,6 +1,6 @@
 import { existsSync, writeFileSync, readdirSync, statSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import type { BrowserManager } from '../browser.js';
+import type { BrowserManager } from '../browser/index.js';
 import type {
   Command,
   Response,

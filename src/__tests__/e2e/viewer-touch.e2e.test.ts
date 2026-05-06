@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import http from 'http';
-import { BrowserManager } from '../../browser.js';
+import { BrowserManager } from '../../browser/index.js';
 import { StreamServer } from '../../stream-server.js';
 import { getViewerHtml } from '../../viewer-html.js';
 import { getFixturePath, getChromiumExecutablePath } from './utils/test-helpers.js';

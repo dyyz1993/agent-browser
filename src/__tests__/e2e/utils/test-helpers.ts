@@ -1,6 +1,6 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { BrowserManager } from '../../../browser.js';
+import { BrowserManager } from '../../../browser/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 

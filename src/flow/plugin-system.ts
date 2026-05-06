@@ -1,5 +1,5 @@
 import type { FlowStep, FlowContext, FlowResult } from './types.js';
-import { BrowserManager } from '../browser.js';
+import { BrowserManager } from '../browser/index.js';
 import { Response } from '../types.js';
 
 export type ActionHandler = (
