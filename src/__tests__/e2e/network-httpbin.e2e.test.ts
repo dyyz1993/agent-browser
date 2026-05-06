@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { BrowserManager } from '../../browser.js';
-import { executeCommand } from '../../actions.js';
+import { executeCommand } from '../../actions/index.js';
 import { parseCliArgs } from '../utils/parseCli';
 
 /**

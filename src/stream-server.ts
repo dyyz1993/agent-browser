@@ -4,9 +4,9 @@ import * as path from 'path';
 import { WebSocketServer, WebSocket } from 'ws';
 import sharp from 'sharp';
 import type { BrowserManager, ScreencastFrame } from './browser.js';
-import { setScreencastFrameCallback, setEventCallbacks } from './actions.js';
+import { setScreencastFrameCallback, setEventCallbacks } from './browser-events.js';
 import type { Command, Response } from './types.js';
-import { executeCommand } from './actions.js';
+import { executeCommand } from './actions/index.js';
 import { errorResponse, serializeResponse } from './protocol.js';
 import { getSocketDir, getSession, getInstanceId } from './daemon.js';
 
@@ -781,7 +781,7 @@ export class StreamServer {
 
       try {
         let processedBuffer: Buffer;
-        let metadata = { ...frame.metadata };
+        const metadata = { ...frame.metadata };
 
         if (clientState.selector && clientState.elementBox) {
           processedBuffer = await this.frameProcessor.process(
@@ -825,7 +825,7 @@ export class StreamServer {
     try {
       const config = this.stateManager.getConfig();
       let processedBuffer: Buffer;
-      let metadata = { ...this.lastFrameMetadata };
+      const metadata = { ...this.lastFrameMetadata };
 
       if (clientState.selector && clientState.elementBox) {
         processedBuffer = await this.frameProcessor.process(

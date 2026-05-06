@@ -100,7 +100,7 @@ describe('Flow Engine Phase 5 - Plugin System', { sequential: true, timeout: 600
             customActionCalled = true;
             const name = step.value || 'World';
             const script = `JSON.stringify(window.greetCustom ? window.greetCustom('${name}') : 'no function')`;
-            const { executeCommand } = await import('../../actions.js');
+            const { executeCommand } = await import('../../actions/index.js');
             const { parseCliArgs } = await import('../../__tests__/utils/parseCli.js');
             const { isSuccessResponse } = await import('../../types.js');
             const result = await executeCommand(parseCliArgs(['eval', script]), browser);

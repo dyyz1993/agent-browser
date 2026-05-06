@@ -23,22 +23,22 @@ let mockPageContent = '';
 let mockClickResult = '';
 
 // Track routes for scoped headers
-const mockRoutes: Map<string, Function> = new Map();
+const mockRoutes: Map<string, (...args: unknown[]) => unknown> = new Map();
 
 // Track CDP session per page (using WeakMap to associate with page objects)
 let mockCDPSession: Record<string, unknown> | null = null;
 
 // Track if we should simulate invalid executablePath error
-let shouldThrowInvalidPath = false;
+const shouldThrowInvalidPath = false;
 
 // Track screencast state
 let screencastActive = false;
-let screencastFrames: Record<string, unknown>[] = [];
+const screencastFrames: Record<string, unknown>[] = [];
 
 // Create mock CDP session
 const createMockCDPSession = () => {
   const session: Record<string, unknown> = {
-    _handlers: {} as Record<string, Function>,
+    _handlers: {} as Record<string, (...args: unknown[]) => unknown>,
     send: vi.fn((method: string, params?: Record<string, unknown>) => {
       if (method === 'Page.startScreencast') {
         screencastActive = true;
@@ -68,11 +68,11 @@ const createMockCDPSession = () => {
       }
       return Promise.resolve();
     }),
-    on: vi.fn((event: string, handler: Function) => {
+    on: vi.fn((event: string, handler: (...args: unknown[]) => unknown) => {
       session._handlers = session._handlers || {};
       session._handlers[event] = handler;
     }),
-    off: vi.fn((event: string, handler: Function) => {
+    off: vi.fn((event: string, handler: (...args: unknown[]) => unknown) => {
       if (session._handlers) {
         delete session._handlers[event];
       }
@@ -121,7 +121,7 @@ const createMockFrame = () => ({
       click: vi.fn(() => Promise.resolve()),
     })),
   })),
-  evaluate: vi.fn((fn: Function | string, ...args: unknown[]) => {
+  evaluate: vi.fn((fn: (...args: unknown[]) => unknown | string, ...args: unknown[]) => {
     if (typeof fn === 'string') {
       return Promise.resolve(undefined);
     }
@@ -232,7 +232,7 @@ const createMockFrame = () => ({
 
 // 创建 mock page 对象
 const createMockPage = (sharedContext?: Record<string, unknown>) => {
-  const pageListeners: Map<string, Function[]> = new Map();
+  const pageListeners: Map<string, (...args: unknown[]) => unknown[]> = new Map();
   // Each page has its own CDP session
   const pageCDPSession = createMockCDPSession();
   // Use provided shared context or create a new one
@@ -240,17 +240,17 @@ const createMockPage = (sharedContext?: Record<string, unknown>) => {
 
   return {
     url: () => 'https://example.com/',
-    on: vi.fn((event: string, handler: Function) => {
+    on: vi.fn((event: string, handler: (...args: unknown[]) => unknown) => {
       const handlers = pageListeners.get(event) || [];
       handlers.push(handler);
       pageListeners.set(event, handlers);
     }),
-    off: vi.fn((event: string, handler: Function) => {
+    off: vi.fn((event: string, handler: (...args: unknown[]) => unknown) => {
       const handlers = pageListeners.get(event) || [];
       const index = handlers.indexOf(handler);
       if (index > -1) handlers.splice(index, 1);
     }),
-    removeListener: vi.fn((event: string, handler: Function) => {
+    removeListener: vi.fn((event: string, handler: (...args: unknown[]) => unknown) => {
       const handlers = pageListeners.get(event) || [];
       const index = handlers.indexOf(handler);
       if (index > -1) handlers.splice(index, 1);
@@ -302,7 +302,7 @@ const createMockPage = (sharedContext?: Record<string, unknown>) => {
       })),
     })),
     screenshot: vi.fn(() => Promise.resolve(Buffer.from('test'))),
-    evaluate: vi.fn((fn: Function | string, ...args: unknown[]) => {
+    evaluate: vi.fn((fn: (...args: unknown[]) => unknown | string, ...args: unknown[]) => {
       // 处理字符串形式的脚本
       if (typeof fn === 'string') {
         // Handle window.__AGENT_BROWSER_REFS__ injection
@@ -315,7 +315,7 @@ const createMockPage = (sharedContext?: Record<string, unknown>) => {
       const fnStr = fn.toString();
 
       // Detect findCursorInteractiveElements function - return array for cursor elements
-      // The function is created via new Function(), and takes rootSel as parameter
+      // The function is created via new (...args: unknown[]) => unknown(), and takes rootSel as parameter
       // Check for characteristic patterns in the function body
       const isCursorFunction =
         (fnStr.includes('interactiveRoles') ||
@@ -433,7 +433,7 @@ const createMockPage = (sharedContext?: Record<string, unknown>) => {
             localStorage: mockLocalStorageObj,
             sessionStorage: mockSessionStorageObj,
           };
-          // Use Function constructor to create a function with localStorage/sessionStorage in scope
+          // Use (...args: unknown[]) => unknown constructor to create a function with localStorage/sessionStorage in scope
           const wrappedFn = new Function(
             'localStorage',
             'sessionStorage',
@@ -515,11 +515,11 @@ const createMockPage = (sharedContext?: Record<string, unknown>) => {
     mainFrame: vi.fn(() => createMockFrame()),
     close: vi.fn(() => Promise.resolve()),
     frameLocator: vi.fn(() => createMockFrame()),
-    route: vi.fn((pattern: string, handler: Function) => {
+    route: vi.fn((pattern: string, handler: (...args: unknown[]) => unknown) => {
       mockRoutes.set(pattern, handler);
       return Promise.resolve();
     }),
-    unroute: vi.fn((pattern: string, handler?: Function) => {
+    unroute: vi.fn((pattern: string, handler?: (...args: unknown[]) => unknown) => {
       mockRoutes.delete(pattern);
       return Promise.resolve();
     }),
@@ -533,12 +533,12 @@ const createMockPage = (sharedContext?: Record<string, unknown>) => {
 
 // 创建 mock browser context 对象
 const createMockContext = () => {
-  const contextListeners: Map<string, Function[]> = new Map();
+  const contextListeners: Map<string, (...args: unknown[]) => unknown[]> = new Map();
   const pages: Record<string, unknown>[] = [];
 
   const context = {
     pages: vi.fn(() => pages),
-    on: vi.fn((event: string, handler: Function) => {
+    on: vi.fn((event: string, handler: (...args: unknown[]) => unknown) => {
       const handlers = contextListeners.get(event) || [];
       handlers.push(handler);
       contextListeners.set(event, handlers);
@@ -595,14 +595,14 @@ const createMockContext = () => {
 
 // 创建 mock browser 对象
 const createMockBrowser = () => {
-  const browserListeners: Map<string, Function[]> = new Map();
+  const browserListeners: Map<string, (...args: unknown[]) => unknown[]> = new Map();
   const contexts = [createMockContext()];
 
   return {
     contexts: vi.fn(() => contexts),
     close: vi.fn(() => Promise.resolve()),
     removeAllListeners: vi.fn(),
-    on: vi.fn((event: string, handler: Function) => {
+    on: vi.fn((event: string, handler: (...args: unknown[]) => unknown) => {
       const handlers = browserListeners.get(event) || [];
       handlers.push(handler);
       browserListeners.set(event, handlers);

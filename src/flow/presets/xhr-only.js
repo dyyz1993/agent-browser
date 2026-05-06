@@ -11,13 +11,14 @@
     return origOpen.apply(this, arguments);
   };
   XMLHttpRequest.prototype.send = function() {
-    var self = this;
-    this.addEventListener('load', function() {
-      var url = self.__captureUrl || '';
+    this.addEventListener('load', () => {
+      var url = this.__captureUrl || '';
       if (!_filter || url.indexOf(_filter) !== -1) {
-        var body = self.responseText;
-        try { body = JSON.parse(body); } catch(e) {}
-        _captured.push({ type:'xhr', url:url, method:self.__captureMethod, status:self.status, body:body, ts:Date.now() });
+        var body = this.responseText;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        try { body = JSON.parse(body); } catch(e) { /* empty */ }
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        _captured.push({ type:'xhr', url:url, method:this.__captureMethod, status:this.status, body:body, ts:Date.now() });
       }
     });
     return origSend.apply(this, arguments);

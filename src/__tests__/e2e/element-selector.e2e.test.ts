@@ -16,7 +16,7 @@ describe('Element Selector Mode - Real E2E Tests', () => {
       action: 'launch',
       id: 'test-selector-launch',
       headless: true,
-      executablePath: getChromiumExecutablePath(),
+      executablePath: await getChromiumExecutablePath(),
     });
 
     wsPort = 5010 + Math.floor(Math.random() * 1000);
@@ -64,7 +64,7 @@ describe('Element Selector Mode - Real E2E Tests', () => {
               resolve(msg as StatusMessage);
             }
           }
-        } catch {}
+        } catch {/* empty */}
       };
       ws.on('message', handler);
       setTimeout(() => {
@@ -84,7 +84,7 @@ describe('Element Selector Mode - Real E2E Tests', () => {
             if (msg.type === 'frame') {
               header = msg as FrameMessage;
             }
-          } catch {}
+          } catch {/* empty */}
         } else if (header) {
           ws.off('message', handler);
           const buf = Buffer.isBuffer(data) ? data : Buffer.from(data as ArrayBuffer);

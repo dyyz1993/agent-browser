@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { BrowserManager } from '../../browser.js';
-import { executeCommand } from '../../actions.js';
+import { executeCommand } from '../../actions/index.js';
 import { parseCliArgs } from '../utils/parseCli';
 import { getFixturePath } from './utils/test-helpers';
 import { isSuccessResponse } from '../../types.js';
@@ -50,7 +50,7 @@ describe('Recorder Replay E2E Test', { sequential: true }, () => {
     if (recordedYamlPath && fs.existsSync(recordedYamlPath)) {
       try {
         fs.unlinkSync(recordedYamlPath);
-      } catch {}
+      } catch {/* empty */}
     }
     await browser.close();
   });
@@ -71,7 +71,7 @@ describe('Recorder Replay E2E Test', { sequential: true }, () => {
       for (const file of files) {
         try {
           fs.unlinkSync(path.join(recordingsDir, file));
-        } catch {}
+        } catch {/* empty */}
       }
     }
 
@@ -192,7 +192,7 @@ describe('Recorder Replay E2E Test', { sequential: true }, () => {
     if (recordedYamlPath && fs.existsSync(recordedYamlPath)) {
       try {
         fs.unlinkSync(recordedYamlPath);
-      } catch {}
+      } catch {/* empty */}
       recordedYamlPath = undefined;
     }
   }, 30000);
@@ -326,14 +326,14 @@ describe('Recorder Replay E2E Test', { sequential: true }, () => {
     if (yamlPath && fs.existsSync(yamlPath)) {
       try {
         fs.unlinkSync(yamlPath);
-      } catch {}
+      } catch {/* empty */}
     }
 
     // Clean up
     if (yamlPath && fs.existsSync(yamlPath)) {
       try {
         fs.unlinkSync(yamlPath);
-      } catch {}
+      } catch {/* empty */}
     }
   }, 45000);
 
@@ -406,7 +406,7 @@ describe('Recorder Replay E2E Test', { sequential: true }, () => {
     if (yamlPath && fs.existsSync(yamlPath)) {
       try {
         fs.unlinkSync(yamlPath);
-      } catch {}
+      } catch {/* empty */}
     }
   }, 60000);
 
@@ -465,7 +465,7 @@ describe('Recorder Replay E2E Test', { sequential: true }, () => {
     if (yamlPath && fs.existsSync(yamlPath)) {
       try {
         fs.unlinkSync(yamlPath);
-      } catch {}
+      } catch {/* empty */}
     }
   }, 30000);
 
@@ -532,12 +532,12 @@ describe('Recorder Replay E2E Test', { sequential: true }, () => {
     if (yamlPath && fs.existsSync(yamlPath)) {
       try {
         fs.unlinkSync(yamlPath);
-      } catch {}
+      } catch {/* empty */}
     }
     if (modifiedYamlPath && fs.existsSync(modifiedYamlPath)) {
       try {
         fs.unlinkSync(modifiedYamlPath);
-      } catch {}
+      } catch {/* empty */}
     }
   }, 60000);
 
@@ -590,7 +590,7 @@ describe('Recorder Replay E2E Test', { sequential: true }, () => {
     if (yamlPath && fs.existsSync(yamlPath)) {
       try {
         fs.unlinkSync(yamlPath);
-      } catch {}
+      } catch {/* empty */}
     }
   }, 30000);
 
@@ -656,7 +656,7 @@ describe('Recorder Replay E2E Test', { sequential: true }, () => {
     if (yamlPath && fs.existsSync(yamlPath)) {
       try {
         fs.unlinkSync(yamlPath);
-      } catch {}
+      } catch {/* empty */}
     }
   }, 30000);
 });

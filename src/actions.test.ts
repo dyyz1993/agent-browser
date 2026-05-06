@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toAIFriendlyError } from './actions.js';
+import { toAIFriendlyError } from './actions/index.js';
 
 describe('toAIFriendlyError', () => {
   describe('element blocked by overlay', () => {

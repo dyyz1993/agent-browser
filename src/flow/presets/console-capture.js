@@ -9,6 +9,7 @@
   function captureArgs(level, args) {
     var msg = Array.prototype.slice.call(args).map(function(a) {
       if (typeof a === 'object') {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         try { return JSON.stringify(a); } catch(e) { return String(a); }
       }
       return String(a);

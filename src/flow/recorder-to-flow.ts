@@ -85,7 +85,7 @@ export function recorderToFlow(
 
   let dataContainerFound = false;
   let dataContainerSelector = '';
-  let dataItemFields: Record<string, string> = {};
+  const dataItemFields: Record<string, string> = {};
 
   for (let i = 0; i < recorderYaml.steps.length; i++) {
     const step = recorderYaml.steps[i];

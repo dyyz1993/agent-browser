@@ -5,14 +5,14 @@ import * as os from 'os';
 import { randomUUID } from 'crypto';
 import { BrowserManager } from './browser.js';
 import { parseCommand, serializeResponse, errorResponse, successResponse } from './protocol.js';
-import { executeCommand } from './actions.js';
+import { executeCommand } from './actions/index.js';
 import { getExecutablePath } from './rc-config.js';
 import { StreamServerProxy, getStreamServerIpcPath } from './stream-server.js';
 
 const isWindows = process.platform === 'win32';
 
 let currentSession = process.env.AGENT_BROWSER_SESSION || 'default';
-let currentInstanceId = randomUUID().substring(0, 8);
+const currentInstanceId = randomUUID().substring(0, 8);
 
 let streamServerProxy: StreamServerProxy | null = null;
 let lastUrl: string | null = null;
@@ -593,7 +593,7 @@ export async function startDaemon(options?: { provider?: string }): Promise<void
             lastActivityAt = Date.now();
 
             // Execute command with appropriate handler
-            let response = await executeCommand(parseResult.command, manager as BrowserManager);
+            const response = await executeCommand(parseResult.command, manager as BrowserManager);
 
             if (response.success && manager instanceof BrowserManager && manager.isLaunched()) {
               try {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toAIFriendlyError } from '../actions';
+import { toAIFriendlyError } from '../actions/index.js';
 
 describe('toAIFriendlyError', () => {
   describe('strict mode violation', () => {

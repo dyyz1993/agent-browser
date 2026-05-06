@@ -32,7 +32,7 @@ import {
   parseRef,
 } from './snapshot.js';
 import { SnapshotStore, SnapshotElement } from './snapshot-store.js';
-import { getEventCallbacks } from './actions.js';
+import { getEventCallbacks } from './browser-events.js';
 
 // Screencast frame data from CDP
 export interface ScreencastFrame {
@@ -249,7 +249,6 @@ export class BrowserManager {
     this.refMap = snapshot.refs;
     this.lastSnapshot = snapshot.tree;
 
-    let snapshotId: string | undefined;
     const url = this.pages.length > 0 ? this.getPage().url() : '';
     const elements: SnapshotElement[] = [];
     let index = 1;
@@ -264,7 +263,7 @@ export class BrowserManager {
       });
       index++;
     }
-    snapshotId = this.snapshotStore.create(url, elements, options?.framePath);
+    const snapshotId = this.snapshotStore.create(url, elements, options?.framePath);
 
     const elementCount = elements.length;
     const header = `Snapshot #${snapshotId} (${elementCount} interactive elements)\n---`;
@@ -299,7 +298,7 @@ export class BrowserManager {
     let stableSelectors: Record<string, { cssSelector: string; xpath: string }> = {};
     try {
       stableSelectors = await generateStableSelectors(frame, refs);
-    } catch {}
+    } catch {/* empty */}
 
     for (const [ref, sel] of Object.entries(stableSelectors)) {
       const el = entry.elements.get(ref);
@@ -2558,7 +2557,7 @@ export class BrowserManager {
       );
       // 使用 page.evaluate 执行字符串脚本
       await page.evaluate(injectScript);
-    } catch (e) {}
+    } catch (e) {/* empty */}
   }
 
   /**
@@ -2836,7 +2835,7 @@ export class BrowserManager {
     sessionId?: string
   ): string {
     const injectScriptPath = path.join(__dirname, 'recorder', 'inject.js');
-    let script = readFileSync(injectScriptPath, 'utf-8');
+    const script = readFileSync(injectScriptPath, 'utf-8');
     // 在脚本开头注入配置（使用 xyz 前缀）
     // 注意：xyzInjectedSessionId 必须在脚本开头设置，以便 inject.js 可以读取它
     // 使用 window.xyzInjectedSessionId = 'xxx' 的形式，让 inject.js 可以读取
@@ -2942,7 +2941,7 @@ export class BrowserManager {
                 .catch(() => {});
             }
           }
-        } catch (e) {}
+        } catch (e) {/* empty */}
         return true;
       });
     } catch (e) {
@@ -2961,7 +2960,7 @@ export class BrowserManager {
         // 设置当前会话 ID
         (window as unknown as Record<string, unknown>).xyzSessionId = sessionId;
       }, this.recorderSessionId);
-    } catch (e) {}
+    } catch (e) {/* empty */}
 
     // 设置录制会话激活标志（用于新页面）
     // 注意：addInitScript 执行顺序是后添加的先执行
@@ -3007,7 +3006,7 @@ export class BrowserManager {
           window.xyzQueue = [];
         }
       `);
-    } catch (e) {}
+    } catch (e) {/* empty */}
 
     // 在当前页面注入录制器脚本
     // 注意：这里需要手动注入，因为 addInitScript 只对新页面生效
@@ -3021,7 +3020,7 @@ export class BrowserManager {
           script.type = 'text/javascript';
           (document.head || document.documentElement).appendChild(script);
         }, injectScript);
-      } catch (e2) {}
+      } catch (e2) {/* empty */}
     }
 
     // 处理导航事件（用于记录 back/forward）
@@ -3666,7 +3665,7 @@ export class BrowserManager {
     if (this.wsListener) {
       try {
         page?.off('websocket', this.wsListener);
-      } catch {}
+      } catch {/* empty */}
       this.wsListener = null;
     }
     this.isWebSocketTrackingEnabled = false;

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
 import { BrowserManager } from '../../browser.js';
-import { executeCommand } from '../../actions.js';
+import { executeCommand } from '../../actions/index.js';
 import { parseCliArgs } from '../utils/parseCli';
 import { getFixturePath } from './utils/test-helpers';
 import { isSuccessResponse } from '../../types.js';
@@ -28,7 +28,7 @@ describe('Recorder Comprehensive E2E Test', () => {
     if (recordedYamlPath && fs.existsSync(recordedYamlPath)) {
       try {
         fs.unlinkSync(recordedYamlPath);
-      } catch {}
+      } catch {/* empty */}
     }
     await browser.close();
   });
@@ -175,7 +175,7 @@ describe('Recorder Comprehensive E2E Test', () => {
     if (recentPath && fs.existsSync(recentPath)) {
       try {
         fs.unlinkSync(recentPath);
-      } catch {}
+      } catch {/* empty */}
     }
   }, 45000);
 });

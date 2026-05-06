@@ -12,6 +12,7 @@
       if (!_filter || url.indexOf(_filter) !== -1) {
         if (ct.indexOf('json') !== -1) {
           resp.clone().text().then(function(body) {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             try { _captured.push({ type:'fetch', url:url, status:resp.status, body:JSON.parse(body), ts:Date.now() }); } catch(e) { _captured.push({ type:'fetch', url:url, status:resp.status, body:body, ts:Date.now() }); }
           });
         } else if (ct.indexOf('text/event-stream') !== -1) {
@@ -38,13 +39,13 @@
     return origOpen.apply(this, arguments);
   };
   XMLHttpRequest.prototype.send = function() {
-    var self = this;
-    this.addEventListener('load', function() {
-      var url = self.__captureUrl || '';
+    this.addEventListener('load', () => {
+      var url = this.__captureUrl || '';
       if (!_filter || url.indexOf(_filter) !== -1) {
-        var body = self.responseText;
-        try { body = JSON.parse(body); } catch(e) {}
-        _captured.push({ type:'xhr', url:url, method:self.__captureMethod, status:self.status, body:body, ts:Date.now() });
+        var body = this.responseText;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        try { body = JSON.parse(body); } catch(e) { /* empty */ }
+        _captured.push({ type:'xhr', url:url, method:this.__captureMethod, status:this.status, body:body, ts:Date.now() });
       }
     });
     return origSend.apply(this, arguments);

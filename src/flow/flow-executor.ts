@@ -1,5 +1,5 @@
 import { BrowserManager } from '../browser.js';
-import { executeCommand } from '../actions.js';
+import { executeCommand } from '../actions/index.js';
 import { parseCliArgs } from '../__tests__/utils/parseCli.js';
 import { isSuccessResponse } from '../types.js';
 import { readFileSync } from 'fs';

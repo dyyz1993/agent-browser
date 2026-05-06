@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { handleAddInitScript } from '../actions.js';
+import { handleAddInitScript } from '../actions/index.js';
 import type { AddInitScriptCommand } from '../types.js';
 import type { BrowserManager } from '../browser.js';
 

@@ -3,7 +3,7 @@ import { BrowserManager } from '../../browser.js';
 import { getFixturePath, getChromiumExecutablePath } from './utils/test-helpers.js';
 import type { CDPSession } from 'playwright-core';
 
-const EXECUTABLE_PATH = getChromiumExecutablePath();
+const EXECUTABLE_PATH = await getChromiumExecutablePath();
 
 describe('Mobile Touch Events - E2E Tests', () => {
   let browser: BrowserManager;

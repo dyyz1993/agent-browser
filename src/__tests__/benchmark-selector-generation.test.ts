@@ -57,18 +57,17 @@ class MockElement implements Element {
       child.parentElement = this;
     }
 
-    const self = this;
     this.children = {
-      length: self._children.length,
-      item(index: number): Element | null {
-        return self._children[index] || null;
+      length: this._children.length,
+      item: (index: number): Element | null => {
+        return this._children[index] || null;
       },
       [Symbol.iterator](): Iterator<Element> {
         let i = 0;
         return {
-          next(): IteratorResult<Element> {
-            if (i < self._children.length) {
-              return { value: self._children[i++], done: false };
+          next: (): IteratorResult<Element> => {
+            if (i < this._children.length) {
+              return { value: this._children[i++], done: false };
             }
             return { value: undefined as unknown, done: true };
           },

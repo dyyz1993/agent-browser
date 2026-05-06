@@ -6,6 +6,7 @@
   const MAX_TRAJECTORY_POINTS = 10;
   const SCROLL_THRESHOLD = 50;
   const HIGHLIGHT_THROTTLE = 100;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const TOOLBAR_HIDE_DELAY = 500;
   const CACHE_TTL = 100;
 
@@ -217,12 +218,14 @@
         if (typeof window[bindingName] === 'function') {
           try {
             window[bindingName](JSON.stringify(event.data.step));
-          } catch (e) {}
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          } catch(e) {}
         }
       } else {
         try {
           window.parent.postMessage({ type: MESSAGE_TYPE, step: event.data.step }, '*');
-        } catch (e) {}
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch(e) {}
       }
     }
   });
@@ -296,7 +299,8 @@
     if (isInIframe) {
       try {
         window.parent.postMessage({ type: MESSAGE_TYPE, step: step }, '*');
-      } catch (e) {}
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch(e) {}
     } else if (typeof window[bindingName] === 'function') {
       try {
         window[bindingName](JSON.stringify(step));
@@ -378,7 +382,8 @@
         document.evaluate('count(' + xpath + ')', document, null, XPathResult.NUMBER_TYPE, null)
           .numberValue === 1
       );
-    } catch (e) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch(e) {
       return false;
     }
   }
@@ -490,7 +495,8 @@
   function isUniqueSelector(selector) {
     try {
       return document.querySelectorAll(selector).length === 1;
-    } catch (e) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch(e) {
       return false;
     }
   }
@@ -671,6 +677,7 @@
   }
 
   // 策略4: 文本内容选择器
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   function getTextBasedSelector(element) {
     const text = element.innerText?.trim();
     if (!text || text.length > 30) return null;
@@ -683,6 +690,7 @@
     const escapedText = text.replace(/"/g, '\\"').slice(0, 20);
 
     // Playwright 风格的文本选择器
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const selector = tag + ':has-text("' + escapedText + '")';
     // 注意：这种选择器在 querySelectorAll 中不直接支持，仅作为备选记录
     return null; // 暂时返回 null，因为标准 CSS 不支持 :has-text
@@ -877,7 +885,8 @@
       const selector = '#' + CSS.escape(element.id);
       try {
         if (root.querySelectorAll(selector).length === 1) result = selector;
-      } catch (e) {}
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch(e) {}
     }
 
     // 策略2: 多属性组合选择器
@@ -911,7 +920,8 @@
       const uniqueSelector = makeUniqueWithNth(element, baseSelector);
       try {
         if (root.querySelectorAll(uniqueSelector).length === 1) result = uniqueSelector;
-      } catch (e) {}
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch(e) {}
     }
 
     // 策略8: 路径选择器（兜底）
@@ -948,7 +958,8 @@
       const sel = '#' + CSS.escape(element.id);
       try {
         if (document.querySelectorAll(sel).length === 1) tryCandidate(sel);
-      } catch (e) {}
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch(e) {}
     }
 
     tryCandidate(getMultiAttributeSelector(element));
@@ -961,7 +972,8 @@
     const nthSel = makeUniqueWithNth(element, base);
     try {
       if (document.querySelectorAll(nthSel).length === 1) tryCandidate(nthSel);
-    } catch (e) {}
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch(e) {}
 
     tryCandidate(buildUniquePath(element));
 
@@ -1005,7 +1017,8 @@
         const sel = current.tagName.toLowerCase() + '.' + CSS.escape(classes[0]);
         try {
           if (document.querySelectorAll(sel).length === 1) return sel;
-        } catch (e) {}
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch(e) {}
       }
       current = current.parentElement;
       depth++;
@@ -1108,7 +1121,8 @@
           try {
             const linkHost = new URL(href).host;
             isExternal = linkHost !== window.location.host;
-          } catch (e) {}
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          } catch(e) {}
         }
 
         recordStep('link_click', {
@@ -1367,16 +1381,16 @@
 
   // ============ UI 部分（仅在非隐藏模式下创建）============
   if (!isInIframe && !HIDE_UI) {
-    let _animationFrameId = null;
+    let animationFrameId = null;
     let _highlightRafId = null;
     let _pollInterval = null;
     let _checkPanelInterval = null;
 
     // 关闭面板函数（暴露给外部调用）
     window.xyzClose = function () {
-      if (_animationFrameId) {
-        cancelAnimationFrame(_animationFrameId);
-        _animationFrameId = null;
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
       }
 
       if (_highlightRafId) {
@@ -1422,16 +1436,24 @@
       return;
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     let uiElements = {};
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     let currentElement = null;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     let mouseX = 0,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       mouseY = 0,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       currentEdge = null;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const EDGE_THRESHOLD = 30;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     let animationFrameId = null;
     let highlightRafId = null;
     let pendingHighlightElement = null;
     let lastTrajectoryLength = 0;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     let currentStepIndex = -1;
     let currentStepId = null;
 
@@ -1658,7 +1680,8 @@
                 top: panel.style.top,
               })
             );
-          } catch (e) {}
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          } catch(e) {}
         }
       });
 
@@ -1673,7 +1696,8 @@
             panel.style.right = 'auto';
           }
         }
-      } catch (e) {}
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch(e) {}
 
       const markersContainer = document.createElement('div');
       markersContainer.className = 'xyzMk';
@@ -1849,7 +1873,8 @@
               window[window.xyzBindingName || 'xyzTrack'](
                 JSON.stringify({ action: 'xyzUpdate', id: stepId, data: { annotation } })
               );
-            } catch (e) {}
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            } catch(e) {}
           }
 
           updateUI();
@@ -1867,7 +1892,8 @@
               window[window.xyzBindingName || 'xyzTrack'](
                 JSON.stringify({ action: 'xyzDelete', id: stepId })
               );
-            } catch (e) {}
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            } catch(e) {}
           }
 
           currentStepIndex = -1;
@@ -1895,7 +1921,8 @@
         if (typeof window[window.xyzBindingName || 'xyzTrack'] === 'function') {
           try {
             window[window.xyzBindingName || 'xyzTrack'](JSON.stringify({ action: 'xyzClear' }));
-          } catch (e) {}
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          } catch(e) {}
         }
       });
 
@@ -1932,6 +1959,7 @@
         shadowBox.className = 'xyzSh' + (annotation ? ' ' + annotation.type : '');
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       function annotateElement(element, type) {
         if (!element) return;
         const selector = getSelector(element);
@@ -2116,6 +2144,7 @@
       }
 
       // 监听 document.body 的子元素变化
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       panelObserver = new MutationObserver((mutations) => {
         // 检查录制会话是否已停止
         if (window.xyzStopped) {

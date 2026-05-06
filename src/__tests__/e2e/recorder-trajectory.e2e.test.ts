@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { BrowserManager } from '../../browser.js';
-import { executeCommand } from '../../actions.js';
+import { executeCommand } from '../../actions/index.js';
 import { parseCliArgs } from '../utils/parseCli';
 import { getFixturePath } from './utils/test-helpers';
 import { isSuccessResponse } from '../../types.js';
@@ -127,7 +127,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
     if (recordedYamlPath && fs.existsSync(recordedYamlPath)) {
       try {
         fs.unlinkSync(recordedYamlPath);
-      } catch {}
+      } catch {/* empty */}
     }
     await browser.close();
   });
@@ -202,7 +202,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       if (yamlPath && fs.existsSync(yamlPath)) {
         try {
           fs.unlinkSync(yamlPath);
-        } catch {}
+        } catch {/* empty */}
       }
     }, 30000);
 
@@ -247,7 +247,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       if (yamlPath && fs.existsSync(yamlPath)) {
         try {
           fs.unlinkSync(yamlPath);
-        } catch {}
+        } catch {/* empty */}
       }
     }, 30000);
 
@@ -288,7 +288,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       if (yamlPath && fs.existsSync(yamlPath)) {
         try {
           fs.unlinkSync(yamlPath);
-        } catch {}
+        } catch {/* empty */}
       }
     }, 30000);
 
@@ -334,7 +334,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       if (yamlPath && fs.existsSync(yamlPath)) {
         try {
           fs.unlinkSync(yamlPath);
-        } catch {}
+        } catch {/* empty */}
       }
     }, 30000);
 
@@ -382,7 +382,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       if (yamlPath && fs.existsSync(yamlPath)) {
         try {
           fs.unlinkSync(yamlPath);
-        } catch {}
+        } catch {/* empty */}
       }
     }, 30000);
 
@@ -427,7 +427,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       if (yamlPath && fs.existsSync(yamlPath)) {
         try {
           fs.unlinkSync(yamlPath);
-        } catch {}
+        } catch {/* empty */}
       }
     }, 30000);
 
@@ -465,7 +465,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
         if (fs.existsSync(yamlPath)) {
           try {
             fs.unlinkSync(yamlPath);
-          } catch {}
+          } catch {/* empty */}
         }
       }
     }, 30000);
@@ -510,7 +510,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       if (yamlPath && fs.existsSync(yamlPath)) {
         try {
           fs.unlinkSync(yamlPath);
-        } catch {}
+        } catch {/* empty */}
       }
     }, 30000);
   });
@@ -555,7 +555,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       if (yamlPath && fs.existsSync(yamlPath)) {
         try {
           fs.unlinkSync(yamlPath);
-        } catch {}
+        } catch {/* empty */}
       }
     }, 30000);
 
@@ -598,7 +598,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       if (yamlPath && fs.existsSync(yamlPath)) {
         try {
           fs.unlinkSync(yamlPath);
-        } catch {}
+        } catch {/* empty */}
       }
     }, 30000);
 
@@ -637,7 +637,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       if (yamlPath && fs.existsSync(yamlPath)) {
         try {
           fs.unlinkSync(yamlPath);
-        } catch {}
+        } catch {/* empty */}
       }
     }, 30000);
 
@@ -678,7 +678,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       if (yamlPath && fs.existsSync(yamlPath)) {
         try {
           fs.unlinkSync(yamlPath);
-        } catch {}
+        } catch {/* empty */}
       }
     }, 30000);
 
@@ -730,7 +730,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       if (yamlPath && fs.existsSync(yamlPath)) {
         try {
           fs.unlinkSync(yamlPath);
-        } catch {}
+        } catch {/* empty */}
       }
     }, 30000);
 
@@ -780,7 +780,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       if (yamlPath && fs.existsSync(yamlPath)) {
         try {
           fs.unlinkSync(yamlPath);
-        } catch {}
+        } catch {/* empty */}
       }
     }, 30000);
 
@@ -814,7 +814,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       if (yamlPath && fs.existsSync(yamlPath)) {
         try {
           fs.unlinkSync(yamlPath);
-        } catch {}
+        } catch {/* empty */}
       }
     }, 30000);
 
@@ -848,7 +848,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       if (yamlPath && fs.existsSync(yamlPath)) {
         try {
           fs.unlinkSync(yamlPath);
-        } catch {}
+        } catch {/* empty */}
       }
     }, 30000);
 
@@ -897,7 +897,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       if (yamlPath && fs.existsSync(yamlPath)) {
         try {
           fs.unlinkSync(yamlPath);
-        } catch {}
+        } catch {/* empty */}
       }
     }, 30000);
   });
@@ -960,7 +960,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       if (yamlPath && fs.existsSync(yamlPath)) {
         try {
           fs.unlinkSync(yamlPath);
-        } catch {}
+        } catch {/* empty */}
       }
     }, 30000);
 
@@ -1017,7 +1017,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       if (yamlPath && fs.existsSync(yamlPath)) {
         try {
           fs.unlinkSync(yamlPath);
-        } catch {}
+        } catch {/* empty */}
       }
     }, 45000);
 
@@ -1054,7 +1054,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       if (yamlPath && fs.existsSync(yamlPath)) {
         try {
           fs.unlinkSync(yamlPath);
-        } catch {}
+        } catch {/* empty */}
       }
     }, 30000);
 
@@ -1227,7 +1227,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       if (yamlPath && fs.existsSync(yamlPath)) {
         try {
           fs.unlinkSync(yamlPath);
-        } catch {}
+        } catch {/* empty */}
       }
     }, 30000);
 
@@ -1280,7 +1280,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
         if (fs.existsSync(yamlPath)) {
           try {
             fs.unlinkSync(yamlPath);
-          } catch {}
+          } catch {/* empty */}
         }
       }
     }, 30000);

@@ -4,15 +4,15 @@ import { BrowserManager } from '../../../browser.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-export function getChromiumExecutablePath(): string | undefined {
+export async function getChromiumExecutablePath(): Promise<string | undefined> {
   if (process.env.AGENT_BROWSER_EXECUTABLE_PATH) {
     return process.env.AGENT_BROWSER_EXECUTABLE_PATH;
   }
   try {
-    const { chromium } = require('playwright-core') as typeof import('playwright-core');
+    const { chromium } = await import('playwright-core');
     const p = chromium.executablePath();
     if (p) return p;
-  } catch {}
+  } catch { /* empty */ }
   return undefined;
 }
 

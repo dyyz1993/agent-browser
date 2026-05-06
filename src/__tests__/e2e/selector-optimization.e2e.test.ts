@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { BrowserManager } from '../../browser.js';
-import { executeCommand } from '../../actions.js';
+import { executeCommand } from '../../actions/index.js';
 import { parseCliArgs } from '../utils/parseCli';
 import path from 'path';
 import fs from 'fs';
@@ -90,7 +90,7 @@ describe('选择器优化验证测试', () => {
       // 清理临时文件
       try {
         fs.unlinkSync(data.path);
-      } catch {}
+      } catch {/* empty */}
     }
   }, 30000);
 
@@ -122,7 +122,7 @@ describe('选择器优化验证测试', () => {
     try {
       await page.fill('#kw', 'test query');
       await page.waitForTimeout(200);
-    } catch (e) {}
+    } catch (e) {/* empty */}
 
     // 停止录制
     const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
@@ -137,7 +137,7 @@ describe('选择器优化验证测试', () => {
       // 清理临时文件
       try {
         fs.unlinkSync(data.path);
-      } catch {}
+      } catch {/* empty */}
     }
   }, 90000);
 

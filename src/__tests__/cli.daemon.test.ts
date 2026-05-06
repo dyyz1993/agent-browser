@@ -6,19 +6,20 @@ import * as os from 'os';
 
 const CLI_PATH = path.resolve(__dirname, '../cli.ts');
 
-function getChromiumPath(): string | undefined {
+async function getChromiumPath(): Promise<string | undefined> {
   if (process.env.AGENT_BROWSER_EXECUTABLE_PATH) {
     return process.env.AGENT_BROWSER_EXECUTABLE_PATH;
   }
   try {
-    const { chromium } = require('playwright-core') as typeof import('playwright-core');
+    const { chromium } = await import('playwright-core');
     return chromium.executablePath();
   } catch {
     return undefined;
   }
 }
 
-const CHROMIUM_PATH = getChromiumPath();
+let CHROMIUM_PATH: string | undefined;
+getChromiumPath().then((p) => { CHROMIUM_PATH = p; });
 
 function makeSession(): string {
   return `test-daemon-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;

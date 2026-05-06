@@ -5,7 +5,7 @@ import { StreamServer } from '../../stream-server.js';
 import { getViewerHtml } from '../../viewer-html.js';
 import { getFixturePath, getChromiumExecutablePath } from './utils/test-helpers.js';
 
-const EXEC = getChromiumExecutablePath();
+const EXEC = await getChromiumExecutablePath();
 
 describe('Virtual Touchpad - Touch -> Mouse -> WebSocket Pipeline', () => {
   let browser: BrowserManager;
@@ -60,7 +60,7 @@ describe('Virtual Touchpad - Touch -> Mouse -> WebSocket Pipeline', () => {
           ((window as Record<string, unknown>).__wsMsgs as unknown[]).push(
             JSON.parse(data as string)
           );
-        } catch {}
+        } catch {/* empty */}
         return orig.call(this, data);
       };
     });

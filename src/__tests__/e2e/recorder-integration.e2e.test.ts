@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { BrowserManager } from '../../browser.js';
-import { executeCommand } from '../../actions.js';
+import { executeCommand } from '../../actions/index.js';
 import { parseCliArgs } from '../utils/parseCli';
 import { getFixturePath } from './utils/test-helpers';
 import { isSuccessResponse } from '../../types.js';
@@ -82,7 +82,7 @@ describe('Recorder Integration E2E Test', { sequential: true }, () => {
       for (const file of files) {
         try {
           fs.unlinkSync(path.join(recordingsDir, file));
-        } catch {}
+        } catch {/* empty */}
       }
     }
 
@@ -225,7 +225,7 @@ describe('Recorder Integration E2E Test', { sequential: true }, () => {
     if (yamlPath && fs.existsSync(yamlPath)) {
       try {
         fs.unlinkSync(yamlPath);
-      } catch {}
+      } catch {/* empty */}
     }
     console.log('[Test 1] Test completed successfully');
   }, 60000);
@@ -304,7 +304,7 @@ describe('Recorder Integration E2E Test', { sequential: true }, () => {
     if (yamlPath && fs.existsSync(yamlPath)) {
       try {
         fs.unlinkSync(yamlPath);
-      } catch {}
+      } catch {/* empty */}
     }
     console.log('[Test 2] Test completed successfully');
   }, 45000);
@@ -416,7 +416,7 @@ describe('Recorder Integration E2E Test', { sequential: true }, () => {
       if (yamlPath && fs.existsSync(yamlPath)) {
         try {
           fs.unlinkSync(yamlPath);
-        } catch {}
+        } catch {/* empty */}
       }
     }
   }, 60000);
@@ -519,12 +519,12 @@ describe('Recorder Integration E2E Test', { sequential: true }, () => {
       if (yamlPath && fs.existsSync(yamlPath)) {
         try {
           fs.unlinkSync(yamlPath);
-        } catch {}
+        } catch {/* empty */}
       }
       if (modifiedYamlPath && fs.existsSync(modifiedYamlPath)) {
         try {
           fs.unlinkSync(modifiedYamlPath);
-        } catch {}
+        } catch {/* empty */}
       }
     }
   }, 60000);
@@ -610,12 +610,12 @@ describe('Recorder Integration E2E Test', { sequential: true }, () => {
     if (yamlPath && fs.existsSync(yamlPath)) {
       try {
         fs.unlinkSync(yamlPath);
-      } catch {}
+      } catch {/* empty */}
     }
     if (persistedPath && fs.existsSync(persistedPath)) {
       try {
         fs.unlinkSync(persistedPath);
-      } catch {}
+      } catch {/* empty */}
     }
     console.log('[Test 5] Test completed successfully');
   }, 45000);
@@ -733,7 +733,7 @@ describe('Recorder Integration E2E Test', { sequential: true }, () => {
     if (yamlPath && fs.existsSync(yamlPath)) {
       try {
         fs.unlinkSync(yamlPath);
-      } catch {}
+      } catch {/* empty */}
     }
     console.log('[Test 6] Test completed successfully');
   }, 60000);

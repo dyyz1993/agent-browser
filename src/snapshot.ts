@@ -326,7 +326,7 @@ async function findCursorInteractiveElements(
     return results;
   }`;
 
-  // eslint-disable-next-line @typescript-eslint/no-implied-eval
+   
   const fn = new Function('return ' + scriptBody)();
   return page.evaluate(fn, rootSelector);
 }

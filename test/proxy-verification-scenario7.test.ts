@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { BrowserManager } from '../src/browser.js';
 import { parseCliArgs } from '../src/__tests__/utils/parseCli.js';
-import { executeCommand } from '../src/actions.js';
+import { executeCommand } from '../src/actions/index.js';
 import * as http from 'http';
 import * as net from 'net';
 import * as url from 'url';

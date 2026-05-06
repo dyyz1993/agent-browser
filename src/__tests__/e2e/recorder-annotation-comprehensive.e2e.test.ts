@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { BrowserManager } from '../../browser.js';
-import { executeCommand } from '../../actions.js';
+import { executeCommand } from '../../actions/index.js';
 import { parseCliArgs } from '../utils/parseCli';
 import { getFixturePath } from './utils/test-helpers';
 import type { RecorderStartData } from '../../types.js';
@@ -208,7 +208,7 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
 
     try {
       fs.unlinkSync(data.path);
-    } catch {}
+    } catch {/* empty */}
   });
 
   it('should add data_container type annotation', async () => {
@@ -280,7 +280,7 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
 
     try {
       fs.unlinkSync(data.path);
-    } catch {}
+    } catch {/* empty */}
   });
 
   it('should add data_item type annotation', async () => {
@@ -351,7 +351,7 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
 
     try {
       fs.unlinkSync(data.path);
-    } catch {}
+    } catch {/* empty */}
   });
 
   it('should add pagination type annotation', async () => {
@@ -423,7 +423,7 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
 
     try {
       fs.unlinkSync(data.path);
-    } catch {}
+    } catch {/* empty */}
   });
 
   it('should add login_check type annotation', async () => {
@@ -493,7 +493,7 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
 
     try {
       fs.unlinkSync(data.path);
-    } catch {}
+    } catch {/* empty */}
   });
 
   it('should add checkpoint type annotation', async () => {
@@ -558,7 +558,7 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
 
     try {
       fs.unlinkSync(data.path);
-    } catch {}
+    } catch {/* empty */}
   });
 
   it('should add custom type annotation', async () => {
@@ -623,7 +623,7 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
 
     try {
       fs.unlinkSync(data.path);
-    } catch {}
+    } catch {/* empty */}
   });
 
   it('should verify time format is HH:MM:SS', async () => {
@@ -681,7 +681,7 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
 
     try {
       fs.unlinkSync(data.path);
-    } catch {}
+    } catch {/* empty */}
   });
 
   it('should maintain annotation independence across multiple steps', async () => {
@@ -786,7 +786,7 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
 
     try {
       fs.unlinkSync(data.path);
-    } catch {}
+    } catch {/* empty */}
   });
 
   it('should persist annotation after YAML reload', async () => {
@@ -877,6 +877,6 @@ describe('Recorder Annotation Comprehensive E2E Test', () => {
 
     try {
       fs.unlinkSync(yamlPath);
-    } catch {}
+    } catch {/* empty */}
   });
 });

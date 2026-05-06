@@ -32,7 +32,7 @@ export class SiteManager {
       try {
         mkdirSync(home, { recursive: true });
         dirs.push(home);
-      } catch {}
+      } catch {/* empty */}
     }
 
     return dirs;
@@ -85,7 +85,7 @@ export class SiteManager {
     } finally {
       try {
         unlinkSync(tmpPath);
-      } catch {}
+      } catch {/* empty */}
     }
 
     const finalTargetDir = this.sitesDirs[0];
