@@ -6,7 +6,7 @@
  * This test will skip on non-Linux platforms.
  */
 import { describe, it, expect, afterAll } from 'vitest';
-import { BrowserManager } from '../src/browser.js';
+import { BrowserManager } from '../src/browser/index.js';
 import * as os from 'os';
 
 const isLinux = os.platform() === 'linux';

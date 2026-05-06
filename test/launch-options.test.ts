@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { BrowserManager } from '../src/browser.js';
+import { BrowserManager } from '../src/browser/index.js';
 
 describe('Launch Options', () => {
   let browser: BrowserManager;

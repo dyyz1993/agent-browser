@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { BrowserManager } from '../src/browser.js';
+import { BrowserManager } from '../src/browser/index.js';
 import type { LaunchCommand } from '../src/types.js';
 
 describe('Anti-Bot Detection - Real Website Tests', () => {

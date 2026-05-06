@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, beforeAll, afterAll } from 'vitest';
-import { BrowserManager } from '../src/browser.js';
+import { BrowserManager } from '../src/browser/index.js';
 import { writeFileSync, unlinkSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';

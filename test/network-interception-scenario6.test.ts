@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
-import { BrowserManager } from '../src/browser.js';
+import { BrowserManager } from '../src/browser/index.js';
 import { parseCliArgs } from '../src/__tests__/utils/parseCli.js';
 import { executeCommand } from '../src/actions/index.js';
 import * as http from 'http';
