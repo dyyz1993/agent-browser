@@ -1099,7 +1099,12 @@ async function handleScroll(command: ScrollCommand, browser: BrowserManager): Pr
       }
     }
 
-    await page.evaluate(`window.scrollBy(${deltaX}, ${deltaY})`);
+    const safeDeltaX = Number(deltaX) || 0;
+    const safeDeltaY = Number(deltaY) || 0;
+    await page.evaluate(({ dx, dy }) => window.scrollBy(dx, dy), {
+      dx: safeDeltaX,
+      dy: safeDeltaY,
+    });
   }
 
   return successResponse(command.id, { scrolled: true });

@@ -1012,6 +1012,7 @@ export class FlowExecutor {
   };
   var OrigES = window.EventSource;
   if (OrigES) {
+    var OrigESProto = OrigES.prototype;
     window.EventSource = function(url, config) {
       var es = new OrigES(url, config);
       if (!_filter || url.indexOf(_filter) !== -1) {
@@ -1021,7 +1022,7 @@ export class FlowExecutor {
       }
       return es;
     };
-    window.EventSource.prototype = OrigES.prototype;
+    window.EventSource.prototype = Object.create(OrigESProto);
     window.EventSource.prototype.constructor = window.EventSource;
     if (OrigES.CONNECTING !== undefined) window.EventSource.CONNECTING = OrigES.CONNECTING;
     if (OrigES.OPEN !== undefined) window.EventSource.OPEN = OrigES.OPEN;

@@ -94,12 +94,11 @@ export function getLastActivityAt(): number {
  * Uses a hash of the session name to get a consistent port
  */
 function getPortForSession(session: string): number {
-  let hash = 0;
+  let hash = 2166136261;
   for (let i = 0; i < session.length; i++) {
-    hash = (hash << 5) - hash + session.charCodeAt(i);
-    hash |= 0;
+    hash ^= session.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
   }
-  // Port range 49152-65535 (dynamic/private ports)
   return 49152 + (Math.abs(hash) % 16383);
 }
 

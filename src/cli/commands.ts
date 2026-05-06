@@ -831,10 +831,14 @@ export function parseCommand(args: string[], flags: Flags): Command {
         }
         case 'credentials':
         case 'auth': {
-          const username = rest[1];
-          const password = rest[2];
+          const username = rest[1] || process.env.AGENT_BROWSER_AUTH_USER;
+          const password = rest[2] || process.env.AGENT_BROWSER_AUTH_PASS;
           if (!username || !password)
-            error('Missing credentials', 'agent-browser set credentials <username> <password>');
+            error(
+              'Missing credentials',
+              'agent-browser set credentials <username> <password>\n' +
+                'Or set environment variables: AGENT_BROWSER_AUTH_USER, AGENT_BROWSER_AUTH_PASS'
+            );
           return { id, action: 'credentials', username, password };
         }
         case 'media': {

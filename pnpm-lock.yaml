@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  lodash: ^4.18.0
+
 importers:
 
   .:
@@ -1726,9 +1729,6 @@ packages:
   lodash.zip@4.2.0:
     resolution: {integrity: sha512-C7IOaBBK/0gMORRBd8OETNx3kmOkgIWIPvyDpZSCTwUrpYmgZwJkjZeOD8ww4xbOUOs4/attY+pciKvadNfFbg==}
 
-  lodash@4.17.21:
-    resolution: {integrity: sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==}
-
   lodash@4.18.1:
     resolution: {integrity: sha512-dMInicTPVE8d1e5otfwmmjlxkZoUpiVLwyeTdUsi/Caj/gfzzblBcCE5sRHV/AsjuCmxWrte2TNGSYuCeCq+0Q==}
 
@@ -2542,7 +2542,7 @@ snapshots:
   '@appium/logger@1.7.1':
     dependencies:
       console-control-strings: 1.1.0
-      lodash: 4.17.21
+      lodash: 4.18.1
       lru-cache: 10.4.3
       set-blocking: 2.0.0
 
@@ -4196,8 +4196,6 @@ snapshots:
   lodash.startcase@4.4.0: {}
 
   lodash.zip@4.2.0: {}
-
-  lodash@4.17.21: {}
 
   lodash@4.18.1: {}
 
