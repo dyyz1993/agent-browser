@@ -3,8 +3,7 @@ import type { Page } from 'playwright-core';
 import { BrowserManager } from '../browser.js';
 
 const executablePath =
-  process.env.AGENT_BROWSER_EXECUTABLE_PATH ||
-  '/Applications/Chromium.app/Contents/MacOS/Chromium';
+  process.env.AGENT_BROWSER_EXECUTABLE_PATH || '/Applications/Chromium.app/Contents/MacOS/Chromium';
 
 const injectScript = `
   (function() {
