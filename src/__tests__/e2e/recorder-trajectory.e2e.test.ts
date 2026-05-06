@@ -1238,18 +1238,14 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
 
       expect(result.success).toBe(true);
     }, 30000);
-  });
 
-  it('should handle concurrent trajectory recording', async () => {
-      // Start recording
+    it('should handle concurrent trajectory recording', async () => {
       const startResult = await executeCommand(parseCliArgs(['recorder', 'start']), browser);
       expect(isSuccessResponse(startResult)).toBe(true);
       await new Promise((resolve) => setTimeout(resolve, 500));
 
-      // Rapid concurrent-like operations
       const page = browser.getPage();
 
-      // Multiple quick movements
       const movements = Promise.all([
         page.mouse.move(100, 100),
         page.mouse.move(200, 200),
@@ -1262,7 +1258,6 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       await executeCommand(parseCliArgs(['click', '#btn1']), browser);
       await new Promise((resolve) => setTimeout(resolve, 400));
 
-      // Stop recording - should not crash
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
       await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
@@ -1272,10 +1267,8 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
         const yamlPath = data.path;
         const yaml = fs.readFileSync(yamlPath, 'utf-8');
 
-        // Should have valid YAML
         expect(yaml).toContain('session:');
 
-        // Clean up
         if (fs.existsSync(yamlPath)) {
           try {
             fs.unlinkSync(yamlPath);
