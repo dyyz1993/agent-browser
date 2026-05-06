@@ -389,9 +389,12 @@ export async function generateStableSelectors(
     try {
       let locator;
       if (data.name) {
-        locator = page.getByRole(data.role as any, { name: data.name, exact: true });
+        locator = page.getByRole(data.role as Parameters<typeof page.getByRole>[0], {
+          name: data.name,
+          exact: true,
+        });
       } else {
-        locator = page.getByRole(data.role as any);
+        locator = page.getByRole(data.role as Parameters<typeof page.getByRole>[0]);
       }
       if (data.nth !== undefined) {
         locator = locator.nth(data.nth);
@@ -449,9 +452,9 @@ export async function generateStableSelectors(
           }
 
           function filterUsefulClasses(element: Element): string[] {
-            if (!(element as any).className || typeof (element as any).className !== 'string')
-              return [];
-            return (element as any).className
+            const htmlEl = element as HTMLElement;
+            if (!htmlEl.className || typeof htmlEl.className !== 'string') return [];
+            return htmlEl.className
               .trim()
               .split(/\s+/)
               .filter((c: string) => {
@@ -463,8 +466,9 @@ export async function generateStableSelectors(
           }
 
           function tryIdSelector(element: Element): string | null {
-            if ((element as any).id) {
-              const sel = '#' + CSS.escape((element as any).id);
+            const htmlEl = element as HTMLElement;
+            if (htmlEl.id) {
+              const sel = '#' + CSS.escape(htmlEl.id);
               if (isUniqueSelector(sel)) return sel;
             }
             return null;
@@ -545,7 +549,8 @@ export async function generateStableSelectors(
 
           function getFeatureSelector(element: Element): string | null {
             if (!element || element === document.body) return null;
-            if ((element as any).id) return '#' + CSS.escape((element as any).id);
+            const htmlEl = element as HTMLElement;
+            if (htmlEl.id) return '#' + CSS.escape(htmlEl.id);
             for (const attr of ['data-testid', 'data-test', 'name', 'role', 'aria-label']) {
               const value = element.getAttribute(attr);
               if (value)
@@ -659,7 +664,8 @@ export async function generateStableSelectors(
           }
 
           function generateXPath(element: Element): string {
-            if ((element as any).id) return '//*[@id="' + (element as any).id + '"]';
+            const htmlEl = element as HTMLElement;
+            if (htmlEl.id) return '//*[@id="' + htmlEl.id + '"]';
             const testId = element.getAttribute('data-testid');
             if (testId) return '//*[@data-testid="' + testId + '"]';
             const nameAttr = element.getAttribute('name');
@@ -669,8 +675,9 @@ export async function generateStableSelectors(
             let current: Element | null = element;
             let depth = 0;
             while (current && depth < 5) {
-              if ((current as any).id) {
-                parts.unshift('//*[@id="' + (current as any).id + '"]');
+              const curHtml = current as HTMLElement;
+              if (curHtml.id) {
+                parts.unshift('//*[@id="' + curHtml.id + '"]');
                 break;
               }
               const testId = current.getAttribute('data-testid');
@@ -842,9 +849,12 @@ async function buildCompactSelectors(
     try {
       let locator;
       if (data.name) {
-        locator = page.getByRole(data.role as any, { name: data.name, exact: true });
+        locator = page.getByRole(data.role as Parameters<typeof page.getByRole>[0], {
+          name: data.name,
+          exact: true,
+        });
       } else {
-        locator = page.getByRole(data.role as any);
+        locator = page.getByRole(data.role as Parameters<typeof page.getByRole>[0]);
       }
       if (data.nth !== undefined) locator = locator.nth(data.nth);
 
@@ -1185,7 +1195,9 @@ async function enrichRefsWithPathsAndAttrs(
   const injectScript = `
     window.__AGENT_BROWSER_REFS__ = ${JSON.stringify(refs)};
   `;
-  await (page as any).evaluate(injectScript);
+  if ('evaluate' in page) {
+    await page.evaluate(injectScript);
+  }
 
   // Evaluate the function in the browser context
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

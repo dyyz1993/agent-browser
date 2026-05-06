@@ -18,7 +18,10 @@ const jpg = (w: number, h: number) =>
 class Ipc {
   private sock: net.Socket;
   private buf = '';
-  private waiters: { p: (m: any) => boolean; r: (m: any) => void }[] = [];
+  private waiters: {
+    p: (m: Record<string, unknown>) => boolean;
+    r: (m: Record<string, unknown>) => void;
+  }[] = [];
   constructor(s: net.Socket) {
     this.sock = s;
     s.on('data', (d) => {
@@ -46,8 +49,8 @@ class Ipc {
   send(m: object) {
     this.sock.write(JSON.stringify(m) + '\n');
   }
-  wait(p: (m: any) => boolean, ms = 5000) {
-    return new Promise<any>((ok, f) => {
+  wait(p: (m: Record<string, unknown>) => boolean, ms = 5000) {
+    return new Promise<Record<string, unknown>>((ok, f) => {
       const t = setTimeout(() => {
         this.waiters = this.waiters.filter((w) => w.r !== ok);
         f(new Error('ipc timeout'));
@@ -68,9 +71,12 @@ class Ipc {
 
 class Ws {
   private ws: WebSocket;
-  private texts: any[] = [];
+  private texts: Record<string, unknown>[] = [];
   private bins: Buffer[] = [];
-  private tWaiters: { p: (m: any) => boolean; r: (m: any) => void }[] = [];
+  private tWaiters: {
+    p: (m: Record<string, unknown>) => boolean;
+    r: (m: Record<string, unknown>) => void;
+  }[] = [];
   private bWaiters: { r: (b: Buffer) => void }[] = [];
   constructor(url: string) {
     this.ws = new WebSocket(url);
@@ -90,7 +96,7 @@ class Ws {
         isBinary = true;
       }
 
-      let parsed: any = null;
+      let parsed: Record<string, unknown> | null = null;
       if (!isBinary) {
         try {
           parsed = JSON.parse(buf.toString('utf8'));
@@ -121,11 +127,11 @@ class Ws {
   open() {
     return new Promise<void>((r) => this.ws.on('open', () => r()));
   }
-  text(p: (m: any) => boolean, ms = 5000) {
+  text(p: (m: Record<string, unknown>) => boolean, ms = 5000) {
     for (let i = 0; i < this.texts.length; i++) {
       if (p(this.texts[i])) return Promise.resolve(this.texts.splice(i, 1)[0]);
     }
-    return new Promise<any>((ok, f) => {
+    return new Promise<Record<string, unknown>>((ok, f) => {
       const t = setTimeout(() => {
         this.tWaiters = this.tWaiters.filter((w) => w.r !== ok);
         f(new Error('text timeout'));
@@ -192,7 +198,7 @@ async function main() {
     await ws.open();
     await ipc.wait((m) => m.type === 'request_element_box');
     ipc.send({ type: 'selector_element', session: SESSION, selector: sel, elementBox: box });
-    await ws.text((m) => m.type === 'status' && m.element);
+    await ws.text((m) => m.type === 'status' && !!m.element);
 
     const fb = await jpg(768, 480);
     ipc.send({
@@ -216,7 +222,7 @@ async function main() {
     const hdr = await ws.text((m) => m.type === 'frame', 10000);
     const img = await ws.bin(10000);
     const info = await sharp(img).metadata();
-    const el = hdr.metadata?.element;
+    const el = (hdr.metadata as Record<string, unknown> | undefined)?.element;
     console.log(`  image: ${info.width}x${info.height}, element: ${el ? 'present' : 'MISSING'}`);
     const expW = 374,
       expH = 233;
@@ -229,8 +235,8 @@ async function main() {
     }
     ws.close();
     await sleep(300);
-  } catch (e: any) {
-    console.log('  FAIL:', e.message);
+  } catch (e: unknown) {
+    console.log('  FAIL:', e instanceof Error ? e.message : String(e));
     F++;
   }
 
@@ -245,7 +251,7 @@ async function main() {
     await ws.open();
     await ipc.wait((m) => m.type === 'request_element_box' && m.selector === sel);
     ipc.send({ type: 'selector_element', session: SESSION, selector: sel, elementBox: box });
-    await ws.text((m) => m.type === 'status' && m.element, 10000);
+    await ws.text((m) => m.type === 'status' && !!m.element, 10000);
 
     // drain cached frame header + binary from previous test's latestFrame
     await sleep(100);
@@ -282,8 +288,8 @@ async function main() {
     }
     ws.close();
     await sleep(300);
-  } catch (e: any) {
-    console.log('  FAIL:', e.message);
+  } catch (e: unknown) {
+    console.log('  FAIL:', e instanceof Error ? e.message : String(e));
     F++;
   }
 
@@ -327,8 +333,8 @@ async function main() {
     }
     ws.close();
     await sleep(300);
-  } catch (e: any) {
-    console.log('  FAIL:', e.message);
+  } catch (e: unknown) {
+    console.log('  FAIL:', e instanceof Error ? e.message : String(e));
     F++;
   }
 

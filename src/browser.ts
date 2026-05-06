@@ -101,6 +101,45 @@ interface TrackedWSFrame {
   opcode?: number;
 }
 
+interface RecorderStep {
+  id?: string;
+  timestamp?: number;
+  action?: string;
+  index?: number;
+  key?: string;
+  code?: string;
+  ctrlKey?: boolean;
+  metaKey?: boolean;
+  altKey?: boolean;
+  shiftKey?: boolean;
+  selector?: string;
+  value?: string;
+  text?: string;
+  xpath?: string;
+  x?: number;
+  y?: number;
+  from?: string | { width: number; height: number };
+  to?: string | { width: number; height: number };
+  points?: Array<Record<string, number>>;
+  url?: string;
+  annotation?: {
+    type?: string;
+    label?: string;
+    selector?: string;
+    itemSelector?: string;
+    nextSelector?: string;
+    fields?: string[];
+    waitTimeout?: number;
+    customNote?: string;
+  };
+}
+
+interface RecorderPage {
+  url: string;
+  title: string;
+  firstVisitTime: number;
+}
+
 /**
  * Manages the Playwright browser lifecycle with multiple tabs/windows
  */
@@ -157,7 +196,7 @@ export class BrowserManager {
   private screencastShouldBeActive: boolean = false;
   private screencastSessionId: number = 0;
   private frameCallback: ((frame: ScreencastFrame) => void) | null = null;
-  private screencastFrameHandler: ((params: any) => void) | null = null;
+  private screencastFrameHandler: ((params: Record<string, unknown>) => void) | null = null;
   private lastScreencastOptions: ScreencastOptions | null = null;
 
   // Video recording (Playwright native)
@@ -170,8 +209,8 @@ export class BrowserManager {
   private recorderSessionId: string | null = null;
   private recorderBindingName: string | null = null; // 唯一绑定名称，避免 Playwright 绑定冲突
   private recorderStartTime: number = 0;
-  private recorderSteps: any[] = [];
-  private recorderPages: any[] = [];
+  private recorderSteps: RecorderStep[] = [];
+  private recorderPages: RecorderPage[] = [];
   private recorderPageHandler: ((newPage: Page) => Promise<void>) | null = null;
   private navigationHistory: string[] = [];
   private navigationHistoryIndex: number = -1;
@@ -206,7 +245,7 @@ export class BrowserManager {
     all?: boolean;
   }): Promise<EnhancedSnapshot & { snapshotId?: string }> {
     const frame = options?.framePath ? this.getFrame(options.framePath) : this.getFrame();
-    const snapshot = await getEnhancedSnapshot(frame as any, options);
+    const snapshot = await getEnhancedSnapshot(frame, options);
     this.refMap = snapshot.refs;
     this.lastSnapshot = snapshot.tree;
 
@@ -259,7 +298,7 @@ export class BrowserManager {
     const frame = entry.framePath ? this.getFrame(entry.framePath) : this.getFrame();
     let stableSelectors: Record<string, { cssSelector: string; xpath: string }> = {};
     try {
-      stableSelectors = await generateStableSelectors(frame as any, refs);
+      stableSelectors = await generateStableSelectors(frame, refs);
     } catch {}
 
     for (const [ref, sel] of Object.entries(stableSelectors)) {
@@ -333,9 +372,12 @@ export class BrowserManager {
 
     let locator: Locator;
     if (refData.name) {
-      locator = frame.getByRole(refData.role as any, { name: refData.name, exact: true });
+      locator = frame.getByRole(refData.role as Parameters<typeof frame.getByRole>[0], {
+        name: refData.name,
+        exact: true,
+      });
     } else {
-      locator = frame.getByRole(refData.role as any);
+      locator = frame.getByRole(refData.role as Parameters<typeof frame.getByRole>[0]);
     }
 
     if (refData.nth !== undefined) {
@@ -1684,8 +1726,8 @@ export class BrowserManager {
     // Add anti-bot detection evasion script
     await context.addInitScript(() => {
       // 1. Simulate window.chrome object
-      if (!(window as any).chrome) {
-        (window as any).chrome = {
+      if (!(window as unknown as Record<string, unknown>).chrome) {
+        (window as unknown as Record<string, unknown>).chrome = {
           runtime: {},
           loadTimes: function () {},
           csi: function () {},
@@ -2158,14 +2200,14 @@ export class BrowserManager {
     this.screencastShouldBeActive = true;
     this.lastScreencastOptions = options ?? null;
 
-    this.screencastFrameHandler = async (params: any) => {
+    this.screencastFrameHandler = async (params: Record<string, unknown>) => {
       const frame: ScreencastFrame = {
-        data: params.data,
-        metadata: params.metadata,
-        sessionId: params.sessionId,
+        data: params.data as string,
+        metadata: params.metadata as ScreencastFrame['metadata'],
+        sessionId: params.sessionId as number,
       };
 
-      await cdp.send('Page.screencastFrameAck', { sessionId: params.sessionId });
+      await cdp.send('Page.screencastFrameAck', { sessionId: params.sessionId as number });
 
       if (this.frameCallback) {
         this.frameCallback(frame);
@@ -2504,9 +2546,9 @@ export class BrowserManager {
     try {
       // 先重置状态标志
       await page.evaluate(() => {
-        (window as any).xyzActive = true;
-        (window as any).xyzStopped = false;
-        (window as any).xyzInited = false;
+        (window as unknown as Record<string, unknown>).xyzActive = true;
+        (window as unknown as Record<string, unknown>).xyzStopped = false;
+        (window as unknown as Record<string, unknown>).xyzInited = false;
       });
 
       const injectScript = this.getRecorderInjectScript(
@@ -2554,7 +2596,7 @@ export class BrowserManager {
       this.recorderSteps.push({
         id: `step-${Date.now()}`,
         timestamp: Date.now(),
-        action: step.action as any,
+        action: step.action,
         index: step.index,
         key: step.key,
         code: step.code,
@@ -2863,7 +2905,7 @@ export class BrowserManager {
             if (step.action === 'xyzPoll') {
               await targetPage
                 ?.evaluate((steps) => {
-                  (window as any).xyzQueue = steps;
+                  (window as unknown as Record<string, unknown>).xyzQueue = steps;
                   window.dispatchEvent(new CustomEvent('xyzEvt', { detail: steps }));
                 }, this.recorderSteps)
                 .catch(() => {});
@@ -2883,7 +2925,7 @@ export class BrowserManager {
                   // Sync the updated steps back to the frontend
                   await targetPage
                     ?.evaluate((steps) => {
-                      (window as any).xyzQueue = steps;
+                      (window as unknown as Record<string, unknown>).xyzQueue = steps;
                       window.dispatchEvent(new CustomEvent('xyzEvt', { detail: steps }));
                     }, this.recorderSteps)
                     .catch(() => {});
@@ -2894,7 +2936,7 @@ export class BrowserManager {
               this.recorderSteps.push(step);
               await targetPage
                 ?.evaluate((steps) => {
-                  (window as any).xyzQueue = steps;
+                  (window as unknown as Record<string, unknown>).xyzQueue = steps;
                   window.dispatchEvent(new CustomEvent('xyzEvt', { detail: steps }));
                 }, this.recorderSteps)
                 .catch(() => {});
@@ -2911,13 +2953,13 @@ export class BrowserManager {
     // 使用 xyz 前缀
     try {
       await page.evaluate((sessionId) => {
-        (window as any).xyzActive = true;
+        (window as unknown as Record<string, unknown>).xyzActive = true;
         // 清除停止标志（允许重新开始录制）
-        (window as any).xyzStopped = false;
+        (window as unknown as Record<string, unknown>).xyzStopped = false;
         // 清除已初始化标志（允许重新注入脚本）
-        (window as any).xyzInited = false;
+        (window as unknown as Record<string, unknown>).xyzInited = false;
         // 设置当前会话 ID
-        (window as any).xyzSessionId = sessionId;
+        (window as unknown as Record<string, unknown>).xyzSessionId = sessionId;
       }, this.recorderSessionId);
     } catch (e) {}
 
@@ -3049,7 +3091,7 @@ export class BrowserManager {
         // 检查是否已经注入过
         const alreadyInjected = await frame
           .evaluate(() => {
-            return !!(window as any).xyzInjectedSessionId;
+            return !!(window as unknown as Record<string, unknown>).xyzInjectedSessionId;
           })
           .catch(() => false);
 
@@ -3098,7 +3140,7 @@ export class BrowserManager {
         const pageIndex = this.getPageIndex(newPage);
         const newTabIndex = pageIndex >= 0 ? pageIndex : this.pages.length;
         this.recorderSteps.push({
-          id: this.recorderSteps.length + 1,
+          id: `step-${this.recorderSteps.length + 1}`,
           timestamp: Date.now(),
           action: 'tab_new',
           url: newPage.url(),
@@ -3108,7 +3150,7 @@ export class BrowserManager {
         setTimeout(() => {
           if (this.recorderSessionId && this.activePageIndex !== previousActiveIndex) {
             this.recorderSteps.push({
-              id: this.recorderSteps.length + 1,
+              id: `step-${this.recorderSteps.length + 1}`,
               timestamp: Date.now(),
               action: 'tab_switch',
               index: this.activePageIndex,
@@ -3120,7 +3162,7 @@ export class BrowserManager {
           if (this.recorderSessionId) {
             const closeIndex = this.getPageIndex(newPage);
             this.recorderSteps.push({
-              id: this.recorderSteps.length + 1,
+              id: `step-${this.recorderSteps.length + 1}`,
               timestamp: Date.now(),
               action: 'tab_close',
               index: closeIndex >= 0 ? closeIndex : -1,
@@ -3144,7 +3186,7 @@ export class BrowserManager {
 
         await newPage
           .evaluate((steps) => {
-            (window as any).__recorderSteps = steps;
+            (window as unknown as Record<string, unknown>).__recorderSteps = steps;
             window.dispatchEvent(new CustomEvent('recorder:steps', { detail: steps }));
           }, this.recorderSteps)
           .catch(() => {});
@@ -3183,7 +3225,7 @@ export class BrowserManager {
     if (page) {
       try {
         const result = await page.evaluate(() => {
-          const win = window as any;
+          const win = window as unknown as Record<string, unknown>;
           // 先检查是否有待处理的 fill，在设置 xyzStopped 之前调用
           const hasPanel = !!document.getElementById('xyzPnl');
           const hasCloseFunc = typeof win.xyzClose === 'function';
@@ -3197,27 +3239,20 @@ export class BrowserManager {
             hasPanel
           );
 
-          // 重要：先调用 xyzFlushPending，再设置 xyzStopped
-          // 因为 recordStep 会检查 xyzStopped，如果为 true 就不记录
           if (hasFlushFunc) {
             console.log('[stopRecorder] Calling xyzFlushPending');
-            win.xyzFlushPending();
+            (win.xyzFlushPending as () => void)();
           } else {
             console.log('[stopRecorder] xyzFlushPending not found');
           }
 
-          // 然后再设置停止标志
           win.xyzActive = false;
           win.xyzStopped = true;
-          // 重置初始化标志，允许新的录制会话重新初始化
           win.xyzInited = false;
           win.xyzInitializedSessionId = undefined;
-          // 注意：不要清除 xyzSessionId，因为旧的监听器需要用它来检查是否应该跳过
-          // 新的录制会话会设置新的 xyzSessionId，旧的监听器会检测到时间戳更新并跳过
-          // win.xyzSessionId = undefined;
 
           if (hasCloseFunc) {
-            win.xyzClose();
+            (win.xyzClose as () => void)();
           }
 
           return {
@@ -3299,7 +3334,7 @@ export class BrowserManager {
       for (const page of this.recorderPages) {
         lines.push(`  - url: ${page.url}`);
         lines.push(`    title: ${page.title || 'N/A'}`);
-        lines.push(`    firstVisitTime: ${formatTime(page.firstVisitTime)}`);
+        lines.push(`    firstVisitTime: ${formatTime(page.firstVisitTime as number)}`);
       }
       lines.push('');
     }
@@ -3319,7 +3354,7 @@ export class BrowserManager {
     lines.push('steps:');
     for (const step of this.recorderSteps) {
       lines.push(`  - id: ${step.id}`);
-      lines.push(`    time: ${formatTime(step.timestamp)}`);
+      lines.push(`    time: ${formatTime(step.timestamp as number)}`);
       lines.push(`    action: ${step.action}`);
       if (step.selector) lines.push(`    selector: "${step.selector}"`);
       if (step.xpath) lines.push(`    xpath: "${step.xpath}"`);
@@ -3339,12 +3374,12 @@ export class BrowserManager {
       if (step.y !== undefined) lines.push(`    y: ${step.y}`);
       if (step.from && typeof step.from === 'string') {
         lines.push(`    from: "${step.from}"`);
-      } else if (step.from) {
+      } else if (step.from && typeof step.from === 'object') {
         lines.push(`    from: { width: ${step.from.width}, height: ${step.from.height} }`);
       }
       if (step.to && typeof step.to === 'string') {
         lines.push(`    to: "${step.to}"`);
-      } else if (step.to) {
+      } else if (step.to && typeof step.to === 'object') {
         lines.push(`    to: { width: ${step.to.width}, height: ${step.to.height} }`);
       }
 
@@ -3381,7 +3416,7 @@ export class BrowserManager {
       }
 
       // 只在特定操作类型时携带 URL
-      if (step.url && urlRequiredActions.includes(step.action)) {
+      if (step.url && step.action && urlRequiredActions.includes(step.action)) {
         lines.push(`    url: "${step.url}"`);
       }
 
@@ -3422,18 +3457,19 @@ export class BrowserManager {
   /**
    * Generate CLI command for a single recorder step
    */
-  private generateStepCliCommand(step: any): string | null {
+  private generateStepCliCommand(step: RecorderStep): string | null {
     const escapeShell = (str: string): string => {
       return str.replace(/"/g, '\\"').replace(/\$/g, '\\$').replace(/`/g, '\\`');
     };
 
-    const formatKeyCombo = (s: any): string => {
+    const formatKeyCombo = (s: RecorderStep): string => {
       const parts: string[] = [];
       if (s.ctrlKey) parts.push('Control');
       if (s.metaKey) parts.push('Meta');
       if (s.altKey) parts.push('Alt');
       if (
         s.shiftKey &&
+        s.key &&
         !['Shift', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(s.key)
       ) {
         parts.push('Shift');
@@ -3510,21 +3546,19 @@ export class BrowserManager {
         if (step.points && Array.isArray(step.points) && step.points.length > 0) {
           // 简化轨迹点，最多5个
           const maxPoints = 5;
-          let sampled: any[];
+          let sampled: Array<Record<string, number>>;
           if (step.points.length <= maxPoints) {
-            sampled = step.points;
+            sampled = step.points as Array<Record<string, number>>;
           } else {
-            // 均匀采样
             sampled = [];
             const step_size = (step.points.length - 1) / (maxPoints - 1);
             for (let i = 0; i < maxPoints; i++) {
               const idx = Math.round(i * step_size);
-              sampled.push(step.points[idx]);
+              sampled.push(step.points[idx] as Record<string, number>);
             }
           }
 
-          // 格式化为 x:y:delay 字符串
-          const segments = sampled.map((p: any, i: number) => {
+          const segments = sampled.map((p: Record<string, number>, i: number) => {
             const x = Math.round(p.x);
             const y = Math.round(p.y);
             const delay = i === 0 ? 0 : Math.round(p.t - sampled[i - 1].t);

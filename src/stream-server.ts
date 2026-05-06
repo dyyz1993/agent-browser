@@ -214,25 +214,28 @@ export class FrameProcessor {
 }
 
 function isPrivateIP(hostname: string): boolean {
-  if (
-    hostname === 'localhost' ||
-    hostname === '127.0.0.1' ||
-    hostname === '::1' ||
-    hostname === '[::1]'
-  ) {
-    return true;
-  }
+  // IPv4 check
   const parts = hostname.split('.').map(Number);
   if (parts.length === 4 && parts.every((p) => !isNaN(p))) {
     const [a, b] = parts;
     if (a === 10) return true;
     if (a === 172 && b >= 16 && b <= 31) return true;
     if (a === 192 && b === 168) return true;
+    if (a === 127) return true;
+    if (a === 0) return true;
   }
+
+  // IPv6 check
+  const lower = hostname.toLowerCase();
+  if (lower === '::1' || lower === '[::1]' || lower === '::' || lower === 'localhost') return true;
+  if (lower.startsWith('fc') || lower.startsWith('fd') || lower.startsWith('fe80')) return true;
+  if (hostname === 'localhost') return true;
+
   return false;
 }
 
 export function isAllowedOrigin(origin: string | undefined): boolean {
+  // CLI connections (no browser origin) are allowed — CLI clients don't send Origin headers
   if (!origin) {
     return true;
   }

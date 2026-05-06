@@ -1226,22 +1226,22 @@ export function parseCommand(args: string[], flags: Flags): Command {
               i++;
             }
           }
-          const cmd: Command = { id, action: 'flow' } as any;
-          (cmd as any).subcommand = 'run';
-          (cmd as any).siteFlow = siteFlow;
-          (cmd as any).params = params;
-          if (sitesDir) (cmd as any).sitesDir = sitesDir;
-          if (outputFormat) (cmd as any).outputFormat = outputFormat;
-          if (outputFile) (cmd as any).outputFile = outputFile;
+          const cmd: Command = { id, action: 'flow' };
+          cmd.subcommand = 'run';
+          cmd.siteFlow = siteFlow;
+          cmd.params = params;
+          if (sitesDir) cmd.sitesDir = sitesDir;
+          if (outputFormat) cmd.outputFormat = outputFormat;
+          if (outputFile) cmd.outputFile = outputFile;
           return cmd;
         }
         case 'list': {
-          const cmd: Command = { id, action: 'flow' } as any;
-          (cmd as any).subcommand = 'list';
-          (cmd as any).json = rest.includes('--json');
+          const cmd: Command = { id, action: 'flow' };
+          cmd.subcommand = 'list';
+          cmd.json = rest.includes('--json');
           const sitesDirIdx = rest.indexOf('--sites-dir');
           if (sitesDirIdx !== -1 && rest[sitesDirIdx + 1]) {
-            (cmd as any).sitesDir = rest[sitesDirIdx + 1];
+            cmd.sitesDir = rest[sitesDirIdx + 1];
           }
           return cmd;
         }
@@ -1249,33 +1249,33 @@ export function parseCommand(args: string[], flags: Flags): Command {
           const siteFlow = rest[1];
           if (!siteFlow)
             error('Missing site.flow reference', 'agent-browser flow show <site.flow>');
-          const cmd: Command = { id, action: 'flow' } as any;
-          (cmd as any).subcommand = 'show';
-          (cmd as any).siteFlow = siteFlow;
+          const cmd: Command = { id, action: 'flow' };
+          cmd.subcommand = 'show';
+          cmd.siteFlow = siteFlow;
           const sitesDirIdx = rest.indexOf('--sites-dir');
           if (sitesDirIdx !== -1 && rest[sitesDirIdx + 1]) {
-            (cmd as any).sitesDir = rest[sitesDirIdx + 1];
+            cmd.sitesDir = rest[sitesDirIdx + 1];
           }
           return cmd;
         }
         case 'validate': {
           const filePath = rest[1];
           if (!filePath) error('Missing file path', 'agent-browser flow validate <file.yaml>');
-          const cmd: Command = { id, action: 'flow' } as any;
-          (cmd as any).subcommand = 'validate';
-          (cmd as any).filePath = filePath;
+          const cmd: Command = { id, action: 'flow' };
+          cmd.subcommand = 'validate';
+          cmd.filePath = filePath;
           return cmd;
         }
         case 'register': {
-          const cmd: Command = { id, action: 'flow' } as any;
-          (cmd as any).subcommand = 'register';
+          const cmd: Command = { id, action: 'flow' };
+          cmd.subcommand = 'register';
           const fileIdx = rest.indexOf('--file');
           const urlIdx = rest.indexOf('--url');
           const nameIdx = rest.indexOf('--name');
           if (fileIdx !== -1 && rest[fileIdx + 1]) {
-            (cmd as any).sourceFile = rest[fileIdx + 1];
+            cmd.sourceFile = rest[fileIdx + 1];
           } else if (urlIdx !== -1 && rest[urlIdx + 1]) {
-            (cmd as any).sourceUrl = rest[urlIdx + 1];
+            cmd.sourceUrl = rest[urlIdx + 1];
           } else {
             error(
               'Missing --file or --url',
@@ -1283,16 +1283,16 @@ export function parseCommand(args: string[], flags: Flags): Command {
             );
           }
           if (nameIdx !== -1 && rest[nameIdx + 1]) {
-            (cmd as any).siteName = rest[nameIdx + 1];
+            cmd.siteName = rest[nameIdx + 1];
           }
           return cmd;
         }
         case 'unregister': {
           const name = rest[1];
           if (!name) error('Missing site name', 'agent-browser flow unregister <name>');
-          const cmd: Command = { id, action: 'flow' } as any;
-          (cmd as any).subcommand = 'unregister';
-          (cmd as any).siteName = name;
+          const cmd: Command = { id, action: 'flow' };
+          cmd.subcommand = 'unregister';
+          cmd.siteName = name;
           return cmd;
         }
         case 'from-recorder': {
@@ -1302,23 +1302,22 @@ export function parseCommand(args: string[], flags: Flags): Command {
               'Missing recorder YAML file',
               'agent-browser flow from-recorder <recorder-yaml-file> [options]'
             );
-          const fromRecCmd: Command = { id, action: 'flow' } as any;
-          (fromRecCmd as any).subcommand = 'from-recorder';
-          (fromRecCmd as any).recorderFile = recorderFile;
+          const fromRecCmd: Command = { id, action: 'flow' };
+          fromRecCmd.subcommand = 'from-recorder';
+          fromRecCmd.recorderFile = recorderFile;
           const nameIdx = rest.indexOf('--name');
-          if (nameIdx !== -1 && rest[nameIdx + 1]) (fromRecCmd as any).siteName = rest[nameIdx + 1];
+          if (nameIdx !== -1 && rest[nameIdx + 1]) fromRecCmd.siteName = rest[nameIdx + 1];
           const flowIdx = rest.indexOf('--flow-id');
-          if (flowIdx !== -1 && rest[flowIdx + 1]) (fromRecCmd as any).flowId = rest[flowIdx + 1];
+          if (flowIdx !== -1 && rest[flowIdx + 1]) fromRecCmd.flowId = rest[flowIdx + 1];
           const baseIdx = rest.indexOf('--base-url');
-          if (baseIdx !== -1 && rest[baseIdx + 1]) (fromRecCmd as any).baseUrl = rest[baseIdx + 1];
+          if (baseIdx !== -1 && rest[baseIdx + 1]) fromRecCmd.baseUrl = rest[baseIdx + 1];
           const descIdx = rest.indexOf('--description');
-          if (descIdx !== -1 && rest[descIdx + 1])
-            (fromRecCmd as any).description = rest[descIdx + 1];
+          if (descIdx !== -1 && rest[descIdx + 1]) fromRecCmd.description = rest[descIdx + 1];
           const outIdx = rest.indexOf('--output');
-          if (outIdx !== -1 && rest[outIdx + 1]) (fromRecCmd as any).outputFile = rest[outIdx + 1];
+          if (outIdx !== -1 && rest[outIdx + 1]) fromRecCmd.outputFile = rest[outIdx + 1];
           const maxIdx = rest.indexOf('--max-pages');
           if (maxIdx !== -1 && rest[maxIdx + 1])
-            (fromRecCmd as any).maxPaginateIterations = parseInt(rest[maxIdx + 1], 10);
+            fromRecCmd.maxPaginateIterations = parseInt(rest[maxIdx + 1], 10);
           return fromRecCmd;
         }
         case 'export': {
@@ -1328,16 +1327,15 @@ export function parseCommand(args: string[], flags: Flags): Command {
           const formatIdx = rest.indexOf('--format');
           const format =
             formatIdx !== -1 && rest[formatIdx + 1] ? rest[formatIdx + 1] : 'playwright';
-          const cmd: Command = { id, action: 'flow' } as any;
-          (cmd as any).subcommand = 'export';
-          (cmd as any).filePath = filePath;
-          (cmd as any).format = format;
+          const cmd: Command = { id, action: 'flow' };
+          cmd.subcommand = 'export';
+          cmd.filePath = filePath;
+          cmd.format = format;
           const headlessIdx = rest.indexOf('--headless');
           if (headlessIdx !== -1 && rest[headlessIdx + 1])
-            (cmd as any).headless = rest[headlessIdx + 1] !== 'false';
+            cmd.headless = rest[headlessIdx + 1] !== 'false';
           const baseUrlIdx = rest.indexOf('--base-url');
-          if (baseUrlIdx !== -1 && rest[baseUrlIdx + 1])
-            (cmd as any).baseUrl = rest[baseUrlIdx + 1];
+          if (baseUrlIdx !== -1 && rest[baseUrlIdx + 1]) cmd.baseUrl = rest[baseUrlIdx + 1];
           return cmd;
         }
         default:

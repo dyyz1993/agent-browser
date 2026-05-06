@@ -4,7 +4,7 @@
  */
 
 import type { IOSManager } from './ios-manager.js';
-import type { Command, Response } from './types.js';
+import type { Command, LooseCommand, Response } from './types.js';
 
 function successResponse<T>(id: string, data: T): Response<T> {
   return { id, success: true, data };
@@ -14,19 +14,34 @@ function errorResponse(id: string, error: string): Response {
   return { id, success: false, error };
 }
 
-/**
- * Execute a command on the iOS manager
- */
+function getStr(command: Command, key: string): string {
+  return (command as unknown as LooseCommand)[key] as string;
+}
+
+function getOptStr(command: Command, key: string): string | undefined {
+  const val = (command as unknown as LooseCommand)[key];
+  return typeof val === 'string' ? val : undefined;
+}
+
+function getOptNum(command: Command, key: string): number | undefined {
+  const val = (command as unknown as LooseCommand)[key];
+  return typeof val === 'number' ? val : undefined;
+}
+
+function getOptBool(command: Command, key: string): boolean | undefined {
+  const val = (command as unknown as LooseCommand)[key];
+  return typeof val === 'boolean' ? val : undefined;
+}
+
 export async function executeIOSCommand(command: Command, manager: IOSManager): Promise<Response> {
   const { id, action } = command;
 
   try {
     switch (action) {
       case 'launch': {
-        const cmd = command as any;
         await manager.launch({
-          device: cmd.device,
-          udid: cmd.udid,
+          device: getOptStr(command, 'device'),
+          udid: getOptStr(command, 'udid'),
         });
         const info = manager.getDeviceInfo();
         return successResponse(id, {
@@ -37,128 +52,127 @@ export async function executeIOSCommand(command: Command, manager: IOSManager): 
       }
 
       case 'navigate': {
-        const cmd = command as any;
-        const result = await manager.navigate(cmd.url);
+        const result = await manager.navigate(getStr(command, 'url'));
         return successResponse(id, result);
       }
 
       case 'click': {
-        const cmd = command as any;
-        await manager.click(cmd.selector);
+        await manager.click(getStr(command, 'selector'));
         return successResponse(id, { clicked: true });
       }
 
       case 'tap': {
-        const cmd = command as any;
-        await manager.tap(cmd.selector);
+        await manager.tap(getStr(command, 'selector'));
         return successResponse(id, { tapped: true });
       }
 
       case 'type': {
-        const cmd = command as any;
-        await manager.type(cmd.selector, cmd.text, {
-          delay: cmd.delay,
-          clear: cmd.clear,
+        await manager.type(getStr(command, 'selector'), getStr(command, 'text'), {
+          delay: getOptNum(command, 'delay'),
+          clear: getOptBool(command, 'clear'),
         });
         return successResponse(id, { typed: true });
       }
 
       case 'fill': {
-        const cmd = command as any;
-        await manager.fill(cmd.selector, cmd.value);
+        await manager.fill(getStr(command, 'selector'), getStr(command, 'value'));
         return successResponse(id, { filled: true });
       }
 
       case 'screenshot': {
-        const cmd = command as any;
         const result = await manager.screenshot({
-          path: cmd.path,
-          fullPage: cmd.fullPage,
+          path: getOptStr(command, 'path'),
+          fullPage: getOptBool(command, 'fullPage'),
         });
         return successResponse(id, result);
       }
 
       case 'snapshot': {
-        const cmd = command as any;
         const result = await manager.getSnapshot({
-          interactive: cmd.interactive,
+          interactive: getOptBool(command, 'interactive'),
         });
         return successResponse(id, { snapshot: result.tree, refs: result.refs });
       }
 
       case 'scroll': {
-        const cmd = command as any;
         await manager.scroll({
-          selector: cmd.selector,
-          x: cmd.x,
-          y: cmd.y,
-          direction: cmd.direction,
-          amount: cmd.amount,
+          selector: getOptStr(command, 'selector'),
+          x: getOptNum(command, 'x'),
+          y: getOptNum(command, 'y'),
+          direction: getOptStr(command, 'direction') as
+            | 'up'
+            | 'down'
+            | 'left'
+            | 'right'
+            | undefined,
+          amount: getOptNum(command, 'amount'),
         });
         return successResponse(id, { scrolled: true });
       }
 
       case 'swipe': {
-        const cmd = command as any;
-        await manager.swipe(cmd.direction, { distance: cmd.distance });
+        await manager.swipe(getStr(command, 'direction') as 'up' | 'down' | 'left' | 'right', {
+          distance: getOptNum(command, 'distance'),
+        });
         return successResponse(id, { swiped: true });
       }
 
       case 'evaluate': {
-        const cmd = command as any;
-        const result = await manager.evaluate(cmd.script, ...(cmd.args ?? []));
+        const args = (command as unknown as LooseCommand)['args'];
+        const evalArgs = Array.isArray(args) ? args : [];
+        const result = await manager.evaluate(getStr(command, 'script'), ...evalArgs);
         return successResponse(id, { result });
       }
 
       case 'wait': {
-        const cmd = command as any;
         await manager.wait({
-          selector: cmd.selector,
-          timeout: cmd.timeout,
-          state: cmd.state,
+          selector: getOptStr(command, 'selector'),
+          timeout: getOptNum(command, 'timeout'),
+          state: getOptStr(command, 'state') as
+            | 'attached'
+            | 'detached'
+            | 'visible'
+            | 'hidden'
+            | undefined,
         });
         return successResponse(id, { waited: true });
       }
 
       case 'press': {
-        const cmd = command as any;
-        await manager.press(cmd.key);
+        await manager.press(getStr(command, 'key'));
         return successResponse(id, { pressed: true });
       }
 
       case 'hover': {
-        const cmd = command as any;
-        await manager.hover(cmd.selector);
+        await manager.hover(getStr(command, 'selector'));
         return successResponse(id, { hovered: true });
       }
 
       case 'content': {
-        const cmd = command as any;
-        const html = await manager.getContent(cmd.selector);
+        const html = await manager.getContent(getOptStr(command, 'selector'));
         return successResponse(id, { html });
       }
 
       case 'gettext': {
-        const cmd = command as any;
-        const text = await manager.getText(cmd.selector);
+        const text = await manager.getText(getStr(command, 'selector'));
         return successResponse(id, { text });
       }
 
       case 'getattribute': {
-        const cmd = command as any;
-        const value = await manager.getAttribute(cmd.selector, cmd.attribute);
+        const value = await manager.getAttribute(
+          getStr(command, 'selector'),
+          getStr(command, 'attribute')
+        );
         return successResponse(id, { value });
       }
 
       case 'isvisible': {
-        const cmd = command as any;
-        const visible = await manager.isVisible(cmd.selector);
+        const visible = await manager.isVisible(getStr(command, 'selector'));
         return successResponse(id, { visible });
       }
 
       case 'isenabled': {
-        const cmd = command as any;
-        const enabled = await manager.isEnabled(cmd.selector);
+        const enabled = await manager.isEnabled(getStr(command, 'selector'));
         return successResponse(id, { enabled });
       }
 
@@ -188,44 +202,38 @@ export async function executeIOSCommand(command: Command, manager: IOSManager): 
       }
 
       case 'select': {
-        const cmd = command as any;
-        await manager.select(cmd.selector, cmd.values);
+        const values = (command as unknown as LooseCommand)['values'];
+        await manager.select(getStr(command, 'selector'), (values as string | string[]) ?? []);
         return successResponse(id, { selected: true });
       }
 
       case 'check': {
-        const cmd = command as any;
-        await manager.check(cmd.selector);
+        await manager.check(getStr(command, 'selector'));
         return successResponse(id, { checked: true });
       }
 
       case 'uncheck': {
-        const cmd = command as any;
-        await manager.uncheck(cmd.selector);
+        await manager.uncheck(getStr(command, 'selector'));
         return successResponse(id, { unchecked: true });
       }
 
       case 'focus': {
-        const cmd = command as any;
-        await manager.focus(cmd.selector);
+        await manager.focus(getStr(command, 'selector'));
         return successResponse(id, { focused: true });
       }
 
       case 'clear': {
-        const cmd = command as any;
-        await manager.clear(cmd.selector);
+        await manager.clear(getStr(command, 'selector'));
         return successResponse(id, { cleared: true });
       }
 
       case 'count': {
-        const cmd = command as any;
-        const count = await manager.count(cmd.selector);
+        const count = await manager.count(getStr(command, 'selector'));
         return successResponse(id, { count });
       }
 
       case 'boundingbox': {
-        const cmd = command as any;
-        const box = await manager.getBoundingBox(cmd.selector);
+        const box = await manager.getBoundingBox(getStr(command, 'selector'));
         return successResponse(id, { box });
       }
 
@@ -234,13 +242,11 @@ export async function executeIOSCommand(command: Command, manager: IOSManager): 
         return successResponse(id, { closed: true });
       }
 
-      // iOS-specific: device list
       case 'device_list': {
         const devices = await manager.listDevices();
         return successResponse(id, { devices });
       }
 
-      // Commands that don't apply to iOS Safari
       case 'tab_new':
       case 'tab_list':
       case 'tab_switch':

@@ -46,8 +46,8 @@ export function writeOutput(data: unknown, config: OutputConfig): string {
   return content;
 }
 
-function deduplicate(items: any[], field: string): any[] {
-  const seen = new Set();
+function deduplicate(items: Record<string, unknown>[], field: string): Record<string, unknown>[] {
+  const seen = new Set<unknown>();
   return items.filter((item) => {
     const key = item[field];
     if (seen.has(key)) return false;
@@ -56,15 +56,15 @@ function deduplicate(items: any[], field: string): any[] {
   });
 }
 
-function pickFields(item: any, fields: string[]): any {
-  const result: any = {};
+function pickFields(item: Record<string, unknown>, fields: string[]): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
   for (const field of fields) {
     if (item[field] !== undefined) result[field] = item[field];
   }
   return result;
 }
 
-function toCSV(items: any[], fields?: string[]): string {
+function toCSV(items: Record<string, unknown>[], fields?: string[]): string {
   if (items.length === 0) return '';
 
   const headers = fields || Object.keys(items[0]);
@@ -84,7 +84,7 @@ function toCSV(items: any[], fields?: string[]): string {
   return lines.join('\n');
 }
 
-function toYaml(items: any[]): string {
+function toYaml(items: Record<string, unknown>[]): string {
   if (items.length === 0) return '[]\n';
   return items
     .map((item) => {

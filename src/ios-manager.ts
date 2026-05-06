@@ -5,8 +5,8 @@
  */
 
 // Declare browser globals used in execute() callbacks - these run in browser context, not Node
-declare const document: any;
-declare const window: any;
+declare const document: Document;
+declare const window: Window & typeof globalThis;
 
 import { Simctl } from 'node-simctl';
 import { remote, type Browser as WDIOBrowser } from 'webdriverio';
@@ -45,9 +45,16 @@ interface IOSDeviceInfo {
   isRealDevice?: boolean;
 }
 
-/**
- * Manages iOS Simulator and Safari automation via Appium
- */
+interface SimctlDevice {
+  name?: string;
+  udid?: string;
+  state?: string;
+  isAvailable?: boolean;
+}
+
+function findDeviceByUdid(deviceList: unknown[], udid: string): SimctlDevice | undefined {
+  return deviceList.find((d) => (d as SimctlDevice).udid === udid) as SimctlDevice | undefined;
+}
 export class IOSManager {
   private simctl: Simctl;
   private browser: WDIOBrowser | null = null;
@@ -334,7 +341,7 @@ export class IOSManager {
       // Find current device state
       for (const deviceList of Object.values(devices)) {
         if (!Array.isArray(deviceList)) continue;
-        const device = (deviceList as any[]).find((d: any) => d.udid === udid);
+        const device = findDeviceByUdid(deviceList, udid);
         if (device) {
           currentState = device.state;
           break;
@@ -355,7 +362,7 @@ export class IOSManager {
         const updatedDevices = await this.simctl.getDevices();
         for (const deviceList of Object.values(updatedDevices)) {
           if (!Array.isArray(deviceList)) continue;
-          const device = (deviceList as any[]).find((d: any) => d.udid === udid);
+          const device = findDeviceByUdid(deviceList, udid);
           if (device?.state === 'Booted') {
             return;
           }
@@ -652,7 +659,9 @@ export class IOSManager {
 
     // Get page structure via JavaScript execution
     // Note: The function runs in browser context, so we use 'any' for DOM types
-    const snapshot = await this.browser.execute(function (interactiveOnly: boolean): any {
+    const snapshot = await this.browser.execute(function (
+      interactiveOnly: boolean
+    ): Record<string, unknown> | null {
       const INTERACTIVE_ROLES = new Set([
         'button',
         'link',
@@ -681,18 +690,18 @@ export class IOSManager {
         'SUMMARY',
       ]);
 
-      function getXPath(element: any): string {
-        if (element.id) {
-          return `//*[@id="${element.id}"]`;
+      function getXPath(element: Element): string {
+        const el = element as HTMLElement;
+        if (el.id) {
+          return `//*[@id="${el.id}"]`;
         }
 
         const parts: string[] = [];
-        let current: any = element;
+        let current: Element | null = element;
 
         while (current && current.nodeType === 1) {
-          // Node.ELEMENT_NODE = 1
           let index = 1;
-          let sibling: any = current.previousElementSibling;
+          let sibling: Element | null = current.previousElementSibling;
 
           while (sibling) {
             if (sibling.nodeName === current.nodeName) {
@@ -709,48 +718,44 @@ export class IOSManager {
         return '/' + parts.join('/');
       }
 
-      function getAccessibleName(element: any): string {
-        // aria-label takes precedence
-        const ariaLabel = element.getAttribute('aria-label');
+      function getAccessibleName(element: Element): string {
+        const el = element as HTMLElement;
+        const ariaLabel = el.getAttribute('aria-label');
         if (ariaLabel) return ariaLabel;
 
-        // For inputs, check placeholder and label
-        const tagName = element.tagName;
+        const tagName = el.tagName;
         if (tagName === 'INPUT' || tagName === 'TEXTAREA') {
-          const id = element.id;
+          const id = el.id;
           if (id) {
-            const label = (document as any).querySelector(`label[for="${id}"]`);
+            const label = document.querySelector(`label[for="${id}"]`);
             if (label) return label.textContent?.trim() || '';
           }
-          if (element.placeholder) return element.placeholder;
+          if ((el as HTMLInputElement).placeholder) return (el as HTMLInputElement).placeholder;
         }
 
-        // For buttons and links, use text content
         if (tagName === 'BUTTON' || tagName === 'A') {
-          return element.textContent?.trim() || '';
+          return el.textContent?.trim() || '';
         }
 
-        // aria-labelledby
-        const labelledBy = element.getAttribute('aria-labelledby');
+        const labelledBy = el.getAttribute('aria-labelledby');
         if (labelledBy) {
-          const labelElement = (document as any).getElementById(labelledBy);
+          const labelElement = document.getElementById(labelledBy);
           if (labelElement) return labelElement.textContent?.trim() || '';
         }
 
-        return element.textContent?.trim().slice(0, 50) || '';
+        return el.textContent?.trim().slice(0, 50) || '';
       }
 
-      function getRole(element: any): string | null {
-        // Explicit role
-        const role = element.getAttribute('role');
+      function getRole(element: Element): string | null {
+        const el = element as HTMLElement;
+        const role = el.getAttribute('role');
         if (role) return role;
 
-        // Implicit roles
-        const tag = element.tagName;
-        if (tag === 'A' && element.hasAttribute('href')) return 'link';
+        const tag = el.tagName;
+        if (tag === 'A' && el.hasAttribute('href')) return 'link';
         if (tag === 'BUTTON') return 'button';
         if (tag === 'INPUT') {
-          const type = element.type;
+          const type = (el as HTMLInputElement).type;
           if (type === 'checkbox') return 'checkbox';
           if (type === 'radio') return 'radio';
           if (type === 'text' || type === 'email' || type === 'password' || type === 'search')
@@ -777,30 +782,29 @@ export class IOSManager {
         return null;
       }
 
-      function traverse(element: any, depth: number): any {
-        if (depth > 10) return null; // Limit depth
+      function traverse(element: Element, depth: number): Record<string, unknown> | null {
+        if (depth > 10) return null;
 
-        const tag = element.tagName;
+        const el = element as HTMLElement;
+        const tag = el.tagName;
         const role = getRole(element);
         const name = getAccessibleName(element);
         const isInteractive =
           INTERACTIVE_TAGS.has(tag) || (role !== null && INTERACTIVE_ROLES.has(role));
 
-        // Skip hidden elements
-        const style = (window as any).getComputedStyle(element);
+        const style = window.getComputedStyle(element);
         if (style.display === 'none' || style.visibility === 'hidden') {
           return null;
         }
 
-        const children: any[] = [];
-        for (const child of element.children) {
-          const childInfo = traverse(child, depth + 1);
+        const children: Record<string, unknown>[] = [];
+        for (let ci = 0; ci < el.children.length; ci++) {
+          const childInfo = traverse(el.children[ci], depth + 1);
           if (childInfo) {
             children.push(childInfo);
           }
         }
 
-        // In interactive mode, skip non-interactive elements without interactive children
         if (interactiveOnly && !isInteractive && children.length === 0) {
           return null;
         }
@@ -809,47 +813,49 @@ export class IOSManager {
           tag,
           role,
           name,
-          text: element.textContent?.trim().slice(0, 100) || '',
+          text: el.textContent?.trim().slice(0, 100) || '',
           isInteractive,
           xpath: getXPath(element),
           children,
         };
       }
 
-      const root = traverse((document as any).body, 0);
+      const root = traverse(document.body as Element, 0);
       return root;
     }, options?.interactive ?? false);
 
     // Build tree string and refs
     const lines: string[] = [];
-    const buildTree = (node: any, indent: number) => {
+    const buildTree = (node: Record<string, unknown> | null, indent: number) => {
       if (!node) return;
 
       const prefix = '  '.repeat(indent) + '- ';
-      const role = node.role || node.tag.toLowerCase();
-      const name = node.name;
+      const role = (node.role as string) || (node.tag as string).toLowerCase();
+      const name = node.name as string;
 
       let line = `${prefix}${role}`;
       if (name) {
         line += ` "${name}"`;
       }
 
-      // Add ref for interactive elements
       if (node.isInteractive) {
         const ref = `e${++this.refCounter}`;
         line += ` [ref=${ref}]`;
 
         this.refMap[ref] = {
-          selector: node.xpath.startsWith('/') ? node.xpath : `#${node.xpath}`,
-          role: node.role,
-          name: node.name,
-          xpath: node.xpath,
+          selector: (node.xpath as string).startsWith('/')
+            ? (node.xpath as string)
+            : `#${node.xpath as string}`,
+          role: node.role as string,
+          name: node.name as string,
+          xpath: node.xpath as string,
         };
       }
 
       lines.push(line);
 
-      for (const child of node.children || []) {
+      const children = node.children as Record<string, unknown>[] | undefined;
+      for (const child of children || []) {
         buildTree(child, indent + 1);
       }
     };
@@ -916,7 +922,7 @@ export class IOSManager {
 
     await this.browser.execute(
       function (x: number, y: number) {
-        (window as any).scrollBy(x, y);
+        window.scrollBy(x, y);
       },
       deltaX,
       deltaY
@@ -957,9 +963,8 @@ export class IOSManager {
 
     // Execute the script directly - WebdriverIO handles the context
     const result = await this.browser.execute(
-      function (code: string, evalArgs: any[]) {
-        // Create a function from the code and execute it
-        const fn = new Function(...evalArgs.map((_: any, i: number) => `arg${i}`), code);
+      function (code: string, evalArgs: unknown[]) {
+        const fn = new Function(...evalArgs.map((_: unknown, i: number) => `arg${i}`), code);
         return fn(...evalArgs);
       },
       script.includes('return') ? script : `return (${script})`,
@@ -1197,9 +1202,14 @@ export class IOSManager {
     }
 
     const element = await this.getElement(selector);
-    await this.browser.execute(function (el: any) {
-      el.focus();
-    }, element as any);
+    await this.browser.execute(
+      function (el: Element) {
+        if ('focus' in el && typeof el.focus === 'function') {
+          el.focus();
+        }
+      },
+      element as unknown as Element
+    );
   }
 
   /**

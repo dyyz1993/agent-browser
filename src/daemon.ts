@@ -255,14 +255,31 @@ export function cleanupSocket(session?: string): void {
   const pidFile = getPidFile(session);
   const streamPortFile = getStreamPortFile(session);
   try {
-    if (fs.existsSync(pidFile)) fs.unlinkSync(pidFile);
-    if (fs.existsSync(streamPortFile)) fs.unlinkSync(streamPortFile);
+    // Remove stale files, ignoring ENOENT (avoid TOCTOU race)
+    try {
+      fs.unlinkSync(pidFile);
+    } catch (_e) {
+      /* not found */
+    }
+    try {
+      fs.unlinkSync(streamPortFile);
+    } catch (_e) {
+      /* not found */
+    }
     if (isWindows) {
       const portFile = getPortFile(session);
-      if (fs.existsSync(portFile)) fs.unlinkSync(portFile);
+      try {
+        fs.unlinkSync(portFile);
+      } catch (_e) {
+        /* not found */
+      }
     } else {
       const socketPath = getSocketPath(session);
-      if (fs.existsSync(socketPath)) fs.unlinkSync(socketPath);
+      try {
+        fs.unlinkSync(socketPath);
+      } catch (_e) {
+        /* not found */
+      }
     }
   } catch {
     // Ignore cleanup errors
@@ -670,6 +687,14 @@ export async function startDaemon(options?: { provider?: string }): Promise<void
 
     socket.on('error', () => {
       // Client disconnected, ignore
+    });
+
+    socket.on('close', () => {
+      // Clear any pending debounce timers to prevent writes to closed socket
+      for (const [key, entry] of inputFillDebounceMap.entries()) {
+        clearTimeout(entry.timer);
+        inputFillDebounceMap.delete(key);
+      }
     });
   });
 
