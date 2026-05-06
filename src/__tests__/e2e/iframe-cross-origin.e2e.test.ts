@@ -20,6 +20,7 @@ describe('iframe cross-origin (E2E)', () => {
   afterEach(async () => {
     const page = browser.getPage();
     await page.goto('about:blank');
+    browser.getSnapshotStore().reset();
   });
 
   afterAll(async () => {

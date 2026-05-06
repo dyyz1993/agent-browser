@@ -3,6 +3,7 @@ import { BrowserManager } from '../../browser.js';
 import { executeCommand } from '../../actions.js';
 import { parseCliArgs } from '../utils/parseCli.js';
 import { isSuccessResponse } from '../../types.js';
+import { getFreePort } from '../utils/free-port.js';
 import http from 'http';
 
 const executablePath = process.env.AGENT_BROWSER_EXECUTABLE_PATH;
@@ -95,10 +96,12 @@ function createServer(port: number): Promise<http.Server> {
 describe('Init Script Interception Verification', { sequential: true }, () => {
   let browser: BrowserManager;
   let server: http.Server;
-  const PORT = 18924;
-  const baseUrl = `http://localhost:${PORT}`;
+  let PORT: number;
+  let baseUrl: string;
 
   beforeAll(async () => {
+    PORT = await getFreePort();
+    baseUrl = `http://localhost:${PORT}`;
     server = await createServer(PORT);
     browser = new BrowserManager();
     await browser.launch({
@@ -111,7 +114,10 @@ describe('Init Script Interception Verification', { sequential: true }, () => {
 
   afterAll(async () => {
     await browser.close();
-    await new Promise<void>((resolve) => server.close(() => resolve()));
+    if (server) {
+      server.closeAllConnections?.();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
   });
 
   describe('Scenario 1: Fetch interception via addinitscript', () => {

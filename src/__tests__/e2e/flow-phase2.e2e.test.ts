@@ -3,10 +3,11 @@ import { BrowserManager } from '../../browser.js';
 import { FlowExecutor } from '../../flow/flow-executor.js';
 import { formatOutput, writeOutput } from '../../flow/output.js';
 import type { SiteDefinition } from '../../flow/types.js';
+import { getFreePort } from '../utils/free-port.js';
 import http from 'http';
 
 const executablePath = process.env.AGENT_BROWSER_EXECUTABLE_PATH;
-const PORT = 18932;
+let PORT: number;
 
 function createTestServer(port: number): Promise<http.Server> {
   const server = http.createServer((req, res) => {
@@ -92,6 +93,7 @@ describe('Flow Engine Phase 2', { sequential: true }, () => {
   let server: http.Server;
 
   beforeAll(async () => {
+    PORT = await getFreePort();
     server = await createTestServer(PORT);
     browser = new BrowserManager();
     await browser.launch({
@@ -104,7 +106,10 @@ describe('Flow Engine Phase 2', { sequential: true }, () => {
 
   afterAll(async () => {
     await browser.close();
-    await new Promise<void>((resolve) => server.close(() => resolve()));
+    if (server) {
+      server.closeAllConnections?.();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
   });
 
   describe('smartExtract', () => {

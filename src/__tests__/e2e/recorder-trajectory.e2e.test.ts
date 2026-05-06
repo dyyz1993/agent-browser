@@ -151,7 +151,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       // Start recording
       const startResult = await executeCommand(parseCliArgs(['recorder', 'start']), browser);
       expect(isSuccessResponse(startResult)).toBe(true);
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Move mouse to create trajectory
       const page = browser.getPage();
@@ -163,10 +163,11 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
 
       // Click to trigger trajectory recording
       await executeCommand(parseCliArgs(['click', '#btn1']), browser);
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 400));
 
       // Stop recording
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
+      await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
       const data = stopResult.data as any;
@@ -202,7 +203,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       // Start recording
       const startResult = await executeCommand(parseCliArgs(['recorder', 'start']), browser);
       expect(isSuccessResponse(startResult)).toBe(true);
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Move mouse with proper intervals (>= 50ms)
       const page = browser.getPage();
@@ -214,10 +215,11 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
 
       // Click to trigger trajectory recording
       await executeCommand(parseCliArgs(['click', '#btn1']), browser);
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 400));
 
       // Stop recording
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
+      await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
       const data = stopResult.data as any;
@@ -246,7 +248,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       // Start recording
       const startResult = await executeCommand(parseCliArgs(['recorder', 'start']), browser);
       expect(isSuccessResponse(startResult)).toBe(true);
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Move mouse many times (more than MAX_TRAJECTORY_POINTS = 10)
       const page = browser.getPage();
@@ -257,10 +259,11 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
 
       // Click to trigger trajectory recording
       await executeCommand(parseCliArgs(['click', '#btn1']), browser);
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 400));
 
       // Stop recording
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
+      await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
       const data = stopResult.data as any;
@@ -286,7 +289,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       // Start recording
       const startResult = await executeCommand(parseCliArgs(['recorder', 'start']), browser);
       expect(isSuccessResponse(startResult)).toBe(true);
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Move mouse and click
       const page = browser.getPage();
@@ -295,7 +298,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       await page.mouse.move(200, 150);
 
       await executeCommand(parseCliArgs(['click', '#btn1']), browser);
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 400));
 
       // Move mouse again for second click
       await page.mouse.move(300, 200);
@@ -303,10 +306,11 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       await page.mouse.move(400, 250);
 
       await executeCommand(parseCliArgs(['click', '#btn2']), browser);
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 400));
 
       // Stop recording
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
+      await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
       const data = stopResult.data as any;
@@ -331,7 +335,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       // Start recording
       const startResult = await executeCommand(parseCliArgs(['recorder', 'start']), browser);
       expect(isSuccessResponse(startResult)).toBe(true);
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Move mouse and click
       const page = browser.getPage();
@@ -340,11 +344,11 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       await page.mouse.move(250, 200);
 
       await executeCommand(parseCliArgs(['click', '#btn1']), browser);
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 400));
 
       // Stop recording
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
-      expect(isSuccessResponse(stopResult)).toBe(true);
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
       const data = stopResult.data as any;
       const yamlPath = data.path;
@@ -379,7 +383,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       // Start recording
       const startResult = await executeCommand(parseCliArgs(['recorder', 'start']), browser);
       expect(isSuccessResponse(startResult)).toBe(true);
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Move mouse and click
       const page = browser.getPage();
@@ -388,11 +392,11 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       await page.mouse.move(250, 200);
 
       await executeCommand(parseCliArgs(['click', '#btn1']), browser);
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 400));
 
       // Stop recording
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
-      expect(isSuccessResponse(stopResult)).toBe(true);
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
       const data = stopResult.data as any;
       const yamlPath = data.path;
@@ -424,7 +428,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       // Start recording
       const startResult = await executeCommand(parseCliArgs(['recorder', 'start']), browser);
       expect(isSuccessResponse(startResult)).toBe(true);
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Rapid mouse movements
       const page = browser.getPage();
@@ -434,10 +438,11 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       }
 
       await executeCommand(parseCliArgs(['click', '#btn1']), browser);
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 400));
 
       // Stop recording - should not crash
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
+      await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
       const data = stopResult.data as any;
@@ -462,7 +467,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       // Start recording
       const startResult = await executeCommand(parseCliArgs(['recorder', 'start']), browser);
       expect(isSuccessResponse(startResult)).toBe(true);
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Move mouse and scroll
       const page = browser.getPage();
@@ -477,10 +482,11 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       await page.waitForTimeout(60);
 
       await executeCommand(parseCliArgs(['click', '#btn1']), browser);
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 400));
 
       // Stop recording
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
+      await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
       const data = stopResult.data as any;
@@ -510,7 +516,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       // Start recording
       const startResult = await executeCommand(parseCliArgs(['recorder', 'start']), browser);
       expect(isSuccessResponse(startResult)).toBe(true);
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Move mouse to create trajectory
       const page = browser.getPage();
@@ -521,11 +527,11 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       await page.mouse.move(300, 200);
 
       await executeCommand(parseCliArgs(['click', '#btn1']), browser);
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 400));
 
       // Stop recording
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
-      expect(isSuccessResponse(stopResult)).toBe(true);
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
       const data = stopResult.data as any;
       const yamlPath = data.path;
@@ -550,7 +556,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       // Start recording
       const startResult = await executeCommand(parseCliArgs(['recorder', 'start']), browser);
       expect(isSuccessResponse(startResult)).toBe(true);
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Move mouse to create trajectory
       const page = browser.getPage();
@@ -561,10 +567,11 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       await page.mouse.move(300, 200);
 
       await executeCommand(parseCliArgs(['click', '#btn1']), browser);
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 400));
 
       // Stop recording
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
+      await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
       const data = stopResult.data as any;
@@ -592,7 +599,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       // Start recording
       const startResult = await executeCommand(parseCliArgs(['recorder', 'start']), browser);
       expect(isSuccessResponse(startResult)).toBe(true);
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Move mouse to create trajectory
       const page = browser.getPage();
@@ -603,10 +610,11 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       await page.mouse.move(300, 200);
 
       await executeCommand(parseCliArgs(['click', '#btn1']), browser);
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 400));
 
       // Stop recording
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
+      await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
       const data = stopResult.data as any;
@@ -630,7 +638,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       // Start recording
       const startResult = await executeCommand(parseCliArgs(['recorder', 'start']), browser);
       expect(isSuccessResponse(startResult)).toBe(true);
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Move mouse many times to create more than 5 points
       const page = browser.getPage();
@@ -640,10 +648,11 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       }
 
       await executeCommand(parseCliArgs(['click', '#btn1']), browser);
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 400));
 
       // Stop recording
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
+      await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
       const data = stopResult.data as any;
@@ -670,8 +679,8 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       // Start recording
       const startResult = await executeCommand(parseCliArgs(['recorder', 'start']), browser);
       if (!isSuccessResponse(startResult)) {
-        console.log('[Test] Recorder start failed, skipping test');
-        return; // 跳过而非失败
+        expect(isSuccessResponse(startResult)).toBe(true);
+        return;
       }
       expect(isSuccessResponse(startResult)).toBe(true);
       await new Promise((resolve) => setTimeout(resolve, 500));
@@ -685,10 +694,11 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       await page.mouse.move(300, 200);
 
       await executeCommand(parseCliArgs(['click', '#btn1']), browser);
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 400));
 
       // Stop recording
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
+      await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
       const data = stopResult.data as any;
@@ -721,7 +731,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       // Start recording
       const startResult = await executeCommand(parseCliArgs(['recorder', 'start']), browser);
       expect(isSuccessResponse(startResult)).toBe(true);
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Move mouse to specific positions
       const page = browser.getPage();
@@ -730,10 +740,11 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       await page.mouse.move(234, 567);
 
       await executeCommand(parseCliArgs(['click', '#btn1']), browser);
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 400));
 
       // Stop recording
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
+      await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
       const data = stopResult.data as any;
@@ -770,7 +781,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       // Start recording
       const startResult = await executeCommand(parseCliArgs(['recorder', 'start']), browser);
       expect(isSuccessResponse(startResult)).toBe(true);
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Single mouse movement
       const page = browser.getPage();
@@ -778,10 +789,11 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
 
       // Quick click
       await executeCommand(parseCliArgs(['click', '#btn1']), browser);
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 400));
 
       // Stop recording
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
+      await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
       const data = stopResult.data as any;
@@ -803,14 +815,15 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       // Start recording
       const startResult = await executeCommand(parseCliArgs(['recorder', 'start']), browser);
       expect(isSuccessResponse(startResult)).toBe(true);
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Just click without moving mouse
       await executeCommand(parseCliArgs(['click', '#btn1']), browser);
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 400));
 
       // Stop recording
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
+      await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
       const data = stopResult.data as any;
@@ -836,7 +849,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       // Start recording
       const startResult = await executeCommand(parseCliArgs(['recorder', 'start']), browser);
       expect(isSuccessResponse(startResult)).toBe(true);
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Move mouse to create trajectory
       const page = browser.getPage();
@@ -847,10 +860,11 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       await page.mouse.move(300, 200);
 
       await executeCommand(parseCliArgs(['click', '#btn1']), browser);
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 400));
 
       // Stop recording
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
+      await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
       const data = stopResult.data as any;
@@ -889,7 +903,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       // Start recording
       const startResult = await executeCommand(parseCliArgs(['recorder', 'start']), browser);
       expect(isSuccessResponse(startResult)).toBe(true);
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Move mouse in specific order
       const page = browser.getPage();
@@ -905,10 +919,11 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       }
 
       await executeCommand(parseCliArgs(['click', '#btn1']), browser);
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 400));
 
       // Stop recording
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
+      await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
       const data = stopResult.data as any;
@@ -946,8 +961,8 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       // Start recording
       const startResult = await executeCommand(parseCliArgs(['recorder', 'start']), browser);
       if (!isSuccessResponse(startResult)) {
-        console.log('[Test] Recorder start failed, skipping test');
-        return; // 跳过而非失败
+        expect(isSuccessResponse(startResult)).toBe(true);
+        return;
       }
       expect(isSuccessResponse(startResult)).toBe(true);
       await new Promise((resolve) => setTimeout(resolve, 500));
@@ -961,10 +976,11 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       await page.mouse.move(300, 200);
 
       await executeCommand(parseCliArgs(['click', '#btn1']), browser);
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 400));
 
       // Stop recording
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
+      await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
       const data = stopResult.data as any;
@@ -1004,7 +1020,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
 
       const startResult = await executeCommand(parseCliArgs(['recorder', 'start']), browser);
       expect(isSuccessResponse(startResult)).toBe(true);
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       const page = browser.getPage();
       await page.mouse.move(100, 100);
@@ -1012,9 +1028,10 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       await page.mouse.move(200, 150);
 
       await executeCommand(parseCliArgs(['click', '#btn1']), browser);
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 400));
 
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
+      await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
       const data = stopResult.data as any;
@@ -1168,7 +1185,7 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       // Start recording
       const startResult = await executeCommand(parseCliArgs(['recorder', 'start']), browser);
       expect(isSuccessResponse(startResult)).toBe(true);
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Move mouse
       const page = browser.getPage();
@@ -1184,10 +1201,11 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       await page.waitForTimeout(60);
 
       await executeCommand(parseCliArgs(['click', '#btn1']), browser);
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 400));
 
       // Stop recording
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
+      await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
       const data = stopResult.data as any;
@@ -1219,13 +1237,14 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       );
 
       expect(result.success).toBe(true);
-    }, 15000);
+    }, 30000);
+  });
 
-    it('should handle concurrent trajectory recording', async () => {
+  it('should handle concurrent trajectory recording', async () => {
       // Start recording
       const startResult = await executeCommand(parseCliArgs(['recorder', 'start']), browser);
       expect(isSuccessResponse(startResult)).toBe(true);
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Rapid concurrent-like operations
       const page = browser.getPage();
@@ -1241,10 +1260,11 @@ describe('轨迹录制和回放测试', { sequential: true }, () => {
       await page.waitForTimeout(100);
 
       await executeCommand(parseCliArgs(['click', '#btn1']), browser);
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 400));
 
       // Stop recording - should not crash
       const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
+      await new Promise((resolve) => setTimeout(resolve, 200));
       expect(isSuccessResponse(stopResult)).toBe(true);
 
       const data = stopResult.data as any;

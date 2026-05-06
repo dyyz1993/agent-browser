@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { BrowserManager } from '../../browser.js';
 import { executeCommand } from '../../actions.js';
 import { parseCliArgs } from '../utils/parseCli.js';
+import { getFreePort } from '../utils/free-port.js';
 import http from 'http';
 import path from 'path';
 import fs from 'fs';
@@ -88,10 +89,12 @@ function createTestServer(port: number): Promise<http.Server> {
 describe('Network Capture Capability Verification', { sequential: true }, () => {
   let browser: BrowserManager;
   let server: http.Server;
-  const PORT = 18923;
-  const baseUrl = `http://localhost:${PORT}`;
+  let PORT: number;
+  let baseUrl: string;
 
   beforeAll(async () => {
+    PORT = await getFreePort();
+    baseUrl = `http://localhost:${PORT}`;
     server = await createTestServer(PORT);
     browser = new BrowserManager();
     await browser.launch({
@@ -104,7 +107,10 @@ describe('Network Capture Capability Verification', { sequential: true }, () => 
 
   afterAll(async () => {
     await browser.close();
-    await new Promise<void>((resolve) => server.close(() => resolve()));
+    if (server) {
+      server.closeAllConnections?.();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
   });
 
   describe('Scenario 1: Capture API response via network tracking', () => {

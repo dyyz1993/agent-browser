@@ -112,6 +112,15 @@ export class SnapshotStore {
   }
 
   /**
+   * Reset the store: clear all snapshots and reset counter to 0.
+   * Useful for test isolation.
+   */
+  reset(): void {
+    this.counter = 0;
+    this.snapshots.clear();
+  }
+
+  /**
    * Check if a snapshot exists.
    */
   has(id: string): boolean {

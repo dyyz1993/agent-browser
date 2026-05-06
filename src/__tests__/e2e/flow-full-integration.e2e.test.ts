@@ -2,11 +2,12 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { BrowserManager } from '../../browser.js';
 import { FlowExecutor } from '../../flow/flow-executor.js';
 import { parseYamlSiteFile } from '../../flow/yaml-parser.js';
+import { getFreePort } from '../utils/free-port.js';
 import http from 'http';
 import path from 'path';
 
 const executablePath = process.env.AGENT_BROWSER_EXECUTABLE_PATH;
-const PORT = 18925;
+let PORT: number;
 
 function createSearchServer(port: number): Promise<http.Server> {
   const server = http.createServer((req, res) => {
@@ -98,6 +99,7 @@ describe('Flow Engine Full Integration', { sequential: true }, () => {
   let server: http.Server;
 
   beforeAll(async () => {
+    PORT = await getFreePort();
     server = await createSearchServer(PORT);
     browser = new BrowserManager();
     await browser.launch({
@@ -110,7 +112,10 @@ describe('Flow Engine Full Integration', { sequential: true }, () => {
 
   afterAll(async () => {
     await browser.close();
-    await new Promise<void>((resolve) => server.close(() => resolve()));
+    if (server) {
+      server.closeAllConnections?.();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
   });
 
   it('should execute full search-full-pipeline flow from YAML', async () => {

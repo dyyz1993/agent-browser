@@ -143,6 +143,13 @@ describe('Comprehensive Recorder E2E Tests', () => {
   });
 
   beforeEach(async () => {
+    try {
+      await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
+    } catch (_e) {
+      // Intentionally ignored: recorder may not be running
+    }
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
     const openResult = await executeCommand(
       parseCliArgs(['open', getFixturePath('comprehensive-test.html')]),
       browser
@@ -154,29 +161,35 @@ describe('Comprehensive Recorder E2E Tests', () => {
     it('should record single click and show panel', async () => {
       await executeCommand(parseCliArgs(['recorder', 'start']), browser);
 
-      // 双重校验: 启动后面板可见
-      await new Promise((resolve) => setTimeout(resolve, 200));
-      const panelBefore = await verifyPanelWithDoubleCheck(browser, 'before click');
-      expect(panelBefore.visible).toBe(true);
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        const panelBefore = await verifyPanelWithDoubleCheck(browser, 'before click');
+        expect(panelBefore.visible).toBe(true);
 
-      const clickResult = await executeCommand(parseCliArgs(['click', '#click-btn']), browser);
-      expect(clickResult.success).toBe(true);
+        const clickResult = await executeCommand(parseCliArgs(['click', '#click-btn']), browser);
+        expect(clickResult.success).toBe(true);
 
-      // 双重校验: 点击后面板仍可见
-      const panelAfter = await verifyPanelWithDoubleCheck(browser, 'after click');
-      expect(panelAfter.visible).toBe(true);
-      expect(panelAfter.stepCount).toBeGreaterThan(0);
+        const panelAfter = await verifyPanelWithDoubleCheck(browser, 'after click');
+        expect(panelAfter.visible).toBe(true);
+        expect(panelAfter.stepCount).toBeGreaterThan(0);
 
-      const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
-      expect(stopResult.success).toBe(true);
+        const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
+        expect(stopResult.success).toBe(true);
 
-      if (isSuccessResponse(stopResult) && isRecorderStopData(stopResult.data)) {
-        const steps = parseYamlSteps(stopResult.data.yaml);
-        const clickStep = steps.find(
-          (s) => s.action === 'click' && s.selector?.includes('click-btn')
-        );
-        expect(clickStep).toBeDefined();
-        expect(clickStep?.selector).toMatch(/click-btn/);
+        if (isSuccessResponse(stopResult) && isRecorderStopData(stopResult.data)) {
+          const steps = parseYamlSteps(stopResult.data.yaml);
+          const clickStep = steps.find(
+            (s) => s.action === 'click' && s.selector?.includes('click-btn')
+          );
+          expect(clickStep).toBeDefined();
+          expect(clickStep?.selector).toMatch(/click-btn/);
+        }
+      } finally {
+        try {
+          await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
+        } catch (_e) {
+          // Intentionally ignored
+        }
       }
     });
 
@@ -680,24 +693,32 @@ describe('Comprehensive Recorder E2E Tests', () => {
     it('should increment step count during recording', async () => {
       await executeCommand(parseCliArgs(['recorder', 'start']), browser);
 
-      const statusBefore = await executeCommand(parseCliArgs(['recorder', 'status']), browser);
-      const stepsBefore =
-        isSuccessResponse(statusBefore) && isRecorderStatusData(statusBefore.data)
-          ? statusBefore.data.steps
-          : 0;
+      try {
+        const statusBefore = await executeCommand(parseCliArgs(['recorder', 'status']), browser);
+        const stepsBefore =
+          isSuccessResponse(statusBefore) && isRecorderStatusData(statusBefore.data)
+            ? statusBefore.data.steps
+            : 0;
 
-      await executeCommand(parseCliArgs(['click', '#click-btn']), browser);
-      await new Promise((resolve) => setTimeout(resolve, 400));
+        await executeCommand(parseCliArgs(['click', '#click-btn']), browser);
+        await new Promise((resolve) => setTimeout(resolve, 600));
 
-      const statusAfter = await executeCommand(parseCliArgs(['recorder', 'status']), browser);
-      const stepsAfter =
-        isSuccessResponse(statusAfter) && isRecorderStatusData(statusAfter.data)
-          ? statusAfter.data.steps
-          : 0;
+        const statusAfter = await executeCommand(parseCliArgs(['recorder', 'status']), browser);
+        const stepsAfter =
+          isSuccessResponse(statusAfter) && isRecorderStatusData(statusAfter.data)
+            ? statusAfter.data.steps
+            : 0;
 
-      expect(stepsAfter).toBeGreaterThan(stepsBefore);
+        expect(stepsAfter).toBeGreaterThan(stepsBefore);
 
-      await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
+        await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
+      } finally {
+        try {
+          await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
+        } catch (_e) {
+          // Intentionally ignored
+        }
+      }
     });
   });
 
@@ -790,18 +811,26 @@ describe('Comprehensive Recorder E2E Tests', () => {
     it('should handle rapid consecutive clicks', async () => {
       await executeCommand(parseCliArgs(['recorder', 'start']), browser);
 
-      for (let i = 0; i < 5; i++) {
-        await executeCommand(parseCliArgs(['click', '#click-btn']), browser);
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
+      try {
+        for (let i = 0; i < 5; i++) {
+          await executeCommand(parseCliArgs(['click', '#click-btn']), browser);
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
 
-      const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
-      expect(stopResult.success).toBe(true);
+        const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
+        expect(stopResult.success).toBe(true);
 
-      if (isSuccessResponse(stopResult) && isRecorderStopData(stopResult.data)) {
-        const steps = parseYamlSteps(stopResult.data.yaml);
-        const clickSteps = steps.filter((s) => s.action === 'click');
-        expect(clickSteps.length).toBeGreaterThanOrEqual(5);
+        if (isSuccessResponse(stopResult) && isRecorderStopData(stopResult.data)) {
+          const steps = parseYamlSteps(stopResult.data.yaml);
+          const clickSteps = steps.filter((s) => s.action === 'click');
+          expect(clickSteps.length).toBeGreaterThanOrEqual(5);
+        }
+      } finally {
+        try {
+          await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
+        } catch (_e) {
+          // Intentionally ignored
+        }
       }
     });
 
@@ -852,17 +881,25 @@ describe('Comprehensive Recorder E2E Tests', () => {
     it('should verify step count matches actions', async () => {
       await executeCommand(parseCliArgs(['recorder', 'start']), browser);
 
-      const actionCount = 10;
-      for (let i = 0; i < actionCount; i++) {
-        await executeCommand(parseCliArgs(['click', '#click-btn']), browser);
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
+      try {
+        const actionCount = 10;
+        for (let i = 0; i < actionCount; i++) {
+          await executeCommand(parseCliArgs(['click', '#click-btn']), browser);
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
 
-      const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
-      expect(stopResult.success).toBe(true);
+        const stopResult = await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
+        expect(stopResult.success).toBe(true);
 
-      if (isSuccessResponse(stopResult) && isRecorderStopData(stopResult.data)) {
-        expect(stopResult.data.steps).toBeGreaterThanOrEqual(actionCount);
+        if (isSuccessResponse(stopResult) && isRecorderStopData(stopResult.data)) {
+          expect(stopResult.data.steps).toBeGreaterThanOrEqual(actionCount);
+        }
+      } finally {
+        try {
+          await executeCommand(parseCliArgs(['recorder', 'stop']), browser);
+        } catch (_e) {
+          // Intentionally ignored
+        }
       }
     });
   });

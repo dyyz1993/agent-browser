@@ -6,12 +6,13 @@ import { createLoggingPlugin } from '../../flow/plugins/logging-plugin.js';
 import { createFileOutputPlugin } from '../../flow/plugins/file-output-plugin.js';
 import type { SiteDefinition } from '../../flow/types.js';
 import type { FlowPlugin } from '../../flow/plugin-system.js';
+import { getFreePort } from '../utils/free-port.js';
 import http from 'http';
 import { existsSync, readFileSync, mkdirSync, rmSync } from 'fs';
 import { resolve, join } from 'path';
 
 const executablePath = process.env.AGENT_BROWSER_EXECUTABLE_PATH;
-const PORT = 18935;
+let PORT: number;
 const TEST_OUTPUT_DIR = resolve('/tmp/flow-phase5-test-output');
 
 function createTestServer(port: number): Promise<http.Server> {
@@ -61,6 +62,8 @@ describe('Flow Engine Phase 5 - Plugin System', { sequential: true, timeout: 600
       throw new Error('AGENT_BROWSER_EXECUTABLE_PATH not set');
     }
 
+    PORT = await getFreePort();
+
     if (existsSync(TEST_OUTPUT_DIR)) rmSync(TEST_OUTPUT_DIR, { recursive: true });
     mkdirSync(TEST_OUTPUT_DIR, { recursive: true });
 
@@ -77,7 +80,10 @@ describe('Flow Engine Phase 5 - Plugin System', { sequential: true, timeout: 600
 
   afterAll(async () => {
     await browser.close().catch(() => {});
-    await new Promise<void>((resolve) => server.close(() => resolve()));
+    if (server) {
+      server.closeAllConnections?.();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
     if (existsSync(TEST_OUTPUT_DIR)) rmSync(TEST_OUTPUT_DIR, { recursive: true });
   });
 

@@ -1,8 +1,33 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { BrowserManager } from '../../browser.js';
 import { executeCommand } from '../../actions.js';
 import { parseCliArgs } from '../utils/parseCli.js';
 import { isSuccessResponse } from '../../types.js';
+
+function stripSnapshotHeader(snapshot: string): string {
+  const lines = snapshot.split('\n');
+  const contentLines: string[] = [];
+  let pastHeader = false;
+  let beforeTips = true;
+  for (const line of lines) {
+    if (!pastHeader && line.startsWith('Snapshot #snap_')) {
+      pastHeader = true;
+      continue;
+    }
+    if (!pastHeader && line === '---') continue;
+    if (pastHeader && !beforeTips) continue;
+    if (pastHeader && beforeTips && line === '---') {
+      beforeTips = false;
+      continue;
+    }
+    if (line.startsWith('Tips:')) {
+      beforeTips = false;
+      continue;
+    }
+    contentLines.push(line);
+  }
+  return contentLines.join('\n').trim();
+}
 
 const MAIN_PAGE_URL =
   'https://tools.docker.19930810.xyz:8443/tools/crawler-practice/examples/18-iframe.html';
@@ -22,6 +47,10 @@ describe('iframe nested snapshot (E2E)', () => {
       headless: true,
     });
     browser.getPage().context().setDefaultTimeout(10000);
+  });
+
+  beforeEach(() => {
+    browser.getSnapshotStore().reset();
   });
 
   afterAll(async () => {
@@ -213,7 +242,9 @@ describe('iframe nested snapshot (E2E)', () => {
       expect(inFrameData.snapshot).not.toContain('iframe嵌套演示');
       expect(directData.snapshot).not.toContain('iframe嵌套演示');
 
-      expect(inFrameData.snapshot).toBe(directData.snapshot);
+      expect(stripSnapshotHeader(inFrameData.snapshot!)).toBe(
+        stripSnapshotHeader(directData.snapshot!)
+      );
     }, 30000);
 
     it('login-frame: --in-frame result should match direct URL access', async () => {
@@ -271,7 +302,9 @@ describe('iframe nested snapshot (E2E)', () => {
       expect(inFrameData.snapshot).not.toContain('外层 iframe');
       expect(directData.snapshot).not.toContain('外层 iframe');
 
-      expect(inFrameData.snapshot).toBe(directData.snapshot);
+      expect(stripSnapshotHeader(inFrameData.snapshot!)).toBe(
+        stripSnapshotHeader(directData.snapshot!)
+      );
     }, 30000);
   });
 
@@ -370,7 +403,9 @@ describe('iframe nested snapshot (E2E)', () => {
       expect(noHashData.snapshot).toContain('外层 iframe');
 
       // Both should produce identical results
-      expect(hashData.snapshot).toBe(noHashData.snapshot);
+      expect(stripSnapshotHeader(hashData.snapshot!)).toBe(
+        stripSnapshotHeader(noHashData.snapshot!)
+      );
     }, 30000);
 
     it('should work with both #outer-iframe/login-frame and outer-iframe/login-frame paths', async () => {
@@ -417,7 +452,9 @@ describe('iframe nested snapshot (E2E)', () => {
       expect(noHashData.snapshot).toContain('textbox "用户名');
 
       // Both should produce identical results
-      expect(hashData.snapshot).toBe(noHashData.snapshot);
+      expect(stripSnapshotHeader(hashData.snapshot!)).toBe(
+        stripSnapshotHeader(noHashData.snapshot!)
+      );
     }, 30000);
   });
 

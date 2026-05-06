@@ -25,6 +25,7 @@ describe('Snapshot Selector Iframe E2E', () => {
   });
 
   beforeEach(async () => {
+    browser.getSnapshotStore().reset();
     const openResult = await executeCommand(
       parseCliArgs(['open', getFixturePath('iframe-selector-test.html')]),
       browser
