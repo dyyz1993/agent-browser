@@ -1200,8 +1200,9 @@ async function enrichRefsWithPathsAndAttrs(
   }
 
   // Evaluate the function in the browser context
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const elementData = await (page as any).evaluate(() => {
+  const elementData = await (page as Page).evaluate<
+    Record<string, { xpath: string; cssPath: string; attributes: Record<string, string> }>
+  >(() => {
     const STYLE_CLASS_PATTERNS = [
       /^(flex|grid|block|inline|hidden)$/,
       /^(mt|mb|ml|mr|mx|my|pt|pb|pl|pr|px|py)-?\d*$/,
@@ -1229,8 +1230,7 @@ async function enrichRefsWithPathsAndAttrs(
       'form',
     ]);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    function getSemanticClass(element: any): string | null {
+    function getSemanticClass(element: Element): string | null {
       const className = element.getAttribute('class');
       if (!className) return null;
       const classes = className.split(/\s+/).filter((cls: string) => {
@@ -1241,12 +1241,11 @@ async function enrichRefsWithPathsAndAttrs(
       return selectedClasses.map((cls: string) => 'contains(@class, "' + cls + '")').join(' and ');
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    function getElementIndex(element: any): number {
+    function getElementIndex(element: Element): number {
       const parent = element.parentElement;
       if (!parent) return 1;
       const siblings = Array.from(parent.children).filter(
-        (child: any) => child.tagName === element.tagName
+        (child: Element) => child.tagName === element.tagName
       );
       return siblings.indexOf(element) + 1;
     }
@@ -1390,16 +1389,20 @@ async function enrichRefsWithPathsAndAttrs(
       return null;
     }
 
-    const results: Record<string, any> = {};
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const refEntries = Object.entries((window as any).__AGENT_BROWSER_REFS__ || {});
+    const results: Record<
+      string,
+      { xpath: string; cssPath: string; attributes: Record<string, string> }
+    > = {};
+    const refEntries = Object.entries(
+      (window as unknown as Record<string, unknown>).__AGENT_BROWSER_REFS__ || {}
+    ) as [string, { role: string; name: string; nth?: number }][];
 
     for (const [ref, data] of refEntries) {
-      const targetRole = (data as any).role;
-      const targetName = (data as any).name;
-      const nth = (data as any).nth;
+      const targetRole = data.role;
+      const targetName = data.name;
+      const nth = data.nth;
 
-      const elements: any[] = [];
+      const elements: Element[] = [];
       const allElements = Array.from(document.querySelectorAll('*'));
 
       for (const el of allElements) {
@@ -1431,7 +1434,7 @@ async function enrichRefsWithPathsAndAttrs(
             }
           } else if (targetRole === 'textbox') {
             elName = el.getAttribute('placeholder') || '';
-            const label = (el as any).labels?.[0]?.textContent?.trim();
+            const label = (el as HTMLInputElement).labels?.[0]?.textContent?.trim();
             if (label) elName = label;
           } else {
             elName = el.textContent?.trim().slice(0, 100) || '';
@@ -1472,13 +1475,18 @@ async function enrichRefsWithPathsAndAttrs(
   }
 
   for (const [ref, data] of Object.entries(elementData)) {
+    const typedData = data as {
+      xpath?: string;
+      cssPath?: string;
+      attributes?: Record<string, string>;
+    };
     if (refs[ref] && data) {
       if (options.path) {
-        refs[ref].xpath = (data as any).xpath;
-        refs[ref].cssPath = (data as any).cssPath;
+        refs[ref].xpath = typedData.xpath;
+        refs[ref].cssPath = typedData.cssPath;
       }
       if (options.attrs) {
-        refs[ref].attributes = (data as any).attributes;
+        refs[ref].attributes = typedData.attributes;
       }
     }
   }
@@ -1830,8 +1838,9 @@ export function getSemanticClass(element: Element): string | null {
 }
 
 export function generateXPath(element: Element, maxDepth: number = 5): string {
-  if ((element as any).id) {
-    return `//*[@id="${(element as any).id}"]`;
+  const elemId = (element as HTMLElement).id;
+  if (elemId) {
+    return `//*[@id="${elemId}"]`;
   }
 
   const testId = element.getAttribute('data-testid');
@@ -1858,8 +1867,9 @@ function buildRelativeXPath(element: Element, maxDepth: number): string {
   let depth = 0;
 
   while (current && depth < maxDepth) {
-    if ((current as any).id) {
-      path.unshift(`//*[@id="${(current as any).id}"]`);
+    const currentId = (current as HTMLElement).id;
+    if (currentId) {
+      path.unshift(`//*[@id="${currentId}"]`);
       break;
     }
 
@@ -1901,8 +1911,9 @@ function getElementIndex(element: Element): number {
 }
 
 export function generateCSSPath(element: Element, maxDepth: number = 5): string {
-  if ((element as any).id) {
-    return `#${(element as any).id}`;
+  const elemId = (element as HTMLElement).id;
+  if (elemId) {
+    return `#${elemId}`;
   }
 
   const testId = element.getAttribute('data-testid');
@@ -1915,8 +1926,9 @@ export function generateCSSPath(element: Element, maxDepth: number = 5): string 
   let depth = 0;
 
   while (current && depth < maxDepth) {
-    if ((current as any).id) {
-      path.unshift(`#${(current as any).id}`);
+    const currentId = (current as HTMLElement).id;
+    if (currentId) {
+      path.unshift(`#${currentId}`);
       break;
     }
 
