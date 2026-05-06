@@ -2,7 +2,9 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { Page } from 'playwright-core';
 import { BrowserManager } from '../browser.js';
 
-const executablePath = process.env.AGENT_BROWSER_EXECUTABLE_PATH;
+const executablePath =
+  process.env.AGENT_BROWSER_EXECUTABLE_PATH ||
+  '/Applications/Chromium.app/Contents/MacOS/Chromium';
 
 const injectScript = `
   (function() {
@@ -62,19 +64,18 @@ describe('injectFocusListener - E2E integration (real browser)', () => {
     });
     page = browser.getPage();
 
-    await page.setContent(`
-      <!DOCTYPE html>
-      <html>
-      <body>
-        <h1>Focus Listener Test</h1>
-        <input id="text-input" type="text" placeholder="Type here" />
-        <textarea id="textarea-input" placeholder="Multi-line"></textarea>
-        <div id="clickable" style="padding:20px;background:#eee;">Click me</div>
-        <button id="btn">Button</button>
-        <div id="editable" contenteditable="true" style="border:1px solid #ccc;padding:10px;">Editable</div>
-      </body>
-      </html>
-    `);
+    const html = `<!DOCTYPE html>
+<html>
+<body>
+  <h1>Focus Listener Test</h1>
+  <input id="text-input" type="text" placeholder="Type here" />
+  <textarea id="textarea-input" placeholder="Multi-line"></textarea>
+  <div id="clickable" style="padding:20px;background:#eee;">Click me</div>
+  <button id="btn">Button</button>
+  <div id="editable" contenteditable="true" style="border:1px solid #ccc;padding:10px;">Editable</div>
+</body>
+</html>`;
+    await page.goto('data:text/html,' + encodeURIComponent(html));
 
     await page.exposeFunction('__agentBrowserInputEvent', (data: unknown) => {
       receivedEvents.push(data as Record<string, unknown>);
