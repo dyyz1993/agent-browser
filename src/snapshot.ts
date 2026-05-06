@@ -326,7 +326,6 @@ async function findCursorInteractiveElements(
     return results;
   }`;
 
-   
   const fn = new Function('return ' + scriptBody)();
   return page.evaluate(fn, rootSelector);
 }

@@ -53,7 +53,9 @@ describe('rc-config', () => {
   beforeEach(() => {
     try {
       fs.rmSync(TEST_HOME, { recursive: true });
-    } catch {/* empty */}
+    } catch {
+      /* empty */
+    }
     fs.mkdirSync(TEST_HOME, { recursive: true });
     for (const key of ENV_KEYS) {
       savedEnv[key] = process.env[key];
@@ -64,7 +66,9 @@ describe('rc-config', () => {
   afterEach(() => {
     try {
       fs.rmSync(TEST_HOME, { recursive: true });
-    } catch {/* empty */}
+    } catch {
+      /* empty */
+    }
     for (const key of ENV_KEYS) {
       if (savedEnv[key] === undefined) {
         delete process.env[key];

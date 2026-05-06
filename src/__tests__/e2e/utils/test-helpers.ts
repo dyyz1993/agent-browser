@@ -12,7 +12,9 @@ export async function getChromiumExecutablePath(): Promise<string | undefined> {
     const { chromium } = await import('playwright-core');
     const p = chromium.executablePath();
     if (p) return p;
-  } catch { /* empty */ }
+  } catch {
+    /* empty */
+  }
   return undefined;
 }
 

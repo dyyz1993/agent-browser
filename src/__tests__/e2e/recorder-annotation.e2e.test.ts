@@ -208,7 +208,9 @@ describe('Recorder Annotation E2E Test', () => {
     // Clean up temp file
     try {
       fs.unlinkSync(data.path);
-    } catch {/* empty */}
+    } catch {
+      /* empty */
+    }
   });
 
   it('should preserve annotation in YAML when added via xyzUpdate event', async () => {
@@ -322,6 +324,8 @@ describe('Recorder Annotation E2E Test', () => {
     // Clean up temp file
     try {
       fs.unlinkSync(data.path);
-    } catch {/* empty */}
+    } catch {
+      /* empty */
+    }
   });
 });

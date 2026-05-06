@@ -298,7 +298,9 @@ export class BrowserManager {
     let stableSelectors: Record<string, { cssSelector: string; xpath: string }> = {};
     try {
       stableSelectors = await generateStableSelectors(frame, refs);
-    } catch {/* empty */}
+    } catch {
+      /* empty */
+    }
 
     for (const [ref, sel] of Object.entries(stableSelectors)) {
       const el = entry.elements.get(ref);
@@ -2557,7 +2559,9 @@ export class BrowserManager {
       );
       // 使用 page.evaluate 执行字符串脚本
       await page.evaluate(injectScript);
-    } catch (e) {/* empty */}
+    } catch (e) {
+      /* empty */
+    }
   }
 
   /**
@@ -2941,7 +2945,9 @@ export class BrowserManager {
                 .catch(() => {});
             }
           }
-        } catch (e) {/* empty */}
+        } catch (e) {
+          /* empty */
+        }
         return true;
       });
     } catch (e) {
@@ -2960,7 +2966,9 @@ export class BrowserManager {
         // 设置当前会话 ID
         (window as unknown as Record<string, unknown>).xyzSessionId = sessionId;
       }, this.recorderSessionId);
-    } catch (e) {/* empty */}
+    } catch (e) {
+      /* empty */
+    }
 
     // 设置录制会话激活标志（用于新页面）
     // 注意：addInitScript 执行顺序是后添加的先执行
@@ -3006,7 +3014,9 @@ export class BrowserManager {
           window.xyzQueue = [];
         }
       `);
-    } catch (e) {/* empty */}
+    } catch (e) {
+      /* empty */
+    }
 
     // 在当前页面注入录制器脚本
     // 注意：这里需要手动注入，因为 addInitScript 只对新页面生效
@@ -3020,7 +3030,9 @@ export class BrowserManager {
           script.type = 'text/javascript';
           (document.head || document.documentElement).appendChild(script);
         }, injectScript);
-      } catch (e2) {/* empty */}
+      } catch (e2) {
+        /* empty */
+      }
     }
 
     // 处理导航事件（用于记录 back/forward）
@@ -3665,7 +3677,9 @@ export class BrowserManager {
     if (this.wsListener) {
       try {
         page?.off('websocket', this.wsListener);
-      } catch {/* empty */}
+      } catch {
+        /* empty */
+      }
       this.wsListener = null;
     }
     this.isWebSocketTrackingEnabled = false;

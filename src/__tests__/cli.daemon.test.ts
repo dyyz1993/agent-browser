@@ -19,7 +19,9 @@ async function getChromiumPath(): Promise<string | undefined> {
 }
 
 let CHROMIUM_PATH: string | undefined;
-getChromiumPath().then((p) => { CHROMIUM_PATH = p; });
+getChromiumPath().then((p) => {
+  CHROMIUM_PATH = p;
+});
 
 function makeSession(): string {
   return `test-daemon-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;

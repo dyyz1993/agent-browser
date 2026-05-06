@@ -64,7 +64,9 @@ describe('Element Selector Mode - Real E2E Tests', () => {
               resolve(msg as StatusMessage);
             }
           }
-        } catch {/* empty */}
+        } catch {
+          /* empty */
+        }
       };
       ws.on('message', handler);
       setTimeout(() => {
@@ -84,7 +86,9 @@ describe('Element Selector Mode - Real E2E Tests', () => {
             if (msg.type === 'frame') {
               header = msg as FrameMessage;
             }
-          } catch {/* empty */}
+          } catch {
+            /* empty */
+          }
         } else if (header) {
           ws.off('message', handler);
           const buf = Buffer.isBuffer(data) ? data : Buffer.from(data as ArrayBuffer);

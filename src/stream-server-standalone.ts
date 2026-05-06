@@ -551,7 +551,9 @@ class StreamServerStandalone {
       if (fs.existsSync(ipcPath)) {
         try {
           fs.unlinkSync(ipcPath);
-        } catch {/* empty */}
+        } catch {
+          /* empty */
+        }
       }
 
       this.ipcServer = net.createServer((socket) => {
@@ -693,7 +695,9 @@ class StreamServerStandalone {
             if (client.readyState === WebSocket.OPEN) {
               try {
                 client.send(JSON.stringify(message));
-              } catch (_) {/* empty */}
+              } catch (_) {
+                /* empty */
+              }
             }
           }
         }
@@ -773,7 +777,9 @@ class StreamServerStandalone {
                       action: 'inject_focus_listener',
                     }) + '\n'
                   );
-                } catch (_) {/* empty */}
+                } catch (_) {
+                  /* empty */
+                }
               }, 2000);
             }
             continue;
@@ -797,7 +803,9 @@ class StreamServerStandalone {
                 if (client.readyState === WebSocket.OPEN) {
                   try {
                     client.send(JSON.stringify(msg));
-                  } catch (_) {/* empty */}
+                  } catch (_) {
+                    /* empty */
+                  }
                 }
               }
             }
@@ -1098,7 +1106,9 @@ class StreamServerStandalone {
       if (fs.existsSync(pidFile)) {
         fs.unlinkSync(pidFile);
       }
-    } catch {/* empty */}
+    } catch {
+      /* empty */
+    }
   }
 
   private removeIpcFile(): void {
@@ -1107,7 +1117,9 @@ class StreamServerStandalone {
       if (fs.existsSync(ipcPath)) {
         fs.unlinkSync(ipcPath);
       }
-    } catch {/* empty */}
+    } catch {
+      /* empty */
+    }
   }
 
   private setupShutdownHandlers(): void {

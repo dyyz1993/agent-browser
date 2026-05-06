@@ -43,7 +43,9 @@ class Ipc {
             break;
           }
         }
-      } catch {/* empty */}
+      } catch {
+        /* empty */
+      }
     }
   }
   send(m: object) {
@@ -100,11 +102,15 @@ class Ws {
       if (!isBinary) {
         try {
           parsed = JSON.parse(buf.toString('utf8'));
-        } catch {/* empty */}
+        } catch {
+          /* empty */
+        }
       } else {
         try {
           parsed = JSON.parse(buf.toString('utf8'));
-        } catch {/* empty */}
+        } catch {
+          /* empty */
+        }
       }
 
       if (parsed) {

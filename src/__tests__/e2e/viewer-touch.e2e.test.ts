@@ -60,7 +60,9 @@ describe('Virtual Touchpad - Touch -> Mouse -> WebSocket Pipeline', () => {
           ((window as Record<string, unknown>).__wsMsgs as unknown[]).push(
             JSON.parse(data as string)
           );
-        } catch {/* empty */}
+        } catch {
+          /* empty */
+        }
         return orig.call(this, data);
       };
     });
