@@ -3,6 +3,7 @@ import { executeCommand } from '../actions.js';
 import { parseCliArgs } from '../__tests__/utils/parseCli.js';
 import { isSuccessResponse } from '../types.js';
 import { readFileSync } from 'fs';
+import path from 'path';
 import { getPreset } from './presets/index.js';
 import { formatOutput, writeOutput } from './output.js';
 import type { OutputFormat, OutputConfig } from './output.js';
@@ -22,6 +23,19 @@ import type {
 import { PluginManager } from './plugin-system.js';
 import type { HookType } from './plugin-system.js';
 import type { Page, Frame } from 'playwright-core';
+
+function sanitizeSelector(selector: string): string {
+  return selector.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"');
+}
+
+function validateFilePath(filePath: string): string {
+  const resolvedPath = path.resolve(filePath);
+  const cwd = process.cwd();
+  if (!resolvedPath.startsWith(cwd)) {
+    throw new Error(`Security: file path must be within project directory. Got: ${resolvedPath}`);
+  }
+  return resolvedPath;
+}
 
 export class FlowExecutor {
   private browser: BrowserManager;
@@ -400,17 +414,17 @@ export class FlowExecutor {
 
     const fieldEntries = Object.entries(fields).map(([name, def]) => {
       if (typeof def === 'string') {
-        return `${name}: el.querySelector('${def}')?.textContent?.trim() || ''`;
+        return `${name}: el.querySelector('${sanitizeSelector(def)}')?.textContent?.trim() || ''`;
       }
       if (def.attribute) {
-        return `${name}: el.querySelector('${def.selector}')?.getAttribute('${def.attribute}') || ''`;
+        return `${name}: el.querySelector('${sanitizeSelector(def.selector)}')?.getAttribute('${sanitizeSelector(def.attribute)}') || ''`;
       }
-      return `${name}: el.querySelector('${def.selector}')?.textContent?.trim() || ''`;
+      return `${name}: el.querySelector('${sanitizeSelector(def.selector)}')?.textContent?.trim() || ''`;
     });
 
     const script = [
       '((() => {',
-      `  const containers = document.querySelectorAll('${container}');`,
+      `  const containers = document.querySelectorAll('${sanitizeSelector(container)}');`,
       '  const results = [];',
       '  containers.forEach(el => {',
       `    results.push({ ${fieldEntries.join(', ')} });`,
@@ -681,7 +695,7 @@ export class FlowExecutor {
     const evalResult = await executeCommand(
       parseCliArgs([
         'eval',
-        `JSON.stringify(Array.from(document.querySelectorAll('${itemSelector}')).map((el, i) => ({index: i, text: el.textContent?.trim()?.substring(0, 200) || '', html: el.innerHTML?.substring(0, 500) || ''})))`,
+        `JSON.stringify(Array.from(document.querySelectorAll('${sanitizeSelector(itemSelector)}')).map((el, i) => ({index: i, text: el.textContent?.trim()?.substring(0, 200) || '', html: el.innerHTML?.substring(0, 500) || ''})))`,
       ]),
       this.browser
     );
@@ -806,7 +820,7 @@ export class FlowExecutor {
       }
 
       if (condition.textContains) {
-        const escaped = condition.textContains.replace(/'/g, "\\'");
+        const escaped = sanitizeSelector(condition.textContains);
         const result = await executeCommand(
           parseCliArgs(['eval', `document.body.textContent.includes('${escaped}')`]),
           this.browser
@@ -926,7 +940,8 @@ export class FlowExecutor {
         return;
       }
     } else if (step.file) {
-      script = readFileSync(step.file, 'utf-8');
+      const resolvedPath = validateFilePath(step.file);
+      script = readFileSync(resolvedPath, 'utf-8');
     } else if (step.value) {
       script = step.value;
     } else {
@@ -942,7 +957,7 @@ export class FlowExecutor {
   }
 
   private generateCaptureScript(outputVar: string, filter?: string): string {
-    const filterStr = filter || '';
+    const filterStr = filter ? sanitizeSelector(filter) : '';
     return `
 (function() {
   if (window.__flowCaptureActive) return;

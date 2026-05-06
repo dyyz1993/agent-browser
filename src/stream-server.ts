@@ -1311,7 +1311,11 @@ export class StreamServerProxy {
           if (prev) clearTimeout(prev.timer);
           const timer = setTimeout(async () => {
             this.inputFillDebounceMap.delete(key);
-            await this.browser.fillValue(sel, txt);
+            try {
+              await this.browser.fillValue(sel, txt);
+            } catch (e) {
+              console.error('[StreamServer] input_fill debounce error:', (e as Error).message);
+            }
           }, StreamServerProxy.INPUT_FILL_DEBOUNCE_MS);
           this.inputFillDebounceMap.set(key, { timer, text: txt, selector: sel });
           break;

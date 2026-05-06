@@ -314,8 +314,344 @@ export async function startDaemon(options?: { provider?: string }): Promise<void
   const server = net.createServer((socket) => {
     let buffer = '';
     let httpChecked = false;
+    let processing = false;
 
-    socket.on('data', async (data) => {
+    async function processBuffer() {
+      if (processing) return;
+      processing = true;
+
+      try {
+        while (buffer.includes('\n')) {
+          const newlineIdx = buffer.indexOf('\n');
+          const line = buffer.substring(0, newlineIdx);
+          buffer = buffer.substring(newlineIdx + 1);
+
+          if (!line.trim()) continue;
+
+          // Handle custom actions before schema validation (not in standard Zod union)
+          // Viewer sends messages with 'type' field, standalone commands use 'action' field.
+          // Normalize to support both.
+          if (line.trim()) {
+            try {
+              const quickParse = JSON.parse(line);
+              const action = quickParse.action || quickParse.type;
+              if (
+                quickParse &&
+                action === 'inject_focus_listener' &&
+                manager instanceof BrowserManager
+              ) {
+                try {
+                  await manager.injectFocusListener((data) => {
+                    try {
+                      socket.write(JSON.stringify(data) + '\n');
+                    } catch (_) {}
+                  });
+                  socket.write(
+                    serializeResponse(successResponse(quickParse.id, { injected: true })) + '\n'
+                  );
+                } catch (err) {
+                  const message = err instanceof Error ? err.message : String(err);
+                  socket.write(serializeResponse(errorResponse(quickParse.id, message)) + '\n');
+                }
+                continue;
+              }
+
+              if (quickParse && action === 'input_fill' && manager instanceof BrowserManager) {
+                const selector = quickParse.selector || '';
+                const text = quickParse.text || '';
+                debounceInputFill(socket, manager, String(quickParse.id), selector, text);
+                continue;
+              }
+
+              if (
+                quickParse &&
+                (action === 'blur_element' || action === 'input_blur_element') &&
+                manager instanceof BrowserManager
+              ) {
+                try {
+                  const selector = quickParse.selector || '';
+                  await manager.blurElement(selector);
+                  socket.write(
+                    serializeResponse(successResponse(quickParse.id, { blurred: true, selector })) +
+                      '\n'
+                  );
+                } catch (err) {
+                  const message = err instanceof Error ? err.message : String(err);
+                  socket.write(serializeResponse(errorResponse(quickParse.id, message)) + '\n');
+                }
+                continue;
+              }
+
+              if (quickParse && action === 'input_mouse' && manager instanceof BrowserManager) {
+                try {
+                  await manager.injectMouseEvent({
+                    type: quickParse.eventType,
+                    x: quickParse.x ?? 0,
+                    y: quickParse.y ?? 0,
+                    button: quickParse.button,
+                    clickCount: quickParse.clickCount,
+                    deltaX: quickParse.deltaX,
+                    deltaY: quickParse.deltaY,
+                    modifiers: quickParse.modifiers,
+                  });
+                  socket.write(
+                    serializeResponse(successResponse(quickParse.id, { injected: true })) + '\n'
+                  );
+                } catch (err) {
+                  const message = err instanceof Error ? err.message : String(err);
+                  socket.write(serializeResponse(errorResponse(quickParse.id, message)) + '\n');
+                }
+                continue;
+              }
+
+              if (quickParse && action === 'input_keyboard' && manager instanceof BrowserManager) {
+                try {
+                  await manager.injectKeyboardEvent({
+                    type: quickParse.eventType,
+                    key: quickParse.key,
+                    code: quickParse.code,
+                    text: quickParse.text,
+                    modifiers: quickParse.modifiers,
+                  });
+                  socket.write(
+                    serializeResponse(successResponse(quickParse.id, { injected: true })) + '\n'
+                  );
+                } catch (err) {
+                  const message = err instanceof Error ? err.message : String(err);
+                  socket.write(serializeResponse(errorResponse(quickParse.id, message)) + '\n');
+                }
+                continue;
+              }
+
+              if (
+                quickParse &&
+                action === 'keyboard_insert_text' &&
+                manager instanceof BrowserManager
+              ) {
+                try {
+                  const text = quickParse.text || '';
+                  await manager.insertText(text);
+                  socket.write(
+                    serializeResponse(successResponse(quickParse.id, { inserted: true })) + '\n'
+                  );
+                } catch (err) {
+                  const message = err instanceof Error ? err.message : String(err);
+                  socket.write(serializeResponse(errorResponse(quickParse.id, message)) + '\n');
+                }
+                continue;
+              }
+
+              if (quickParse && action === '_ping') {
+                try {
+                  const tabList =
+                    !isIOS && manager instanceof BrowserManager && manager.isLaunched()
+                      ? await manager.listTabs()
+                      : [];
+                  socket.write(
+                    serializeResponse(
+                      successResponse(quickParse.id, {
+                        session: currentSession,
+                        lastActivityAt,
+                        tabs: tabList,
+                      })
+                    ) + '\n'
+                  );
+                } catch (err) {
+                  const message = err instanceof Error ? err.message : String(err);
+                  socket.write(serializeResponse(errorResponse(quickParse.id, message)) + '\n');
+                }
+                continue;
+              }
+            } catch (_) {
+              /* not JSON, fall through to normal parsing */
+            }
+          }
+
+          try {
+            const parseResult = parseCommand(line);
+
+            if (!parseResult.success) {
+              const resp = errorResponse(parseResult.id ?? 'unknown', parseResult.error);
+              socket.write(serializeResponse(resp) + '\n');
+              continue;
+            }
+
+            // Handle device_list specially - it works without a session and always uses IOSManager
+            if (parseResult.command.action === 'device_list') {
+              const iosManager = new IOSManager();
+              try {
+                const devices = await iosManager.listAllDevices();
+                const response = {
+                  id: parseResult.command.id,
+                  success: true as const,
+                  data: { devices },
+                };
+                socket.write(serializeResponse(response) + '\n');
+              } catch (err) {
+                const message = err instanceof Error ? err.message : String(err);
+                socket.write(
+                  serializeResponse(errorResponse(parseResult.command.id, message)) + '\n'
+                );
+              }
+              continue;
+            }
+
+            // Auto-launch if not already launched and this isn't a launch/close command
+            if (
+              !manager.isLaunched() &&
+              parseResult.command.action !== 'launch' &&
+              parseResult.command.action !== 'close'
+            ) {
+              if (isIOS && manager instanceof IOSManager) {
+                // Auto-launch iOS Safari
+                // Check for device in command first (for reused daemons), then fall back to env vars
+                const cmd = parseResult.command as { iosDevice?: string };
+                const iosDevice = cmd.iosDevice || process.env.AGENT_BROWSER_IOS_DEVICE;
+                await manager.launch({
+                  device: iosDevice,
+                  udid: process.env.AGENT_BROWSER_IOS_UDID,
+                });
+              } else if (manager instanceof BrowserManager) {
+                // Auto-launch desktop browser
+                const extensions = process.env.AGENT_BROWSER_EXTENSIONS
+                  ? process.env.AGENT_BROWSER_EXTENSIONS.split(',')
+                      .map((p) => p.trim())
+                      .filter(Boolean)
+                  : undefined;
+
+                // Parse args from env (comma or newline separated)
+                const argsEnv = process.env.AGENT_BROWSER_ARGS;
+                const args = argsEnv
+                  ? argsEnv
+                      .split(/[,\n]/)
+                      .map((a) => a.trim())
+                      .filter((a) => a.length > 0)
+                  : undefined;
+
+                // Parse proxy from env
+                const proxyServer = process.env.AGENT_BROWSER_PROXY;
+                const proxyBypass = process.env.AGENT_BROWSER_PROXY_BYPASS;
+                const proxy = proxyServer
+                  ? {
+                      server: proxyServer,
+                      ...(proxyBypass && { bypass: proxyBypass }),
+                    }
+                  : undefined;
+
+                const ignoreHTTPSErrors = process.env.AGENT_BROWSER_IGNORE_HTTPS_ERRORS === '1';
+                const allowFileAccess = process.env.AGENT_BROWSER_ALLOW_FILE_ACCESS === '1';
+                await manager.launch({
+                  id: 'auto',
+                  action: 'launch' as const,
+                  headless: process.env.AGENT_BROWSER_HEADED !== '1',
+                  executablePath: process.env.AGENT_BROWSER_EXECUTABLE_PATH || getExecutablePath(),
+                  extensions: extensions,
+                  profile: process.env.AGENT_BROWSER_PROFILE,
+                  storageState: process.env.AGENT_BROWSER_STATE,
+                  args,
+                  userAgent: process.env.AGENT_BROWSER_USER_AGENT,
+                  proxy,
+                  ignoreHTTPSErrors: ignoreHTTPSErrors,
+                  allowFileAccess: allowFileAccess,
+                });
+              }
+            }
+
+            // Handle close command specially - shuts down daemon
+            if (parseResult.command.action === 'close') {
+              const response =
+                isIOS && manager instanceof IOSManager
+                  ? await executeIOSCommand(parseResult.command, manager)
+                  : await executeCommand(parseResult.command, manager as BrowserManager);
+              socket.write(serializeResponse(response) + '\n');
+
+              if (!shuttingDown) {
+                shuttingDown = true;
+                // 先断开 StreamServer 连接，发送 unregister 消息
+                if (streamServerProxy) {
+                  await streamServerProxy.disconnect();
+                  streamServerProxy = null;
+                }
+                setTimeout(() => {
+                  server.close();
+                  cleanupSocket();
+                  process.exit(0);
+                }, 100);
+              }
+              return;
+            }
+
+            // Handle inject_focus_listener: set up focus event bridge to stream-server
+            if (
+              parseResult.command.action === 'inject_focus_listener' &&
+              manager instanceof BrowserManager
+            ) {
+              try {
+                await manager.injectFocusListener((data) => {
+                  try {
+                    socket.write(JSON.stringify(data) + '\n');
+                  } catch (_) {}
+                });
+                socket.write(
+                  serializeResponse(successResponse(parseResult.command.id, { injected: true })) +
+                    '\n'
+                );
+              } catch (err) {
+                const message = err instanceof Error ? err.message : String(err);
+                socket.write(
+                  serializeResponse(errorResponse(parseResult.command.id, message)) + '\n'
+                );
+              }
+              continue;
+            }
+
+            lastActivityAt = Date.now();
+
+            // Execute command with appropriate handler
+            let response =
+              isIOS && manager instanceof IOSManager
+                ? await executeIOSCommand(parseResult.command, manager)
+                : await executeCommand(parseResult.command, manager as BrowserManager);
+
+            if (
+              response.success &&
+              !isIOS &&
+              manager instanceof BrowserManager &&
+              manager.isLaunched()
+            ) {
+              try {
+                const currentUrl = manager.getPage().url();
+                if (lastUrl !== null && currentUrl !== lastUrl) {
+                  const urlTip = `URL changed: ${lastUrl} -> ${currentUrl}`;
+                  const existingTips = (response as any).tips;
+                  if (existingTips) {
+                    const tipsArray = Array.isArray(existingTips) ? existingTips : [existingTips];
+                    (response as any).tips = [urlTip, ...tipsArray];
+                  } else {
+                    (response as { tips?: string[] }).tips = [urlTip];
+                  }
+                }
+                lastUrl = currentUrl;
+              } catch {
+                // Page may not be available (e.g., after close)
+              }
+            }
+
+            socket.write(serializeResponse(response) + '\n');
+          } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            socket.write(serializeResponse(errorResponse('error', message)) + '\n');
+          }
+        }
+      } finally {
+        processing = false;
+        if (buffer.includes('\n')) {
+          processBuffer();
+        }
+      }
+    }
+
+    socket.on('data', (data) => {
       buffer += data.toString();
 
       // Security: Detect and reject HTTP requests to prevent cross-origin attacks.
@@ -330,329 +666,7 @@ export async function startDaemon(options?: { provider?: string }): Promise<void
         }
       }
 
-      // Process complete lines
-      while (buffer.includes('\n')) {
-        const newlineIdx = buffer.indexOf('\n');
-        const line = buffer.substring(0, newlineIdx);
-        buffer = buffer.substring(newlineIdx + 1);
-
-        if (!line.trim()) continue;
-
-        // Handle custom actions before schema validation (not in standard Zod union)
-        // Viewer sends messages with 'type' field, standalone commands use 'action' field.
-        // Normalize to support both.
-        if (line.trim()) {
-          try {
-            const quickParse = JSON.parse(line);
-            const action = quickParse.action || quickParse.type;
-            if (
-              quickParse &&
-              action === 'inject_focus_listener' &&
-              manager instanceof BrowserManager
-            ) {
-              try {
-                await manager.injectFocusListener((data) => {
-                  try {
-                    socket.write(JSON.stringify(data) + '\n');
-                  } catch (_) {}
-                });
-                socket.write(
-                  serializeResponse(successResponse(quickParse.id, { injected: true })) + '\n'
-                );
-              } catch (err) {
-                const message = err instanceof Error ? err.message : String(err);
-                socket.write(serializeResponse(errorResponse(quickParse.id, message)) + '\n');
-              }
-              continue;
-            }
-
-            if (quickParse && action === 'input_fill' && manager instanceof BrowserManager) {
-              const selector = quickParse.selector || '';
-              const text = quickParse.text || '';
-              debounceInputFill(socket, manager, String(quickParse.id), selector, text);
-              continue;
-            }
-
-            if (
-              quickParse &&
-              (action === 'blur_element' || action === 'input_blur_element') &&
-              manager instanceof BrowserManager
-            ) {
-              try {
-                const selector = quickParse.selector || '';
-                await manager.blurElement(selector);
-                socket.write(
-                  serializeResponse(successResponse(quickParse.id, { blurred: true, selector })) +
-                    '\n'
-                );
-              } catch (err) {
-                const message = err instanceof Error ? err.message : String(err);
-                socket.write(serializeResponse(errorResponse(quickParse.id, message)) + '\n');
-              }
-              continue;
-            }
-
-            if (quickParse && action === 'input_mouse' && manager instanceof BrowserManager) {
-              try {
-                await manager.injectMouseEvent({
-                  type: quickParse.eventType,
-                  x: quickParse.x ?? 0,
-                  y: quickParse.y ?? 0,
-                  button: quickParse.button,
-                  clickCount: quickParse.clickCount,
-                  deltaX: quickParse.deltaX,
-                  deltaY: quickParse.deltaY,
-                  modifiers: quickParse.modifiers,
-                });
-                socket.write(
-                  serializeResponse(successResponse(quickParse.id, { injected: true })) + '\n'
-                );
-              } catch (err) {
-                const message = err instanceof Error ? err.message : String(err);
-                socket.write(serializeResponse(errorResponse(quickParse.id, message)) + '\n');
-              }
-              continue;
-            }
-
-            if (quickParse && action === 'input_keyboard' && manager instanceof BrowserManager) {
-              try {
-                await manager.injectKeyboardEvent({
-                  type: quickParse.eventType,
-                  key: quickParse.key,
-                  code: quickParse.code,
-                  text: quickParse.text,
-                  modifiers: quickParse.modifiers,
-                });
-                socket.write(
-                  serializeResponse(successResponse(quickParse.id, { injected: true })) + '\n'
-                );
-              } catch (err) {
-                const message = err instanceof Error ? err.message : String(err);
-                socket.write(serializeResponse(errorResponse(quickParse.id, message)) + '\n');
-              }
-              continue;
-            }
-
-            if (
-              quickParse &&
-              action === 'keyboard_insert_text' &&
-              manager instanceof BrowserManager
-            ) {
-              try {
-                const text = quickParse.text || '';
-                await manager.insertText(text);
-                socket.write(
-                  serializeResponse(successResponse(quickParse.id, { inserted: true })) + '\n'
-                );
-              } catch (err) {
-                const message = err instanceof Error ? err.message : String(err);
-                socket.write(serializeResponse(errorResponse(quickParse.id, message)) + '\n');
-              }
-              continue;
-            }
-
-            if (quickParse && action === '_ping') {
-              try {
-                const tabList =
-                  !isIOS && manager instanceof BrowserManager && manager.isLaunched()
-                    ? await manager.listTabs()
-                    : [];
-                socket.write(
-                  serializeResponse(
-                    successResponse(quickParse.id, {
-                      session: currentSession,
-                      lastActivityAt,
-                      tabs: tabList,
-                    })
-                  ) + '\n'
-                );
-              } catch (err) {
-                const message = err instanceof Error ? err.message : String(err);
-                socket.write(serializeResponse(errorResponse(quickParse.id, message)) + '\n');
-              }
-              continue;
-            }
-          } catch (_) {
-            /* not JSON, fall through to normal parsing */
-          }
-        }
-
-        try {
-          const parseResult = parseCommand(line);
-
-          if (!parseResult.success) {
-            const resp = errorResponse(parseResult.id ?? 'unknown', parseResult.error);
-            socket.write(serializeResponse(resp) + '\n');
-            continue;
-          }
-
-          // Handle device_list specially - it works without a session and always uses IOSManager
-          if (parseResult.command.action === 'device_list') {
-            const iosManager = new IOSManager();
-            try {
-              const devices = await iosManager.listAllDevices();
-              const response = {
-                id: parseResult.command.id,
-                success: true as const,
-                data: { devices },
-              };
-              socket.write(serializeResponse(response) + '\n');
-            } catch (err) {
-              const message = err instanceof Error ? err.message : String(err);
-              socket.write(
-                serializeResponse(errorResponse(parseResult.command.id, message)) + '\n'
-              );
-            }
-            continue;
-          }
-
-          // Auto-launch if not already launched and this isn't a launch/close command
-          if (
-            !manager.isLaunched() &&
-            parseResult.command.action !== 'launch' &&
-            parseResult.command.action !== 'close'
-          ) {
-            if (isIOS && manager instanceof IOSManager) {
-              // Auto-launch iOS Safari
-              // Check for device in command first (for reused daemons), then fall back to env vars
-              const cmd = parseResult.command as { iosDevice?: string };
-              const iosDevice = cmd.iosDevice || process.env.AGENT_BROWSER_IOS_DEVICE;
-              await manager.launch({
-                device: iosDevice,
-                udid: process.env.AGENT_BROWSER_IOS_UDID,
-              });
-            } else if (manager instanceof BrowserManager) {
-              // Auto-launch desktop browser
-              const extensions = process.env.AGENT_BROWSER_EXTENSIONS
-                ? process.env.AGENT_BROWSER_EXTENSIONS.split(',')
-                    .map((p) => p.trim())
-                    .filter(Boolean)
-                : undefined;
-
-              // Parse args from env (comma or newline separated)
-              const argsEnv = process.env.AGENT_BROWSER_ARGS;
-              const args = argsEnv
-                ? argsEnv
-                    .split(/[,\n]/)
-                    .map((a) => a.trim())
-                    .filter((a) => a.length > 0)
-                : undefined;
-
-              // Parse proxy from env
-              const proxyServer = process.env.AGENT_BROWSER_PROXY;
-              const proxyBypass = process.env.AGENT_BROWSER_PROXY_BYPASS;
-              const proxy = proxyServer
-                ? {
-                    server: proxyServer,
-                    ...(proxyBypass && { bypass: proxyBypass }),
-                  }
-                : undefined;
-
-              const ignoreHTTPSErrors = process.env.AGENT_BROWSER_IGNORE_HTTPS_ERRORS === '1';
-              const allowFileAccess = process.env.AGENT_BROWSER_ALLOW_FILE_ACCESS === '1';
-              await manager.launch({
-                id: 'auto',
-                action: 'launch' as const,
-                headless: process.env.AGENT_BROWSER_HEADED !== '1',
-                executablePath: process.env.AGENT_BROWSER_EXECUTABLE_PATH || getExecutablePath(),
-                extensions: extensions,
-                profile: process.env.AGENT_BROWSER_PROFILE,
-                storageState: process.env.AGENT_BROWSER_STATE,
-                args,
-                userAgent: process.env.AGENT_BROWSER_USER_AGENT,
-                proxy,
-                ignoreHTTPSErrors: ignoreHTTPSErrors,
-                allowFileAccess: allowFileAccess,
-              });
-            }
-          }
-
-          // Handle close command specially - shuts down daemon
-          if (parseResult.command.action === 'close') {
-            const response =
-              isIOS && manager instanceof IOSManager
-                ? await executeIOSCommand(parseResult.command, manager)
-                : await executeCommand(parseResult.command, manager as BrowserManager);
-            socket.write(serializeResponse(response) + '\n');
-
-            if (!shuttingDown) {
-              shuttingDown = true;
-              // 先断开 StreamServer 连接，发送 unregister 消息
-              if (streamServerProxy) {
-                await streamServerProxy.disconnect();
-                streamServerProxy = null;
-              }
-              setTimeout(() => {
-                server.close();
-                cleanupSocket();
-                process.exit(0);
-              }, 100);
-            }
-            return;
-          }
-
-          // Handle inject_focus_listener: set up focus event bridge to stream-server
-          if (
-            parseResult.command.action === 'inject_focus_listener' &&
-            manager instanceof BrowserManager
-          ) {
-            try {
-              await manager.injectFocusListener((data) => {
-                try {
-                  socket.write(JSON.stringify(data) + '\n');
-                } catch (_) {}
-              });
-              socket.write(
-                serializeResponse(successResponse(parseResult.command.id, { injected: true })) +
-                  '\n'
-              );
-            } catch (err) {
-              const message = err instanceof Error ? err.message : String(err);
-              socket.write(
-                serializeResponse(errorResponse(parseResult.command.id, message)) + '\n'
-              );
-            }
-            continue;
-          }
-
-          lastActivityAt = Date.now();
-
-          // Execute command with appropriate handler
-          let response =
-            isIOS && manager instanceof IOSManager
-              ? await executeIOSCommand(parseResult.command, manager)
-              : await executeCommand(parseResult.command, manager as BrowserManager);
-
-          if (
-            response.success &&
-            !isIOS &&
-            manager instanceof BrowserManager &&
-            manager.isLaunched()
-          ) {
-            try {
-              const currentUrl = manager.getPage().url();
-              if (lastUrl !== null && currentUrl !== lastUrl) {
-                const urlTip = `URL changed: ${lastUrl} -> ${currentUrl}`;
-                const existingTips = (response as any).tips;
-                if (existingTips) {
-                  const tipsArray = Array.isArray(existingTips) ? existingTips : [existingTips];
-                  (response as any).tips = [urlTip, ...tipsArray];
-                } else {
-                  (response as { tips?: string[] }).tips = [urlTip];
-                }
-              }
-              lastUrl = currentUrl;
-            } catch {
-              // Page may not be available (e.g., after close)
-            }
-          }
-
-          socket.write(serializeResponse(response) + '\n');
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          socket.write(serializeResponse(errorResponse('error', message)) + '\n');
-        }
-      }
+      processBuffer();
     });
 
     socket.on('error', () => {

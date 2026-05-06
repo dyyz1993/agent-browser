@@ -37,6 +37,7 @@ export interface SnapshotEntry {
 }
 
 export class SnapshotStore {
+  private static readonly MAX_SNAPSHOTS = 100;
   private snapshots: Map<string, SnapshotEntry> = new Map();
   private counter: number = 0;
 
@@ -46,6 +47,14 @@ export class SnapshotStore {
    */
   create(url: string, elements: SnapshotElement[], framePath?: string): string {
     const id = `snap_${++this.counter}`;
+
+    if (this.snapshots.size >= SnapshotStore.MAX_SNAPSHOTS) {
+      const firstKey = this.snapshots.keys().next().value;
+      if (firstKey) {
+        this.snapshots.delete(firstKey);
+      }
+    }
+
     const elementMap = new Map(elements.map((e) => [e.ref, e]));
     this.snapshots.set(id, {
       id,

@@ -474,39 +474,53 @@ function connect(session: string): Promise<net.Socket> {
 }
 
 export function sendCommandOnce(cmd: Command, session: string): Promise<Response> {
-  return new Promise(async (resolve, reject) => {
-    let socket: net.Socket;
-    try {
-      socket = await connect(session);
-    } catch (e) {
-      reject(e);
-      return;
-    }
-
-    socket.setTimeout(30000);
-
-    let buffer = '';
-    socket.on('data', (data) => {
-      buffer += data.toString();
-      if (buffer.includes('\n')) {
-        try {
-          const response = JSON.parse(buffer.trim());
-          socket.end();
-          resolve(response);
-        } catch {
-          socket.end();
-          reject(new Error('Invalid response'));
-        }
+  return new Promise<Response>((resolve, reject) => {
+    const doConnect = async () => {
+      let socket: net.Socket;
+      try {
+        socket = await connect(session);
+      } catch (e) {
+        reject(e);
+        return;
       }
-    });
 
-    socket.on('error', (err) => reject(err));
-    socket.on('timeout', () => {
-      socket.end();
-      reject(new Error('Connection timeout'));
-    });
+      socket.setTimeout(30000);
 
-    socket.write(JSON.stringify(cmd) + '\n');
+      let buffer = '';
+      const commandId = (cmd as { id?: string }).id;
+      socket.on('data', (data) => {
+        buffer += data.toString();
+
+        while (buffer.includes('\n')) {
+          const newlineIndex = buffer.indexOf('\n');
+          const line = buffer.substring(0, newlineIndex).trim();
+          buffer = buffer.substring(newlineIndex + 1);
+
+          if (!line) continue;
+
+          try {
+            const response = JSON.parse(line);
+            if (commandId !== undefined && response.id !== undefined && response.id !== commandId) {
+              continue;
+            }
+            socket.end();
+            resolve(response as Response);
+            return;
+          } catch {
+            continue;
+          }
+        }
+      });
+
+      socket.on('error', (err) => reject(err));
+      socket.on('timeout', () => {
+        socket.end();
+        reject(new Error('Connection timeout'));
+      });
+
+      socket.write(JSON.stringify(cmd) + '\n');
+    };
+    doConnect();
   });
 }
 

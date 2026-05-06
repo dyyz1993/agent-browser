@@ -373,7 +373,12 @@ export function buildViewerScript(): string {
           return;
         }
 
-        const msg = JSON.parse(event.data);
+        let msg;
+        try {
+          msg = JSON.parse(event.data);
+        } catch (_e) {
+          return;
+        }
 
         // Handle recorder responses
         if (msg.id && msg.id.startsWith('recorder-')) {

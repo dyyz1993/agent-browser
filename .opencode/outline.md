@@ -84,6 +84,10 @@
 
 ### Progress
 
+- **Tests passing**: 1450
+- **CI**: 18/18 jobs green
+- **Version**: 0.23.0
+
 #### Done
 - [x] T1: SnapshotStore 内存存储
 - [x] T2: 增强选择器生成器
@@ -96,15 +100,33 @@
 - Documentation updates: help.ts (selector commands, flow export), SKILL.md (self-healing, script export, enhanced recording)
 - KB knowledge article: .kb/recording-replay-enhancements.md
 - All committed: 0d1b86f (5 files, +638 lines)
+- [x] Phase 5: Config API for healing parameters → DONE (HealingConfig + RetryConfig types, YAML parsing, flow-executor integration)
+- [x] Phase 5: Additional exporter formats → DONE (Cypress + Selenium exporters, 28/32 action coverage)
+- [x] Phase 5: E2E tests for self-healing replay → DONE (self-healing-replay.e2e.test.ts)
+- [x] Phase 5: Performance benchmarks → DONE (benchmark-selector-generation.test.ts, 19 benchmarks)
+- [x] Phase 5: User-facing documentation → DONE (TUTORIAL.md, README update, examples/, docs site)
 
 #### In Progress
 _(none)_
 
+### Completed in Phase 6
+- Flaky test fixes (6 types: snapshot numbering, recorder state leak, timing, port conflicts)
+- SnapshotStore.reset() method
+- getFreePort() utility
+- ESLint configuration
+- 25 critical `any` type fixes
+- 11 empty catch block fixes
+- README.md 4 new sections
+- TUTORIAL.md Chinese step-by-step guide
+- 3 example YAML files (form-fill, pagination, ecommerce-checkout)
+- 3 new docs site pages (self-healing, script-export, recording)
+- Docs site navigation update
+- help.ts new command documentation
+- SKILL.md Phase 2-4 documentation
+- KB knowledge article
+
 ### Next Steps
-- Phase 5 polish: config API for healing parameters, more exporter formats (Cypress, Selenium)
-- E2E tests for self-healing replay (requires real browser + page mutations)
-- Performance benchmarks for selector generation on complex pages
-- User documentation: blog post or tutorial for the new features
+_(all items completed)_
 
 ## 技术栈
 - TypeScript (snapshot.ts, browser.ts)

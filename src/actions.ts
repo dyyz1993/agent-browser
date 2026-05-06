@@ -973,10 +973,17 @@ async function handleEvaluate(
   try {
     let script: string;
     if (command.file) {
-      if (!existsSync(command.file)) {
-        throw new Error(`Script file not found: ${command.file}`);
+      const resolvedPath = path.resolve(command.file);
+      const cwd = process.cwd();
+      if (!resolvedPath.startsWith(cwd)) {
+        throw new Error(
+          `Security: file path must be within project directory. Got: ${resolvedPath}`
+        );
       }
-      script = readFileSync(command.file, 'utf-8');
+      if (!existsSync(resolvedPath)) {
+        throw new Error(`Script file not found: ${resolvedPath}`);
+      }
+      script = readFileSync(resolvedPath, 'utf-8');
     } else if (command.script) {
       script = command.script;
     } else {
