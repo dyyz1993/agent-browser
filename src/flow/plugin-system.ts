@@ -1,6 +1,5 @@
-import type { FlowStep, FlowContext, FlowResult } from './types.js';
+import type { FlowStep, FlowContext } from './types.js';
 import { BrowserManager } from '../browser/index.js';
-import { Response } from '../types.js';
 
 export type ActionHandler = (
   step: FlowStep,
@@ -73,7 +72,7 @@ export class PluginManager {
         if (!this.hooks.has(hookType as HookType)) {
           this.hooks.set(hookType as HookType, []);
         }
-        this.hooks.get(hookType as HookType)!.push(callback as HookCallback);
+        this.hooks.get(hookType as HookType)?.push(callback as HookCallback);
       }
     }
 
@@ -115,7 +114,7 @@ export class PluginManager {
     }
 
     if (plugin.dataHandlers) {
-      this.dataHandlers = this.dataHandlers.filter((h) => !plugin.dataHandlers!.includes(h));
+      this.dataHandlers = this.dataHandlers.filter((h) => !(plugin.dataHandlers ?? []).includes(h));
     }
 
     if (plugin.cleanup) {
@@ -150,7 +149,7 @@ export class PluginManager {
     if (!this.context) {
       throw new Error('PluginManager context not initialized');
     }
-    await handler(step, this.context, this.browser!);
+    await handler(step, this.context, this.browser as BrowserManager);
   }
 
   async triggerHook(hookType: HookType, step?: FlowStep, result?: unknown): Promise<void> {
@@ -198,10 +197,11 @@ export class PluginManager {
 
   private createPluginContext(): PluginContext {
     return {
-      getBrowser: () => this.browser!,
-      getContext: () => this.context!,
+      getBrowser: () => this.browser as BrowserManager,
+      getContext: () => this.context as FlowContext,
       getActionHandler: (name: string) => this.customActions.get(name),
-      executeStep: (step: FlowStep) => this.executeStepFn!(step),
+      executeStep: (step: FlowStep) =>
+        (this.executeStepFn as (step: FlowStep) => Promise<void>)(step),
     };
   }
 }

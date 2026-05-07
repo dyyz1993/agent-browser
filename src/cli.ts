@@ -20,7 +20,6 @@ import {
   printError,
   printWarning,
   successIndicator,
-  warningIndicator,
 } from './cli/output.js';
 import { spawn } from 'child_process';
 import { getHumanConfigFromEnv } from './human-mouse.js';
@@ -302,7 +301,6 @@ async function main(): Promise<void> {
 
   if (args[0] === 'kill') {
     const killAllFlag = rawArgs.includes('--all');
-    const forceKill = rawArgs.includes('--force');
     try {
       if (killAllFlag) {
         const result = await killAll();
@@ -366,7 +364,7 @@ async function main(): Promise<void> {
         latestVersion = execSync('npm view @dyyz1993/agent-browser version', {
           encoding: 'utf-8',
         }).trim();
-      } catch (_e) {
+      } catch {
         printError('Failed to check for updates. Are you online?', flags.json);
         process.exit(1);
         return;
@@ -423,7 +421,7 @@ async function main(): Promise<void> {
 
       try {
         await killDaemon(flags.session);
-      } catch (_e) {
+      } catch {
         // Daemon not running, ok
       }
 
@@ -439,7 +437,7 @@ async function main(): Promise<void> {
         } else {
           console.log(`✓ Updated to v${installVersion}`);
         }
-      } catch (_e) {
+      } catch {
         printError(
           `Failed to install v${installVersion}. Try: npm install -g @dyyz1993/agent-browser@${installVersion}`,
           flags.json

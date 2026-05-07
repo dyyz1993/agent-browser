@@ -129,7 +129,7 @@ async function moveAlongPath(
   page: Page,
   pts: Point[],
   steps: number,
-  preset: (typeof PRESETS)[HumanPathType]
+  _preset: (typeof PRESETS)[HumanPathType]
 ) {
   for (let i = 0; i <= steps; i++) {
     const t = i / steps;
@@ -195,7 +195,7 @@ export async function humanClick(
   await page.mouse.up({ button: options?.button ?? 'left', clickCount: options?.clickCount ?? 1 });
 }
 
-export async function humanType(page: Page, text: string, config: HumanConfig): Promise<void> {
+export async function humanType(page: Page, text: string, _config: HumanConfig): Promise<void> {
   for (const char of text) {
     await sleep(rand(50, 150));
     await page.keyboard.type(char);

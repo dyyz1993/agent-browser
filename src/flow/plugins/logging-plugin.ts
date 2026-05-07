@@ -28,7 +28,7 @@ export function createLoggingPlugin(options?: {
       },
       onStepEnd: async (_ctx, step, result) => {
         if (logSteps) {
-          const elapsed = startTimes.has(step.id) ? Date.now() - startTimes.get(step.id)! : 0;
+          const elapsed = startTimes.has(step.id) ? Date.now() - (startTimes.get(step.id) ?? 0) : 0;
           console.log(
             `[Step] ${step.id} (${step.action}) completed${logTiming ? ` in ${elapsed}ms` : ''}`
           );

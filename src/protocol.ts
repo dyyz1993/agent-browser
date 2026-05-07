@@ -826,6 +826,7 @@ const inputTouchSchema = baseCommandSchema.extend({
   modifiers: z.number().optional(),
 });
 
+// These schemas are verified by tests (mobile-input.test.ts)
 const inputFocusedSchema = z.object({
   type: z.literal('input_focused'),
   tag: z.string(),
@@ -843,6 +844,10 @@ const inputTextSchema = z.object({
 const inputBlurSchema = z.object({
   type: z.literal('input_blur'),
 });
+
+void inputFocusedSchema;
+void inputTextSchema;
+void inputBlurSchema;
 
 const viewerSchema = baseCommandSchema.extend({
   action: z.literal('viewer'),

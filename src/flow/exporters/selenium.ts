@@ -326,7 +326,6 @@ export class SeleniumExporter implements ScriptExporter {
 
       case 'interceptRoute': {
         const apiUrl = step.apiUrl || '';
-        const mockResponse = step.mockResponse || '';
         const mockStatus = step.mockStatus || 200;
         lines.push(`${indent}# interceptRoute: ${escape(apiUrl)} -> ${mockStatus}`);
         lines.push(`${indent}# Selenium does not support request interception natively`);

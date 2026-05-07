@@ -129,7 +129,7 @@ export function parseCommand(args: string[], flags: Flags): Command {
       if (flags.headers) {
         try {
           navCmd.headers = JSON.parse(flags.headers);
-        } catch (_e) {
+        } catch {
           // Invalid headers JSON, using default
         }
       }
@@ -479,7 +479,7 @@ export function parseCommand(args: string[], flags: Flags): Command {
         const bIdx = rest.includes('-b') ? rest.indexOf('-b') : rest.indexOf('--base64');
         const encoded = rest[bIdx + 1];
         if (!encoded) error('Missing base64 script', 'agent-browser eval -b <base64-script>');
-        script = Buffer.from(encoded!, 'base64').toString('utf8');
+        script = Buffer.from(encoded, 'base64').toString('utf8');
       } else {
         script = rest.join(' ');
         if (!script) error('Missing script', 'agent-browser eval <script>');

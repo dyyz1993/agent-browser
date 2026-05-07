@@ -1,13 +1,7 @@
 import type { Page, Request, Response } from 'playwright-core';
 import path from 'node:path';
 import { existsSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
-import type {
-  TrackedRequest,
-  ConsoleMessage,
-  PageError,
-  TrackedWebSocket,
-  TrackedWSFrame,
-} from './types.js';
+import type { TrackedRequest, ConsoleMessage, PageError, TrackedWebSocket } from './types.js';
 
 export class NetworkTracker {
   private trackedRequests: TrackedRequest[] = [];

@@ -1,4 +1,4 @@
-import type { BrowserContext, Page, Frame } from 'playwright-core';
+import type { Page, Frame } from 'playwright-core';
 import path from 'node:path';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -118,7 +118,7 @@ export class RecorderManager {
         this.recorderSessionId
       );
       await page.evaluate(injectScript);
-    } catch (e) {
+    } catch {
       /* empty */
     }
   }
@@ -220,12 +220,12 @@ export class RecorderManager {
                 .catch(() => {});
             }
           }
-        } catch (e) {
+        } catch {
           /* empty */
         }
         return true;
       });
-    } catch (e) {
+    } catch {
       // Binding already exists, ignore
     }
 
@@ -236,7 +236,7 @@ export class RecorderManager {
         (window as unknown as Record<string, unknown>).xyzInited = false;
         (window as unknown as Record<string, unknown>).xyzSessionId = sessionId;
       }, this.recorderSessionId);
-    } catch (e) {
+    } catch {
       /* empty */
     }
 
@@ -269,13 +269,13 @@ export class RecorderManager {
           window.xyzQueue = [];
         }
       `);
-    } catch (e) {
+    } catch {
       /* empty */
     }
 
     try {
       await page.addScriptTag({ content: injectScript, type: 'text/javascript' });
-    } catch (e) {
+    } catch {
       try {
         await page.evaluate((scriptContent) => {
           const script = document.createElement('script');
@@ -283,7 +283,7 @@ export class RecorderManager {
           script.type = 'text/javascript';
           (document.head || document.documentElement).appendChild(script);
         }, injectScript);
-      } catch (e2) {
+      } catch {
         /* empty */
       }
     }
@@ -363,10 +363,10 @@ export class RecorderManager {
           this.recorderSessionId
         );
 
-        await frame.evaluate(frameInjectScript).catch((e) => {
+        await frame.evaluate(frameInjectScript).catch(() => {
           // Cross-origin iframe, ignore
         });
-      } catch (e) {
+      } catch {
         // Ignore errors, likely cross-origin iframe
       }
     };
@@ -533,7 +533,7 @@ export class RecorderManager {
 
       try {
         await page.context().exposeBinding(this.recorderBindingName || 'xyzTrack', () => {});
-      } catch (e) {
+      } catch {
         // Ignore errors, binding may already be removed
       }
     }

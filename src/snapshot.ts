@@ -17,7 +17,7 @@
  *   agent-browser click @e2             # Click element by ref
  */
 
-import type { Page, Frame, Locator, FrameLocator } from 'playwright-core';
+import type { Page, Frame, FrameLocator } from 'playwright-core';
 
 export interface RefMap {
   [ref: string]: {
@@ -640,7 +640,7 @@ export async function generateStableSelectors(
             const uniqueSelector = makeUniqueWithNth(element, baseSelector);
             try {
               if (document.querySelectorAll(uniqueSelector).length === 1) return uniqueSelector;
-            } catch (_e) {
+            } catch {
               // Intentionally ignored: invalid CSS selector in tryNthChild
             }
             return null;
@@ -688,7 +688,7 @@ export async function generateStableSelectors(
               const parent = current.parentElement;
               if (parent) {
                 const siblings = Array.from(parent.children).filter(
-                  (c) => c.tagName === current!.tagName
+                  (c) => c.tagName === (current as Element).tagName
                 );
                 const index = siblings.indexOf(current) + 1;
                 parts.unshift(tagName + '[' + index + ']');
@@ -727,7 +727,7 @@ export async function generateStableSelectors(
           xpath: selectorData.xpath,
         };
       }
-    } catch (_e) {
+    } catch {
       // Intentionally ignored: element ref generation failed for this element
     }
   }
@@ -914,7 +914,7 @@ async function enrichRefsWithPathsAndAttrs(
     return;
   }
 
-  const scriptBody = `
+  void `
     () => {
       const STYLE_CLASS_PATTERNS = [
         /^(flex|grid|block|inline|hidden)$/,

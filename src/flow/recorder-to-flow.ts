@@ -1,7 +1,7 @@
-import { readFileSync, writeFileSync } from 'fs';
+import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import yaml from 'js-yaml';
-import type { SiteDefinition, FlowDefinition, FlowStep, ExtractField } from './types.js';
+import type { SiteDefinition, FlowDefinition, FlowStep } from './types.js';
 
 export interface RecorderAnnotation {
   type:
@@ -81,7 +81,6 @@ export function recorderToFlow(
 
   let hasPagination = false;
   let paginationNextSelector = '';
-  let paginationStepIndex = -1;
 
   let dataContainerFound = false;
   let dataContainerSelector = '';
@@ -96,7 +95,6 @@ export function recorderToFlow(
           hasPagination = true;
           paginationNextSelector =
             step.annotation.nextSelector || step.annotation.selector || step.selector || '';
-          paginationStepIndex = i;
           warnings.push(
             `Pagination annotation at step "${step.id}" with selector "${paginationNextSelector}"`
           );

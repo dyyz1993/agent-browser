@@ -14,7 +14,6 @@ import {
 } from 'playwright-core';
 import path from 'node:path';
 import os from 'node:os';
-import { existsSync } from 'node:fs';
 import type { LaunchCommand } from '../types.js';
 import {
   type RefMap,
@@ -695,7 +694,7 @@ export class BrowserManager {
         return false;
       }
       return contexts.some((context) => context.pages().length > 0);
-    } catch (_e) {
+    } catch {
       return false;
     }
   }
@@ -843,7 +842,7 @@ export class BrowserManager {
 
     let context: BrowserContext;
     if (hasExtensions) {
-      const extPaths = options.extensions!.join(',');
+      const extPaths = (options.extensions ?? []).join(',');
       const session = process.env.AGENT_BROWSER_SESSION || 'default';
       const extArgs = [`--disable-extensions-except=${extPaths}`, `--load-extension=${extPaths}`];
       const allArgs = baseArgs ? [...extArgs, ...baseArgs] : extArgs;
@@ -862,7 +861,7 @@ export class BrowserManager {
       );
       this.isPersistentContext = true;
     } else if (hasProfile) {
-      const profilePath = options.profile!.replace(/^~\//, os.homedir() + '/');
+      const profilePath = (options.profile ?? '').replace(/^~\//, os.homedir() + '/');
       context = await launcher.launchPersistentContext(profilePath, {
         headless: options.headless ?? true,
         executablePath: options.executablePath,

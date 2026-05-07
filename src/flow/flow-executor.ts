@@ -6,7 +6,7 @@ import { readFileSync } from 'fs';
 import path from 'path';
 import { getPreset } from './presets/index.js';
 import { formatOutput, writeOutput } from './output.js';
-import type { OutputFormat, OutputConfig } from './output.js';
+import type { OutputFormat } from './output.js';
 import type {
   SiteDefinition,
   FlowDefinition,
@@ -21,7 +21,6 @@ import type {
   RetryConfig,
 } from './types.js';
 import { PluginManager } from './plugin-system.js';
-import type { HookType } from './plugin-system.js';
 import type { Page, Frame } from 'playwright-core';
 
 const WAIT_DELAY_MS = 2000;
@@ -444,7 +443,7 @@ export class FlowExecutor {
         let parsed: unknown[];
         try {
           parsed = JSON.parse(String(evalResult.result)) as unknown[];
-        } catch (_e) {
+        } catch {
           throw new Error(
             `Failed to parse extraction result: ${String(evalResult.result).substring(0, 100)}`
           );
@@ -556,7 +555,7 @@ export class FlowExecutor {
       if (typeof parsed === 'string') {
         try {
           parsed = JSON.parse(parsed);
-        } catch (_e) {
+        } catch {
           // Intentionally ignored: non-JSON eval result kept as string
         }
       }
@@ -717,7 +716,7 @@ export class FlowExecutor {
         items = JSON.parse(
           String((evalResult.data as { result: unknown }).result || '[]')
         ) as Array<Record<string, unknown>>;
-      } catch (_e) {
+      } catch {
         throw new Error(
           `Failed to parse extraction result: ${String((evalResult.data as { result: unknown }).result || '').substring(0, 100)}`
         );
@@ -1195,7 +1194,7 @@ export class FlowExecutor {
             typeof item === 'object' &&
             item !== null &&
             'url' in item &&
-            String((item as Record<string, unknown>).url).includes(config.scriptFilter!)
+            String((item as Record<string, unknown>).url).includes(config.scriptFilter ?? '')
         );
       } else {
         layer2Data = captured;
@@ -1210,7 +1209,7 @@ export class FlowExecutor {
           let parsedBody: unknown;
           try {
             parsedBody = typeof body === 'string' ? JSON.parse(body) : body;
-          } catch (_e) {
+          } catch {
             parsedBody = body;
           }
           return parsedBody;
@@ -1279,7 +1278,7 @@ export class FlowExecutor {
       if ((await primary.count()) > 0) {
         return primarySelector;
       }
-    } catch (_e) {
+    } catch {
       // Intentionally ignored: primary selector check failed, proceeding to healing
     }
 
@@ -1304,7 +1303,7 @@ export class FlowExecutor {
               });
               return fallback;
             }
-          } catch (_e) {
+          } catch {
             // Intentionally ignored: fallback selector check failed, trying next
           }
         }
@@ -1350,7 +1349,7 @@ export class FlowExecutor {
           });
           return selector;
         }
-      } catch (_e) {
+      } catch {
         // Intentionally ignored: identity_text healing strategy failed
       }
     }
@@ -1370,7 +1369,7 @@ export class FlowExecutor {
             });
             return selector;
           }
-        } catch (_e) {
+        } catch {
           // Intentionally ignored: identity_attr healing strategy failed for this attribute
         }
       }
@@ -1392,7 +1391,7 @@ export class FlowExecutor {
             return selector;
           }
         }
-      } catch (_e) {
+      } catch {
         // Intentionally ignored: identity_parent healing strategy failed
       }
     }

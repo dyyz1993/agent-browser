@@ -1,6 +1,5 @@
 import type { BrowserManager } from '../browser/index.js';
 import type {
-  Command,
   Response,
   MouseMoveCommand,
   MouseDownCommand,
@@ -10,7 +9,6 @@ import type {
 } from '../types.js';
 import { successResponse } from '../protocol.js';
 import { humanMoveTo, humanWander } from '../human-mouse.js';
-import type { HumanConfig } from '../human-mouse.js';
 
 export async function handleMouseMove(
   command: MouseMoveCommand,

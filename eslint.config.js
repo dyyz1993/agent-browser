@@ -2,7 +2,16 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['node_modules/', 'dist/', 'cli/', 'opensrc/', '.opencode/', 'docs/', 'sites/', 'test-recordings/'],
+    ignores: [
+      'node_modules/',
+      'dist/',
+      'cli/',
+      'opensrc/',
+      '.opencode/',
+      'docs/',
+      'sites/',
+      'test-recordings/',
+    ],
   },
   ...tseslint.configs.recommended,
   {
@@ -14,6 +23,13 @@ export default tseslint.config(
       'no-empty': ['error', { allowEmptyCatch: false }],
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/no-non-null-assertion': 'warn',
+    },
+  },
+  {
+    files: ['src/**/*.test.ts', 'src/__tests__/**/*.ts', 'test/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-non-null-assertion': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
     },
   }
 );

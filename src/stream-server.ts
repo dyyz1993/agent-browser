@@ -5,7 +5,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import sharp from 'sharp';
 import type { BrowserManager, ScreencastFrame } from './browser/index.js';
 import { setScreencastFrameCallback, setEventCallbacks } from './browser-events.js';
-import type { Command, Response } from './types.js';
+import type { Command } from './types.js';
 import { executeCommand } from './actions/index.js';
 import { errorResponse, serializeResponse } from './protocol.js';
 import { getSocketDir, getSession, getInstanceId } from './daemon.js';
@@ -198,8 +198,8 @@ export class FrameProcessor {
     }
 
     if (needsResize) {
-      const newWidth = Math.round(viewportWidth! * config.scale);
-      const newHeight = Math.round(viewportHeight! * config.scale);
+      const newWidth = Math.round((viewportWidth ?? 0) * config.scale);
+      const newHeight = Math.round((viewportHeight ?? 0) * config.scale);
       processed = processed.resize(newWidth, newHeight);
     }
 
@@ -452,7 +452,7 @@ export class StreamServer {
     });
   }
 
-  private async onStateChange(newState: StreamState, previousState: StreamState): Promise<void> {
+  private async onStateChange(newState: StreamState, _previousState: StreamState): Promise<void> {
     if (this.lastFrameData && this.lastFrameMetadata) {
       const config = STATE_CONFIGS[newState];
       try {
@@ -462,15 +462,21 @@ export class StreamServer {
           this.lastFrameMetadata.deviceWidth,
           this.lastFrameMetadata.deviceHeight
         );
-        const headerMessage: FrameMessage = {
+
+        const headerMessage = {
           type: 'frame',
-          metadata: this.lastFrameMetadata,
-          format: config.format,
-          fps: this.frameRateController.getCurrentFps(),
-          state: newState,
+          header: {
+            metadata: {
+              deviceWidth: this.lastFrameMetadata.deviceWidth,
+              deviceHeight: this.lastFrameMetadata.deviceHeight,
+              format: config.format,
+              fps: this.frameRateController.getCurrentFps(),
+              state: newState,
+            },
+          },
         };
 
-        for (const [client, _state] of this.clients) {
+        for (const [client] of this.clients) {
           if (client.readyState === WebSocket.OPEN) {
             client.send(JSON.stringify(headerMessage));
             client.send(processedBuffer);
@@ -549,14 +555,14 @@ export class StreamServer {
     setScreencastFrameCallback(null);
     setEventCallbacks({});
 
-    for (const [client, _state] of this.clients) {
+    for (const [client] of this.clients) {
       client.close();
     }
     this.clients.clear();
 
     if (this.wss) {
       return new Promise((resolve) => {
-        this.wss!.close(() => {
+        this.wss?.close(() => {
           this.wss = null;
           resolve();
         });
@@ -732,7 +738,7 @@ export class StreamServer {
             if (ws.readyState === WebSocket.OPEN) {
               try {
                 ws.send(JSON.stringify(message));
-              } catch (_e) {
+              } catch {
                 // WebSocket send failed, non-fatal
               }
             }
@@ -866,7 +872,7 @@ export class StreamServer {
   ): void {
     const payload = JSON.stringify(message);
 
-    for (const [client, _state] of this.clients) {
+    for (const [client] of this.clients) {
       if (client.readyState === WebSocket.OPEN) {
         client.send(payload);
       }
@@ -904,7 +910,7 @@ export class StreamServer {
       const viewport = page.viewportSize();
       viewportWidth = viewport?.width;
       viewportHeight = viewport?.height;
-    } catch (_e) {
+    } catch {
       // Intentionally ignored: browser page not available during status check
     }
 
@@ -921,7 +927,7 @@ export class StreamServer {
 
     if (clientState?.elementBox) {
       message.element = {
-        selector: clientState.selector!,
+        selector: clientState.selector ?? '',
         x: clientState.elementBox.x,
         y: clientState.elementBox.y,
         width: clientState.elementBox.width,
@@ -1014,7 +1020,7 @@ export class StreamServer {
             if (ws.readyState === WebSocket.OPEN) {
               try {
                 ws.send(JSON.stringify(data));
-              } catch (_e) {
+              } catch {
                 // WebSocket send failed, non-fatal
               }
             }
@@ -1032,7 +1038,7 @@ export class StreamServer {
             document.body.style.opacity = '';
           });
         });
-      } catch (_e) {
+      } catch {
         // Intentionally ignored: force re-render eval failed
       }
     } catch (error) {
@@ -1103,7 +1109,7 @@ export class StreamServerProxy {
     });
   }
 
-  private async onStateChange(newState: StreamState, previousState: StreamState): Promise<void> {
+  private async onStateChange(newState: StreamState, _previousState: StreamState): Promise<void> {
     if (this.lastFrameData && this.lastFrameMetadata) {
       const config = STATE_CONFIGS[newState];
       try {

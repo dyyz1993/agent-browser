@@ -255,26 +255,26 @@ export function cleanupSocket(session?: string): void {
     // Remove stale files, ignoring ENOENT (avoid TOCTOU race)
     try {
       fs.unlinkSync(pidFile);
-    } catch (_e) {
+    } catch {
       /* not found */
     }
     try {
       fs.unlinkSync(streamPortFile);
-    } catch (_e) {
+    } catch {
       /* not found */
     }
     if (isWindows) {
       const portFile = getPortFile(session);
       try {
         fs.unlinkSync(portFile);
-      } catch (_e) {
+      } catch {
         /* not found */
       }
     } else {
       const socketPath = getSocketPath(session);
       try {
         fs.unlinkSync(socketPath);
-      } catch (_e) {
+      } catch {
         /* not found */
       }
     }
@@ -292,15 +292,13 @@ export function getStreamServerPidFile(): string {
   return path.join(getSocketDir(), STREAM_SERVER_PID_FILE);
 }
 
-export async function startDaemon(options?: { provider?: string }): Promise<void> {
+export async function startDaemon(_options?: { provider?: string }): Promise<void> {
   const socketDir = getSocketDir();
   if (!fs.existsSync(socketDir)) {
     fs.mkdirSync(socketDir, { recursive: true });
   }
 
   cleanupSocket();
-
-  const provider = options?.provider ?? process.env.AGENT_BROWSER_PROVIDER;
 
   const manager = new BrowserManager();
   let shuttingDown = false;
@@ -356,7 +354,7 @@ export async function startDaemon(options?: { provider?: string }): Promise<void
                   await manager.injectFocusListener((data) => {
                     try {
                       socket.write(JSON.stringify(data) + '\n');
-                    } catch (_e) {
+                    } catch {
                       // Socket write to disconnected client, non-fatal
                     }
                   });
@@ -476,7 +474,7 @@ export async function startDaemon(options?: { provider?: string }): Promise<void
                 }
                 continue;
               }
-            } catch (_) {
+            } catch {
               /* not JSON, fall through to normal parsing */
             }
           }
@@ -573,7 +571,7 @@ export async function startDaemon(options?: { provider?: string }): Promise<void
                 await manager.injectFocusListener((data) => {
                   try {
                     socket.write(JSON.stringify(data) + '\n');
-                  } catch (_e) {
+                  } catch {
                     // Socket write to disconnected client, non-fatal
                   }
                 });

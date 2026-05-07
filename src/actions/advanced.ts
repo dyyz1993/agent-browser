@@ -49,7 +49,7 @@ import { successResponse, errorResponse } from '../protocol.js';
 
 export async function handleVideoStart(
   command: Command & { action: 'video_start'; path: string },
-  browser: BrowserManager
+  _browser: BrowserManager
 ): Promise<Response> {
   return successResponse(command.id, {
     note: 'Video recording must be enabled at browser launch. Use --video flag when starting.',
@@ -119,7 +119,7 @@ export async function handleStateSave(
 
 export async function handleStateLoad(
   command: Command & { action: 'state_load'; path: string },
-  browser: BrowserManager
+  _browser: BrowserManager
 ): Promise<Response> {
   return successResponse(command.id, {
     note: 'Storage state must be loaded at browser launch. Use --state flag.',
@@ -494,7 +494,7 @@ export async function handleTimezone(
 
 export async function handleLocale(
   command: LocaleCommand,
-  browser: BrowserManager
+  _browser: BrowserManager
 ): Promise<Response> {
   return successResponse(command.id, {
     note: 'Locale must be set at browser launch. Use --locale flag.',

@@ -1,8 +1,7 @@
-import { existsSync, writeFileSync, readdirSync, statSync, readFileSync } from 'node:fs';
+import { existsSync, writeFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import type { BrowserManager } from '../browser/index.js';
 import type {
-  Command,
   Response,
   RecorderStartCommand,
   RecorderStopCommand,

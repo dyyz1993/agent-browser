@@ -1,6 +1,5 @@
 import type { BrowserManager } from '../browser/index.js';
 import type {
-  Command,
   Response,
   RecordingStartCommand,
   RecordingStartData,

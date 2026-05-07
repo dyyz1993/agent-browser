@@ -152,7 +152,7 @@ export async function handleViewport(
 
 export async function handleUserAgent(
   command: Command & { action: 'useragent'; userAgent: string },
-  browser: BrowserManager
+  _browser: BrowserManager
 ): Promise<Response> {
   return successResponse(command.id, {
     note: 'User agent can only be set at launch time. Use device command instead.',

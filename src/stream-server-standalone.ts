@@ -10,7 +10,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import sharp from 'sharp';
 import { getViewerHtml } from './viewer-html.js';
 import { isAllowedOrigin } from './stream-server.js';
-import { getSocketDir, getAppDir } from './daemon.js';
+import { getSocketDir } from './daemon.js';
 import { openApiSpec } from './openapi.js';
 import { getSwaggerUiHtml } from './swagger-ui.js';
 import { BrowserManager } from './browser/index.js';
@@ -297,12 +297,10 @@ class StreamServerStandalone {
     }
 
     let session: string;
-    let connected = false;
     if (instanceIdParam) {
       const foundSession = this.instanceIdToSession.get(instanceIdParam);
       if (foundSession) {
         session = foundSession;
-        connected = true;
       } else {
         session = sessionParam;
       }
@@ -313,8 +311,10 @@ class StreamServerStandalone {
     if (!this.clients.has(session)) {
       this.clients.set(session, new Set());
     }
-    const wasEmpty = this.clients.get(session)!.size === 0;
-    this.clients.get(session)!.add(ws);
+    const clientSet = this.clients.get(session);
+    if (!clientSet) return;
+    const wasEmpty = clientSet.size === 0;
+    clientSet.add(ws);
     this.clientStates.set(ws, clientState);
 
     if (clientState.selector) {
@@ -389,7 +389,7 @@ class StreamServerStandalone {
       }
     });
 
-    ws.on('error', (error) => {
+    ws.on('error', (_error) => {
       if (clientState.elementCheckTimer) {
         clearInterval(clientState.elementCheckTimer);
         clientState.elementCheckTimer = undefined;
@@ -523,7 +523,7 @@ class StreamServerStandalone {
             deviceWidth: box.width,
             deviceHeight: box.height,
             element: {
-              selector: clientState!.selector!,
+              selector: clientState.selector as string,
               x: box.x,
               y: box.y,
               width: box.width,
@@ -647,7 +647,8 @@ class StreamServerStandalone {
 
       case 'frame':
         if (message.session) {
-          this.sessions.get(message.session)!.lastSeen = Date.now();
+          const sess = this.sessions.get(message.session);
+          if (sess) sess.lastSeen = Date.now();
           await this.broadcastFrame(message);
         }
         break;
@@ -695,7 +696,7 @@ class StreamServerStandalone {
             if (client.readyState === WebSocket.OPEN) {
               try {
                 client.send(JSON.stringify(message));
-              } catch (_) {
+              } catch {
                 /* empty */
               }
             }
@@ -777,7 +778,7 @@ class StreamServerStandalone {
                       action: 'inject_focus_listener',
                     }) + '\n'
                   );
-                } catch (_) {
+                } catch {
                   /* empty */
                 }
               }, 2000);
@@ -803,14 +804,14 @@ class StreamServerStandalone {
                 if (client.readyState === WebSocket.OPEN) {
                   try {
                     client.send(JSON.stringify(msg));
-                  } catch (_) {
+                  } catch {
                     /* empty */
                   }
                 }
               }
             }
           }
-        } catch (_) {
+        } catch {
           // Ignore parse errors (might be partial data or non-JSON responses)
         }
       }
@@ -818,7 +819,8 @@ class StreamServerStandalone {
   }
 
   private async broadcastFrame(message: StreamMessage): Promise<void> {
-    const session = message.session!;
+    const session = message.session;
+    if (!session) return;
     const clients = this.clients.get(session);
 
     if (!clients || clients.size === 0) return;
@@ -840,7 +842,12 @@ class StreamServerStandalone {
 
       if (hasSelector && hasBox && hasFrame) {
         try {
-          const box = clientState.elementBox!;
+          const box = clientState.elementBox as {
+            x: number;
+            y: number;
+            width: number;
+            height: number;
+          };
           const meta = message.metadata;
 
           let left = Math.round(box.x);
@@ -884,7 +891,7 @@ class StreamServerStandalone {
                 deviceWidth: box.width,
                 deviceHeight: box.height,
                 element: {
-                  selector: clientState!.selector!,
+                  selector: clientState.selector as string,
                   x: box.x,
                   y: box.y,
                   width: box.width,
@@ -895,7 +902,12 @@ class StreamServerStandalone {
           }
         } catch (error) {
           const errMsg = error instanceof Error ? error.message : String(error);
-          const box = clientState.elementBox!;
+          const box = clientState.elementBox as {
+            x: number;
+            y: number;
+            width: number;
+            height: number;
+          };
           metadata = {
             ...(metadata || {}),
             _cropError: errMsg,
@@ -1028,7 +1040,7 @@ class StreamServerStandalone {
       let socketPath: string | undefined;
 
       // Try to find an active session's socket path
-      for (const [session, info] of this.sessions) {
+      for (const [, info] of this.sessions) {
         socketPath = info.socketPath;
         break;
       }
@@ -1162,24 +1174,33 @@ class StreamServerStandalone {
   }
 
   async stop(): Promise<void> {
+    const promises: Promise<void>[] = [];
+
     if (this.wss) {
-      await new Promise<void>((resolve) => {
-        this.wss!.close(() => resolve());
-      });
+      promises.push(
+        new Promise<void>((resolve) => {
+          this.wss?.close(() => resolve());
+        })
+      );
     }
 
     if (this.httpServer) {
-      await new Promise<void>((resolve) => {
-        this.httpServer!.close(() => resolve());
-      });
+      promises.push(
+        new Promise<void>((resolve) => {
+          this.httpServer?.close(() => resolve());
+        })
+      );
     }
 
     if (this.ipcServer) {
-      await new Promise<void>((resolve) => {
-        this.ipcServer!.close(() => resolve());
-      });
+      promises.push(
+        new Promise<void>((resolve) => {
+          this.ipcServer?.close(() => resolve());
+        })
+      );
     }
 
+    await Promise.all(promises);
     this.removePidFile();
     this.removeIpcFile();
   }

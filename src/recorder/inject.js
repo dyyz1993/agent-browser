@@ -218,14 +218,14 @@
         if (typeof window[bindingName] === 'function') {
           try {
             window[bindingName](JSON.stringify(event.data.step));
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          } catch(e) {}
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          } catch (e) {}
         }
       } else {
         try {
           window.parent.postMessage({ type: MESSAGE_TYPE, step: event.data.step }, '*');
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        } catch(e) {}
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch (e) {}
       }
     }
   });
@@ -299,8 +299,8 @@
     if (isInIframe) {
       try {
         window.parent.postMessage({ type: MESSAGE_TYPE, step: step }, '*');
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      } catch(e) {}
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (e) {}
     } else if (typeof window[bindingName] === 'function') {
       try {
         window[bindingName](JSON.stringify(step));
@@ -382,8 +382,8 @@
         document.evaluate('count(' + xpath + ')', document, null, XPathResult.NUMBER_TYPE, null)
           .numberValue === 1
       );
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch(e) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (e) {
       return false;
     }
   }
@@ -495,8 +495,8 @@
   function isUniqueSelector(selector) {
     try {
       return document.querySelectorAll(selector).length === 1;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch(e) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (e) {
       return false;
     }
   }
@@ -885,8 +885,8 @@
       const selector = '#' + CSS.escape(element.id);
       try {
         if (root.querySelectorAll(selector).length === 1) result = selector;
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      } catch(e) {}
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (e) {}
     }
 
     // 策略2: 多属性组合选择器
@@ -920,8 +920,8 @@
       const uniqueSelector = makeUniqueWithNth(element, baseSelector);
       try {
         if (root.querySelectorAll(uniqueSelector).length === 1) result = uniqueSelector;
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      } catch(e) {}
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (e) {}
     }
 
     // 策略8: 路径选择器（兜底）
@@ -958,8 +958,8 @@
       const sel = '#' + CSS.escape(element.id);
       try {
         if (document.querySelectorAll(sel).length === 1) tryCandidate(sel);
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      } catch(e) {}
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (e) {}
     }
 
     tryCandidate(getMultiAttributeSelector(element));
@@ -972,8 +972,8 @@
     const nthSel = makeUniqueWithNth(element, base);
     try {
       if (document.querySelectorAll(nthSel).length === 1) tryCandidate(nthSel);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch(e) {}
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (e) {}
 
     tryCandidate(buildUniquePath(element));
 
@@ -1017,8 +1017,8 @@
         const sel = current.tagName.toLowerCase() + '.' + CSS.escape(classes[0]);
         try {
           if (document.querySelectorAll(sel).length === 1) return sel;
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        } catch(e) {}
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch (e) {}
       }
       current = current.parentElement;
       depth++;
@@ -1121,8 +1121,8 @@
           try {
             const linkHost = new URL(href).host;
             isExternal = linkHost !== window.location.host;
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          } catch(e) {}
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          } catch (e) {}
         }
 
         recordStep('link_click', {
@@ -1446,9 +1446,6 @@
       mouseY = 0,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       currentEdge = null;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const EDGE_THRESHOLD = 30;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     let animationFrameId = null;
     let highlightRafId = null;
     let pendingHighlightElement = null;
@@ -1680,8 +1677,8 @@
                 top: panel.style.top,
               })
             );
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          } catch(e) {}
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          } catch (e) {}
         }
       });
 
@@ -1696,8 +1693,8 @@
             panel.style.right = 'auto';
           }
         }
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      } catch(e) {}
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (e) {}
 
       const markersContainer = document.createElement('div');
       markersContainer.className = 'xyzMk';
@@ -1873,8 +1870,8 @@
               window[window.xyzBindingName || 'xyzTrack'](
                 JSON.stringify({ action: 'xyzUpdate', id: stepId, data: { annotation } })
               );
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            } catch(e) {}
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            } catch (e) {}
           }
 
           updateUI();
@@ -1892,8 +1889,8 @@
               window[window.xyzBindingName || 'xyzTrack'](
                 JSON.stringify({ action: 'xyzDelete', id: stepId })
               );
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            } catch(e) {}
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            } catch (e) {}
           }
 
           currentStepIndex = -1;
@@ -1921,8 +1918,8 @@
         if (typeof window[window.xyzBindingName || 'xyzTrack'] === 'function') {
           try {
             window[window.xyzBindingName || 'xyzTrack'](JSON.stringify({ action: 'xyzClear' }));
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          } catch(e) {}
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          } catch (e) {}
         }
       });
 

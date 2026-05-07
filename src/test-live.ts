@@ -152,7 +152,7 @@ class Ws {
     });
   }
   bin(ms = 5000) {
-    if (this.bins.length > 0) return Promise.resolve(this.bins.shift()!);
+    if (this.bins.length > 0) return Promise.resolve(this.bins.shift() as Buffer);
     return new Promise<Buffer>((ok, f) => {
       const t = setTimeout(() => {
         this.bWaiters = this.bWaiters.filter((w) => w.r !== ok);

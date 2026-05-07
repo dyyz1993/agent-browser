@@ -128,13 +128,13 @@ export function getEffectiveValue(key: string): string | number | undefined {
   };
 
   const envKey = envMap[key];
-  if (envKey && process.env[envKey]) {
-    const val = process.env[envKey]!;
+  const envVal = envKey ? process.env[envKey] : undefined;
+  if (envVal) {
     if (key === 'viewer.port') {
-      const num = parseInt(val, 10);
+      const num = parseInt(envVal, 10);
       if (!isNaN(num)) return num;
     }
-    return val;
+    return envVal;
   }
 
   return getConfigValue(key);

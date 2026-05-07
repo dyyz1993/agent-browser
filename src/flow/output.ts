@@ -17,7 +17,7 @@ export function formatOutput(data: unknown, config: OutputConfig): string {
   const deduped = config.dedupField ? deduplicate(items, config.dedupField) : items;
 
   const filtered = config.fields
-    ? deduped.map((item) => pickFields(item, config.fields!))
+    ? deduped.map((item) => pickFields(item, config.fields as string[]))
     : deduped;
 
   switch (config.format) {

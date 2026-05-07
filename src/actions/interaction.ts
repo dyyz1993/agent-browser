@@ -3,7 +3,7 @@ import path from 'node:path';
 import type { Page } from 'playwright-core';
 import type { BrowserManager } from '../browser/index.js';
 import { getInstanceId, getAppDir } from '../daemon.js';
-import { getEnhancedSnapshot } from '../snapshot.js';
+
 import { performDiff } from '../diff.js';
 import { detectMainContent, generateContentTips } from '../content-detection.js';
 import {
