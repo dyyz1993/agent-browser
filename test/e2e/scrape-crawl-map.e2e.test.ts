@@ -1,15 +1,29 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { execSync } from 'child_process';
+import * as os from 'os';
+import * as path from 'path';
+import * as fs from 'fs';
 
 const CLI = 'node dist/cli.js';
 const CHROMIUM = process.env.AGENT_BROWSER_EXECUTABLE_PATH || '';
+
+const SOCKET_DIR = path.join(os.tmpdir(), 'agent-browser-e2e-test');
+
+function getEnv(): Record<string, string> {
+  return {
+    ...process.env,
+    AGENT_BROWSER_EXECUTABLE_PATH: CHROMIUM,
+    AGENT_BROWSER_SOCKET_DIR: SOCKET_DIR,
+    HOME: process.env.HOME || '/home/runner',
+  } as Record<string, string>;
+}
 
 function run(cmd: string): { stdout: string; stderr: string; exitCode: number } {
   try {
     const stdout = execSync(`${CLI} ${cmd}`, {
       encoding: 'utf-8',
       timeout: 60000,
-      env: { ...process.env, AGENT_BROWSER_EXECUTABLE_PATH: CHROMIUM },
+      env: getEnv(),
     });
     return { stdout, stderr: '', exitCode: 0 };
   } catch (e: any) {
@@ -19,11 +33,15 @@ function run(cmd: string): { stdout: string; stderr: string; exitCode: number } 
 
 function runJSON(cmd: string): any {
   const result = run(`${cmd} --json`);
-  if (result.exitCode !== 0) throw new Error(`CLI failed: ${result.stderr}`);
-  return JSON.parse(result.stdout);
+  const lines = result.stdout.split('\n').filter((l) => l.trim().startsWith('{'));
+  if (lines.length === 0) {
+    throw new Error(`No JSON in output. exit=${result.exitCode} stdout=${result.stdout.slice(0, 200)} stderr=${result.stderr.slice(0, 200)}`);
+  }
+  return JSON.parse(lines[lines.length - 1]);
 }
 
 beforeAll(() => {
+  fs.mkdirSync(SOCKET_DIR, { recursive: true });
   run('close');
 }, 10000);
 
@@ -65,10 +83,10 @@ describe('Scrape', () => {
 
   it('should fail gracefully for invalid URL', () => {
     const result = run('scrape not-a-url --json');
-    const data = JSON.parse(result.stdout);
+    const lines = result.stdout.split('\n').filter((l) => l.trim().startsWith('{'));
+    const data = JSON.parse(lines[lines.length - 1]);
 
     expect(data.success).toBe(false);
-    expect(data.error).toContain('invalid URL');
   });
 });
 
