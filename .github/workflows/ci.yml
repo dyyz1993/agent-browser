@@ -437,13 +437,63 @@ jobs:
           echo "✓ agent-browser installed and working via native binary wrapper"
         shell: bash
 
+  scrape-crawl-e2e:
+    name: Scrape/Crawl/Map E2E Tests
+    needs: version-sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Build TypeScript
+        run: pnpm build
+
+      - name: Set Chromium path
+        run: |
+          CHROMIUM_PATH=$(node -e "
+            try {
+              const { chromium } = require('playwright-core');
+              console.log(chromium.executablePath());
+            } catch(e) {
+              console.error(e.message);
+            }
+          " 2>/dev/null || true)
+          if [ -z "$CHROMIUM_PATH" ] || [ ! -f "$CHROMIUM_PATH" ]; then
+            CHROMIUM_PATH=$(find "$HOME/.cache/ms-playwright" -type f -name "chrome" -o -name "chromium" 2>/dev/null | head -1 || true)
+          fi
+          if [ -n "$CHROMIUM_PATH" ]; then
+            echo "AGENT_BROWSER_EXECUTABLE_PATH=$CHROMIUM_PATH" >> $GITHUB_ENV
+            echo "Chromium path: $CHROMIUM_PATH"
+          else
+            echo "Warning: Could not find Chromium path"
+          fi
+        shell: bash
+
+      - name: Run Scrape/Crawl/Map E2E tests
+        run: pnpm test:e2e:crawl
+
   feishu-notify:
     name: Feishu Notification
     if: always()
-    needs: [typescript, rust, windows-integration, serverless-chromium, global-install, e2e-snapshot, exporter-tests, healing-config-tests, benchmark-tests, e2e-self-healing]
+    needs: [typescript, rust, windows-integration, serverless-chromium, global-install, e2e-snapshot, exporter-tests, healing-config-tests, benchmark-tests, e2e-self-healing, scrape-crawl-e2e]
     uses: dyyz1993/ci-tools/.github/workflows/feishu-notify.yml@main
     with:
-      jobs: '{"typescript":"${{ needs.typescript.result }}","rust":"${{ needs.rust.result }}","windows":"${{ needs.windows-integration.result }}","serverless":"${{ needs.serverless-chromium.result }}","global":"${{ needs.global-install.result }}","e2e-snapshot":"${{ needs.e2e-snapshot.result }}","exporter":"${{ needs.exporter-tests.result }}","healing":"${{ needs.healing-config-tests.result }}","benchmark":"${{ needs.benchmark-tests.result }}","e2e-self-healing":"${{ needs.e2e-self-healing.result }}"}'
+      jobs: '{"typescript":"${{ needs.typescript.result }}","rust":"${{ needs.rust.result }}","windows":"${{ needs.windows-integration.result }}","serverless":"${{ needs.serverless-chromium.result }}","global":"${{ needs.global-install.result }}","e2e-snapshot":"${{ needs.e2e-snapshot.result }}","exporter":"${{ needs.exporter-tests.result }}","healing":"${{ needs.healing-config-tests.result }}","benchmark":"${{ needs.benchmark-tests.result }}","e2e-self-healing":"${{ needs.e2e-self-healing.result }}","scrape-crawl":"${{ needs.scrape-crawl-e2e.result }}"}'
       sha: ${{ github.sha }}
       ref: ${{ github.ref_name }}
       actor: ${{ github.actor }}

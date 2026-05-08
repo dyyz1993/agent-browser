@@ -1118,7 +1118,12 @@ export type Command =
   | HistoryCommand
   | SelectorForCommand
   | SelectorsOfCommand
-  | ValidateCommand;
+  | ValidateCommand
+  | ScrapeCommand
+  | SearchCommand
+  | InteractCommand
+  | CrawlCommand
+  | MapCommand;
 
 export interface LooseCommand {
   id: string;
@@ -1332,4 +1337,155 @@ export interface AnnotateStep {
   xpath?: string;
   annotation: AnnotationConfig;
   url?: string;
+}
+
+export interface ScrapeCommand extends BaseCommand {
+  action: 'scrape';
+  url: string;
+  format?: 'text' | 'html' | 'markdown';
+  selector?: string;
+  timeout?: number;
+  headless?: boolean;
+}
+
+export interface CrawlCommand extends BaseCommand {
+  action: 'crawl';
+  url: string;
+  depth?: number;
+  limit?: number;
+  format?: 'text' | 'html' | 'markdown';
+  timeout?: number;
+  selector?: string;
+  headless?: boolean;
+}
+
+export interface CrawlPage {
+  url: string;
+  title: string;
+  content: string;
+  links?: string[];
+}
+
+export interface CrawlResult {
+  url: string;
+  pages: CrawlPage[];
+  total: number;
+  crawled: number;
+  failed: number;
+}
+
+export interface SearchCommand extends BaseCommand {
+  action: 'search';
+  query: string;
+  engine?: 'google' | 'bing' | 'duckduckgo';
+  limit?: number;
+  timeout?: number;
+  headless?: boolean;
+}
+
+export interface SearchResult {
+  title: string;
+  url: string;
+  snippet?: string;
+}
+
+export interface SearchResponse {
+  query: string;
+  engine: string;
+  results: SearchResult[];
+  total: number;
+}
+
+export interface MapCommand extends BaseCommand {
+  action: 'map';
+  url: string;
+  limit?: number;
+  timeout?: number;
+  headless?: boolean;
+}
+
+export interface MapResult {
+  url: string;
+  urls: string[];
+  total: number;
+}
+
+// Interact command types
+export interface InteractCommand extends BaseCommand {
+  action: 'interact';
+  steps?: InteractStep[];
+  file?: string;
+  headless?: boolean;
+  timeout?: number;
+}
+
+export type InteractStep =
+  | NavigateStep
+  | ClickStep
+  | FillStep
+  | TypeStep
+  | PressStep
+  | GetStep
+  | WaitStep
+  | ScreenshotStep;
+
+export interface NavigateStep {
+  action: 'navigate';
+  url: string;
+}
+
+export interface ClickStep {
+  action: 'click';
+  selector: string;
+}
+
+export interface FillStep {
+  action: 'fill';
+  selector: string;
+  value: string;
+}
+
+export interface TypeStep {
+  action: 'type';
+  selector: string;
+  text: string;
+}
+
+export interface PressStep {
+  action: 'press';
+  key: string;
+}
+
+export interface GetStep {
+  action: 'get';
+  type: 'text' | 'html' | 'value' | 'url' | 'title';
+  selector?: string;
+}
+
+export interface WaitStep {
+  action: 'wait';
+  selector?: string;
+  timeout?: number;
+  state?: 'attached' | 'detached' | 'visible' | 'hidden';
+}
+
+export interface ScreenshotStep {
+  action: 'screenshot';
+  path?: string;
+  fullPage?: boolean;
+}
+
+export interface InteractResult {
+  success: boolean;
+  steps: StepResult[];
+  finalUrl?: string;
+  finalTitle?: string;
+  output?: any;
+}
+
+export interface StepResult {
+  action: string;
+  success: boolean;
+  data?: any;
+  error?: string;
 }

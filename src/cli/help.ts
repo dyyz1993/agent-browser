@@ -254,7 +254,7 @@ agent-browser eval - Execute JavaScript
 
 Usage: agent-browser eval [options] <script> [--in-frame <path>]
 
-Executes JavaScript code in the browser context.
+Executes JavaScript code in browser context.
 
 Options:
   --in-frame <path>    Execute in iframe
@@ -267,7 +267,83 @@ Examples:
   agent-browser eval -b "ZG9jdW1lbnQudGl0bGU="
   agent-browser eval --file script.js
   agent-browser eval "document.body.innerHTML" --in-frame "#frame1"
-`,
+  `,
+  search: `
+agent-browser search - Search web using search engines
+
+Usage: agent-browser search <query> [options]
+
+Performs web search using specified search engine and returns
+structured results including titles, URLs, and snippets.
+
+Options:
+  --engine <engine>    Search engine: google (default), bing, duckduckgo
+  --limit <number>      Number of results to return (default: 10)
+  --timeout <seconds>   Timeout for page load (default: 15)
+  --headed             Show browser window
+
+Examples:
+  agent-browser search "playwright automation"
+  agent-browser search "playwright automation" --engine bing
+  agent-browser search "playwright automation" --limit 5 --engine duckduckgo
+  agent-browser search "playwright automation" --timeout 20
+  `,
+  crawl: `
+agent-browser crawl - Recursively crawl a website with auto content discovery
+
+Usage: agent-browser crawl <url> [options]
+
+Recursively crawls all linked pages on a website, automatically detecting
+and extracting main content from each page (no selector needed).
+
+Content Auto-Discovery (Firecrawl-style):
+  1. Checks common content containers (#main, .content, article, main, etc.)
+  2. Falls back to removing navigation/ads/footer elements
+  3. Final fallback to full page content
+
+Link Discovery:
+  - Same-domain links only
+  - Filters static resources (.png, .css, .js, .pdf, etc.)
+  - Filters social media links
+  - Supports SPA hash routing (/#/page treated as separate page)
+
+Options:
+  --depth <number>        Crawl depth (default: 2, 0 = only seed URL)
+  --limit <number>        Max pages to crawl (default: 50)
+  --format <format>       Content format: text, html, markdown (default: markdown)
+  --timeout <seconds>     Per-page timeout (default: 15)
+  --selector <css>        Override auto-discovery with specific selector
+  --headed                Show browser window (debug)
+
+Examples:
+  agent-browser crawl https://bark.day.app --depth 2 --limit 20 --json
+  agent-browser crawl https://example.com --depth 0
+  agent-browser crawl https://docs.example.com --depth 1 --format markdown
+  agent-browser crawl https://spa-site.com --limit 100
+  agent-browser crawl https://example.com --selector ".content" --depth 1
+  `,
+  map: `
+agent-browser map - Discover all URLs on a website
+
+Usage: agent-browser map <url> [options]
+
+Discovers all available URLs on a website using two strategies:
+1. Sitemap parsing (/sitemap.xml)
+2. HTML link extraction from the homepage
+
+Only collects URLs, does not fetch page content.
+
+Options:
+  --limit <number>     Maximum number of URLs to return (default: 100)
+  --timeout <seconds>  Page load timeout (default: 15)
+  --headed             Show browser window
+  --json               JSON output
+
+Examples:
+  agent-browser map https://bark.day.app
+  agent-browser map https://example.com --limit 50 --json
+  agent-browser map https://docs.example.com --timeout 20
+  `,
   get: `
 agent-browser get - Retrieve information from elements or page
 
@@ -900,6 +976,76 @@ Examples:
   agent-browser config list
   agent-browser config --json
 `,
+  interact: `
+agent-browser interact - Execute browser interaction steps
+
+Usage: agent-browser interact [options] [steps]
+
+Executes a sequence of browser interaction steps for automation.
+
+Modes:
+  Single step          Execute one action
+    agent-browser interact navigate <url>
+    agent-browser interact click <selector>
+    agent-browser interact fill <selector> <value>
+    agent-browser interact type <selector> <text>
+    agent-browser interact press <key>
+    agent-browser interact get <type> [selector]
+    agent-browser interact wait [selector] [timeout]
+    agent-browser interact screenshot [path]
+
+  JSON flow            Execute multiple steps as JSON
+    agent-browser interact '[
+      { "action": "navigate", "url": "https://example.com" },
+      { "action": "click", "selector": "#submit" }
+    ]'
+
+  From file             Load steps from JSON file
+    agent-browser interact --file flow.json
+
+Actions:
+  navigate <url>           Navigate to URL
+  click <selector>          Click element
+  fill <selector> <value>   Clear and fill input
+  type <selector> <text>    Type character by character
+  press <key>               Press keyboard key
+  get <type> [selector]      Get page/element data
+    Types: text, html, value, url, title
+  wait [selector] [timeout]   Wait for element or timeout
+  screenshot [path]           Take screenshot
+
+Options:
+  --file <path>              Load steps from JSON file
+  --timeout <ms>             Default timeout for operations
+  --headed                    Show browser window (default: headless)
+
+Examples:
+  # Single step
+  agent-browser interact navigate https://example.com
+  agent-browser interact click "#submit"
+  agent-browser interact fill "#email" "test@example.com"
+  agent-browser interact get text "main"
+
+  # Multiple steps (JSON)
+  agent-browser interact '[
+    { "action": "navigate", "url": "https://example.com" },
+    { "action": "fill", "selector": "#email", "value": "test@example.com" },
+    { "action": "fill", "selector": "#password", "value": "password" },
+    { "action": "click", "selector": "button[type=submit]" },
+    { "action": "wait", "selector": ".welcome" }
+  ]'
+
+  # From file
+  agent-browser interact --file flow.json
+  echo '[{"action":"navigate","url":"https://example.com"}]' > flow.json
+  agent-browser interact --file flow.json
+
+  # Get data
+  agent-browser interact get url
+  agent-browser interact get title
+  agent-browser interact get text "main"
+  agent-browser interact get value "#input"
+  `,
   flow: `
 agent-browser flow - Flow engine commands for YAML-defined automation
 
@@ -983,7 +1129,11 @@ Core Commands:
   screenshot [path]          Take screenshot
   pdf <path>                 Save as PDF
   snapshot                   Accessibility tree with refs (for AI)
-  eval <js>                  Run JavaScript
+  interact [steps]            Execute interaction steps
+  scrape <url>               Scrape page content (text/html/markdown)
+  search <query>             Search web (google/bing/duckduckgo)
+  crawl <url>                Crawl website pages recursively
+  map <url>                  Discover all URLs on a website
   connect <port|url>         Connect to browser via CDP
   close                      Close browser
 

@@ -55,6 +55,31 @@ function genId(): string {
   return `n${Date.now() % 1000000}`;
 }
 
+function parseSingleStep(action: string, args: string[]): any[] {
+  switch (action) {
+    case 'navigate':
+      return [{ action: 'navigate', url: args[0] }];
+    case 'click':
+      return [{ action: 'click', selector: args[0] }];
+    case 'fill':
+      return [{ action: 'fill', selector: args[0], value: args[1] }];
+    case 'type':
+      return [{ action: 'type', selector: args[0], text: args[1] }];
+    case 'press':
+      return [{ action: 'press', key: args[0] }];
+    case 'get':
+      return [{ action: 'get', type: args[0] as any, selector: args[1] }];
+    case 'wait':
+      const waitStep: any = { action: 'wait', selector: args[0] };
+      if (args[1]) waitStep.timeout = parseInt(args[1], 10);
+      return [waitStep];
+    case 'screenshot':
+      return [{ action: 'screenshot', path: args[0] }];
+    default:
+      throw new CliError(`Unknown step action: ${action}`);
+  }
+}
+
 function parseInFrame(args: string[]): { inFrame?: string; remaining: string[] } {
   let inFrame: string | undefined;
   const remaining: string[] = [];
@@ -485,6 +510,115 @@ export function parseCommand(args: string[], flags: Flags): Command {
         if (!script) error('Missing script', 'agent-browser eval <script>');
       }
       return { id, action: 'evaluate', script, file };
+    }
+
+    case 'scrape': {
+      const url = rest[0];
+      if (!url) error('Missing URL', 'agent-browser scrape <url> [options]');
+
+      const cmd: Command = { id, action: 'scrape', url };
+
+      const formatIndex = rest.indexOf('--format');
+      if (formatIndex >= 0 && rest[formatIndex + 1]) {
+        cmd.format = rest[formatIndex + 1] as 'text' | 'html' | 'markdown';
+      }
+
+      const selectorIndex = rest.indexOf('--selector');
+      if (selectorIndex >= 0 && rest[selectorIndex + 1]) {
+        cmd.selector = rest[selectorIndex + 1];
+      }
+
+      const timeoutIndex = rest.indexOf('--timeout');
+      if (timeoutIndex >= 0 && rest[timeoutIndex + 1]) {
+        cmd.timeout = parseInt(rest[timeoutIndex + 1], 10);
+      }
+
+      cmd.headless = !rest.includes('--headed');
+
+      return cmd;
+    }
+
+    case 'crawl': {
+      const url = rest[0];
+      if (!url) error('Missing URL', 'agent-browser crawl <url> [options]');
+
+      const cmd: Command = { id, action: 'crawl', url };
+
+      const depthIndex = rest.indexOf('--depth');
+      if (depthIndex >= 0 && rest[depthIndex + 1]) {
+        cmd.depth = parseInt(rest[depthIndex + 1], 10);
+      }
+
+      const limitIndex = rest.indexOf('--limit');
+      if (limitIndex >= 0 && rest[limitIndex + 1]) {
+        cmd.limit = parseInt(rest[limitIndex + 1], 10);
+      }
+
+      const formatIndex = rest.indexOf('--format');
+      if (formatIndex >= 0 && rest[formatIndex + 1]) {
+        cmd.format = rest[formatIndex + 1] as 'text' | 'html' | 'markdown';
+      }
+
+      const timeoutIndex = rest.indexOf('--timeout');
+      if (timeoutIndex >= 0 && rest[timeoutIndex + 1]) {
+        cmd.timeout = parseInt(rest[timeoutIndex + 1], 10);
+      }
+
+      const selectorIndex = rest.indexOf('--selector');
+      if (selectorIndex >= 0 && rest[selectorIndex + 1]) {
+        cmd.selector = rest[selectorIndex + 1];
+      }
+
+      cmd.headless = !rest.includes('--headed');
+
+      return cmd;
+    }
+
+    case 'map': {
+      const url = rest[0];
+      if (!url) error('Missing URL', 'agent-browser map <url> [options]');
+
+      const cmd: Command = { id, action: 'map', url };
+
+      const limitIndex = rest.indexOf('--limit');
+      if (limitIndex >= 0 && rest[limitIndex + 1]) {
+        cmd.limit = parseInt(rest[limitIndex + 1], 10);
+      }
+
+      const timeoutIndex = rest.indexOf('--timeout');
+      if (timeoutIndex >= 0 && rest[timeoutIndex + 1]) {
+        cmd.timeout = parseInt(rest[timeoutIndex + 1], 10);
+      }
+
+      cmd.headless = !rest.includes('--headed');
+
+      return cmd;
+    }
+
+    case 'search': {
+      const query = rest[0];
+      if (!query) error('Missing query', 'agent-browser search <query> [options]');
+
+      const cmd: Command = { id, action: 'search', query };
+
+      const engineIndex = rest.indexOf('--engine');
+      if (engineIndex >= 0 && rest[engineIndex + 1]) {
+        cmd.engine = rest[engineIndex + 1] as 'google' | 'bing' | 'duckduckgo';
+      }
+
+      const limitIndex = rest.indexOf('--limit');
+      if (limitIndex >= 0 && rest[limitIndex + 1]) {
+        cmd.limit = parseInt(rest[limitIndex + 1], 10);
+      }
+
+      const timeoutIndex = rest.indexOf('--timeout');
+      if (timeoutIndex >= 0 && rest[timeoutIndex + 1]) {
+        cmd.timeout = parseInt(rest[timeoutIndex + 1], 10);
+      }
+
+      cmd.headless = !rest.includes('--headed');
+
+      return cmd;
     }
 
     case 'close':
@@ -1346,6 +1480,34 @@ export function parseCommand(args: string[], flags: Flags): Command {
       }
     }
 
+    case 'interact': {
+      const cmd: Command = { id, action: 'interact' };
+
+      const fileIndex = rest.indexOf('--file');
+      if (fileIndex >= 0 && rest[fileIndex + 1]) {
+        cmd.file = rest[fileIndex + 1];
+      } else if (rest[0]) {
+        try {
+          const steps = JSON.parse(rest[0]);
+          cmd.steps = steps as any;
+        } catch {
+          const stepAction = rest[0];
+          if (stepAction) {
+            cmd.steps = parseSingleStep(stepAction, rest.slice(1));
+          }
+        }
+      }
+
+      const timeoutIndex = rest.indexOf('--timeout');
+      if (timeoutIndex >= 0 && rest[timeoutIndex + 1]) {
+        cmd.timeout = parseInt(rest[timeoutIndex + 1], 10);
+      }
+
+      cmd.headless = !rest.includes('--headed');
+
+      return cmd;
+    }
+
     default: {
       const allCommands = [
         'open',
@@ -1372,6 +1534,10 @@ export function parseCommand(args: string[], flags: Flags): Command {
         'snapshot',
         'eval',
         'connect',
+        'scrape',
+        'search',
+        'crawl',
+        'map',
         'close',
         'back',
         'forward',
@@ -1405,6 +1571,7 @@ export function parseCommand(args: string[], flags: Flags): Command {
         'history',
         'frames',
         'flow',
+        'interact',
       ];
       const suggestion = findSimilar(cmd, allCommands);
       let msg = `Unknown command: ${cmd}`;

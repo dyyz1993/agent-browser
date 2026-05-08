@@ -196,6 +196,18 @@ export function printResponse(resp: Response, jsonMode: boolean, action?: string
   }
 
   if (data.url && typeof data.url === 'string') {
+    if (data.content && typeof data.content === 'string') {
+      const format = (typeof data.format === 'string' ? data.format : 'text') || 'text';
+      const title = typeof data.title === 'string' ? data.title : 'Untitled';
+      console.log(`${successIndicator()} ${bold(title)}`);
+      console.log(`  ${dim(data.url)}`);
+      console.log('');
+      console.log(`${bold('Format:')} ${format}`);
+      console.log('');
+      console.log(`${bold('Content:')}`);
+      console.log(data.content);
+      return;
+    }
     if (data.title && typeof data.title === 'string') {
       console.log(`${successIndicator()} ${bold(data.title)}`);
       console.log(`  ${dim(data.url)}`);
@@ -489,11 +501,76 @@ export function printResponse(resp: Response, jsonMode: boolean, action?: string
     return;
   }
 
+  if (data.steps && Array.isArray(data.steps)) {
+    if (data.finalUrl && data.finalTitle) {
+      console.log(`${successIndicator()} Interact completed`);
+      console.log(`  ${bold(String(data.finalTitle))}`);
+      console.log(`  ${dim(String(data.finalUrl))}`);
+      console.log('');
+    }
+    console.log(`${bold('Steps:')}`);
+    for (const step of data.steps) {
+      if (step.success) {
+        console.log(`  ${successIndicator()} ${step.action}`);
+        if (step.data && step.action !== 'screenshot') {
+          console.log(`    ${JSON.stringify(step.data, null, 2).split('\n').join('\n    ')}`);
+        }
+      } else {
+        console.log(`  ${errorIndicator()} ${step.action}: ${step.error}`);
+      }
+    }
+    if (data.output !== undefined) {
+      console.log('');
+      console.log(`${bold('Output:')}`);
+      if (typeof data.output === 'string') {
+        console.log(data.output);
+      } else {
+        console.log(JSON.stringify(data.output, null, 2));
+      }
+    }
+    return;
+  }
+
   if (data.diff && typeof data.diff === 'string') {
     console.log(`${successIndicator()} Done`);
     const scope = data.diffScope ? ` (scope: ${data.diffScope})` : '';
     console.log(`\n${bold('--- Diff')}${scope}${bold(' ---')}`);
     console.log(data.diff);
+    return;
+  }
+
+  if (Array.isArray(data.pages) && typeof data.crawled === 'number') {
+    console.log(
+      `${successIndicator()} Crawled ${bold(String(data.crawled))} pages from ${dim(data.url as string)}`
+    );
+    if (typeof data.failed === 'number' && data.failed > 0) {
+      console.log(`  ${warningIndicator()} ${data.failed} page(s) failed`);
+    }
+    console.log('');
+    for (let i = 0; i < (data.pages as Record<string, unknown>[]).length; i++) {
+      const p = (data.pages as Record<string, unknown>[])[i];
+      const title = typeof p.title === 'string' ? p.title : 'Untitled';
+      const url = typeof p.url === 'string' ? p.url : '';
+      const content = typeof p.content === 'string' ? p.content : '';
+      console.log(`  ${bold(`[${i + 1}]`)} ${title}`);
+      console.log(`      ${dim(url)}`);
+      const preview = content.substring(0, 200).replace(/\n/g, ' ').trim();
+      if (preview) {
+        console.log(`      ${dim(preview)}${content.length > 200 ? '...' : ''}`);
+      }
+      console.log('');
+    }
+    return;
+  }
+
+  if (Array.isArray(data.urls) && typeof data.total === 'number') {
+    console.log(
+      `${successIndicator()} Found ${bold(String(data.total))} URLs from ${dim(data.url as string)}`
+    );
+    console.log('');
+    for (let i = 0; i < (data.urls as string[]).length; i++) {
+      console.log(`  ${dim(`[${i + 1}]`)} ${(data.urls as string[])[i]}`);
+    }
     return;
   }
 

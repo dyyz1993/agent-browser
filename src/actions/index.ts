@@ -45,6 +45,12 @@ import {
   handleGetByLabel,
   handleGetByPlaceholder,
 } from './locators.js';
+import { handleFlowAction } from './flow.js';
+import { handleScrape } from './scrape.js';
+import { handleSearch } from './search.js';
+import { handleInteract } from './interact.js';
+import { handleCrawl } from './crawl.js';
+import { handleMap } from './map.js';
 import {
   handleClose,
   handleTabNew,
@@ -165,15 +171,14 @@ import {
   handleRecorderReplay,
 } from './recorder.js';
 import {
+  handleSelectorFor,
+  handleSelectorsOf,
+  handleValidate,
   handleViewer,
   handleAsk,
   handleConfig,
   handleHistory,
-  handleSelectorFor,
-  handleSelectorsOf,
-  handleValidate,
 } from './meta.js';
-import { handleFlowAction } from './flow.js';
 
 export async function executeCommand(
   command: AnyCommand,
@@ -443,6 +448,16 @@ export async function executeCommand(
         return await handleRecorderStatus(cmd, browser);
       case 'recorder_replay':
         return await handleRecorderReplay(cmd, browser);
+      case 'scrape':
+        return await handleScrape(cmd, browser);
+      case 'crawl':
+        return await handleCrawl(cmd, browser);
+      case 'map':
+        return await handleMap(cmd, browser);
+      case 'search':
+        return await handleSearch(cmd, browser);
+      case 'interact':
+        return await handleInteract(cmd, browser);
       case 'viewer':
         return await handleViewer(cmd, browser);
       case 'ask':

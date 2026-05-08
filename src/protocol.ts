@@ -915,6 +915,93 @@ const validateSchema = baseCommandSchema.extend({
   target: z.string().min(1),
 });
 
+const scrapeSchema = baseCommandSchema.extend({
+  action: z.literal('scrape'),
+  url: z.string().min(1),
+  format: z.enum(['text', 'html', 'markdown']).optional(),
+  selector: z.string().optional(),
+  timeout: z.number().positive().optional(),
+  headless: z.boolean().optional(),
+});
+
+const crawlSchema = baseCommandSchema.extend({
+  action: z.literal('crawl'),
+  url: z.string().min(1),
+  depth: z.number().nonnegative().optional(),
+  limit: z.number().positive().optional(),
+  format: z.enum(['text', 'html', 'markdown']).optional(),
+  selector: z.string().optional(),
+  timeout: z.number().positive().optional(),
+  headless: z.boolean().optional(),
+});
+
+const mapSchema = baseCommandSchema.extend({
+  action: z.literal('map'),
+  url: z.string().min(1),
+  limit: z.number().positive().optional(),
+  timeout: z.number().positive().optional(),
+  headless: z.boolean().optional(),
+});
+
+const searchSchema = baseCommandSchema.extend({
+  action: z.literal('search'),
+  query: z.string().min(1),
+  engine: z.enum(['google', 'bing', 'duckduckgo']).optional(),
+  limit: z.number().positive().optional(),
+  timeout: z.number().positive().optional(),
+  headless: z.boolean().optional(),
+});
+
+// Interact command schemas
+const interactStepSchema = z.union([
+  z.object({
+    action: z.literal('navigate'),
+    url: z.string().min(1),
+  }),
+  z.object({
+    action: z.literal('click'),
+    selector: z.string().min(1),
+  }),
+  z.object({
+    action: z.literal('fill'),
+    selector: z.string().min(1),
+    value: z.string(),
+  }),
+  z.object({
+    action: z.literal('type'),
+    selector: z.string().min(1),
+    text: z.string(),
+  }),
+  z.object({
+    action: z.literal('press'),
+    key: z.string().min(1),
+  }),
+  z.object({
+    action: z.literal('get'),
+    type: z.enum(['text', 'html', 'value', 'url', 'title']),
+    selector: z.string().optional(),
+  }),
+  z.object({
+    action: z.literal('wait'),
+    selector: z.string().optional(),
+    timeout: z.number().optional(),
+    state: z.enum(['attached', 'detached', 'visible', 'hidden']).optional(),
+  }),
+  z.object({
+    action: z.literal('screenshot'),
+    path: z.string().optional(),
+    fullPage: z.boolean().optional(),
+  }),
+]);
+
+const interactSchema = baseCommandSchema.extend({
+  action: z.literal('interact'),
+  steps: z.array(interactStepSchema).optional(),
+  file: z.string().optional(),
+  headless: z.boolean().optional(),
+  timeout: z.number().optional(),
+});
+
 const evaluateSchema = baseCommandSchema.extend({
   action: z.literal('evaluate'),
   script: z.string().min(1).optional(),
@@ -1135,6 +1222,11 @@ const commandSchema = z.discriminatedUnion('action', [
   selectorForSchema,
   selectorsOfSchema,
   validateSchema,
+  scrapeSchema,
+  searchSchema,
+  interactSchema,
+  crawlSchema,
+  mapSchema,
 ]);
 
 // Parse result type

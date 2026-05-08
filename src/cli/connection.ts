@@ -45,7 +45,7 @@ export interface DaemonOptions {
 const isWindows = process.platform === 'win32';
 const STREAM_SERVER_PID_FILE = 'stream-server.pid';
 const STREAM_SERVER_IPC_FILE = 'stream-server.ipc';
-const SOCKET_TIMEOUT_MS = 30000;
+const SOCKET_TIMEOUT_MS = 300000;
 
 export function genId(): string {
   return `n${Date.now() % 1000000}`;
