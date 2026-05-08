@@ -2,7 +2,7 @@ import type { Page } from 'playwright-core';
 import type { BrowserManager } from '../browser/index.js';
 import type { CrawlCommand, CrawlPage, CrawlResult, Response } from '../types.js';
 import { successResponse } from '../protocol.js';
-import { htmlToMarkdown, extractContentFromPage, EXCLUDE_SELECTORS } from './utils.js';
+import { extractContentFromPage, waitForSPAContent } from './utils.js';
 
 const STATIC_EXTENSIONS = [
   '.png',
@@ -189,6 +189,11 @@ async function crawlPage(
     await page.goto(url, { timeout: timeoutMs, waitUntil: 'domcontentloaded' });
 
     await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
+
+    if (url.includes('#/') || url.includes('#!')) {
+      await page.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {});
+      await waitForSPAContent(page, 5000);
+    }
 
     if (selector) {
       try {

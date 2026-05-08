@@ -1,8 +1,7 @@
-import type { Page, Locator } from 'playwright-core';
 import type { BrowserManager } from '../browser/index.js';
 import type { ScrapeCommand, Response } from '../types.js';
 import { successResponse } from '../protocol.js';
-import { htmlToMarkdown, extractContentFromPage } from './utils.js';
+import { extractContentFromPage, waitForSPAContent } from './utils.js';
 
 export interface ScrapeResult {
   url: string;
@@ -36,6 +35,10 @@ export async function handleScrape(
       page.waitForLoadState('networkidle', { timeout: Math.min(timeout, 5000) }).catch(() => {}),
       page.waitForTimeout(3000),
     ]);
+
+    if (command.url.includes('#/') || command.url.includes('#!')) {
+      await waitForSPAContent(page, 5000);
+    }
 
     const format = command.format ?? 'markdown';
     const content = await extractContentFromPage(page, format, command.selector);

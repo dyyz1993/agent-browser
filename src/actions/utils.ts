@@ -239,6 +239,38 @@ export function toAIFriendlyError(error: unknown, selector: string): Error {
   return error instanceof Error ? error : new Error(message);
 }
 
+const SPA_CONTENT_SELECTORS = [
+  '.markdown-section',
+  '.theme-default-content',
+  '#app main',
+  '#main',
+  '.content',
+  'article',
+  '.md-content',
+  '[role="main"]',
+];
+
+export async function waitForSPAContent(page: Page, timeoutMs: number): Promise<void> {
+  try {
+    await page.waitForFunction(
+      (selectors) => {
+        for (const sel of selectors) {
+          const el = document.querySelector(sel);
+          if (el && el.textContent && el.textContent.trim().length > 50) {
+            return true;
+          }
+        }
+        return false;
+      },
+      SPA_CONTENT_SELECTORS,
+      { timeout: timeoutMs }
+    );
+    await page.waitForTimeout(500);
+  } catch {
+    // SPA content selectors may not match on non-SPA pages
+  }
+}
+
 export function htmlToMarkdown(html: string): string {
   let md = html;
 
