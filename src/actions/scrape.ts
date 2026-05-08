@@ -36,9 +36,7 @@ export async function handleScrape(
       page.waitForTimeout(3000),
     ]);
 
-    if (command.url.includes('#/') || command.url.includes('#!')) {
-      await waitForSPAContent(page, 5000);
-    }
+    await waitForSPAContent(page, 3000);
 
     const format = command.format ?? 'markdown';
     const content = await extractContentFromPage(page, format, command.selector);

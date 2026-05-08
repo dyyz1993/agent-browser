@@ -51,8 +51,11 @@ export const EXCLUDE_SELECTORS = [
   '.cookie-banner',
   '.cookie-notice',
   '.feedback',
+  '.feedback-container',
+  '#feedback',
   '.report',
   '.vote',
+  '.vote-container',
   'script',
   'style',
   'noscript',
@@ -61,23 +64,127 @@ export const EXCLUDE_SELECTORS = [
   'form[action*="search"]',
   '.search-form',
   '#search',
+  '.doc-footer',
+  '.doc-header',
+  '.doc-sidebar',
+  '.doc-nav',
+  '.page-footer',
+  '.page-header',
+  '.site-footer',
+  '.site-header',
+  '.site-nav',
+  '.global-nav',
+  '.global-footer',
+  '.chat-widget',
+  '.chat-button',
+  '.chat-widget-container',
+  '#chat-widget',
+  '.consult',
+  '.online-consult',
+  '.customer-service',
+  '.toolbar',
+  '.tool-bar',
+  '.floating-bar',
+  '.fixed-bar',
+  '.sticky-bar',
+  '.back-to-top',
+  '.breadcrumb',
+  '[role="navigation"]',
+  '[role="banner"]',
+  '[role="contentinfo"]',
+  '.prev-next',
+  '.pagination',
+  '.pager',
+  '.article-nav',
+  '.article-navigation',
+  '.post-navigation',
+  '.turn-page',
+  '[class*="sidebar"]',
+  '[class*="Sidebar"]',
+  '[class*="feedback"]',
+  '[class*="Feedback"]',
+  '[class*="footer"]',
+  '[class*="Footer"]',
+  '[class*="chat-"]',
+  '[class*="consult"]',
+  '[class*="favorite"]',
+  '[class*="download"]',
+  '[class*="toolbar"]',
+  '[class*="Toolbar"]',
+  '[class*="drawer"]',
+  '[class*="Drawer"]',
+  '[class*="appbar"]',
+  '[class*="Appbar"]',
+  '[class*="consult"]',
+  '[class*="customer"]',
+  '[class*="feedback"]',
+  '[class*="report"]',
 ];
 
-export const FORCE_INCLUDE_SELECTORS = [
+const SPECIFIC_CONTENT_SELECTORS = [
+  '.markdown-body',
+  '.markdown-section',
+  '.doc-content',
+  '.doc-body',
+  '.article-content',
+  '.post-content',
+  '.entry-content',
+  '.documentation',
+  '.docs-content',
+  '.readme',
+  '.theme-default-content',
+  '.md-content',
+];
+
+const SEMANTIC_CONTENT_SELECTORS = [
+  'article[role="main"]',
+  'main article',
+  '#main article',
+  '.main article',
+  '[role="article"]',
+  'article',
+  'main',
+];
+
+const GENERIC_CONTENT_SELECTORS = [
   '#main',
   '#content',
   '#article',
-  '#post',
   '.main',
   '.content',
   '.article',
   '.post',
-  '.markdown-section',
-  '.theme-default-content',
-  '.md-content',
-  'article[role="main"]',
-  'main',
-  'article',
+];
+
+const FUZZY_CONTENT_SELECTORS = [
+  '[class*="doc-content"]',
+  '[class*="docContent"]',
+  '[class*="content-doc"]',
+  '[class*="markdown-body"]',
+  '[class*="markdownBody"]',
+  '[class*="markdown-section"]',
+  '[class*="markdownSection"]',
+  '[class*="article-content"]',
+  '[class*="articleContent"]',
+  '[class*="docs-content"]',
+  '[class*="docsContent"]',
+  '[class*="post-content"]',
+  '[class*="postContent"]',
+  '[class*="md-viewer"]',
+  '[class*="MdViewer"]',
+  '[class*="md-content"]',
+  '[class*="MdContent"]',
+  '[class*="doc-viewer"]',
+  '[class*="DocViewer"]',
+  '[class*="viewer-container"]',
+  '[class*="ViewerContainer"]',
+];
+
+export const FORCE_INCLUDE_SELECTORS = [
+  ...SPECIFIC_CONTENT_SELECTORS,
+  ...SEMANTIC_CONTENT_SELECTORS,
+  ...GENERIC_CONTENT_SELECTORS,
+  ...FUZZY_CONTENT_SELECTORS,
 ];
 
 export async function extractContentFromPage(
@@ -87,50 +194,58 @@ export async function extractContentFromPage(
 ): Promise<string> {
   if (selector) {
     const loc = page.locator(selector).first();
-    switch (format) {
-      case 'text':
-        return await loc.evaluate((el) => (el as HTMLElement).innerText || '').catch(() => '');
-      case 'html':
-        return await loc.evaluate((el) => (el as HTMLElement).innerHTML || '').catch(() => '');
-      case 'markdown': {
-        const html = await loc
-          .evaluate((el) => (el as HTMLElement).innerHTML || '')
-          .catch(() => '');
-        return htmlToMarkdown(html);
+    const result = await loc
+      .evaluate((el, excludeSelectors) => {
+        const clone = el.cloneNode(true) as HTMLElement;
+        for (const sel of excludeSelectors) {
+          clone.querySelectorAll(sel).forEach((n) => n.remove());
+        }
+        clone.querySelectorAll('svg').forEach((n) => n.remove());
+        clone.querySelectorAll('img').forEach((img: HTMLImageElement) => {
+          const src = img.getAttribute('src') || img.getAttribute('data-src') || '';
+          if (src.startsWith('data:image')) img.remove();
+        });
+        return {
+          text: clone.textContent?.trim() || '',
+          html: clone.innerHTML,
+        };
+      }, EXCLUDE_SELECTORS)
+      .catch(() => null);
+
+    if (result && result.text.length > 0) {
+      switch (format) {
+        case 'text':
+          return result.text;
+        case 'html':
+          return result.html;
+        case 'markdown':
+          return htmlToMarkdown(result.html);
       }
     }
   }
 
-  for (const sel of FORCE_INCLUDE_SELECTORS) {
-    try {
-      const element = page.locator(sel).first();
-      const count = await element.count();
-      if (count === 0) continue;
-
-      const text = await element.textContent();
-      if (text && text.trim().length > 50) {
-        switch (format) {
-          case 'text':
-            return (await element.textContent())?.trim() || '';
-          case 'html':
-            return await element.evaluate((el) => (el as HTMLElement).innerHTML);
-          case 'markdown': {
-            const html = await element.evaluate((el) => (el as HTMLElement).innerHTML);
-            return htmlToMarkdown(html);
-          }
-        }
-      }
-    } catch {
-      continue;
+  const contentElement = await findMainContentElement(page);
+  if (contentElement) {
+    switch (format) {
+      case 'text':
+        return contentElement.text;
+      case 'html':
+        return contentElement.html;
+      case 'markdown':
+        return htmlToMarkdown(contentElement.html);
     }
   }
 
   const cleaned = await page.evaluate((excludeSelectors: string[]) => {
     const clone = document.body.cloneNode(true) as HTMLElement;
     for (const sel of excludeSelectors) {
-      const elements = clone.querySelectorAll(sel);
-      elements.forEach((el) => el.remove());
+      clone.querySelectorAll(sel).forEach((el) => el.remove());
     }
+    clone.querySelectorAll('svg').forEach((el) => el.remove());
+    clone.querySelectorAll('img').forEach((img: HTMLImageElement) => {
+      const src = img.getAttribute('src') || img.getAttribute('data-src') || '';
+      if (src.startsWith('data:image')) img.remove();
+    });
     return {
       text: clone.textContent?.trim() || '',
       html: clone.innerHTML,
@@ -158,6 +273,79 @@ export async function extractContentFromPage(
       return htmlToMarkdown(html);
     }
   }
+}
+
+async function findMainContentElement(page: Page): Promise<{ text: string; html: string } | null> {
+  const selectorWeights: [string, number][] = [
+    ...SPECIFIC_CONTENT_SELECTORS.map((s) => [s, 3] as [string, number]),
+    ...FUZZY_CONTENT_SELECTORS.map((s) => [s, 2.5] as [string, number]),
+    ...SEMANTIC_CONTENT_SELECTORS.map((s) => [s, 1.5] as [string, number]),
+    ...GENERIC_CONTENT_SELECTORS.map((s) => [s, 1] as [string, number]),
+  ];
+
+  const best = await page.evaluate(
+    ([selWeights, excludeSelectors]: [Array<[string, number]>, string[]]) => {
+      function cleanElement(el: HTMLElement, excSels: string[]): HTMLElement {
+        const clone = el.cloneNode(true) as HTMLElement;
+        for (const sel of excSels) {
+          clone.querySelectorAll(sel).forEach((n: Element) => n.remove());
+        }
+        clone
+          .querySelectorAll(
+            '[aria-hidden="true"], [role="navigation"], [role="banner"], [role="complementary"], [role="search"], [role="contentinfo"]'
+          )
+          .forEach((n: Element) => n.remove());
+        clone.querySelectorAll('[hidden]').forEach((n: Element) => n.remove());
+        clone.querySelectorAll('[style]').forEach((n: Element) => {
+          const style = (n as HTMLElement).getAttribute('style') || '';
+          if (/display\s*:\s*none|visibility\s*:\s*hidden/i.test(style)) {
+            n.remove();
+          }
+        });
+        clone.querySelectorAll('svg').forEach((n: Element) => n.remove());
+        clone.querySelectorAll('img').forEach((img: HTMLImageElement) => {
+          const src = img.getAttribute('src') || img.getAttribute('data-src') || '';
+          if (src.startsWith('data:image')) {
+            img.remove();
+          }
+        });
+        return clone;
+      }
+
+      let bestResult: { text: string; html: string; score: number } | null = null;
+
+      for (const [sel, weight] of selWeights) {
+        const el = document.querySelector(sel) as HTMLElement | null;
+        if (!el) continue;
+
+        const clone = cleanElement(el, excludeSelectors);
+
+        const text = clone.textContent?.trim() || '';
+        if (text.length <= 50) continue;
+
+        const contentTags = clone.querySelectorAll(
+          'p, h1, h2, h3, h4, h5, h6, ul, ol, pre, table, blockquote'
+        );
+        if (contentTags.length < 2) continue;
+
+        const textLength = text.length;
+        const elementCount = clone.querySelectorAll('*').length;
+        const density = elementCount > 0 ? textLength / elementCount : 0;
+        if (density < 3) continue;
+
+        const score = weight * density * Math.log(textLength + 1) * contentTags.length;
+
+        if (!bestResult || score > bestResult.score) {
+          bestResult = { text, html: clone.innerHTML, score };
+        }
+      }
+
+      return bestResult ? { text: bestResult.text, html: bestResult.html } : null;
+    },
+    [selectorWeights, EXCLUDE_SELECTORS] as [Array<[string, number]>, string[]]
+  );
+
+  return best;
 }
 
 export async function assertElementExists(
@@ -282,12 +470,20 @@ export async function waitForSPAContent(page: Page, timeoutMs: number): Promise<
 export function htmlToMarkdown(html: string): string {
   let md = html;
 
+  md = md.replace(/<head[^>]*>[\s\S]*?<\/head>/gi, '');
+  md = md.replace(/<meta[^>]*>/gi, '');
+  md = md.replace(/<link[^>]*>/gi, '');
+
   md = md.replace(/<svg[^>]*>[\s\S]*?<\/svg>/gi, '');
   md = md.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
   md = md.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
   md = md.replace(/<noscript[^>]*>[\s\S]*?<\/noscript>/gi, '');
 
-  md = md.replace(/<img[^>]*src\s*=\s*["']data:image\/[^"']*["'][^>]*>/gi, '');
+  md = md.replace(
+    /<img[^>]*?(?:src|data-src)\s*=\s*["']?\s*data:image\/[^"'>]+["']?[^>]*\/?>/gi,
+    ''
+  );
+  md = md.replace(/<img[^>]*?(?:src|data-src)\s*=\s*["']data:[^"']+["'][^>]*\/?>/gi, '');
 
   md = md.replace(/<pre[^>]*><code[^>]*>([\s\S]*?)<\/code><\/pre>/gis, '\n```\n$1\n```\n');
   md = md.replace(/<pre[^>]*>([\s\S]*?)<\/pre>/gis, '\n```\n$1\n```\n');
@@ -328,7 +524,13 @@ export function htmlToMarkdown(html: string): string {
 
   md = md.replace(/<[^>]+>/g, '');
 
-  md = md.replace(/!\[.*?\]\(data:image\/.*?;base64,.*?\)/gi, '');
+  md = md.replace(/!\[[^\]]*\]\([^)]*data:[^)]*\)/gi, '');
+  md = md.replace(/!\[[^\]]*\]\(data:image[^)]*\)/gi, '');
+  md = md.replace(/data:image\/[a-zA-Z+]+;base64,[A-Za-z0-9+/=]+/gi, '');
+  md = md.replace(/(?<!!)\[\]\([^)]*\)/g, '');
+  md = md.replace(/\[Skip to Content\]\(.*?\)/gi, '');
+
+  md = md.replace(/\[([^\]]*?)\n([^\]]*?)\]\(/g, '[$1 $2](');
 
   md = md.replace(/&nbsp;/g, ' ');
   md = md.replace(/&amp;/g, '&');
