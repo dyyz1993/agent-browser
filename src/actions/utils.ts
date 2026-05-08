@@ -49,10 +49,18 @@ export const EXCLUDE_SELECTORS = [
   '.cookie',
   '#cookie',
   '.cookie-banner',
+  '.cookie-notice',
+  '.feedback',
+  '.report',
+  '.vote',
   'script',
   'style',
   'noscript',
   'iframe',
+  'svg',
+  'form[action*="search"]',
+  '.search-form',
+  '#search',
 ];
 
 export const FORCE_INCLUDE_SELECTORS = [
@@ -274,8 +282,12 @@ export async function waitForSPAContent(page: Page, timeoutMs: number): Promise<
 export function htmlToMarkdown(html: string): string {
   let md = html;
 
+  md = md.replace(/<svg[^>]*>[\s\S]*?<\/svg>/gi, '');
   md = md.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
   md = md.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+  md = md.replace(/<noscript[^>]*>[\s\S]*?<\/noscript>/gi, '');
+
+  md = md.replace(/<img[^>]*src\s*=\s*["']data:image\/[^"']*["'][^>]*>/gi, '');
 
   md = md.replace(/<pre[^>]*><code[^>]*>([\s\S]*?)<\/code><\/pre>/gis, '\n```\n$1\n```\n');
   md = md.replace(/<pre[^>]*>([\s\S]*?)<\/pre>/gis, '\n```\n$1\n```\n');
@@ -315,6 +327,8 @@ export function htmlToMarkdown(html: string): string {
   md = md.replace(/<hr[^>]*>/gi, '\n---\n');
 
   md = md.replace(/<[^>]+>/g, '');
+
+  md = md.replace(/!\[.*?\]\(data:image\/.*?;base64,.*?\)/gi, '');
 
   md = md.replace(/&nbsp;/g, ' ');
   md = md.replace(/&amp;/g, '&');
