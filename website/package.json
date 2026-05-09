@@ -1,0 +1,22 @@
+{
+  "name": "agent-browser-website",
+  "version": "0.26.2",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "docs:dev": "vitepress dev",
+    "docs:build": "vitepress build",
+    "docs:preview": "vitepress preview",
+    "server": "node server/index.cjs"
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.4",
+    "vue": "^3.5.13"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "cors": "^2.8.5",
+    "playwright-core": "^1.52.0"
+  }
+}
