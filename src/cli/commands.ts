@@ -533,6 +533,11 @@ export function parseCommand(args: string[], flags: Flags): Command {
         cmd.timeout = parseInt(rest[timeoutIndex + 1], 10);
       }
 
+      const waitForIndex = rest.indexOf('--wait-for');
+      if (waitForIndex >= 0 && rest[waitForIndex + 1]) {
+        cmd.waitForSelector = rest[waitForIndex + 1];
+      }
+
       cmd.headless = !rest.includes('--headed');
 
       return cmd;
@@ -569,6 +574,26 @@ export function parseCommand(args: string[], flags: Flags): Command {
         cmd.selector = rest[selectorIndex + 1];
       }
 
+      const excludeIdx = rest.indexOf('--exclude-patterns');
+      if (excludeIdx >= 0 && rest[excludeIdx + 1]) {
+        cmd.excludePatterns = rest[excludeIdx + 1]
+          .split(',')
+          .map((s: string) => s.trim())
+          .filter(Boolean);
+      }
+
+      const includeIdx = rest.indexOf('--include-patterns');
+      if (includeIdx >= 0 && rest[includeIdx + 1]) {
+        cmd.includePatterns = rest[includeIdx + 1]
+          .split(',')
+          .map((s: string) => s.trim())
+          .filter(Boolean);
+      }
+
+      if (rest.includes('--allow-external')) {
+        cmd.allowExternal = true;
+      }
+
       cmd.headless = !rest.includes('--headed');
 
       return cmd;
@@ -588,6 +613,22 @@ export function parseCommand(args: string[], flags: Flags): Command {
       const timeoutIndex = rest.indexOf('--timeout');
       if (timeoutIndex >= 0 && rest[timeoutIndex + 1]) {
         cmd.timeout = parseInt(rest[timeoutIndex + 1], 10);
+      }
+
+      const excludeIdx = rest.indexOf('--exclude-patterns');
+      if (excludeIdx >= 0 && rest[excludeIdx + 1]) {
+        cmd.excludePatterns = rest[excludeIdx + 1]
+          .split(',')
+          .map((s: string) => s.trim())
+          .filter(Boolean);
+      }
+
+      const includeIdx = rest.indexOf('--include-patterns');
+      if (includeIdx >= 0 && rest[includeIdx + 1]) {
+        cmd.includePatterns = rest[includeIdx + 1]
+          .split(',')
+          .map((s: string) => s.trim())
+          .filter(Boolean);
       }
 
       cmd.headless = !rest.includes('--headed');

@@ -922,6 +922,7 @@ const scrapeSchema = baseCommandSchema.extend({
   selector: z.string().optional(),
   timeout: z.number().positive().optional(),
   headless: z.boolean().optional(),
+  waitForSelector: z.string().optional(),
 });
 
 const crawlSchema = baseCommandSchema.extend({
@@ -933,6 +934,9 @@ const crawlSchema = baseCommandSchema.extend({
   selector: z.string().optional(),
   timeout: z.number().positive().optional(),
   headless: z.boolean().optional(),
+  excludePatterns: z.array(z.string()).optional(),
+  includePatterns: z.array(z.string()).optional(),
+  allowExternal: z.boolean().optional(),
 });
 
 const mapSchema = baseCommandSchema.extend({
@@ -941,6 +945,8 @@ const mapSchema = baseCommandSchema.extend({
   limit: z.number().positive().optional(),
   timeout: z.number().positive().optional(),
   headless: z.boolean().optional(),
+  excludePatterns: z.array(z.string()).optional(),
+  includePatterns: z.array(z.string()).optional(),
 });
 
 const searchSchema = baseCommandSchema.extend({

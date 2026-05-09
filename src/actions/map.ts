@@ -87,9 +87,41 @@ export async function handleMap(
 
   const urls = Array.from(allUrls).slice(0, limit);
 
+  const filtered =
+    command.excludePatterns || command.includePatterns
+      ? urls.filter((url) => {
+          if (command.excludePatterns?.length) {
+            for (const pattern of command.excludePatterns) {
+              if (globMatch(url, pattern)) return false;
+            }
+          }
+          if (command.includePatterns?.length) {
+            for (const pattern of command.includePatterns) {
+              if (globMatch(url, pattern)) return true;
+            }
+            return false;
+          }
+          return true;
+        })
+      : urls;
+
   return successResponse(command.id, {
     url: baseUrl,
-    urls,
-    total: urls.length,
+    urls: filtered,
+    total: filtered.length,
   });
+}
+
+function globMatch(url: string, pattern: string): boolean {
+  const regex = new RegExp(
+    '^' +
+      pattern
+        .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+        .replace(/\*\*/g, '<<<GLOBSTAR>>>')
+        .replace(/\*/g, '[^/]*')
+        .replace(/<<<GLOBSTAR>>>/g, '.*')
+        .replace(/\?/g, '[^/]') +
+      '$'
+  );
+  return regex.test(url);
 }

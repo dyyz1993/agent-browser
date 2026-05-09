@@ -38,6 +38,16 @@ export async function handleScrape(
 
     await waitForSPAContent(page, 3000);
 
+    if (command.waitForSelector) {
+      await page
+        .locator(command.waitForSelector)
+        .first()
+        .waitFor({
+          state: 'visible',
+          timeout: Math.min(timeout, 10000),
+        });
+    }
+
     const format = command.format ?? 'markdown';
     const content = await extractContentFromPage(page, format, command.selector);
 

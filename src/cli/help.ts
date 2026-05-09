@@ -288,6 +288,33 @@ Examples:
   agent-browser search "playwright automation" --limit 5 --engine duckduckgo
   agent-browser search "playwright automation" --timeout 20
   `,
+  scrape: `
+agent-browser scrape - Scrape page content from a URL
+
+Usage: agent-browser scrape <url> [options]
+
+Navigates to the specified URL, waits for the page to load, and extracts
+the main content using automatic content discovery (no selector needed).
+
+Content Auto-Discovery:
+  1. Checks common content containers (#main, .content, article, main, etc.)
+  2. Falls back to removing navigation/ads/footer elements
+  3. Final fallback to full page content
+
+Options:
+  --format <format>       Content format: text, html, markdown (default: markdown)
+  --selector <css>        Override auto-discovery with specific selector
+  --timeout <seconds>     Page load timeout (default: 15)
+  --wait-for <selector>   Wait for element to be visible before extracting
+  --headed                Show browser window (debug)
+
+Examples:
+  agent-browser scrape https://example.com
+  agent-browser scrape https://example.com --format html
+  agent-browser scrape https://example.com --selector ".article-body"
+  agent-browser scrape https://example.com --wait-for ".loaded-content"
+  agent-browser scrape https://example.com --timeout 30
+`,
   crawl: `
 agent-browser crawl - Recursively crawl a website with auto content discovery
 
@@ -302,7 +329,7 @@ Content Auto-Discovery (Firecrawl-style):
   3. Final fallback to full page content
 
 Link Discovery:
-  - Same-domain links only
+  - Same-domain links only (use --allow-external for cross-domain)
   - Filters static resources (.png, .css, .js, .pdf, etc.)
   - Filters social media links
   - Supports SPA hash routing (/#/page treated as separate page)
@@ -313,6 +340,9 @@ Options:
   --format <format>       Content format: text, html, markdown (default: markdown)
   --timeout <seconds>     Per-page timeout (default: 15)
   --selector <css>        Override auto-discovery with specific selector
+  --exclude-patterns <p>  Comma-separated glob patterns to exclude URLs
+  --include-patterns <p>  Comma-separated glob patterns to include URLs
+  --allow-external        Follow links to external domains
   --headed                Show browser window (debug)
 
 Examples:
@@ -321,7 +351,9 @@ Examples:
   agent-browser crawl https://docs.example.com --depth 1 --format markdown
   agent-browser crawl https://spa-site.com --limit 100
   agent-browser crawl https://example.com --selector ".content" --depth 1
-  `,
+  agent-browser crawl https://example.com --exclude-patterns "*/blog/*,*/tags/*"
+  agent-browser crawl https://example.com --allow-external --depth 1
+`,
   map: `
 agent-browser map - Discover all URLs on a website
 
@@ -334,16 +366,19 @@ Discovers all available URLs on a website using two strategies:
 Only collects URLs, does not fetch page content.
 
 Options:
-  --limit <number>     Maximum number of URLs to return (default: 100)
-  --timeout <seconds>  Page load timeout (default: 15)
-  --headed             Show browser window
-  --json               JSON output
+  --limit <number>        Maximum number of URLs to return (default: 100)
+  --timeout <seconds>     Page load timeout (default: 15)
+  --exclude-patterns <p>  Comma-separated glob patterns to exclude URLs
+  --include-patterns <p>  Comma-separated glob patterns to include URLs
+  --headed                Show browser window
+  --json                  JSON output
 
 Examples:
   agent-browser map https://bark.day.app
   agent-browser map https://example.com --limit 50 --json
   agent-browser map https://docs.example.com --timeout 20
-  `,
+  agent-browser map https://example.com --exclude-patterns "*/blog/*,*/tags/*"
+`,
   get: `
 agent-browser get - Retrieve information from elements or page
 

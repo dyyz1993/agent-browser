@@ -1346,6 +1346,7 @@ export interface ScrapeCommand extends BaseCommand {
   selector?: string;
   timeout?: number;
   headless?: boolean;
+  waitForSelector?: string;
 }
 
 export interface CrawlCommand extends BaseCommand {
@@ -1357,6 +1358,9 @@ export interface CrawlCommand extends BaseCommand {
   timeout?: number;
   selector?: string;
   headless?: boolean;
+  excludePatterns?: string[];
+  includePatterns?: string[];
+  allowExternal?: boolean;
 }
 
 export interface CrawlPage {
@@ -1402,6 +1406,8 @@ export interface MapCommand extends BaseCommand {
   limit?: number;
   timeout?: number;
   headless?: boolean;
+  excludePatterns?: string[];
+  includePatterns?: string[];
 }
 
 export interface MapResult {

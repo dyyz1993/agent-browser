@@ -71,6 +71,39 @@ const LOW_VALUE_PATTERNS = [
   /\/assignments/i,
 ];
 
+function matchesPattern(url: string, pattern: string): boolean {
+  const regex = new RegExp(
+    '^' +
+      pattern
+        .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+        .replace(/\*\*/g, '<<<GLOBSTAR>>>')
+        .replace(/\*/g, '[^/]*')
+        .replace(/<<<GLOBSTAR>>>/g, '.*')
+        .replace(/\?/g, '[^/]') +
+      '$'
+  );
+  return regex.test(url);
+}
+
+function filterUrlByPatterns(
+  url: string,
+  excludePatterns?: string[],
+  includePatterns?: string[]
+): boolean {
+  if (excludePatterns?.length) {
+    for (const pattern of excludePatterns) {
+      if (matchesPattern(url, pattern)) return false;
+    }
+  }
+  if (includePatterns?.length) {
+    for (const pattern of includePatterns) {
+      if (matchesPattern(url, pattern)) return true;
+    }
+    return false;
+  }
+  return true;
+}
+
 export async function handleCrawl(
   command: CrawlCommand,
   browser: BrowserManager
@@ -88,6 +121,9 @@ export async function handleCrawl(
   const maxPages = command.limit ?? 50;
   const format = command.format ?? 'markdown';
   const timeoutMs = (command.timeout ?? 15) * 1000;
+  const allowExternal = command.allowExternal ?? false;
+  const excludePatterns = command.excludePatterns;
+  const includePatterns = command.includePatterns;
 
   const startUrl = normalizeUrl(command.url);
   const parsedStart = new URL(startUrl);
@@ -131,7 +167,10 @@ export async function handleCrawl(
           basePath,
           format,
           command.selector,
-          timeoutMs
+          timeoutMs,
+          allowExternal,
+          excludePatterns,
+          includePatterns
         )
       )
     );
@@ -151,7 +190,9 @@ export async function handleCrawl(
           for (const link of crawlPageData.links || []) {
             const normalized = normalizeUrl(link);
             if (visited.has(normalized)) continue;
-            if (!isAllowedUrl(normalized, baseOrigin, baseHostname, basePath)) continue;
+            if (!isAllowedUrl(normalized, baseOrigin, baseHostname, basePath, allowExternal))
+              continue;
+            if (!filterUrlByPatterns(normalized, excludePatterns, includePatterns)) continue;
             if (pages.length + queue.length >= maxPages) break;
             queue.push({
               url: normalized,
@@ -183,7 +224,10 @@ async function crawlPage(
   basePath: string,
   format: 'text' | 'html' | 'markdown',
   selector?: string,
-  timeoutMs: number = 15000
+  timeoutMs: number = 15000,
+  allowExternal: boolean = false,
+  excludePatterns?: string[],
+  includePatterns?: string[]
 ): Promise<CrawlPage | null> {
   try {
     await page.goto(url, { timeout: timeoutMs, waitUntil: 'domcontentloaded' });
@@ -290,7 +334,8 @@ function isAllowedUrl(
   url: string,
   baseOrigin: string,
   baseHostname: string,
-  basePath: string
+  basePath: string,
+  allowExternal: boolean = false
 ): boolean {
   try {
     const u = new URL(url);
@@ -300,12 +345,14 @@ function isAllowedUrl(
     const hostname = u.hostname.replace(/^www\./, '');
     if (SOCIAL_DOMAINS.some((d) => hostname === d || hostname.endsWith('.' + d))) return false;
 
-    if (
-      hostname !== baseHostname &&
-      !hostname.endsWith('.' + baseHostname) &&
-      u.origin !== baseOrigin
-    ) {
-      return false;
+    if (!allowExternal) {
+      if (
+        hostname !== baseHostname &&
+        !hostname.endsWith('.' + baseHostname) &&
+        u.origin !== baseOrigin
+      ) {
+        return false;
+      }
     }
 
     if (basePath && basePath !== '/') {
