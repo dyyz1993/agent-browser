@@ -431,6 +431,19 @@ async function crawlPage(
       }
     }
 
+    const currentUrl = page.url();
+    if (currentUrl !== 'about:blank' && currentUrl !== url) {
+      try {
+        const currentHost = new URL(currentUrl).hostname;
+        const targetHost = new URL(url).hostname;
+        if (currentHost !== targetHost) {
+          await page.goto('about:blank').catch(() => {});
+        }
+      } catch {
+        await page.goto('about:blank').catch(() => {});
+      }
+    }
+
     await page.goto(url, { timeout: timeoutMs, waitUntil: 'domcontentloaded' });
 
     const contentType = await page.evaluate(() => document.contentType).catch(() => '');

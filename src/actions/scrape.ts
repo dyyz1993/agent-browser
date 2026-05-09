@@ -58,6 +58,19 @@ export async function handleScrape(
       await page.context().addCookies(command.cookies);
     }
 
+    const currentUrl = page.url();
+    if (currentUrl !== 'about:blank' && currentUrl !== command.url) {
+      try {
+        const currentHost = new URL(currentUrl).hostname;
+        const targetHost = new URL(command.url).hostname;
+        if (currentHost !== targetHost) {
+          await page.goto('about:blank').catch(() => {});
+        }
+      } catch {
+        await page.goto('about:blank').catch(() => {});
+      }
+    }
+
     await page.goto(command.url, {
       timeout,
       waitUntil: 'domcontentloaded',

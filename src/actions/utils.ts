@@ -556,11 +556,52 @@ turndown.addRule('codeBlocks', {
 export function htmlToMarkdown(html: string): string {
   if (!html || typeof html !== 'string') return '';
 
-  let cleaned = html.replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
+  let cleaned = html.replace(/&nbsp;/g, ' ');
 
   let markdown = turndown.turndown(cleaned);
+
+  markdown = convertRemainingTables(markdown);
 
   markdown = markdown.replace(/\n{3,}/g, '\n\n').trim();
 
   return markdown;
+}
+
+function convertRemainingTables(markdown: string): string {
+  return markdown.replace(/<table[^>]*>[\s\S]*?<\/table>/gi, (tableHtml) => {
+    const rows: string[][] = [];
+    const trRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+    let trMatch: RegExpExecArray | null;
+    while ((trMatch = trRegex.exec(tableHtml)) !== null) {
+      const cells: string[] = [];
+      const cellRegex = /<t[hd][^>]*>([\s\S]*?)<\/t[hd]>/gi;
+      let cellMatch: RegExpExecArray | null;
+      while ((cellMatch = cellRegex.exec(trMatch[1])) !== null) {
+        const cellText = cellMatch[1]
+          .replace(/<[^>]+>/g, '')
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;|&#x27;/g, "'")
+          .trim();
+        cells.push(cellText);
+      }
+      if (cells.length > 0) rows.push(cells);
+    }
+
+    if (rows.length === 0) return '';
+
+    const maxCols = Math.max(...rows.map((r) => r.length));
+    const normalizedRows = rows.map((r) => {
+      while (r.length < maxCols) r.push('');
+      return r;
+    });
+
+    const header = '| ' + normalizedRows[0].join(' | ') + ' |';
+    const separator = '| ' + normalizedRows[0].map(() => '---').join(' | ') + ' |';
+    const body = normalizedRows.slice(1).map((r) => '| ' + r.join(' | ') + ' |');
+
+    return '\n\n' + [header, separator, ...body].join('\n') + '\n\n';
+  });
 }

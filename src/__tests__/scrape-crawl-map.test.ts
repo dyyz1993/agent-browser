@@ -189,6 +189,59 @@ describe('htmlToMarkdown', () => {
     expect(md).not.toMatch(/\n{3,}/);
   });
 
+  it('should convert tables with thead to markdown pipe tables', () => {
+    const html =
+      '<table><thead><tr><th>Name</th><th>Type</th></tr></thead><tbody><tr><td>foo</td><td>bar</td></tr></tbody></table>';
+    const md = htmlToMarkdown(html);
+    expect(md).toContain('| Name | Type |');
+    expect(md).toContain('| --- | --- |');
+    expect(md).toContain('| foo | bar |');
+  });
+
+  it('should convert tables with th but no thead', () => {
+    const html =
+      '<table><tr><th>Name</th><th>Type</th></tr><tr><td>foo</td><td>bar</td></tr></table>';
+    const md = htmlToMarkdown(html);
+    expect(md).toContain('| Name | Type |');
+    expect(md).toContain('| --- | --- |');
+    expect(md).toContain('| foo | bar |');
+  });
+
+  it('should convert tables with all td (no th) via fallback', () => {
+    const html =
+      '<table><tr><td>Name</td><td>Type</td></tr><tr><td>foo</td><td>bar</td></tr></table>';
+    const md = htmlToMarkdown(html);
+    expect(md).toContain('| Name | Type |');
+    expect(md).toContain('| --- | --- |');
+    expect(md).toContain('| foo | bar |');
+    expect(md).not.toContain('<table');
+    expect(md).not.toContain('</table>');
+  });
+
+  it('should convert tables with code in cells', () => {
+    const html =
+      '<table><thead><tr><th>Endpoint</th></tr></thead><tbody><tr><td><code>GET /repos</code></td></tr></tbody></table>';
+    const md = htmlToMarkdown(html);
+    expect(md).toContain('| Endpoint |');
+    expect(md).toContain('`GET /repos`');
+  });
+
+  it('should handle tables with bold td acting as headers', () => {
+    const html =
+      '<table><tr><td><strong>Property</strong></td><td><strong>Type</strong></td></tr><tr><td>name</td><td>string</td></tr></table>';
+    const md = htmlToMarkdown(html);
+    expect(md).toContain('| Property | Type |');
+    expect(md).toContain('| name | string |');
+    expect(md).not.toContain('<table');
+  });
+
+  it('should handle tables with uneven columns', () => {
+    const html = '<table><tr><td>A</td><td>B</td><td>C</td></tr><tr><td>1</td></tr></table>';
+    const md = htmlToMarkdown(html);
+    expect(md).toContain('| A | B | C |');
+    expect(md).toContain('| 1 |  |  |');
+  });
+
   it('should trim result', () => {
     const html = '  <p>Hello</p>  ';
     const md = htmlToMarkdown(html);
