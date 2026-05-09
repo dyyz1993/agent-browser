@@ -344,7 +344,8 @@ export async function handleCrawl(
           includePatterns,
           command.javaScriptEnabled,
           robotsRules,
-          crawlDelay
+          crawlDelay,
+          concurrency > 1
         )
       )
     );
@@ -410,12 +411,24 @@ async function crawlPage(
   includePatterns?: string[],
   javaScriptEnabled?: boolean,
   robotsRules?: RobotsRule,
-  crawlDelay?: number
+  crawlDelay?: number,
+  useNewTab: boolean = false
 ): Promise<CrawlPage | null> {
   let page = mainPage;
   let disposable = false;
 
-  if (javaScriptEnabled === false) {
+  if (useNewTab) {
+    const browserInstance = browser.getBrowser();
+    if (!browserInstance) return null;
+    try {
+      page = await browserInstance.newPage(
+        javaScriptEnabled === false ? { javaScriptEnabled: false } : undefined
+      );
+      disposable = true;
+    } catch {
+      return null;
+    }
+  } else if (javaScriptEnabled === false) {
     const browserInstance = browser.getBrowser();
     if (browserInstance) {
       page = await browserInstance.newPage({ javaScriptEnabled: false });
@@ -431,16 +444,18 @@ async function crawlPage(
       }
     }
 
-    const currentUrl = page.url();
-    if (currentUrl !== 'about:blank' && currentUrl !== url) {
-      try {
-        const currentHost = new URL(currentUrl).hostname;
-        const targetHost = new URL(url).hostname;
-        if (currentHost !== targetHost) {
+    if (!useNewTab) {
+      const currentUrl = page.url();
+      if (currentUrl !== 'about:blank' && currentUrl !== url) {
+        try {
+          const currentHost = new URL(currentUrl).hostname;
+          const targetHost = new URL(url).hostname;
+          if (currentHost !== targetHost) {
+            await page.goto('about:blank').catch(() => {});
+          }
+        } catch {
           await page.goto('about:blank').catch(() => {});
         }
-      } catch {
-        await page.goto('about:blank').catch(() => {});
       }
     }
 
