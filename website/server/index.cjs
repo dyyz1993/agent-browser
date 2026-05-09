@@ -21,12 +21,31 @@ const BROWSER_WS_URL = process.env.BROWSER_WS_URL ||
 let browserInstance = null;
 let browserConnecting = null;
 
+async function closeBrowser() {
+  if (browserInstance && browserInstance.isConnected()) {
+    try {
+      await browserInstance.close();
+    } catch (e) {
+      console.error('Error closing browser:', e.message);
+    } finally {
+      browserInstance = null;
+    }
+  }
+}
+
 process.on('uncaughtException', (err) => {
   console.error('Uncaught exception:', err.message);
-  if (browserInstance) {
-    browserInstance.close().catch(() => {});
-    browserInstance = null;
-  }
+  closeBrowser().catch(() => {});
+});
+
+process.on('SIGINT', () => {
+  console.log('\nShutting down gracefully...');
+  closeBrowser().then(() => process.exit(0));
+});
+
+process.on('SIGTERM', () => {
+  console.log('\nReceived SIGTERM, shutting down...');
+  closeBrowser().then(() => process.exit(0));
 });
 
 async function getBrowser() {
@@ -131,10 +150,13 @@ async function withRetry(fn, retries = 2) {
     try {
       return await fn();
     } catch (err) {
-      if (i === retries) throw err;
+      if (i === retries) {
+        await closeBrowser();
+        throw err;
+      }
       if (err.message?.includes('closed') || err.message?.includes('Assertion')) {
         console.error(`Retry ${i + 1}/${retries} after error:`, err.message);
-        browserInstance = null;
+        await closeBrowser();
         continue;
       }
       throw err;
