@@ -34,6 +34,7 @@ Thumbs.db
 
 # Package manager
 package-lock.json
+!website/package-lock.json
 yarn.lock
 
 # Environment
