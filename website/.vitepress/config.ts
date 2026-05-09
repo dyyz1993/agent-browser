@@ -3,7 +3,7 @@ import { defineConfig } from 'vitepress';
 export default defineConfig({
   title: 'Agent Browser',
   description: 'Browser automation CLI for AI agents',
-  base: '/',
+  base: '/agent-browser/',
   themeConfig: {
     nav: [
       { text: 'Guide', link: '/guide/getting-started' },
