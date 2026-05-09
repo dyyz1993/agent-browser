@@ -3,13 +3,13 @@
 /**
  * Cross-platform CLI wrapper for agent-browser
  * 
- * This wrapper automatically selects the best CLI implementation:
- * 1. Native Rust CLI (if available) - faster, more robust
- * 2. TypeScript CLI (fallback) - full feature parity
+ * This wrapper selects the CLI implementation:
+ * 1. Default: TypeScript CLI (full feature parity, always up-to-date)
+ * 2. AGENT_BROWSER_CLI=native - Use native Rust binary (if available)
  * 
  * You can force a specific CLI using:
- * - AGENT_BROWSER_CLI=native - Force native Rust CLI
- * - AGENT_BROWSER_CLI=typescript - Force TypeScript CLI
+ * - AGENT_BROWSER_CLI=native or rust - Force native Rust CLI
+ * - AGENT_BROWSER_CLI=typescript or ts - Force TypeScript CLI
  */
 
 import { spawn } from 'child_process';
@@ -101,16 +101,9 @@ function main() {
     return;
   }
 
-  if (nativePath) {
-    runCli(nativePath, true);
-    return;
-  }
-
+  // Default: use TypeScript CLI
   if (!existsSync(tsPath)) {
-    console.error('Error: No CLI found.');
-    console.error('');
-    console.error('To use TypeScript CLI: Run "npm run build"');
-    console.error('To use Native CLI: Run "npm run build:native"');
+    console.error('Error: TypeScript CLI not found. Run "npm run build" first.');
     process.exit(1);
   }
 

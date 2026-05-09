@@ -69,50 +69,49 @@ async function downloadFile(url, dest) {
 }
 
 async function main() {
-  // Check if binary already exists
-  if (existsSync(binaryPath)) {
-    // Ensure binary is executable (npm doesn't preserve execute bit)
-    if (platform() !== 'win32') {
-      chmodSync(binaryPath, 0o755);
+  // Only download native binary when explicitly opted in via AGENT_BROWSER_CLI=native
+  const cliPref = (process.env.AGENT_BROWSER_CLI || '').toLowerCase();
+  const wantNative = cliPref === 'native' || cliPref === 'rust';
+
+  if (wantNative) {
+    // Check if binary already exists
+    if (existsSync(binaryPath)) {
+      if (platform() !== 'win32') {
+        chmodSync(binaryPath, 0o755);
+      }
+      console.log(`✓ Native binary ready: ${binaryName}`);
+      await fixGlobalInstallBin();
+      showPlaywrightReminder();
+      return;
     }
-    console.log(`✓ Native binary ready: ${binaryName}`);
-    
-    // On global installs, fix npm's bin entry to use native binary directly
+
+    // Ensure bin directory exists
+    if (!existsSync(binDir)) {
+      mkdirSync(binDir, { recursive: true });
+    }
+
+    console.log(`Downloading native binary for ${platformKey}...`);
+    console.log(`URL: ${DOWNLOAD_URL}`);
+
+    try {
+      await downloadFile(DOWNLOAD_URL, binaryPath);
+      if (platform() !== 'win32') {
+        chmodSync(binaryPath, 0o755);
+      }
+      console.log(`✓ Downloaded native binary: ${binaryName}`);
+    } catch (err) {
+      console.log(`⚠ Could not download native binary: ${err.message}`);
+      console.log('  The CLI will use Node.js TypeScript CLI as fallback');
+      console.log('');
+      console.log('To build the native binary locally:');
+      console.log('  1. Install Rust: https://rustup.rs');
+      console.log('  2. Run: npm run build:native');
+    }
+
     await fixGlobalInstallBin();
-    
-    showPlaywrightReminder();
-    return;
+  } else {
+    console.log('✓ Using TypeScript CLI (default). Set AGENT_BROWSER_CLI=native to use Rust binary.');
   }
-
-  // Ensure bin directory exists
-  if (!existsSync(binDir)) {
-    mkdirSync(binDir, { recursive: true });
-  }
-
-  console.log(`Downloading native binary for ${platformKey}...`);
-  console.log(`URL: ${DOWNLOAD_URL}`);
-
-  try {
-    await downloadFile(DOWNLOAD_URL, binaryPath);
-    
-    // Make executable on Unix
-    if (platform() !== 'win32') {
-      chmodSync(binaryPath, 0o755);
-    }
-    
-    console.log(`✓ Downloaded native binary: ${binaryName}`);
-  } catch (err) {
-    console.log(`⚠ Could not download native binary: ${err.message}`);
-    console.log(`  The CLI will use Node.js fallback (slightly slower startup)`);
-    console.log('');
-    console.log('To build the native binary locally:');
-    console.log('  1. Install Rust: https://rustup.rs');
-    console.log('  2. Run: npm run build:native');
-  }
-
-  // On global installs, fix npm's bin entry to use native binary directly
-  // This avoids the /bin/sh error on Windows and provides zero-overhead execution
-  await fixGlobalInstallBin();
 
   showPlaywrightReminder();
 }
