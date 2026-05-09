@@ -4,18 +4,59 @@ import type { BrowserManager } from '../browser/index.js';
 import type { SearchCommand, Response, SearchResponse, SearchResult } from '../types.js';
 import { successResponse } from '../protocol.js';
 
-const ENGINE_URLS = {
-  google: 'https://www.google.com/search',
-  bing: 'https://www.bing.com/search',
-  duckduckgo: 'https://duckduckgo.com/',
-};
+const STEALTH_USER_AGENT =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36';
+
+async function applyStealth(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+  });
+
+  await page.addInitScript(() => {
+    (window as any).chrome = { runtime: {} };
+  });
+
+  await page.addInitScript(() => {
+    const originalQuery = window.navigator.permissions.query;
+    window.navigator.permissions.query = (parameters: any) =>
+      parameters.name === 'notifications'
+        ? Promise.resolve({ state: Notification.permission } as PermissionStatus)
+        : originalQuery(parameters);
+  });
+
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'plugins', {
+      get: () => [1, 2, 3, 4, 5],
+    });
+  });
+
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'languages', {
+      get: () => ['en-US', 'en'],
+    });
+  });
+}
+
+function buildSearchUrl(engine: string, query: string): string {
+  const encoded = encodeURIComponent(query);
+  switch (engine) {
+    case 'google':
+      return `https://www.google.com/search?q=${encoded}&udm=14`;
+    case 'bing':
+      return `https://www.bing.com/search?q=${encoded}`;
+    case 'duckduckgo':
+      return `https://html.duckduckgo.com/html/?q=${encoded}`;
+    default:
+      return `https://www.google.com/search?q=${encoded}&udm=14`;
+  }
+}
 
 const SELECTORS = {
   google: {
     result: 'div.g, div[data-hveid]',
     title: 'h3',
     link: 'a[href]',
-    snippet: 'div[data-sncf-ied="cf"] span, div.VwiC3b, div.st',
+    snippet: 'div[data-sncf-ied="cf"] span, div.VwiC3b, div.st, span[style]',
   },
   bing: {
     result: 'li.b_algo',
@@ -24,10 +65,10 @@ const SELECTORS = {
     snippet: 'p, div.b_caption p',
   },
   duckduckgo: {
-    result: 'li[data-layout="organic"], div.result',
-    title: 'h2, a.result__a',
-    link: 'a[href]',
-    snippet: 'a.result__snippet, p.result__snippet',
+    result: 'div.result',
+    title: 'a.result__a',
+    link: 'a.result__a',
+    snippet: 'a.result__snippet, td.result__snippet',
   },
 };
 
@@ -77,9 +118,9 @@ async function parseDuckDuckGoResults(page: Page, limit: number): Promise<Search
 
   for (const el of elements.slice(0, limit)) {
     try {
-      const title = await el.locator(SELECTORS.duckduckgo.title).textContent();
-      const linkEl = el.locator(SELECTORS.duckduckgo.link).first();
-      const url = await linkEl.getAttribute('href');
+      const titleEl = el.locator(SELECTORS.duckduckgo.title);
+      const title = await titleEl.textContent();
+      const url = await titleEl.getAttribute('href');
       const snippet = await el.locator(SELECTORS.duckduckgo.snippet).textContent();
 
       if (title && url && url.startsWith('http')) {
@@ -95,6 +136,9 @@ export async function handleSearch(
   command: SearchCommand,
   browser: BrowserManager
 ): Promise<Response<SearchResponse>> {
+  const useStealth = command.stealth !== false;
+  const engine = command.engine ?? 'google';
+
   if (!browser.isLaunched()) {
     await browser.launch({
       id: 'auto',
@@ -104,22 +148,37 @@ export async function handleSearch(
   }
 
   const page = browser.getPage();
-  const engine = command.engine ?? 'google';
   const limit = command.limit ?? 10;
   const timeout = (command.timeout ?? 15) * 1000;
 
   try {
-    const searchUrl = `${ENGINE_URLS[engine]}?q=${encodeURIComponent(command.query)}`;
+    if (useStealth && engine !== 'bing') {
+      await applyStealth(page);
+      try {
+        await page.context().setExtraHTTPHeaders({
+          'User-Agent': STEALTH_USER_AGENT,
+        });
+      } catch {}
+      try {
+        await page.setViewportSize({ width: 1920, height: 1080 });
+      } catch {}
+    }
+
+    const searchUrl = buildSearchUrl(engine, command.query);
 
     await page.goto(searchUrl, {
       timeout,
       waitUntil: 'domcontentloaded',
     });
 
-    await Promise.race([
-      page.waitForLoadState('networkidle', { timeout: Math.min(timeout, 5000) }).catch(() => {}),
-      page.waitForTimeout(3000),
-    ]);
+    if (engine === 'duckduckgo') {
+      await page.waitForLoadState('domcontentloaded', { timeout });
+    } else {
+      await Promise.race([
+        page.waitForLoadState('networkidle', { timeout: Math.min(timeout, 5000) }).catch(() => {}),
+        page.waitForTimeout(3000),
+      ]);
+    }
 
     let results: SearchResult[];
 

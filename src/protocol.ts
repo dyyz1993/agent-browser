@@ -982,6 +982,7 @@ const searchSchema = baseCommandSchema.extend({
   timeout: z.number().positive().optional(),
   headless: z.boolean().optional(),
   outputFile: z.string().optional(),
+  stealth: z.boolean().optional(),
 });
 
 // Interact command schemas

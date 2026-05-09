@@ -1393,6 +1393,7 @@ export interface SearchCommand extends BaseCommand {
   timeout?: number;
   headless?: boolean;
   outputFile?: string;
+  stealth?: boolean;
 }
 
 export interface SearchResult {

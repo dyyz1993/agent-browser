@@ -712,6 +712,12 @@ export function parseCommand(args: string[], flags: Flags): Command {
         cmd.outputFile = rest[outputIndex + 1];
       }
 
+      if (rest.includes('--no-stealth')) {
+        cmd.stealth = false;
+      } else if (rest.includes('--stealth')) {
+        cmd.stealth = true;
+      }
+
       return cmd;
     }
 

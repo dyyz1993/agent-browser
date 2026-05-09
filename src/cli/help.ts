@@ -276,12 +276,19 @@ Usage: agent-browser search <query> [options]
 Performs web search using specified search engine and returns
 structured results including titles, URLs, and snippets.
 
+Anti-bot measures are applied by default for Google and DuckDuckGo:
+  - Google: uses udm=14 (Web tab) with stealth patches and realistic UA
+  - DuckDuckGo: uses html.duckduckgo.com (lighter HTML version)
+  - Bing: no patches needed (works as-is in headless)
+
 Options:
   --engine <engine>    Search engine: google (default), bing, duckduckgo
   --limit <number>      Number of results to return (default: 10)
   --timeout <seconds>   Timeout for page load (default: 15)
   --output <file>       Write output to file instead of stdout
   --headed             Show browser window
+  --stealth            Enable stealth mode (default: on for search)
+  --no-stealth         Disable stealth patches
 
 Examples:
   agent-browser search "playwright automation"
@@ -289,6 +296,7 @@ Examples:
   agent-browser search "playwright automation" --limit 5 --engine duckduckgo
   agent-browser search "playwright automation" --output results.json
   agent-browser search "playwright automation" --timeout 20
+  agent-browser search "playwright automation" --no-stealth
 `,
   scrape: `
 agent-browser scrape - Scrape page content from a URL
