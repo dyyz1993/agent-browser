@@ -1,3 +1,4 @@
+import fs from 'fs';
 import type { Page } from 'playwright-core';
 import type { BrowserManager } from '../browser/index.js';
 import type { SearchCommand, Response, SearchResponse, SearchResult } from '../types.js';
@@ -136,12 +137,18 @@ export async function handleSearch(
         results = [];
     }
 
-    return successResponse(command.id, {
+    const response: Response<SearchResponse> = successResponse(command.id, {
       query: command.query,
       engine,
       results,
       total: results.length,
     });
+
+    if (command.outputFile && response.success) {
+      fs.writeFileSync(command.outputFile, JSON.stringify(response.data, null, 2), 'utf-8');
+    }
+
+    return response;
   } catch (error) {
     return {
       id: command.id,

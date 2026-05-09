@@ -540,6 +540,32 @@ export function parseCommand(args: string[], flags: Flags): Command {
 
       cmd.headless = !rest.includes('--headed');
 
+      const outputIndex = rest.indexOf('--output');
+      if (outputIndex >= 0 && rest[outputIndex + 1]) {
+        cmd.outputFile = rest[outputIndex + 1];
+      }
+
+      const cookiesIdx = rest.indexOf('--cookies');
+      if (cookiesIdx >= 0 && rest[cookiesIdx + 1]) {
+        try {
+          cmd.cookies = JSON.parse(rest[cookiesIdx + 1]);
+        } catch {
+          error(
+            'Invalid cookies JSON',
+            'agent-browser scrape --cookies \'[{"name":"k","value":"v"}]\''
+          );
+        }
+      }
+
+      const jsIdx = rest.indexOf('--javascript');
+      if (jsIdx >= 0 && rest[jsIdx + 1]) {
+        cmd.javaScriptEnabled = rest[jsIdx + 1] === 'true';
+      }
+
+      if (rest.includes('--metadata')) {
+        cmd.includeMetadata = true;
+      }
+
       return cmd;
     }
 
@@ -595,6 +621,28 @@ export function parseCommand(args: string[], flags: Flags): Command {
       }
 
       cmd.headless = !rest.includes('--headed');
+
+      const concurrencyIdx = rest.indexOf('--concurrency');
+      if (concurrencyIdx >= 0 && rest[concurrencyIdx + 1]) {
+        cmd.concurrency = parseInt(rest[concurrencyIdx + 1], 10);
+      }
+
+      const cookiesIdx = rest.indexOf('--cookies');
+      if (cookiesIdx >= 0 && rest[cookiesIdx + 1]) {
+        try {
+          cmd.cookies = JSON.parse(rest[cookiesIdx + 1]);
+        } catch {
+          error(
+            'Invalid cookies JSON',
+            'agent-browser crawl --cookies \'[{"name":"k","value":"v"}]\''
+          );
+        }
+      }
+
+      const jsIdx = rest.indexOf('--javascript');
+      if (jsIdx >= 0 && rest[jsIdx + 1]) {
+        cmd.javaScriptEnabled = rest[jsIdx + 1] === 'true';
+      }
 
       return cmd;
     }
@@ -658,6 +706,11 @@ export function parseCommand(args: string[], flags: Flags): Command {
       }
 
       cmd.headless = !rest.includes('--headed');
+
+      const outputIndex = rest.indexOf('--output');
+      if (outputIndex >= 0 && rest[outputIndex + 1]) {
+        cmd.outputFile = rest[outputIndex + 1];
+      }
 
       return cmd;
     }

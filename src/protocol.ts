@@ -923,6 +923,19 @@ const scrapeSchema = baseCommandSchema.extend({
   timeout: z.number().positive().optional(),
   headless: z.boolean().optional(),
   waitForSelector: z.string().optional(),
+  outputFile: z.string().optional(),
+  cookies: z
+    .array(
+      z.object({
+        name: z.string(),
+        value: z.string(),
+        domain: z.string().optional(),
+        path: z.string().optional(),
+      })
+    )
+    .optional(),
+  javaScriptEnabled: z.boolean().optional(),
+  includeMetadata: z.boolean().optional(),
 });
 
 const crawlSchema = baseCommandSchema.extend({
@@ -937,6 +950,18 @@ const crawlSchema = baseCommandSchema.extend({
   excludePatterns: z.array(z.string()).optional(),
   includePatterns: z.array(z.string()).optional(),
   allowExternal: z.boolean().optional(),
+  concurrency: z.number().positive().optional(),
+  cookies: z
+    .array(
+      z.object({
+        name: z.string(),
+        value: z.string(),
+        domain: z.string().optional(),
+        path: z.string().optional(),
+      })
+    )
+    .optional(),
+  javaScriptEnabled: z.boolean().optional(),
 });
 
 const mapSchema = baseCommandSchema.extend({
@@ -956,6 +981,7 @@ const searchSchema = baseCommandSchema.extend({
   limit: z.number().positive().optional(),
   timeout: z.number().positive().optional(),
   headless: z.boolean().optional(),
+  outputFile: z.string().optional(),
 });
 
 // Interact command schemas

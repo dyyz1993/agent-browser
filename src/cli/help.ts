@@ -280,14 +280,16 @@ Options:
   --engine <engine>    Search engine: google (default), bing, duckduckgo
   --limit <number>      Number of results to return (default: 10)
   --timeout <seconds>   Timeout for page load (default: 15)
+  --output <file>       Write output to file instead of stdout
   --headed             Show browser window
 
 Examples:
   agent-browser search "playwright automation"
   agent-browser search "playwright automation" --engine bing
   agent-browser search "playwright automation" --limit 5 --engine duckduckgo
+  agent-browser search "playwright automation" --output results.json
   agent-browser search "playwright automation" --timeout 20
-  `,
+`,
   scrape: `
 agent-browser scrape - Scrape page content from a URL
 
@@ -306,6 +308,10 @@ Options:
   --selector <css>        Override auto-discovery with specific selector
   --timeout <seconds>     Page load timeout (default: 15)
   --wait-for <selector>   Wait for element to be visible before extracting
+  --output <file>         Write output to file instead of stdout
+  --cookies <json>        Set cookies before navigation (JSON array)
+  --javascript <bool>     Enable/disable JavaScript (true/false, default: true)
+  --metadata              Include page metadata (description, og:image, keywords, etc.)
   --headed                Show browser window (debug)
 
 Examples:
@@ -313,7 +319,10 @@ Examples:
   agent-browser scrape https://example.com --format html
   agent-browser scrape https://example.com --selector ".article-body"
   agent-browser scrape https://example.com --wait-for ".loaded-content"
-  agent-browser scrape https://example.com --timeout 30
+  agent-browser scrape https://example.com --output result.md
+  agent-browser scrape https://example.com --metadata
+  agent-browser scrape https://example.com --cookies '[{"name":"session","value":"abc"}]'
+  agent-browser scrape https://example.com --javascript false
 `,
   crawl: `
 agent-browser crawl - Recursively crawl a website with auto content discovery
@@ -340,6 +349,9 @@ Options:
   --format <format>       Content format: text, html, markdown (default: markdown)
   --timeout <seconds>     Per-page timeout (default: 15)
   --selector <css>        Override auto-discovery with specific selector
+  --concurrency <n>       Number of pages to process concurrently (default: 1)
+  --cookies <json>        Set cookies before navigation (JSON array)
+  --javascript <bool>     Enable/disable JavaScript (true/false, default: true)
   --exclude-patterns <p>  Comma-separated glob patterns to exclude URLs
   --include-patterns <p>  Comma-separated glob patterns to include URLs
   --allow-external        Follow links to external domains
@@ -349,8 +361,9 @@ Examples:
   agent-browser crawl https://bark.day.app --depth 2 --limit 20 --json
   agent-browser crawl https://example.com --depth 0
   agent-browser crawl https://docs.example.com --depth 1 --format markdown
-  agent-browser crawl https://spa-site.com --limit 100
-  agent-browser crawl https://example.com --selector ".content" --depth 1
+  agent-browser crawl https://example.com --concurrency 3
+  agent-browser crawl https://example.com --cookies '[{"name":"auth","value":"token"}]'
+  agent-browser crawl https://example.com --javascript false
   agent-browser crawl https://example.com --exclude-patterns "*/blog/*,*/tags/*"
   agent-browser crawl https://example.com --allow-external --depth 1
 `,

@@ -1,20 +1,31 @@
+import fs from 'fs';
 import type { BrowserManager } from '../browser/index.js';
 import type { ScrapeCommand, Response } from '../types.js';
 import { successResponse } from '../protocol.js';
 import { extractContentFromPage, waitForSPAContent } from './utils.js';
+
+export interface ScrapeMetadata {
+  description?: string;
+  ogImage?: string;
+  keywords?: string;
+  author?: string;
+  canonical?: string;
+  lang?: string;
+}
 
 export interface ScrapeResult {
   url: string;
   title: string;
   content: string;
   format: 'text' | 'html' | 'markdown';
+  metadata?: ScrapeMetadata;
 }
 
 export async function handleScrape(
   command: ScrapeCommand,
   browser: BrowserManager
 ): Promise<Response<ScrapeResult>> {
-  const page = browser.getPage();
+  let page = browser.getPage();
   if (!page) {
     return {
       id: command.id,
@@ -26,6 +37,17 @@ export async function handleScrape(
   const timeout = (command.timeout ?? 15) * 1000;
 
   try {
+    if (command.javaScriptEnabled === false) {
+      const browserInstance = browser.getBrowser();
+      if (browserInstance) {
+        page = await browserInstance.newPage({ javaScriptEnabled: false });
+      }
+    }
+
+    if (command.cookies && command.cookies.length > 0) {
+      await page.context().addCookies(command.cookies);
+    }
+
     await page.goto(command.url, {
       timeout,
       waitUntil: 'domcontentloaded',
@@ -51,12 +73,43 @@ export async function handleScrape(
     const format = command.format ?? 'markdown';
     const content = await extractContentFromPage(page, format, command.selector);
 
-    return successResponse(command.id, {
+    let metadata: ScrapeMetadata | undefined;
+    if (command.includeMetadata) {
+      metadata = await page.evaluate(() => {
+        const getMeta = (name: string): string | undefined =>
+          document.querySelector(`meta[name="${name}"]`)?.getAttribute('content') ||
+          document.querySelector(`meta[property="og:${name}"]`)?.getAttribute('content') ||
+          undefined;
+        return {
+          description: getMeta('description'),
+          ogImage: getMeta('image'),
+          keywords: getMeta('keywords'),
+          author: getMeta('author'),
+          canonical:
+            document.querySelector('link[rel="canonical"]')?.getAttribute('href') ?? undefined,
+          lang: document.documentElement.lang || undefined,
+        };
+      });
+    }
+
+    const result: ScrapeResult = {
       url: page.url(),
       title: await page.title(),
       content,
       format,
-    });
+      ...(metadata ? { metadata } : {}),
+    };
+
+    if (command.outputFile) {
+      const output = format === 'html' ? result.content : JSON.stringify(result, null, 2);
+      fs.writeFileSync(command.outputFile, output, 'utf-8');
+      return successResponse(command.id, {
+        ...result,
+        savedTo: command.outputFile,
+      });
+    }
+
+    return successResponse(command.id, result);
   } catch (error) {
     return {
       id: command.id,

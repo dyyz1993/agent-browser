@@ -124,6 +124,12 @@ export async function handleCrawl(
   const allowExternal = command.allowExternal ?? false;
   const excludePatterns = command.excludePatterns;
   const includePatterns = command.includePatterns;
+  const concurrency = command.concurrency ?? 1;
+
+  const context = page.context();
+  if (command.cookies && command.cookies.length > 0) {
+    await context.addCookies(command.cookies);
+  }
 
   const startUrl = normalizeUrl(command.url);
   const parsedStart = new URL(startUrl);
@@ -149,7 +155,11 @@ export async function handleCrawl(
     queue.sort((a, b) => a.priority - b.priority || a.depth - b.depth);
 
     const batch: QueueEntry[] = [];
-    while (queue.length > 0 && batch.length < 1 && pages.length + batch.length < maxPages) {
+    while (
+      queue.length > 0 &&
+      batch.length < concurrency &&
+      pages.length + batch.length < maxPages
+    ) {
       const entry = queue.shift()!;
       const normalized = normalizeUrl(entry.url);
       if (visited.has(normalized)) continue;
@@ -160,6 +170,7 @@ export async function handleCrawl(
     const results = await Promise.allSettled(
       batch.map((entry) =>
         crawlPage(
+          browser,
           page,
           entry.url,
           baseOrigin,
@@ -170,7 +181,8 @@ export async function handleCrawl(
           timeoutMs,
           allowExternal,
           excludePatterns,
-          includePatterns
+          includePatterns,
+          command.javaScriptEnabled
         )
       )
     );
@@ -217,7 +229,8 @@ export async function handleCrawl(
 }
 
 async function crawlPage(
-  page: Page,
+  browser: BrowserManager,
+  mainPage: Page,
   url: string,
   baseOrigin: string,
   baseHostname: string,
@@ -227,8 +240,20 @@ async function crawlPage(
   timeoutMs: number = 15000,
   allowExternal: boolean = false,
   excludePatterns?: string[],
-  includePatterns?: string[]
+  includePatterns?: string[],
+  javaScriptEnabled?: boolean
 ): Promise<CrawlPage | null> {
+  let page = mainPage;
+  let disposable = false;
+
+  if (javaScriptEnabled === false) {
+    const browserInstance = browser.getBrowser();
+    if (browserInstance) {
+      page = await browserInstance.newPage({ javaScriptEnabled: false });
+      disposable = true;
+    }
+  }
+
   try {
     await page.goto(url, { timeout: timeoutMs, waitUntil: 'domcontentloaded' });
 
@@ -268,9 +293,13 @@ async function crawlPage(
         return { url: page.url(), title, content, links };
       } catch {
         return null;
+      } finally {
+        if (disposable) await page.close().catch(() => {});
       }
     }
     return null;
+  } finally {
+    if (disposable) await page.close().catch(() => {});
   }
 }
 
