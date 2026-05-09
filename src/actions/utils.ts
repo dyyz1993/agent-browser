@@ -287,8 +287,24 @@ async function findMainContentElement(page: Page): Promise<{ text: string; html:
     ([selWeights, excludeSelectors]: [Array<[string, number]>, string[]]) => {
       function cleanElement(el: HTMLElement, excSels: string[]): HTMLElement {
         const clone = el.cloneNode(true) as HTMLElement;
+        const contentCheckSelectors = [
+          '.markdown-body',
+          '.article-content',
+          '.post-content',
+          'article',
+          'main',
+        ];
         for (const sel of excSels) {
-          clone.querySelectorAll(sel).forEach((n: Element) => n.remove());
+          clone.querySelectorAll(sel).forEach((n: Element) => {
+            const hasContent = contentCheckSelectors.some((cs) => {
+              try {
+                return n.querySelector(cs) !== null;
+              } catch {
+                return false;
+              }
+            });
+            if (!hasContent) n.remove();
+          });
         }
         clone
           .querySelectorAll(
@@ -467,78 +483,62 @@ export async function waitForSPAContent(page: Page, timeoutMs: number): Promise<
   }
 }
 
+import TurndownService from 'turndown';
+import { gfm } from 'turndown-plugin-gfm';
+
+const turndown = new TurndownService({
+  headingStyle: 'atx',
+  codeBlockStyle: 'fenced',
+  bulletListMarker: '-',
+  emDelimiter: '*',
+  strongDelimiter: '**',
+});
+
+turndown.use(gfm);
+
+turndown.addRule('removeScripts', {
+  filter: (node) => {
+    const tag = node.nodeName.toLowerCase();
+    return ['script', 'style', 'noscript', 'svg', 'head', 'meta', 'link'].includes(tag);
+  },
+  replacement: () => '',
+});
+
+turndown.addRule('removeBase64Images', {
+  filter: 'img',
+  replacement: (_content, node) => {
+    const src = (node as any).getAttribute?.('src') || '';
+    const alt = (node as any).getAttribute?.('alt') || '';
+    if (src.startsWith('data:image')) return `![${alt}](<Base64-Image-Removed>)`;
+    if (!src || src.startsWith('data:')) return '';
+    return `![${alt}](${src})`;
+  },
+});
+
+turndown.addRule('codeBlocks', {
+  filter: (node) => {
+    return node.nodeName === 'PRE';
+  },
+  replacement: (_content, node) => {
+    const code = node.querySelector('code');
+    if (code) {
+      const lang = code.className?.replace('language-', '').replace('lang-', '') || '';
+      const text = code.textContent || '';
+      return `\n\`\`\`${lang}\n${text}\n\`\`\`\n`;
+    }
+    const text = node.textContent || '';
+    return `\n\`\`\`\n${text}\n\`\`\`\n`;
+  },
+});
+
 export function htmlToMarkdown(html: string): string {
-  let md = html;
+  if (!html || typeof html !== 'string') return '';
 
-  md = md.replace(/<head[^>]*>[\s\S]*?<\/head>/gi, '');
-  md = md.replace(/<meta[^>]*>/gi, '');
-  md = md.replace(/<link[^>]*>/gi, '');
+  let cleaned = html.replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
 
-  md = md.replace(/<svg[^>]*>[\s\S]*?<\/svg>/gi, '');
-  md = md.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
-  md = md.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
-  md = md.replace(/<noscript[^>]*>[\s\S]*?<\/noscript>/gi, '');
+  let markdown = turndown.turndown(cleaned);
 
-  md = md.replace(
-    /<img[^>]*?(?:src|data-src)\s*=\s*["']?\s*data:image\/[^"'>]+["']?[^>]*\/?>/gi,
-    ''
-  );
-  md = md.replace(/<img[^>]*?(?:src|data-src)\s*=\s*["']data:[^"']+["'][^>]*\/?>/gi, '');
+  markdown = markdown.replace(/\n{3,}/g, '\n\n').trim();
 
-  md = md.replace(/<pre[^>]*><code[^>]*>([\s\S]*?)<\/code><\/pre>/gis, '\n```\n$1\n```\n');
-  md = md.replace(/<pre[^>]*>([\s\S]*?)<\/pre>/gis, '\n```\n$1\n```\n');
-  md = md.replace(/<code[^>]*>(.*?)<\/code>/gis, '`$1`');
-
-  md = md.replace(/<h1[^>]*>(.*?)<\/h1>/gis, '\n# $1\n\n');
-  md = md.replace(/<h2[^>]*>(.*?)<\/h2>/gis, '\n## $1\n\n');
-  md = md.replace(/<h3[^>]*>(.*?)<\/h3>/gis, '\n### $1\n\n');
-  md = md.replace(/<h4[^>]*>(.*?)<\/h4>/gis, '\n#### $1\n\n');
-  md = md.replace(/<h5[^>]*>(.*?)<\/h5>/gis, '\n##### $1\n\n');
-  md = md.replace(/<h6[^>]*>(.*?)<\/h6>/gis, '\n###### $1\n\n');
-
-  md = md.replace(/<strong[^>]*>(.*?)<\/strong>/gis, '**$1**');
-  md = md.replace(/<b[^>]*>(.*?)<\/b>/gis, '**$1**');
-  md = md.replace(/<em[^>]*>(.*?)<\/em>/gis, '*$1*');
-  md = md.replace(/<i[^>]*>(.*?)<\/i>/gis, '*$1*');
-
-  md = md.replace(/<p[^>]*>(.*?)<\/p>/gis, '\n$1\n\n');
-  md = md.replace(/<div[^>]*>(.*?)<\/div>/gis, '\n$1\n');
-  md = md.replace(/<br\s*\/?>/gi, '\n');
-
-  md = md.replace(/<ul[^>]*>([\s\S]*?)<\/ul>/gis, (_match, content) => {
-    return '\n' + content.replace(/<li[^>]*>(.*?)<\/li>/gis, '- $1\n') + '\n';
-  });
-
-  md = md.replace(/<ol[^>]*>([\s\S]*?)<\/ol>/gis, (_match, content) => {
-    let index = 1;
-    return '\n' + content.replace(/<li[^>]*>(.*?)<\/li>/gis, () => `${index++}. $1\n`) + '\n';
-  });
-
-  md = md.replace(/<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gis, '[$2]($1)');
-  md = md.replace(/<img[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*>/gis, '![$2]($1)');
-  md = md.replace(/<img[^>]*alt="([^"]*)"[^>]*src="([^"]*)"[^>]*>/gis, '![$1]($2)');
-  md = md.replace(/<img[^>]*src="([^"]*)"[^>]*>/gis, '![]($1)');
-
-  md = md.replace(/<blockquote[^>]*>(.*?)<\/blockquote>/gis, '\n> $1\n\n');
-  md = md.replace(/<hr[^>]*>/gi, '\n---\n');
-
-  md = md.replace(/<[^>]+>/g, '');
-
-  md = md.replace(/!\[[^\]]*\]\([^)]*data:[^)]*\)/gi, '');
-  md = md.replace(/!\[[^\]]*\]\(data:image[^)]*\)/gi, '');
-  md = md.replace(/data:image\/[a-zA-Z+]+;base64,[A-Za-z0-9+/=]+/gi, '');
-  md = md.replace(/(?<!!)\[\]\([^)]*\)/g, '');
-  md = md.replace(/\[Skip to Content\]\(.*?\)/gi, '');
-
-  md = md.replace(/\[([^\]]*?)\n([^\]]*?)\]\(/g, '[$1 $2](');
-
-  md = md.replace(/&nbsp;/g, ' ');
-  md = md.replace(/&amp;/g, '&');
-  md = md.replace(/&lt;/g, '<');
-  md = md.replace(/&gt;/g, '>');
-  md = md.replace(/&quot;/g, '"');
-  md = md.replace(/&#39;/g, "'");
-
-  md = md.replace(/\n{3,}/g, '\n\n');
-  return md.trim();
+  return markdown;
 }

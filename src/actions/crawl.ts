@@ -144,6 +144,60 @@ export async function handleCrawl(
   type QueueEntry = { url: string; depth: number; priority: number };
   const queue: QueueEntry[] = [{ url: startUrl, depth: 0, priority: 0 }];
 
+  function generateUrlPermutations(url: string): string[] {
+    try {
+      const u = new URL(url);
+      const variants: string[] = [u.href];
+
+      if (u.hostname.startsWith('www.')) {
+        const stripped = new URL(u.href);
+        stripped.hostname = u.hostname.slice(4);
+        variants.push(stripped.href);
+      } else {
+        const withWWW = new URL(u.href);
+        withWWW.hostname = 'www.' + u.hostname;
+        variants.push(withWWW.href);
+      }
+
+      if (u.pathname.endsWith('/')) {
+        const noSlash = new URL(u.href);
+        noSlash.pathname = noSlash.pathname.replace(/\/$/, '') || '/';
+        variants.push(noSlash.href);
+      } else {
+        const withSlash = new URL(u.href);
+        withSlash.pathname += '/';
+        variants.push(withSlash.href);
+      }
+
+      const indexPattern = /\/(index\.(html|htm|php|aspx?))$/i;
+      if (indexPattern.test(u.pathname)) {
+        const noIndex = new URL(u.href);
+        noIndex.pathname = u.pathname.replace(indexPattern, '/') || '/';
+        variants.push(noIndex.href);
+      }
+
+      if (u.hash && !u.hash.startsWith('#/') && !u.hash.startsWith('#!')) {
+        const noHash = new URL(u.href);
+        noHash.hash = '';
+        variants.push(noHash.href);
+      }
+
+      return [...new Set(variants)];
+    } catch {
+      return [url];
+    }
+  }
+
+  function isVisited(url: string): boolean {
+    return generateUrlPermutations(url).some((perm) => visited.has(perm));
+  }
+
+  function markVisited(url: string): void {
+    for (const perm of generateUrlPermutations(url)) {
+      visited.add(perm);
+    }
+  }
+
   function urlPriority(url: string): number {
     for (const p of LOW_VALUE_PATTERNS) {
       if (p.test(url)) return 10;
@@ -162,8 +216,8 @@ export async function handleCrawl(
     ) {
       const entry = queue.shift()!;
       const normalized = normalizeUrl(entry.url);
-      if (visited.has(normalized)) continue;
-      visited.add(normalized);
+      if (isVisited(normalized)) continue;
+      markVisited(normalized);
       batch.push({ ...entry, url: normalized });
     }
 
@@ -196,12 +250,13 @@ export async function handleCrawl(
         const finalUrl = normalizeUrl(crawlPageData.url);
         if (pageUrls.has(finalUrl)) continue;
         pageUrls.add(finalUrl);
+        markVisited(finalUrl);
         pages.push(crawlPageData);
 
         if (entry.depth < maxDepth) {
           for (const link of crawlPageData.links || []) {
             const normalized = normalizeUrl(link);
-            if (visited.has(normalized)) continue;
+            if (isVisited(normalized)) continue;
             if (!isAllowedUrl(normalized, baseOrigin, baseHostname, basePath, allowExternal))
               continue;
             if (!filterUrlByPatterns(normalized, excludePatterns, includePatterns)) continue;

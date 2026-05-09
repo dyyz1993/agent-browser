@@ -6,11 +6,21 @@ import { extractContentFromPage, waitForSPAContent } from './utils.js';
 
 export interface ScrapeMetadata {
   description?: string;
-  ogImage?: string;
   keywords?: string;
   author?: string;
+  robots?: string;
   canonical?: string;
+  favicon?: string;
   lang?: string;
+  ogTitle?: string;
+  ogDescription?: string;
+  ogImage?: string;
+  ogUrl?: string;
+  ogSiteName?: string;
+  publishedTime?: string;
+  modifiedTime?: string;
+  articleTag?: string;
+  articleSection?: string;
 }
 
 export interface ScrapeResult {
@@ -76,18 +86,40 @@ export async function handleScrape(
     let metadata: ScrapeMetadata | undefined;
     if (command.includeMetadata) {
       metadata = await page.evaluate(() => {
-        const getMeta = (name: string): string | undefined =>
+        const getMeta = (name: string) =>
           document.querySelector(`meta[name="${name}"]`)?.getAttribute('content') ||
-          document.querySelector(`meta[property="og:${name}"]`)?.getAttribute('content') ||
-          undefined;
+          document.querySelector(`meta[property="${name}"]`)?.getAttribute('content') ||
+          '';
+
+        const getLink = (rel: string) =>
+          document.querySelector(`link[rel="${rel}"]`)?.getAttribute('href') ||
+          document.querySelector(`link[rel*="${rel}"]`)?.getAttribute('href') ||
+          '';
+
+        const favicon = getLink('icon') || getLink('shortcut icon') || '/favicon.ico';
+        const resolvedFavicon =
+          favicon && !favicon.startsWith('http')
+            ? new URL(favicon, window.location.href).href
+            : favicon;
+
         return {
+          title: document.title || '',
           description: getMeta('description'),
-          ogImage: getMeta('image'),
           keywords: getMeta('keywords'),
           author: getMeta('author'),
-          canonical:
-            document.querySelector('link[rel="canonical"]')?.getAttribute('href') ?? undefined,
-          lang: document.documentElement.lang || undefined,
+          robots: getMeta('robots'),
+          canonical: document.querySelector('link[rel="canonical"]')?.getAttribute('href') || '',
+          favicon: resolvedFavicon,
+          lang: document.documentElement.lang || '',
+          ogTitle: getMeta('og:title'),
+          ogDescription: getMeta('og:description'),
+          ogImage: getMeta('og:image'),
+          ogUrl: getMeta('og:url'),
+          ogSiteName: getMeta('og:site_name'),
+          publishedTime: getMeta('article:published_time'),
+          modifiedTime: getMeta('article:modified_time'),
+          articleTag: getMeta('article:tag'),
+          articleSection: getMeta('article:section'),
         };
       });
     }

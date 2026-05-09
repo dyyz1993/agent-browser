@@ -63,6 +63,8 @@
     "js-yaml": "^4.1.1",
     "playwright-core": "^1.57.0",
     "sharp": "^0.34.5",
+    "turndown": "^7.2.4",
+    "turndown-plugin-gfm": "^1.0.2",
     "undici": "^7.25.0",
     "ws": "^8.19.0",
     "zod": "^3.22.4"
@@ -71,6 +73,7 @@
     "@changesets/cli": "^2.29.8",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.10.0",
+    "@types/turndown": "^5.0.6",
     "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^8.59.2",
     "@typescript-eslint/parser": "^8.59.2",
