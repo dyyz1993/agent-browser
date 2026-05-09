@@ -135,11 +135,9 @@
 <script setup>
 import { ref, computed } from 'vue';
 
-// In production, the API server runs on a different domain than GitHub Pages.
-// Set VITE_API_URL at build time (e.g. https://api.example.com/api) to point to it.
 const API_BASE = import.meta.env.DEV
   ? 'http://localhost:3001/api'
-  : (import.meta.env.VITE_API_URL || '/api');
+  : 'https://agent-browser-api.dyyz1993.workers.dev/api';
 
 const tabs = [
   { id: 'scrape', label: 'Scrape' },
