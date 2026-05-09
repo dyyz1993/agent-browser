@@ -150,15 +150,22 @@ async function withRetry(fn, retries = 2) {
     try {
       return await fn();
     } catch (err) {
+      const msg = err.message || String(err);
+      const isRetryable = msg.includes('closed') || msg.includes('Assertion') ||
+                        msg.includes('Timeout') || msg.includes('net::ERR_CONNECTION_REFUSED');
+
       if (i === retries) {
         await closeBrowser();
         throw err;
       }
-      if (err.message?.includes('closed') || err.message?.includes('Assertion')) {
-        console.error(`Retry ${i + 1}/${retries} after error:`, err.message);
+
+      if (isRetryable) {
+        console.error(`Retry ${i + 1}/${retries} after error:`, msg);
         await closeBrowser();
         continue;
       }
+
+      await closeBrowser();
       throw err;
     }
   }
