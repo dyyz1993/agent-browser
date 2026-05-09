@@ -19,10 +19,23 @@ const BROWSER_WS_URL = process.env.BROWSER_WS_URL ||
   'wss://browser.19930810.xyz:8443/ws/connect?apiKey=bf8c246f-77ba-4324-a249-ecc667152d9d&width=1280&height=800&sharedUserData=true';
 
 let browserInstance = null;
+let browserConnecting = null;
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err.message);
+  if (browserInstance) {
+    browserInstance.close().catch(() => {});
+    browserInstance = null;
+  }
+});
 
 async function getBrowser() {
+  if (browserConnecting) await browserConnecting;
   if (!browserInstance || !browserInstance.isConnected()) {
-    browserInstance = await chromium.connectOverCDP(BROWSER_WS_URL, { timeout: 15000 });
+    browserConnecting = chromium.connectOverCDP(BROWSER_WS_URL, { timeout: 15000 })
+      .then(b => { browserInstance = b; browserConnecting = null; return b; })
+      .catch(e => { browserInstance = null; browserConnecting = null; throw e; });
+    return browserConnecting;
   }
   return browserInstance;
 }
@@ -113,6 +126,22 @@ function sanitizeError(err) {
   return 'An unexpected error occurred. Please try again.';
 }
 
+async function withRetry(fn, retries = 2) {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (i === retries) throw err;
+      if (err.message?.includes('closed') || err.message?.includes('Assertion')) {
+        console.error(`Retry ${i + 1}/${retries} after error:`, err.message);
+        browserInstance = null;
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
 app.post('/api/scrape', async (req, res) => {
   try {
     const { url, format = 'markdown', selector } = req.body;
@@ -120,27 +149,28 @@ app.post('/api/scrape', async (req, res) => {
 
     try { new URL(url); } catch { return res.status(400).json({ success: false, error: 'Invalid URL format' }); }
 
-    const browser = await getBrowser();
-    const context = await browser.newContext();
-    const page = await context.newPage();
+    await withRetry(async () => {
+      const browser = await getBrowser();
+      const context = await browser.newContext();
+      const page = await context.newPage();
+      try {
+        await page.goto(url, { timeout: 15000, waitUntil: 'commit' });
+        await page.waitForTimeout(3000);
+        await waitForSpa(page, url);
 
-    try {
-      await page.goto(url, { timeout: 15000, waitUntil: 'domcontentloaded' });
-      await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
-      await waitForSpa(page, url);
+        const content = await extractContent(page, format, selector);
+        const title = await page.title();
 
-      const content = await extractContent(page, format, selector);
-      const title = await page.title();
+        let finalContent = content;
+        if (format === 'markdown') {
+          finalContent = htmlToMarkdown(content);
+        }
 
-      let finalContent = content;
-      if (format === 'markdown') {
-        finalContent = htmlToMarkdown(content);
+        res.json({ success: true, data: { url: page.url(), title, content: finalContent, format } });
+      } finally {
+        await context.close().catch(() => {});
       }
-
-      res.json({ success: true, data: { url: page.url(), title, content: finalContent, format } });
-    } finally {
-      await context.close();
-    }
+    });
   } catch (err) {
     console.error('Scrape error:', err);
     res.status(500).json({ success: false, error: sanitizeError(err) });
@@ -157,45 +187,46 @@ app.post('/api/crawl', async (req, res) => {
     const maxPages = Math.min(limit, 5);
     const maxDepth = Math.min(depth, 2);
 
-    const browser = await getBrowser();
-    const context = await browser.newContext();
-    const page = await context.newPage();
+    await withRetry(async () => {
+      const browser = await getBrowser();
+      const context = await browser.newContext();
+      const page = await context.newPage();
+      try {
+        await page.goto(url, { timeout: 15000, waitUntil: 'commit' });
+        await page.waitForTimeout(3000);
 
-    try {
-      await page.goto(url, { timeout: 15000, waitUntil: 'domcontentloaded' });
-      await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
+        const title = await page.title();
 
-      const title = await page.title();
+        const links = await page.evaluate((origin) => {
+          const anchors = document.querySelectorAll('a[href]');
+          const seen = new Set();
+          anchors.forEach(a => {
+            const href = a.getAttribute('href');
+            if (!href) return;
+            try {
+              const fullUrl = new URL(href, origin).href;
+              if (fullUrl.startsWith(origin) && !fullUrl.match(/\.(png|jpg|css|js|pdf)$/i)) {
+                seen.add(fullUrl);
+              }
+            } catch {}
+          });
+          return Array.from(seen).slice(0, 20);
+        }, new URL(url).origin);
 
-      const links = await page.evaluate((origin) => {
-        const anchors = document.querySelectorAll('a[href]');
-        const seen = new Set();
-        anchors.forEach(a => {
-          const href = a.getAttribute('href');
-          if (!href) return;
-          try {
-            const fullUrl = new URL(href, origin).href;
-            if (fullUrl.startsWith(origin) && !fullUrl.match(/\.(png|jpg|css|js|pdf)$/i)) {
-              seen.add(fullUrl);
-            }
-          } catch {}
+        res.json({
+          success: true,
+          data: {
+            url,
+            title,
+            links,
+            total: links.length + 1,
+            message: 'Demo mode: returns discovered links from the start page. Full crawl requires CLI.'
+          }
         });
-        return Array.from(seen).slice(0, 20);
-      }, new URL(url).origin);
-
-      res.json({
-        success: true,
-        data: {
-          url,
-          title,
-          links,
-          total: links.length + 1,
-          message: 'Demo mode: returns discovered links from the start page. Full crawl requires CLI.'
-        }
-      });
-    } finally {
-      await context.close();
-    }
+      } finally {
+        await context.close().catch(() => {});
+      }
+    });
   } catch (err) {
     console.error('Crawl error:', err);
     res.status(500).json({ success: false, error: sanitizeError(err) });
@@ -209,34 +240,35 @@ app.post('/api/map', async (req, res) => {
 
     try { new URL(url); } catch { return res.status(400).json({ success: false, error: 'Invalid URL format' }); }
 
-    const browser = await getBrowser();
-    const context = await browser.newContext();
-    const page = await context.newPage();
+    await withRetry(async () => {
+      const browser = await getBrowser();
+      const context = await browser.newContext();
+      const page = await context.newPage();
+      try {
+        await page.goto(url, { timeout: 15000, waitUntil: 'commit' });
+        await page.waitForTimeout(3000);
 
-    try {
-      await page.goto(url, { timeout: 15000, waitUntil: 'domcontentloaded' });
-      await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
+        const urls = await page.evaluate((origin) => {
+          const anchors = document.querySelectorAll('a[href]');
+          const seen = new Set();
+          anchors.forEach(a => {
+            const href = a.getAttribute('href');
+            if (!href) return;
+            try {
+              const fullUrl = new URL(href, origin).href;
+              if (fullUrl.startsWith('http') && !fullUrl.match(/\.(png|jpg|css|js|pdf|zip|gz)$/i)) {
+                seen.add(fullUrl);
+              }
+            } catch {}
+          });
+          return Array.from(seen);
+        }, new URL(url).origin);
 
-      const urls = await page.evaluate((origin) => {
-        const anchors = document.querySelectorAll('a[href]');
-        const seen = new Set();
-        anchors.forEach(a => {
-          const href = a.getAttribute('href');
-          if (!href) return;
-          try {
-            const fullUrl = new URL(href, origin).href;
-            if (fullUrl.startsWith('http') && !fullUrl.match(/\.(png|jpg|css|js|pdf|zip|gz)$/i)) {
-              seen.add(fullUrl);
-            }
-          } catch {}
-        });
-        return Array.from(seen);
-      }, new URL(url).origin);
-
-      res.json({ success: true, data: { url, urls, total: urls.length } });
-    } finally {
-      await context.close();
-    }
+        res.json({ success: true, data: { url, urls, total: urls.length } });
+      } finally {
+        await context.close().catch(() => {});
+      }
+    });
   } catch (err) {
     console.error('Map error:', err);
     res.status(500).json({ success: false, error: sanitizeError(err) });
@@ -248,36 +280,50 @@ app.post('/api/search', async (req, res) => {
     const { query } = req.body;
     if (!query) return res.status(400).json({ success: false, error: 'query is required' });
 
-    const browser = await getBrowser();
-    const context = await browser.newContext();
-    const page = await context.newPage();
+    await withRetry(async () => {
+      const browser = await getBrowser();
+      const context = await browser.newContext();
+      const page = await context.newPage();
+      try {
+        await page.goto(`https://duckduckgo.com/?q=${encodeURIComponent(query)}`, {
+          timeout: 15000, waitUntil: 'commit'
+        });
+        await page.waitForTimeout(5000);
 
-    try {
-      await page.goto(`https://www.bing.com/search?q=${encodeURIComponent(query)}`, {
-        timeout: 15000, waitUntil: 'domcontentloaded'
-      });
-      await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
-
-      const results = await page.evaluate(() => {
-        const items = [];
-        document.querySelectorAll('.b_algo').forEach(el => {
-          const titleEl = el.querySelector('h2 a');
-          const snippetEl = el.querySelector('.b_caption p');
-          if (titleEl) {
-            items.push({
-              title: titleEl.textContent?.trim() || '',
-              url: titleEl.getAttribute('href') || '',
-              snippet: snippetEl?.textContent?.trim() || ''
+        const results = await page.evaluate(() => {
+          const items = [];
+          document.querySelectorAll('article[data-testid="result"]').forEach(el => {
+            const titleEl = el.querySelector('h2 a, a[data-testid="result-title-a"]');
+            const snippetEl = el.querySelector('div[data-result="snippet"]');
+            if (titleEl) {
+              items.push({
+                title: titleEl.textContent?.trim() || '',
+                url: titleEl.getAttribute('href') || '',
+                snippet: snippetEl?.textContent?.trim() || ''
+              });
+            }
+          });
+          if (items.length === 0) {
+            document.querySelectorAll('.result').forEach(el => {
+              const titleEl = el.querySelector('.result__a');
+              const snippetEl = el.querySelector('.result__snippet');
+              if (titleEl) {
+                items.push({
+                  title: titleEl.textContent?.trim() || '',
+                  url: titleEl.getAttribute('href') || '',
+                  snippet: snippetEl?.textContent?.trim() || ''
+                });
+              }
             });
           }
+          return items.slice(0, 10);
         });
-        return items.slice(0, 10);
-      });
 
-      res.json({ success: true, data: { query, results, total: results.length } });
-    } finally {
-      await context.close();
-    }
+        res.json({ success: true, data: { query, results, total: results.length } });
+      } finally {
+        await context.close().catch(() => {});
+      }
+    });
   } catch (err) {
     console.error('Search error:', err);
     res.status(500).json({ success: false, error: sanitizeError(err) });
