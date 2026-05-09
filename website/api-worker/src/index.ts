@@ -110,9 +110,9 @@ const EXTRACT_MAP_URLS_JS = (origin: string) => {
 
 const EXTRACT_SEARCH_RESULTS_JS = `(() => {
   const items = [];
-  document.querySelectorAll('.b_algo').forEach(el => {
-    const titleEl = el.querySelector('h2 a');
-    const snippetEl = el.querySelector('.b_caption p');
+  document.querySelectorAll('article[data-testid="result"]').forEach(el => {
+    const titleEl = el.querySelector('h2 a, a[data-testid="result-title-a"]');
+    const snippetEl = el.querySelector('div[data-result="snippet"]');
     if (titleEl) {
       items.push({
         title: titleEl.textContent?.trim() || '',
@@ -121,6 +121,19 @@ const EXTRACT_SEARCH_RESULTS_JS = `(() => {
       });
     }
   });
+  if (items.length === 0) {
+    document.querySelectorAll('.result').forEach(el => {
+      const titleEl = el.querySelector('.result__a');
+      const snippetEl = el.querySelector('.result__snippet');
+      if (titleEl) {
+        items.push({
+          title: titleEl.textContent?.trim() || '',
+          url: titleEl.getAttribute('href') || '',
+          snippet: snippetEl?.textContent?.trim() || ''
+        });
+      }
+    });
+  }
   return items.slice(0, 10);
 })()`;
 
@@ -496,17 +509,25 @@ async function handleSearch(body: any, env: Env): Promise<Response> {
   const { query } = body;
   if (!query) return jsonResponse({ success: false, error: 'query is required' }, 400);
 
-  const cdp = await createCdpSession(env.BROWSER_WS_URL);
-  try {
-    const searchUrl = `https://www.bing.com/search?q=${encodeURIComponent(query)}`;
-    await navigateAndWait(cdp, searchUrl);
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const cdp = await createCdpSession(env.BROWSER_WS_URL);
+    try {
+      const searchUrl = `https://duckduckgo.com/?q=${encodeURIComponent(query)}`;
+      await navigateAndWait(cdp, searchUrl);
 
-    const results = await evaluateJs(cdp, EXTRACT_SEARCH_RESULTS_JS);
+      const results = await evaluateJs(cdp, EXTRACT_SEARCH_RESULTS_JS);
 
-    return jsonResponse({ success: true, data: { query, results, total: results.length } });
-  } finally {
-    cdp.close();
+      return jsonResponse({ success: true, data: { query, results, total: results.length } });
+    } catch (err) {
+      lastError = err;
+      const msg = err instanceof Error ? err.message : String(err);
+      if (!msg.includes('closed') && !msg.includes('WebSocket')) throw err;
+    } finally {
+      cdp.close();
+    }
   }
+  throw lastError;
 }
 
 async function handleMap(body: any, env: Env): Promise<Response> {
