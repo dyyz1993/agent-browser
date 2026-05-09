@@ -504,12 +504,34 @@ turndown.addRule('removeScripts', {
   replacement: () => '',
 });
 
-turndown.addRule('removeBase64Images', {
+turndown.addRule('resolveSrcset', {
   filter: 'img',
   replacement: (_content, node) => {
-    const src = (node as any).getAttribute?.('src') || '';
-    const alt = (node as any).getAttribute?.('alt') || '';
+    const el = node as any;
+    let src = el.getAttribute?.('src') || '';
+    const alt = el.getAttribute?.('alt') || '';
+    const srcset = el.getAttribute?.('srcset') || '';
+
     if (src.startsWith('data:image')) return `![${alt}](<Base64-Image-Removed>)`;
+    if (!src && !srcset) return '';
+
+    if (srcset) {
+      const sources = srcset.split(',').map((s: string) => {
+        const parts = s.trim().split(/\s+/);
+        const url = parts[0];
+        const sizeStr = parts[1] || '1x';
+        const size = parseFloat(sizeStr);
+        return { url, size };
+      });
+
+      if (src) {
+        sources.push({ url: src, size: 1 });
+      }
+
+      sources.sort((a: { size: number }, b: { size: number }) => b.size - a.size);
+      src = sources[0].url;
+    }
+
     if (!src || src.startsWith('data:')) return '';
     return `![${alt}](${src})`;
   },

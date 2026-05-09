@@ -9,31 +9,63 @@ const STATIC_EXTENSIONS = [
   '.jpg',
   '.jpeg',
   '.gif',
-  '.webp',
   '.svg',
   '.ico',
-  '.css',
-  '.js',
+  '.webp',
+  '.avif',
+  '.bmp',
+  '.tiff',
+  '.mp3',
+  '.mp4',
+  '.avi',
+  '.mov',
+  '.wmv',
+  '.flv',
+  '.webm',
+  '.ogg',
+  '.wav',
   '.woff',
   '.woff2',
   '.ttf',
   '.eot',
-  '.zip',
-  '.tar',
-  '.gz',
-  '.rar',
+  '.otf',
+  '.css',
+  '.js',
+  '.mjs',
   '.pdf',
   '.doc',
   '.docx',
   '.xls',
   '.xlsx',
-  '.mp3',
-  '.mp4',
-  '.avi',
-  '.mov',
+  '.ppt',
+  '.pptx',
+  '.odt',
+  '.ods',
+  '.odp',
+  '.rtf',
+  '.zip',
+  '.gz',
+  '.tar',
+  '.rar',
+  '.7z',
+  '.bz2',
+  '.exe',
+  '.dmg',
+  '.deb',
+  '.rpm',
+  '.msi',
+  '.xml',
+  '.json',
+  '.yaml',
+  '.yml',
+  '.csv',
+  '.bin',
+  '.iso',
+  '.img',
+  '.apk',
+  '.ipa',
   '.rss',
   '.atom',
-  '.xml',
 ];
 
 const SOCIAL_DOMAINS = [
@@ -104,6 +136,77 @@ function filterUrlByPatterns(
   return true;
 }
 
+interface RobotsRule {
+  allowed: string[];
+  disallowed: string[];
+  crawlDelay?: number;
+}
+
+async function fetchRobotsTxt(origin: string): Promise<string> {
+  try {
+    const res = await fetch(`${origin}/robots.txt`, {
+      signal: AbortSignal.timeout(5000),
+    });
+    return res.ok ? await res.text() : '';
+  } catch {
+    return '';
+  }
+}
+
+function parseRobotsTxt(robotsTxt: string, userAgent: string = '*'): RobotsRule {
+  const allowed: string[] = [];
+  const disallowed: string[] = [];
+  let crawlDelay: number | undefined;
+
+  const lines = robotsTxt.split('\n').map((l) => l.trim());
+  let matchAgent = false;
+
+  for (const line of lines) {
+    if (line.startsWith('#') || !line) continue;
+
+    const colonIdx = line.indexOf(':');
+    if (colonIdx === -1) continue;
+    const key = line.slice(0, colonIdx).trim().toLowerCase();
+    const value = line.slice(colonIdx + 1).trim();
+
+    if (key === 'user-agent') {
+      matchAgent = value === '*' || value.toLowerCase() === (userAgent || '*').toLowerCase();
+    } else if (matchAgent) {
+      if (key === 'disallow' && value) {
+        disallowed.push(value);
+      } else if (key === 'allow' && value) {
+        allowed.push(value);
+      } else if (key === 'crawl-delay' && value) {
+        crawlDelay = parseFloat(value);
+      }
+    }
+  }
+
+  return { allowed, disallowed, crawlDelay };
+}
+
+function matchesRobotsPattern(pathname: string, pattern: string): boolean {
+  const regex = pattern
+    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+    .replace(/\*/g, '.*')
+    .replace(/\$$/, '');
+  try {
+    return new RegExp(`^${regex}`).test(pathname);
+  } catch {
+    return false;
+  }
+}
+
+function isAllowedByRobots(pathname: string, rules: RobotsRule): boolean {
+  for (const pattern of rules.allowed) {
+    if (matchesRobotsPattern(pathname, pattern)) return true;
+  }
+  for (const pattern of rules.disallowed) {
+    if (matchesRobotsPattern(pathname, pattern)) return false;
+  }
+  return true;
+}
+
 export async function handleCrawl(
   command: CrawlCommand,
   browser: BrowserManager
@@ -136,6 +239,9 @@ export async function handleCrawl(
   const baseOrigin = parsedStart.origin;
   const baseHostname = parsedStart.hostname.replace(/^www\./, '');
   const basePath = parsedStart.pathname.replace(/\/$/, '');
+  const robotsTxt = await fetchRobotsTxt(baseOrigin);
+  const robotsRules = parseRobotsTxt(robotsTxt);
+  const crawlDelay = robotsRules.crawlDelay ? robotsRules.crawlDelay * 1000 : 0;
   const visited = new Set<string>();
   const pages: CrawlPage[] = [];
   const pageUrls = new Set<string>();
@@ -236,7 +342,9 @@ export async function handleCrawl(
           allowExternal,
           excludePatterns,
           includePatterns,
-          command.javaScriptEnabled
+          command.javaScriptEnabled,
+          robotsRules,
+          crawlDelay
         )
       )
     );
@@ -252,6 +360,10 @@ export async function handleCrawl(
         pageUrls.add(finalUrl);
         markVisited(finalUrl);
         pages.push(crawlPageData);
+
+        if (crawlDelay > 0) {
+          await new Promise((resolve) => setTimeout(resolve, crawlDelay));
+        }
 
         if (entry.depth < maxDepth) {
           for (const link of crawlPageData.links || []) {
@@ -296,7 +408,9 @@ async function crawlPage(
   allowExternal: boolean = false,
   excludePatterns?: string[],
   includePatterns?: string[],
-  javaScriptEnabled?: boolean
+  javaScriptEnabled?: boolean,
+  robotsRules?: RobotsRule,
+  crawlDelay?: number
 ): Promise<CrawlPage | null> {
   let page = mainPage;
   let disposable = false;
@@ -310,7 +424,19 @@ async function crawlPage(
   }
 
   try {
+    if (robotsRules) {
+      const urlPath = new URL(url).pathname;
+      if (!isAllowedByRobots(urlPath, robotsRules)) {
+        return null;
+      }
+    }
+
     await page.goto(url, { timeout: timeoutMs, waitUntil: 'domcontentloaded' });
+
+    const contentType = await page.evaluate(() => document.contentType).catch(() => '');
+    if (contentType && !contentType.includes('html')) {
+      return null;
+    }
 
     await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
 
