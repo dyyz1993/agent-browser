@@ -275,7 +275,7 @@ async function crawlPage(
     const [title, content, links] = await Promise.all([
       page.title(),
       extractContentFromPage(page, format, selector),
-      discoverLinks(page, baseOrigin, baseHostname, basePath),
+      discoverLinks(page, baseOrigin, baseHostname, basePath, allowExternal),
     ]);
 
     return { url: page.url(), title, content, links };
@@ -287,9 +287,13 @@ async function crawlPage(
           page.title().catch(() => url),
           extractContentFromPage(page, format, selector).catch(() => ''),
         ]);
-        const links = await discoverLinks(page, baseOrigin, baseHostname, basePath).catch(
-          () => [] as string[]
-        );
+        const links = await discoverLinks(
+          page,
+          baseOrigin,
+          baseHostname,
+          basePath,
+          allowExternal
+        ).catch(() => [] as string[]);
         return { url: page.url(), title, content, links };
       } catch {
         return null;
@@ -307,7 +311,8 @@ export async function discoverLinks(
   page: Page,
   baseOrigin: string,
   baseHostname: string,
-  basePath: string
+  basePath: string,
+  allowExternal: boolean = false
 ): Promise<string[]> {
   const hrefs = await page.evaluate((origin: string) => {
     const anchors = document.querySelectorAll('a[href]');
@@ -339,8 +344,10 @@ export async function discoverLinks(
       const hostname = url.hostname.replace(/^www\./, '');
       if (SOCIAL_DOMAINS.some((d) => hostname === d || hostname.endsWith('.' + d))) continue;
 
-      if (hostname !== baseHostname && !hostname.endsWith('.' + baseHostname)) {
-        if (url.origin !== baseOrigin) continue;
+      if (!allowExternal) {
+        if (hostname !== baseHostname && !hostname.endsWith('.' + baseHostname)) {
+          if (url.origin !== baseOrigin) continue;
+        }
       }
 
       if (basePath && basePath !== '/') {
