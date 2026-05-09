@@ -1,0 +1,6 @@
+name = "agent-browser-api"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[vars]
+BROWSER_WS_URL = "wss://browser.19930810.xyz:8443/ws/connect?apiKey=bf8c246f-77ba-4324-a249-ecc667152d9d&width=1280&height=800&sharedUserData=true"
