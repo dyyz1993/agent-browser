@@ -314,21 +314,22 @@ export async function discoverLinks(
   basePath: string,
   allowExternal: boolean = false
 ): Promise<string[]> {
-  const hrefs = await page.evaluate((origin: string) => {
+  const hrefs = await page.evaluate(() => {
     const anchors = document.querySelectorAll('a[href]');
     const results: string[] = [];
+    const base = document.baseURI;
     anchors.forEach((a) => {
       const href = a.getAttribute('href');
       if (!href) return;
       try {
-        const fullUrl = new URL(href, origin).href;
+        const fullUrl = new URL(href, base).href;
         results.push(fullUrl);
       } catch {
         // invalid URL
       }
     });
     return results;
-  }, baseOrigin);
+  });
 
   const filtered = new Set<string>();
 
