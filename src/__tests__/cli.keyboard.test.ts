@@ -134,6 +134,35 @@ describe('press command', () => {
     });
   });
 
+  describe('press with --in-frame', () => {
+    it('should parse press Enter with --in-frame', () => {
+      const cmd = parseCliArgs(['press', '--in-frame', '1', 'Enter']);
+      expect(cmd.action).toBe('press');
+      expect(cmd.key).toBe('Enter');
+      expect(cmd.inFrame).toBe('1');
+    });
+
+    it('should parse press with --in-frame and complex key', () => {
+      const cmd = parseCliArgs(['press', '--in-frame', 'iframe-selector', 'Control+A']);
+      expect(cmd.action).toBe('press');
+      expect(cmd.key).toBe('Control+A');
+      expect(cmd.inFrame).toBe('iframe-selector');
+    });
+
+    it('should parse press with --in-frame before and after key', () => {
+      const cmd = parseCliArgs(['press', 'Enter', '--in-frame', '2']);
+      expect(cmd.action).toBe('press');
+      expect(cmd.key).toBe('Enter');
+      expect(cmd.inFrame).toBe('2');
+    });
+
+    it('should not include --in-frame as key (regression)', () => {
+      const cmd = parseCliArgs(['press', '--in-frame', '1', 'Enter']);
+      expect(cmd.key).not.toBe('--in-frame');
+      expect(cmd.key).toBe('Enter');
+    });
+  });
+
   describe('press errors', () => {
     it('should throw error when key is missing', () => {
       expect(() => parseCliArgs(['press'])).toThrow(CliError);
@@ -163,6 +192,13 @@ describe('keydown command', () => {
   it('should throw error when key is missing', () => {
     expect(() => parseCliArgs(['keydown'])).toThrow(CliError);
   });
+
+  it('should parse keydown with --in-frame', () => {
+    const cmd = parseCliArgs(['keydown', '--in-frame', '1', 'Shift']);
+    expect(cmd.action).toBe('keydown');
+    expect(cmd.key).toBe('Shift');
+    expect(cmd.inFrame).toBe('1');
+  });
 });
 
 describe('keyup command', () => {
@@ -180,5 +216,12 @@ describe('keyup command', () => {
 
   it('should throw error when key is missing', () => {
     expect(() => parseCliArgs(['keyup'])).toThrow(CliError);
+  });
+
+  it('should parse keyup with --in-frame', () => {
+    const cmd = parseCliArgs(['keyup', '--in-frame', '1', 'Control']);
+    expect(cmd.action).toBe('keyup');
+    expect(cmd.key).toBe('Control');
+    expect(cmd.inFrame).toBe('1');
   });
 });

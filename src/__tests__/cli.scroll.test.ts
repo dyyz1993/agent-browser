@@ -62,6 +62,31 @@ describe('scroll command', () => {
       expect(cmd.amount).toBe(50);
     });
   });
+
+  describe('scroll with --in-frame', () => {
+    it('should parse scroll with --in-frame', () => {
+      const cmd = parseCliArgs(['scroll', '--in-frame', '1', 'down', '300']);
+      expect(cmd.action).toBe('scroll');
+      expect(cmd.direction).toBe('down');
+      expect(cmd.amount).toBe(300);
+      expect(cmd.inFrame).toBe('1');
+    });
+
+    it('should parse scroll defaults with --in-frame', () => {
+      const cmd = parseCliArgs(['scroll', '--in-frame', 'iframe-0']);
+      expect(cmd.action).toBe('scroll');
+      expect(cmd.direction).toBe('down');
+      expect(cmd.amount).toBe(300);
+      expect(cmd.inFrame).toBe('iframe-0');
+    });
+
+    it('should not include --in-frame as direction', () => {
+      const cmd = parseCliArgs(['scroll', '--in-frame', '1', 'up']);
+      expect(cmd.direction).not.toBe('--in-frame');
+      expect(cmd.direction).toBe('up');
+      expect(cmd.inFrame).toBe('1');
+    });
+  });
 });
 
 describe('scrollintoview command', () => {
@@ -89,6 +114,21 @@ describe('scrollintoview command', () => {
     it('should parse scrollinto as scrollintoview', () => {
       const cmd = parseCliArgs(['scrollinto', '#element']);
       expect(cmd.action).toBe('scrollintoview');
+      expect(cmd.selector).toBe('#element');
+    });
+  });
+
+  describe('scrollintoview with --in-frame', () => {
+    it('should parse scrollintoview with --in-frame', () => {
+      const cmd = parseCliArgs(['scrollintoview', '--in-frame', '1', '#element']);
+      expect(cmd.action).toBe('scrollintoview');
+      expect(cmd.selector).toBe('#element');
+      expect(cmd.inFrame).toBe('1');
+    });
+
+    it('should not include --in-frame as selector', () => {
+      const cmd = parseCliArgs(['scrollintoview', '--in-frame', '1', '#element']);
+      expect(cmd.selector).not.toBe('--in-frame');
       expect(cmd.selector).toBe('#element');
     });
   });

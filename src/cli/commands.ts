@@ -297,115 +297,158 @@ export function parseCommand(args: string[], flags: Flags): Command {
       };
     }
     case 'drag': {
-      const source = rest[0];
-      const target = rest[1];
+      const { inFrame, remaining } = parseInFrame(rest);
+      const source = remaining[0];
+      const target = remaining[1];
       if (!source || !target)
-        error('Missing source or target', 'agent-browser drag <source> <target>');
-      return { id, action: 'drag', source, target };
+        error(
+          'Missing source or target',
+          'agent-browser drag <source> <target> [--in-frame <path>]'
+        );
+      return { id, action: 'drag', source, target, inFrame };
     }
     case 'upload': {
-      const selector = rest[0];
-      const files = rest.slice(1);
+      const { inFrame, remaining } = parseInFrame(rest);
+      const selector = remaining[0];
+      const files = remaining.slice(1);
       if (!selector || files.length === 0)
-        error('Missing selector or files', 'agent-browser upload <selector> <files...>');
-      return { id, action: 'upload', selector, files };
+        error(
+          'Missing selector or files',
+          'agent-browser upload <selector> <files...> [--in-frame <path>]'
+        );
+      return { id, action: 'upload', selector, files, inFrame };
     }
     case 'download': {
-      const selector = rest[0];
-      const path = rest[1];
+      const { inFrame, remaining } = parseInFrame(rest);
+      const selector = remaining[0];
+      const path = remaining[1];
       if (!selector || !path)
-        error('Missing selector or path', 'agent-browser download <selector> <path>');
-      return { id, action: 'download', selector, path };
+        error(
+          'Missing selector or path',
+          'agent-browser download <selector> <path> [--in-frame <path>]'
+        );
+      return { id, action: 'download', selector, path, inFrame };
     }
 
     case 'press':
     case 'key': {
-      const { diffScope, remaining } = parseDiff(rest);
+      const { inFrame, remaining: r1 } = parseInFrame(rest);
+      const { diffScope, remaining } = parseDiff(r1);
       const key = remaining[0];
-      if (!key) error('Missing key', 'agent-browser press <key> [--diff [scope]]');
-      return { id, action: 'press', key, diffScope };
+      if (!key)
+        error('Missing key', 'agent-browser press <key> [--diff [scope]] [--in-frame <path>]');
+      return { id, action: 'press', key, diffScope, inFrame };
     }
     case 'keydown': {
-      const key = rest[0];
-      if (!key) error('Missing key', 'agent-browser keydown <key>');
-      return { id, action: 'keydown', key };
+      const { inFrame, remaining } = parseInFrame(rest);
+      const key = remaining[0];
+      if (!key) error('Missing key', 'agent-browser keydown <key> [--in-frame <path>]');
+      return { id, action: 'keydown', key, inFrame };
     }
     case 'keyup': {
-      const key = rest[0];
-      if (!key) error('Missing key', 'agent-browser keyup <key>');
-      return { id, action: 'keyup', key };
+      const { inFrame, remaining } = parseInFrame(rest);
+      const key = remaining[0];
+      if (!key) error('Missing key', 'agent-browser keyup <key> [--in-frame <path>]');
+      return { id, action: 'keyup', key, inFrame };
     }
 
     case 'scroll': {
-      const direction = rest[0] || 'down';
-      const amount = rest[1] ? parseInt(rest[1], 10) : 300;
-      return { id, action: 'scroll', direction, amount };
+      const { inFrame, remaining: scrollRest } = parseInFrame(rest);
+      const direction = scrollRest[0] || 'down';
+      const amount = scrollRest[1] ? parseInt(scrollRest[1], 10) : 300;
+      return { id, action: 'scroll', direction, amount, inFrame };
     }
     case 'scrollintoview':
     case 'scrollinto': {
-      const selector = rest[0];
-      if (!selector) error('Missing selector', 'agent-browser scrollintoview <selector>');
-      return { id, action: 'scrollintoview', selector };
+      const { inFrame, remaining } = parseInFrame(rest);
+      const selector = remaining[0];
+      if (!selector)
+        error('Missing selector', 'agent-browser scrollintoview <selector> [--in-frame <path>]');
+      return { id, action: 'scrollintoview', selector, inFrame };
     }
 
     case 'wait': {
-      if (rest.includes('--url') || rest.includes('-u')) {
-        const urlIdx = rest.includes('--url') ? rest.indexOf('--url') : rest.indexOf('-u');
-        const url = rest[urlIdx + 1];
+      const inFrameIdx = rest.indexOf('--in-frame');
+      const inFrame = inFrameIdx !== -1 && rest[inFrameIdx + 1] ? rest[inFrameIdx + 1] : undefined;
+      const waitRest = rest.filter(
+        (_, i) => i !== inFrameIdx && i !== (inFrameIdx !== -1 ? inFrameIdx + 1 : -1)
+      );
+      if (waitRest.includes('--url') || waitRest.includes('-u')) {
+        const urlIdx = waitRest.includes('--url')
+          ? waitRest.indexOf('--url')
+          : waitRest.indexOf('-u');
+        const url = waitRest[urlIdx + 1];
         if (!url) error('Missing URL pattern', 'agent-browser wait --url <pattern>');
-        return { id, action: 'waitforurl', url };
+        return { id, action: 'waitforurl', url, inFrame };
       }
-      if (rest.includes('--load') || rest.includes('-l')) {
-        const loadIdx = rest.includes('--load') ? rest.indexOf('--load') : rest.indexOf('-l');
-        const state = rest[loadIdx + 1];
+      if (waitRest.includes('--load') || waitRest.includes('-l')) {
+        const loadIdx = waitRest.includes('--load')
+          ? waitRest.indexOf('--load')
+          : waitRest.indexOf('-l');
+        const state = waitRest[loadIdx + 1];
         if (!state) error('Missing load state', 'agent-browser wait --load <state>');
-        return { id, action: 'waitforloadstate', state };
+        return { id, action: 'waitforloadstate', state, inFrame };
       }
-      if (rest.includes('--fn') || rest.includes('-f')) {
-        const fnIdx = rest.includes('--fn') ? rest.indexOf('--fn') : rest.indexOf('-f');
-        const expression = rest[fnIdx + 1];
+      if (waitRest.includes('--fn') || waitRest.includes('-f')) {
+        const fnIdx = waitRest.includes('--fn') ? waitRest.indexOf('--fn') : waitRest.indexOf('-f');
+        const expression = waitRest[fnIdx + 1];
         if (!expression) error('Missing expression', 'agent-browser wait --fn <expression>');
-        return { id, action: 'waitforfunction', expression };
+        return { id, action: 'waitforfunction', expression, inFrame };
       }
-      if (rest.includes('--text') || rest.includes('-t')) {
-        const textIdx = rest.includes('--text') ? rest.indexOf('--text') : rest.indexOf('-t');
-        const text = rest[textIdx + 1];
+      if (waitRest.includes('--text') || waitRest.includes('-t')) {
+        const textIdx = waitRest.includes('--text')
+          ? waitRest.indexOf('--text')
+          : waitRest.indexOf('-t');
+        const text = waitRest[textIdx + 1];
         if (!text) error('Missing text', 'agent-browser wait --text <text>');
-        return { id, action: 'wait', selector: `text=${text}` };
+        return { id, action: 'wait', selector: `text=${text}`, inFrame };
       }
-      if (rest.includes('--download') || rest.includes('-d')) {
-        const cmd: Command = { id, action: 'waitfordownload' };
-        const dlIdx = rest.includes('--download') ? rest.indexOf('--download') : rest.indexOf('-d');
-        if (rest[dlIdx + 1] && !rest[dlIdx + 1].startsWith('--')) cmd.path = rest[dlIdx + 1];
-        const timeoutIdx = rest.indexOf('--timeout');
-        if (timeoutIdx !== -1 && rest[timeoutIdx + 1])
-          cmd.timeout = parseInt(rest[timeoutIdx + 1], 10);
+      if (waitRest.includes('--download') || waitRest.includes('-d')) {
+        const cmd: Command = { id, action: 'waitfordownload', inFrame };
+        const dlIdx = waitRest.includes('--download')
+          ? waitRest.indexOf('--download')
+          : waitRest.indexOf('-d');
+        if (waitRest[dlIdx + 1] && !waitRest[dlIdx + 1].startsWith('--'))
+          cmd.path = waitRest[dlIdx + 1];
+        const timeoutIdx = waitRest.indexOf('--timeout');
+        if (timeoutIdx !== -1 && waitRest[timeoutIdx + 1])
+          cmd.timeout = parseInt(waitRest[timeoutIdx + 1], 10);
         return cmd;
       }
-      if (rest.includes('--request') || rest.includes('-r')) {
-        const reqIdx = rest.includes('--request') ? rest.indexOf('--request') : rest.indexOf('-r');
-        const url = rest[reqIdx + 1];
+      if (waitRest.includes('--request') || waitRest.includes('-r')) {
+        const reqIdx = waitRest.includes('--request')
+          ? waitRest.indexOf('--request')
+          : waitRest.indexOf('-r');
+        const url = waitRest[reqIdx + 1];
         if (!url) error('Missing URL pattern', 'agent-browser wait --request <pattern>');
-        const cmd: Command = { id, action: 'responsebody', url };
-        const timeoutIdx = rest.indexOf('--timeout');
-        if (timeoutIdx !== -1 && rest[timeoutIdx + 1])
-          cmd.timeout = parseInt(rest[timeoutIdx + 1], 10);
+        const cmd: Command = { id, action: 'responsebody', url, inFrame };
+        const timeoutIdx = waitRest.indexOf('--timeout');
+        if (timeoutIdx !== -1 && waitRest[timeoutIdx + 1])
+          cmd.timeout = parseInt(waitRest[timeoutIdx + 1], 10);
         return cmd;
       }
-      if (rest[0]) {
-        const timeout = parseInt(rest[0], 10);
-        if (!isNaN(timeout)) return { id, action: 'wait', timeout };
-        return { id, action: 'wait', selector: rest[0] };
+      if (waitRest[0]) {
+        const timeout = parseInt(waitRest[0], 10);
+        if (!isNaN(timeout)) return { id, action: 'wait', timeout, inFrame };
+        return { id, action: 'wait', selector: waitRest[0], inFrame };
       }
       error(
         'Missing arguments',
-        'agent-browser wait <selector|ms|--url|--load|--fn|--text|--download|--request>'
+        'agent-browser wait <selector|ms|--url|--load|--fn|--text|--download|--request> [--in-frame <path>]'
       );
     }
 
     case 'screenshot': {
       const fullPage = rest.includes('--full') || rest.includes('-f');
-      const filtered = rest.filter((r) => r !== '--full' && r !== '-f');
+      const inFrameIdx = rest.indexOf('--in-frame');
+      const inFrame = inFrameIdx !== -1 && rest[inFrameIdx + 1] ? rest[inFrameIdx + 1] : undefined;
+      const filtered = rest.filter(
+        (r, i) =>
+          r !== '--full' &&
+          r !== '-f' &&
+          r !== '--in-frame' &&
+          i !== (inFrameIdx !== -1 ? inFrameIdx + 1 : -1)
+      );
       let selector: string | undefined;
       let path: string | undefined;
       if (filtered.length === 2) {
@@ -422,7 +465,7 @@ export function parseCommand(args: string[], flags: Flags): Command {
         if (isPath) path = arg;
         else selector = arg;
       }
-      return { id, action: 'screenshot', selector, path, fullPage: fullPage || undefined };
+      return { id, action: 'screenshot', selector, path, fullPage: fullPage || undefined, inFrame };
     }
     case 'pdf': {
       const path = rest[0];
@@ -485,13 +528,14 @@ export function parseCommand(args: string[], flags: Flags): Command {
     }
 
     case 'eval': {
+      const { inFrame, remaining: evalRest } = parseInFrame(rest);
       let script: string | undefined;
       let file: string | undefined;
-      if (rest.includes('--file')) {
-        const fileIdx = rest.indexOf('--file');
-        file = rest[fileIdx + 1];
+      if (evalRest.includes('--file')) {
+        const fileIdx = evalRest.indexOf('--file');
+        file = evalRest[fileIdx + 1];
         if (!file) error('Missing file path', 'agent-browser eval --file <path>');
-      } else if (rest.includes('--stdin')) {
+      } else if (evalRest.includes('--stdin')) {
         const fd = process.stdin.fd;
         const buffer = Buffer.allocUnsafe(1024);
         const chunks: Buffer[] = [];
@@ -500,16 +544,18 @@ export function parseCommand(args: string[], flags: Flags): Command {
           chunks.push(Buffer.from(buffer.subarray(0, bytesRead)));
         }
         script = Buffer.concat(chunks).toString('utf8');
-      } else if (rest.includes('-b') || rest.includes('--base64')) {
-        const bIdx = rest.includes('-b') ? rest.indexOf('-b') : rest.indexOf('--base64');
-        const encoded = rest[bIdx + 1];
+      } else if (evalRest.includes('-b') || evalRest.includes('--base64')) {
+        const bIdx = evalRest.includes('-b')
+          ? evalRest.indexOf('-b')
+          : evalRest.indexOf('--base64');
+        const encoded = evalRest[bIdx + 1];
         if (!encoded) error('Missing base64 script', 'agent-browser eval -b <base64-script>');
         script = Buffer.from(encoded, 'base64').toString('utf8');
       } else {
-        script = rest.join(' ');
+        script = evalRest.join(' ');
         if (!script) error('Missing script', 'agent-browser eval <script>');
       }
-      return { id, action: 'evaluate', script, file };
+      return { id, action: 'evaluate', script, file, inFrame };
     }
 
     case 'scrape': {
@@ -727,79 +773,85 @@ export function parseCommand(args: string[], flags: Flags): Command {
       return { id, action: 'close' };
 
     case 'get': {
-      const subcmd = rest[0];
+      const { inFrame, remaining: getRest } = parseInFrame(rest);
+      const subcmd = getRest[0];
       if (!subcmd)
         error(
           'Missing subcommand',
-          'agent-browser get <text|html|value|attr|url|title|count|box|styles> [args...]'
+          'agent-browser get <text|html|value|attr|url|title|count|box|styles> [args...] [--in-frame <path>]'
         );
       switch (subcmd) {
         case 'text': {
-          const selector = rest[1];
+          const selector = getRest[1];
           if (!selector) error('Missing selector', 'agent-browser get text <selector>');
-          return { id, action: 'gettext', selector };
+          return { id, action: 'gettext', selector, inFrame };
         }
         case 'html': {
-          const selector = rest[1];
+          const selector = getRest[1];
           if (!selector) error('Missing selector', 'agent-browser get html <selector>');
-          return { id, action: 'innerhtml', selector };
+          return { id, action: 'innerhtml', selector, inFrame };
         }
         case 'value': {
-          const selector = rest[1];
+          const selector = getRest[1];
           if (!selector) error('Missing selector', 'agent-browser get value <selector>');
-          return { id, action: 'inputvalue', selector };
+          return { id, action: 'inputvalue', selector, inFrame };
         }
         case 'attr': {
-          const selector = rest[1];
-          const attribute = rest[2];
+          const selector = getRest[1];
+          const attribute = getRest[2];
           if (!selector || !attribute)
             error('Missing selector or attribute', 'agent-browser get attr <selector> <attribute>');
-          return { id, action: 'getattribute', selector, attribute };
+          return { id, action: 'getattribute', selector, attribute, inFrame };
         }
         case 'url':
           return { id, action: 'url' };
         case 'title':
           return { id, action: 'title' };
         case 'count': {
-          const selector = rest[1];
+          const selector = getRest[1];
           if (!selector) error('Missing selector', 'agent-browser get count <selector>');
-          return { id, action: 'count', selector };
+          return { id, action: 'count', selector, inFrame };
         }
         case 'box': {
-          const selector = rest[1];
+          const selector = getRest[1];
           if (!selector) error('Missing selector', 'agent-browser get box <selector>');
-          return { id, action: 'boundingbox', selector };
+          return { id, action: 'boundingbox', selector, inFrame };
         }
         case 'styles': {
-          const selector = rest[1];
+          const selector = getRest[1];
           if (!selector) error('Missing selector', 'agent-browser get styles <selector>');
-          return { id, action: 'styles', selector };
+          return { id, action: 'styles', selector, inFrame };
         }
         default:
           error(
             `Unknown get subcommand: ${subcmd}`,
-            'agent-browser get <text|html|value|attr|url|title|count|box|styles> [args...]'
+            'agent-browser get <text|html|value|attr|url|title|count|box|styles> [args...] [--in-frame <path>]'
           );
       }
     }
 
     case 'is': {
-      const subcmd = rest[0];
+      const { inFrame, remaining: isRest } = parseInFrame(rest);
+      const subcmd = isRest[0];
       if (!subcmd)
-        error('Missing subcommand', 'agent-browser is <visible|enabled|checked> <selector>');
-      const selector = rest[1];
-      if (!selector) error('Missing selector', `agent-browser is ${subcmd} <selector>`);
+        error(
+          'Missing subcommand',
+          'agent-browser is <visible|enabled|checked> <selector> [--in-frame <path>]'
+        );
+      const selector = isRest[1];
+      if (!selector)
+        error('Missing selector', `agent-browser is ${subcmd} <selector> [--in-frame <path>]`);
       switch (subcmd) {
         case 'visible':
-          return { id, action: 'isvisible', selector };
+          return { id, action: 'isvisible', selector, inFrame };
         case 'enabled':
-          return { id, action: 'isenabled', selector };
+          return { id, action: 'isenabled', selector, inFrame };
         case 'checked':
-          return { id, action: 'ischecked', selector };
+          return { id, action: 'ischecked', selector, inFrame };
         default:
           error(
             `Unknown is subcommand: ${subcmd}`,
-            'agent-browser is <visible|enabled|checked> <selector>'
+            'agent-browser is <visible|enabled|checked> <selector> [--in-frame <path>]'
           );
       }
     }

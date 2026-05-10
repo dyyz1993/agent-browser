@@ -151,4 +151,25 @@ describe('eval command', () => {
       expect(() => parseCliArgs(['eval', '-b'])).toThrow(CliError);
     });
   });
+
+  describe('eval with --in-frame', () => {
+    it('should parse eval with --in-frame', () => {
+      const cmd = parseCliArgs(['eval', '--in-frame', '1', 'document.title']);
+      expect(cmd.action).toBe('evaluate');
+      expect(cmd.script).toBe('document.title');
+      expect(cmd.inFrame).toBe('1');
+    });
+
+    it('should parse eval --file with --in-frame', () => {
+      const cmd = parseCliArgs(['eval', '--in-frame', '1', '--file', 'script.js']);
+      expect(cmd.action).toBe('evaluate');
+      expect(cmd.file).toBe('script.js');
+      expect(cmd.inFrame).toBe('1');
+    });
+
+    it('should not include --in-frame in script', () => {
+      const cmd = parseCliArgs(['eval', '--in-frame', '1', 'document.title']);
+      expect(cmd.script).not.toContain('--in-frame');
+    });
+  });
 });

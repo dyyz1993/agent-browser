@@ -137,4 +137,62 @@ describe('get command', () => {
       }
     });
   });
+
+  describe('get with --in-frame', () => {
+    it('should parse get text with --in-frame', () => {
+      const cmd = parseCliArgs(['get', '--in-frame', '1', 'text', '#element']);
+      expect(cmd.action).toBe('gettext');
+      expect(cmd.selector).toBe('#element');
+      expect(cmd.inFrame).toBe('1');
+    });
+
+    it('should parse get html with --in-frame', () => {
+      const cmd = parseCliArgs(['get', '--in-frame', '1', 'html', '#element']);
+      expect(cmd.action).toBe('innerhtml');
+      expect(cmd.selector).toBe('#element');
+      expect(cmd.inFrame).toBe('1');
+    });
+
+    it('should parse get value with --in-frame', () => {
+      const cmd = parseCliArgs(['get', '--in-frame', '1', 'value', '#input']);
+      expect(cmd.action).toBe('inputvalue');
+      expect(cmd.selector).toBe('#input');
+      expect(cmd.inFrame).toBe('1');
+    });
+
+    it('should parse get attr with --in-frame', () => {
+      const cmd = parseCliArgs(['get', '--in-frame', '1', 'attr', '#link', 'href']);
+      expect(cmd.action).toBe('getattribute');
+      expect(cmd.selector).toBe('#link');
+      expect(cmd.attribute).toBe('href');
+      expect(cmd.inFrame).toBe('1');
+    });
+
+    it('should parse get count with --in-frame', () => {
+      const cmd = parseCliArgs(['get', '--in-frame', '1', 'count', '.item']);
+      expect(cmd.action).toBe('count');
+      expect(cmd.selector).toBe('.item');
+      expect(cmd.inFrame).toBe('1');
+    });
+
+    it('should parse get box with --in-frame', () => {
+      const cmd = parseCliArgs(['get', '--in-frame', '1', 'box', '#element']);
+      expect(cmd.action).toBe('boundingbox');
+      expect(cmd.selector).toBe('#element');
+      expect(cmd.inFrame).toBe('1');
+    });
+
+    it('should parse get styles with --in-frame', () => {
+      const cmd = parseCliArgs(['get', '--in-frame', '1', 'styles', '#element']);
+      expect(cmd.action).toBe('styles');
+      expect(cmd.selector).toBe('#element');
+      expect(cmd.inFrame).toBe('1');
+    });
+
+    it('should not include --in-frame as subcommand (regression)', () => {
+      const cmd = parseCliArgs(['get', '--in-frame', '1', 'text', '.content']);
+      expect(cmd.selector).not.toBe('--in-frame');
+      expect(cmd.selector).toBe('.content');
+    });
+  });
 });

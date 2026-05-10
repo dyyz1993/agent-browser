@@ -58,4 +58,33 @@ describe('is command', () => {
       }
     });
   });
+
+  describe('is with --in-frame', () => {
+    it('should parse is visible with --in-frame', () => {
+      const cmd = parseCliArgs(['is', '--in-frame', '1', 'visible', '#element']);
+      expect(cmd.action).toBe('isvisible');
+      expect(cmd.selector).toBe('#element');
+      expect(cmd.inFrame).toBe('1');
+    });
+
+    it('should parse is enabled with --in-frame', () => {
+      const cmd = parseCliArgs(['is', '--in-frame', '1', 'enabled', '#button']);
+      expect(cmd.action).toBe('isenabled');
+      expect(cmd.selector).toBe('#button');
+      expect(cmd.inFrame).toBe('1');
+    });
+
+    it('should parse is checked with --in-frame', () => {
+      const cmd = parseCliArgs(['is', '--in-frame', '1', 'checked', '#checkbox']);
+      expect(cmd.action).toBe('ischecked');
+      expect(cmd.selector).toBe('#checkbox');
+      expect(cmd.inFrame).toBe('1');
+    });
+
+    it('should not include --in-frame as subcommand (regression)', () => {
+      const cmd = parseCliArgs(['is', '--in-frame', '1', 'visible', '.modal']);
+      expect(cmd.selector).not.toBe('--in-frame');
+      expect(cmd.selector).toBe('.modal');
+    });
+  });
 });

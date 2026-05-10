@@ -185,4 +185,60 @@ describe('wait command', () => {
       expect(() => parseCliArgs(['wait'])).toThrow(CliError);
     });
   });
+
+  describe('wait with --in-frame', () => {
+    it('should parse wait selector with --in-frame', () => {
+      const cmd = parseCliArgs(['wait', '--in-frame', '1', '#element']);
+      expect(cmd.action).toBe('wait');
+      expect(cmd.selector).toBe('#element');
+      expect(cmd.inFrame).toBe('1');
+    });
+
+    it('should parse wait timeout with --in-frame', () => {
+      const cmd = parseCliArgs(['wait', '--in-frame', '1', '5000']);
+      expect(cmd.action).toBe('wait');
+      expect(cmd.timeout).toBe(5000);
+      expect(cmd.inFrame).toBe('1');
+    });
+
+    it('should parse wait --url with --in-frame', () => {
+      const cmd = parseCliArgs(['wait', '--in-frame', '1', '--url', '**/dashboard']);
+      expect(cmd.action).toBe('waitforurl');
+      expect(cmd.url).toBe('**/dashboard');
+      expect(cmd.inFrame).toBe('1');
+    });
+
+    it('should parse wait --load with --in-frame', () => {
+      const cmd = parseCliArgs(['wait', '--in-frame', '1', '--load', 'networkidle']);
+      expect(cmd.action).toBe('waitforloadstate');
+      expect(cmd.state).toBe('networkidle');
+      expect(cmd.inFrame).toBe('1');
+    });
+
+    it('should parse wait --fn with --in-frame', () => {
+      const cmd = parseCliArgs(['wait', '--in-frame', '1', '--fn', 'window.ready']);
+      expect(cmd.action).toBe('waitforfunction');
+      expect(cmd.expression).toBe('window.ready');
+      expect(cmd.inFrame).toBe('1');
+    });
+
+    it('should parse wait --text with --in-frame', () => {
+      const cmd = parseCliArgs(['wait', '--in-frame', '1', '--text', 'Welcome']);
+      expect(cmd.action).toBe('wait');
+      expect(cmd.selector).toBe('text=Welcome');
+      expect(cmd.inFrame).toBe('1');
+    });
+
+    it('should parse wait --download with --in-frame', () => {
+      const cmd = parseCliArgs(['wait', '--in-frame', '1', '--download']);
+      expect(cmd.action).toBe('waitfordownload');
+      expect(cmd.inFrame).toBe('1');
+    });
+
+    it('should not include --in-frame as selector (regression)', () => {
+      const cmd = parseCliArgs(['wait', '--in-frame', '1', '#element']);
+      expect(cmd.selector).not.toBe('--in-frame');
+      expect(cmd.selector).toBe('#element');
+    });
+  });
 });

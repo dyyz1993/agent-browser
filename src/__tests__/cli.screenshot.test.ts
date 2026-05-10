@@ -103,6 +103,37 @@ describe('screenshot command', () => {
       expect(cmd.fullPage).toBe(true);
     });
   });
+
+  describe('screenshot with --in-frame', () => {
+    it('should parse screenshot with --in-frame', () => {
+      const cmd = parseCliArgs(['screenshot', '--in-frame', '1', '@e1']);
+      expect(cmd.action).toBe('screenshot');
+      expect(cmd.selector).toBe('@e1');
+      expect(cmd.inFrame).toBe('1');
+    });
+
+    it('should parse screenshot with --in-frame and path', () => {
+      const cmd = parseCliArgs(['screenshot', '--in-frame', '1', '@e1', 'out.png']);
+      expect(cmd.action).toBe('screenshot');
+      expect(cmd.selector).toBe('@e1');
+      expect(cmd.path).toBe('out.png');
+      expect(cmd.inFrame).toBe('1');
+    });
+
+    it('should parse screenshot with --in-frame and --full', () => {
+      const cmd = parseCliArgs(['screenshot', '--in-frame', '2', '--full', 'out.png']);
+      expect(cmd.action).toBe('screenshot');
+      expect(cmd.fullPage).toBe(true);
+      expect(cmd.path).toBe('out.png');
+      expect(cmd.inFrame).toBe('2');
+    });
+
+    it('should not include --in-frame as selector', () => {
+      const cmd = parseCliArgs(['screenshot', '--in-frame', '1', '.btn']);
+      expect(cmd.selector).not.toBe('--in-frame');
+      expect(cmd.selector).toBe('.btn');
+    });
+  });
 });
 
 describe('pdf command', () => {
