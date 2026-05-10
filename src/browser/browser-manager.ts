@@ -1530,16 +1530,14 @@ export class BrowserManager {
       });
       this.browser = null;
     } else if (this.cdpEndpoint !== null) {
-      console.log('[DEBUG close] CDP endpoint detected:', this.cdpEndpoint);
-      console.log('[DEBUG close] browser exists:', !!this.browser);
       if (this.browser) {
         try {
-          console.log('[DEBUG close] CDP connection - closing pages and disconnecting');
-          await closePages();
+          const allPages = this.browser.contexts().flatMap((ctx) => ctx.pages());
+          for (const p of allPages) {
+            await p.close().catch(() => {});
+          }
           await this.browser.close();
-          console.log('[DEBUG close] CDP connection closed');
-        } catch (e) {
-          console.log('[DEBUG close] CDP disconnect failed:', e);
+        } catch {
         } finally {
           this.browser = null;
         }

@@ -985,6 +985,52 @@ const searchSchema = baseCommandSchema.extend({
   stealth: z.boolean().optional(),
 });
 
+// Plugin command schemas
+const pluginInstallSchema = baseCommandSchema.extend({
+  action: z.literal('plugin_install'),
+  source: z.string().min(1),
+});
+
+const pluginUninstallSchema = baseCommandSchema.extend({
+  action: z.literal('plugin_uninstall'),
+  name: z.string().min(1),
+});
+
+const pluginUpdateSchema = baseCommandSchema.extend({
+  action: z.literal('plugin_update'),
+  name: z.string().optional(),
+});
+
+const pluginListSchema = baseCommandSchema.extend({
+  action: z.literal('plugin_list'),
+  json: z.boolean().optional(),
+});
+
+const pluginInfoSchema = baseCommandSchema.extend({
+  action: z.literal('plugin_info'),
+  name: z.string().min(1),
+});
+
+const pluginSearchSchema = baseCommandSchema.extend({
+  action: z.literal('plugin_search'),
+  keyword: z.string().min(1),
+});
+
+const pluginRunSchema = baseCommandSchema.extend({
+  action: z.literal('plugin_run'),
+  pluginName: z.string().min(1),
+  commandName: z.string(),
+  args: z.array(z.string()),
+  flags: z.record(z.union([z.string(), z.boolean()])),
+});
+
+const pluginCreateSchema = baseCommandSchema.extend({
+  action: z.literal('plugin_create'),
+  name: z.string().min(1),
+  dir: z.string().optional(),
+  minimal: z.boolean().optional(),
+});
+
 // Interact command schemas
 const interactStepSchema = z.union([
   z.object({
@@ -1117,6 +1163,14 @@ const windowNewSchema = baseCommandSchema.extend({
 
 // Union schema for all commands
 const commandSchema = z.discriminatedUnion('action', [
+  pluginInstallSchema,
+  pluginUninstallSchema,
+  pluginUpdateSchema,
+  pluginListSchema,
+  pluginInfoSchema,
+  pluginSearchSchema,
+  pluginRunSchema,
+  pluginCreateSchema,
   launchSchema,
   navigateSchema,
   clickSchema,

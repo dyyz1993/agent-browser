@@ -1147,6 +1147,43 @@ Examples:
   agent-browser flow export recording.yaml --format python --headless
   agent-browser flow export recording.yaml --format playwright --base-url https://staging.example.com
 `,
+  plugin: `
+agent-browser plugin - Manage plugins
+
+Usage: agent-browser plugin <subcommand> [args]
+
+Subcommands:
+  install <source>       Install a plugin (npm package, git repo, local path, URL)
+  uninstall <name>       Uninstall a plugin by name
+  update [name]          Update plugin(s). Updates all if no name given.
+  list [--json]          List installed plugins
+  info <name>            Show detailed plugin info
+  search <keyword>       Search installed plugins by keyword
+  run <name> <cmd> [args]  Run a plugin command directly
+  create <name> [options]  Create a new plugin from template
+    --dir <dir>            Target directory (default: ~/.agent-browser/plugins)
+    --minimal              Create minimal template
+
+Plugin Discovery:
+  Unknown CLI commands are automatically routed as plugin commands.
+  For example, "agent-browser doubao search query" becomes:
+  plugin_run(pluginName="doubao", commandName="search", args=["query"])
+
+Examples:
+  agent-browser plugin install agent-browser-plugin-doubao
+  agent-browser plugin install ./my-plugin
+  agent-browser plugin list
+  agent-browser plugin list --json
+  agent-browser plugin info doubao
+  agent-browser plugin search dou
+  agent-browser plugin update
+  agent-browser plugin update doubao
+  agent-browser plugin uninstall doubao
+  agent-browser plugin create my-plugin
+  agent-browser plugin create my-plugin --dir /tmp/plugins
+  agent-browser plugin create my-plugin --minimal
+  agent-browser plugin run doubao search "query"
+`,
 };
 
 export function printCommandHelp(command: string): boolean {
@@ -1262,6 +1299,16 @@ Config:
 Setup:
   install                    Install browser binaries
   install --with-deps        Also install system dependencies (Linux)
+
+Plugins:
+  plugin install <source>    Install a plugin
+  plugin uninstall <name>    Uninstall a plugin
+  plugin update [name]       Update plugin(s)
+  plugin list [--json]       List installed plugins
+  plugin info <name>         Show plugin info
+  plugin search <keyword>    Search plugins
+  plugin create <name>       Create plugin from template
+  plugin run <name> <cmd>    Run a plugin command
 
 Snapshot Options:
   -i, --interactive          Only interactive elements

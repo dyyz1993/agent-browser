@@ -1,6 +1,6 @@
 {
   "name": "@dyyz1993/agent-browser",
-  "version": "0.26.3",
+  "version": "0.27.0",
   "description": "Headless browser automation CLI for AI agents",
   "type": "module",
   "main": "dist/daemon.js",
@@ -60,6 +60,7 @@
   },
   "homepage": "https://github.com/xuyingzhou/agent-browser#readme",
   "dependencies": {
+    "jiti": "^2.7.0",
     "js-yaml": "^4.1.1",
     "playwright-core": "^1.57.0",
     "sharp": "^0.34.5",

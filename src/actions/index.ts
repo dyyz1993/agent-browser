@@ -1,3 +1,5 @@
+import { handlePluginCommand } from './plugins.js';
+
 import type { BrowserManager } from '../browser/index.js';
 import type {
   Command,
@@ -472,6 +474,15 @@ export async function executeCommand(
         return await handleSelectorsOf(cmd as SelectorsOfCommand, browser);
       case 'validate':
         return await handleValidate(cmd as ValidateCommand, browser);
+      case 'plugin_install':
+      case 'plugin_uninstall':
+      case 'plugin_update':
+      case 'plugin_list':
+      case 'plugin_info':
+      case 'plugin_search':
+      case 'plugin_create':
+      case 'plugin_run':
+        return await handlePluginCommand(command, browser);
       default: {
         const unknownCommand = cmd as { id: string; action: string };
         return errorResponse(unknownCommand.id, `Unknown action: ${unknownCommand.action}`);
