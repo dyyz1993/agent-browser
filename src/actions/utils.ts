@@ -556,7 +556,7 @@ turndown.addRule('codeBlocks', {
 export function htmlToMarkdown(html: string): string {
   if (!html || typeof html !== 'string') return '';
 
-  let cleaned = html.replace(/&nbsp;/g, ' ');
+  const cleaned = html.replace(/&nbsp;/g, ' ');
 
   let markdown = turndown.turndown(cleaned);
 

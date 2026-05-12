@@ -1538,6 +1538,7 @@ export class BrowserManager {
           }
           await this.browser.close();
         } catch {
+          /* ignored */
         } finally {
           this.browser = null;
         }

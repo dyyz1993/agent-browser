@@ -1,5 +1,6 @@
 import type { Page } from 'playwright-core';
 import type { BrowserManager } from '../browser/index.js';
+import type { Command, Response } from '../types.js';
 
 export interface PluginCommandMeta {
   description: string;
@@ -12,6 +13,28 @@ export interface PluginMeta {
   version: string;
   description?: string;
   commands: Record<string, PluginCommandMeta>;
+}
+
+export interface AskOptions {
+  /** Include a screenshot with the question */
+  screenshot?: boolean;
+  /** Maximum wait time for answer in ms (default: 120000) */
+  timeout?: number;
+}
+
+export interface AskResult {
+  answer: string;
+  /** Base64-encoded screenshot if screenshot was taken */
+  screenshot?: string;
+}
+
+export interface ViewerInfo {
+  /** HTTP viewer URL */
+  url: string;
+  /** WebSocket URL */
+  wsUrl: string;
+  /** Stream server port */
+  port: number;
 }
 
 export interface PluginContext {
@@ -37,6 +60,35 @@ export interface PluginContext {
 
   newTab(url?: string): Promise<Page>;
   closeTab(page?: Page): Promise<void>;
+
+  requireLogin(options: {
+    site: string;
+    loginUrl: string;
+    checkScript: string;
+    maxWaitMs?: number;
+    pollIntervalMs?: number;
+  }): Promise<{ loggedIn: boolean; message: string }>;
+
+  inFrame(frameSelector: string): {
+    click(selector: string): Promise<void>;
+    fill(selector: string, value: string): Promise<void>;
+    waitForSelector(selector: string, opts?: { timeout?: number }): Promise<void>;
+    eval(expression: string): Promise<any>;
+    snapshot(): Promise<string>;
+    locator(selector: string): any;
+  };
+
+  /**
+   * Dispatch any CLI action from plugin code.  Type auto-inferred from action name.
+   *
+   *   ctx.dispatch({ action: 'screenshot', fullPage: true })        → Response<ScreenshotData>
+   *   ctx.dispatch({ action: 'ask', question: '处理验证码?' })       → Response<AskData>
+   *   ctx.dispatch({ action: 'viewer' })                            → Response<ViewerData>
+   *   ctx.dispatch({ action: 'network.requests' })                  → Response<RequestsData>
+   *
+   * Never needs to change when new CLI commands are added.
+   */
+  dispatch<T extends Command>(cmd: Omit<T, 'id'>): Promise<Response<unknown>>;
 }
 
 export type PluginCommandHandler = (

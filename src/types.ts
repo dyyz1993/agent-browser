@@ -1211,6 +1211,10 @@ export function isSuccessResponse<T>(response: Response): response is SuccessRes
 export interface NavigateData {
   url: string;
   title: string;
+  ssr?: {
+    framework: string;
+    globals: string[];
+  };
 }
 
 export interface ScreenshotData {

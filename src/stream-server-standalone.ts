@@ -188,6 +188,169 @@ class StreamServerStandalone {
           return;
         }
 
+        // HTTP API: Plugin shortcuts (GET)
+        if (req.url?.startsWith('/api/') && req.method === 'GET') {
+          (async () => {
+            const parsed = new URL(req.url!, `http://${req.headers.host}`);
+
+            const cdp = parsed.searchParams.get('cdp');
+            const session = parsed.searchParams.get('session') || undefined;
+
+            if (cdp) {
+              const cdpPort = parseInt(cdp);
+              if (isNaN(cdpPort)) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Invalid cdp port' }));
+                return;
+              }
+              const launchCmd = JSON.stringify({
+                id: `cdp-connect-${Date.now()}`,
+                action: 'launch',
+                cdpPort,
+                ...(session ? { session } : {}),
+              });
+              try {
+                await this.sendCommandToDaemon(launchCmd);
+              } catch (err) {
+                const error = err instanceof Error ? err.message : String(err);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(
+                  JSON.stringify({ success: false, error: `CDP connection failed: ${error}` })
+                );
+                return;
+              }
+            }
+
+            const pathMatch = parsed.pathname.match(/^\/api\/([^/]+)\/([^/?]+)$/);
+            if (pathMatch) {
+              const pluginName = pathMatch[1];
+              const commandName = pathMatch[2];
+              const url = parsed.searchParams.get('url') || parsed.searchParams.get('q') || '';
+              const limit = parsed.searchParams.get('limit') || '';
+              const prompt = parsed.searchParams.get('prompt') || '';
+
+              if (!url && !commandName.match(/^(list|search|login)$/)) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Missing ?url= parameter' }));
+                return;
+              }
+
+              const args = url ? [url] : [];
+              const flags: Record<string, string> = {};
+              if (limit) flags.limit = limit;
+              if (prompt) flags.prompt = prompt;
+
+              const cmd = JSON.stringify({
+                id: `get-${Date.now()}`,
+                action: 'plugin_run',
+                pluginName,
+                commandName,
+                args,
+                flags,
+                ...(session ? { session } : {}),
+              });
+
+              try {
+                const response = await this.sendCommandToDaemon(cmd);
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(response);
+              } catch (err) {
+                const error = err instanceof Error ? err.message : String(err);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ id: 'unknown', success: false, error }));
+              }
+              return;
+            }
+
+            // GET /api/scrape?url=...
+            if (parsed.pathname === '/api/scrape') {
+              const targetUrl = parsed.searchParams.get('url');
+              if (!targetUrl) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Missing ?url= parameter' }));
+                return;
+              }
+              const selector = parsed.searchParams.get('selector') || '';
+              const navCmd = JSON.stringify({
+                id: `scrape-${Date.now()}`,
+                action: 'navigate',
+                url: targetUrl,
+                ...(session ? { session } : {}),
+              });
+              try {
+                const navResult = await this.sendCommandToDaemon(navCmd);
+                const navData = JSON.parse(navResult);
+
+                if (selector) {
+                  const evalCmd = JSON.stringify({
+                    id: `scrape-e-${Date.now()}`,
+                    action: 'evaluate',
+                    script: `JSON.stringify(Array.from(document.querySelectorAll('${selector}')).map(el => el.innerText))`,
+                    ...(session ? { session } : {}),
+                  });
+                  const result = await this.sendCommandToDaemon(evalCmd);
+                  res.writeHead(200, { 'Content-Type': 'application/json' });
+                  res.end(result);
+                } else {
+                  const evalCmd = JSON.stringify({
+                    id: `scrape-e-${Date.now()}`,
+                    action: 'evaluate',
+                    script: 'document.body.innerText',
+                    ...(session ? { session } : {}),
+                  });
+                  const result = await this.sendCommandToDaemon(evalCmd);
+                  const evalData = JSON.parse(result);
+                  const out: Record<string, unknown> = {
+                    url: navData.data?.url,
+                    title: navData.data?.title,
+                    content: evalData.data?.result || '',
+                  };
+                  if (navData.data?.ssr) {
+                    out.ssr_hint = {
+                      framework: navData.data.ssr.framework,
+                      globals: navData.data.ssr.globals,
+                    };
+                  }
+                  res.writeHead(200, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({ id: evalData.id, success: true, data: out }));
+                }
+              } catch (err) {
+                const error = err instanceof Error ? err.message : String(err);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ id: 'unknown', success: false, error }));
+              }
+              return;
+            }
+
+            // GET /api/evaluate?script=...
+            if (parsed.pathname === '/api/evaluate') {
+              const script = parsed.searchParams.get('script');
+              if (!script) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Missing ?script= parameter' }));
+                return;
+              }
+              const cmd = JSON.stringify({
+                id: `eval-${Date.now()}`,
+                action: 'evaluate',
+                script,
+                ...(session ? { session } : {}),
+              });
+              try {
+                const response = await this.sendCommandToDaemon(cmd);
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(response);
+              } catch (err) {
+                const error = err instanceof Error ? err.message : String(err);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ id: 'unknown', success: false, error }));
+              }
+              return;
+            }
+          })().catch(() => {});
+          return;
+        }
+
         // HTTP API: OpenAPI specification
         if (req.url === '/api/openapi.json' && req.method === 'GET') {
           res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -1035,26 +1198,43 @@ class StreamServerStandalone {
    */
   private async sendCommandToDaemon(commandJson: string): Promise<string> {
     return new Promise((resolve, reject) => {
-      // Get the daemon socket path from the first available session
-      // or use the default socket path
+      let targetSession: string | undefined;
+      try {
+        const parsed = JSON.parse(commandJson);
+        targetSession = parsed.session;
+      } catch {
+        /* ignored */
+      }
+
       let socketPath: string | undefined;
 
-      // Try to find an active session's socket path
-      for (const [, info] of this.sessions) {
-        socketPath = info.socketPath;
-        break;
+      if (targetSession && this.sessions.has(targetSession)) {
+        socketPath = this.sessions.get(targetSession)!.socketPath;
+      } else if (this.sessions.has('default')) {
+        socketPath = this.sessions.get('default')!.socketPath;
+      } else {
+        for (const [, info] of this.sessions) {
+          socketPath = info.socketPath;
+          break;
+        }
       }
 
       if (!socketPath) {
-        // Fallback to default socket path
         socketPath = path.join(getSocketDir(), 'default.sock');
       }
 
+      let singleLineJson: string;
+      try {
+        singleLineJson = JSON.stringify(JSON.parse(commandJson));
+      } catch {
+        singleLineJson = commandJson.replace(/\s+/g, ' ').trim();
+      }
+
       const socket = net.createConnection({ path: socketPath }, () => {
-        socket.write(commandJson + '\n');
+        socket.write(singleLineJson + '\n');
       });
 
-      let response = '';
+      let buffer = '';
       let resolved = false;
       const timeout = setTimeout(() => {
         if (!resolved) {
@@ -1062,22 +1242,28 @@ class StreamServerStandalone {
           socket.destroy();
           reject(new Error('Command timeout'));
         }
-      }, 30000); // 30 second timeout
+      }, 120000);
 
       socket.on('data', (data) => {
-        response += data.toString();
-        // Check if we have a complete JSON response
-        try {
-          JSON.parse(response);
-          // If we can parse it, we have the complete response
-          if (!resolved) {
-            resolved = true;
-            clearTimeout(timeout);
-            resolve(response);
-            socket.end();
+        buffer += data.toString();
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+          try {
+            const parsed = JSON.parse(trimmed);
+            if (!resolved) {
+              resolved = true;
+              clearTimeout(timeout);
+              resolve(JSON.stringify(parsed));
+              socket.end();
+              return;
+            }
+          } catch {
+            /* ignored */
           }
-        } catch {
-          // Not complete yet, keep reading
         }
       });
 
@@ -1085,7 +1271,11 @@ class StreamServerStandalone {
         if (!resolved) {
           resolved = true;
           clearTimeout(timeout);
-          resolve(response);
+          if (buffer.trim()) {
+            resolve(buffer.trim());
+          } else {
+            reject(new Error('Daemon closed connection without response'));
+          }
         }
       });
 

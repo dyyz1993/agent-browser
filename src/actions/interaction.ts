@@ -68,10 +68,12 @@ export async function handleNavigate(
     await browser.injectRecorderIfNeeded();
   }
 
-  return successResponse(command.id, {
+  const data: NavigateData = {
     url: page.url(),
     title: await page.title(),
-  });
+  };
+
+  return successResponse(command.id, data);
 }
 
 export async function handleClick(

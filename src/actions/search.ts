@@ -86,7 +86,9 @@ async function parseGoogleResults(page: Page, limit: number): Promise<SearchResu
       if (title && url && url.startsWith('http')) {
         results.push({ title: title.trim(), url, snippet: snippet?.trim() });
       }
-    } catch {}
+    } catch {
+      /* ignored */
+    }
   }
 
   return results;
@@ -106,7 +108,9 @@ async function parseBingResults(page: Page, limit: number): Promise<SearchResult
       if (title && url) {
         results.push({ title: title.trim(), url, snippet: snippet?.trim() });
       }
-    } catch {}
+    } catch {
+      /* ignored */
+    }
   }
 
   return results;
@@ -126,7 +130,9 @@ async function parseDuckDuckGoResults(page: Page, limit: number): Promise<Search
       if (title && url && url.startsWith('http')) {
         results.push({ title: title.trim(), url, snippet: snippet?.trim() });
       }
-    } catch {}
+    } catch {
+      /* ignored */
+    }
   }
 
   return results;
@@ -158,10 +164,14 @@ export async function handleSearch(
         await page.context().setExtraHTTPHeaders({
           'User-Agent': STEALTH_USER_AGENT,
         });
-      } catch {}
+      } catch {
+        /* ignored */
+      }
       try {
         await page.setViewportSize({ width: 1920, height: 1080 });
-      } catch {}
+      } catch {
+        /* ignored */
+      }
     }
 
     const searchUrl = buildSearchUrl(engine, command.query);

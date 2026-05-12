@@ -8,6 +8,7 @@ import { parseCommand, serializeResponse, errorResponse, successResponse } from 
 import { executeCommand } from './actions/index.js';
 import { getExecutablePath } from './rc-config.js';
 import { StreamServerProxy, getStreamServerIpcPath } from './stream-server.js';
+import { detectSSR } from './ssr-detection.js';
 
 const isWindows = process.platform === 'win32';
 
@@ -596,7 +597,10 @@ export async function startDaemon(_options?: { provider?: string }): Promise<voi
             if (response.success && manager instanceof BrowserManager && manager.isLaunched()) {
               try {
                 const currentUrl = manager.getPage().url();
-                if (lastUrl !== null && currentUrl !== lastUrl) {
+                const isInitialUrl = lastUrl === null;
+                const urlChanged = !isInitialUrl && currentUrl !== lastUrl;
+
+                if (urlChanged) {
                   const urlTip = `URL changed: ${lastUrl} -> ${currentUrl}`;
                   const existingTips = response.tips;
                   if (existingTips) {
@@ -606,6 +610,36 @@ export async function startDaemon(_options?: { provider?: string }): Promise<voi
                     (response as { tips?: string[] }).tips = [urlTip];
                   }
                 }
+
+                if (urlChanged || isInitialUrl) {
+                  try {
+                    const ssrResult = await detectSSR(manager.getPage());
+                    if (ssrResult.detected) {
+                      if (ssrResult.tip) {
+                        const existingTips = response.tips;
+                        const tipsArray = existingTips
+                          ? Array.isArray(existingTips)
+                            ? existingTips
+                            : [existingTips]
+                          : [];
+                        tipsArray.push(ssrResult.tip);
+                        response.tips = tipsArray;
+                      }
+                      if (
+                        (response as { data?: unknown }).data &&
+                        typeof (response as { data?: unknown }).data === 'object'
+                      ) {
+                        (response as { data: Record<string, unknown> }).data = {
+                          ...(response as { data: Record<string, unknown> }).data,
+                          ssr: { framework: ssrResult.framework, globals: ssrResult.globals },
+                        };
+                      }
+                    }
+                  } catch {
+                    // SSR detection failed, non-fatal
+                  }
+                }
+
                 lastUrl = currentUrl;
               } catch {
                 // Page may not be available (e.g., after close)

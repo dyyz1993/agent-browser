@@ -494,6 +494,15 @@ async function main(): Promise<void> {
     return;
   }
 
+  let autoPluginSession = false;
+
+  if (cmd.action === 'plugin_run' && !rawArgs.includes('--session')) {
+    const pluginName = (cmd as Record<string, unknown>).pluginName as string;
+    const suffix = Math.random().toString(36).substring(2, 8);
+    flags.session = `plugin-${pluginName}-${Date.now().toString(36)}-${suffix}`;
+    autoPluginSession = true;
+  }
+
   try {
     const daemonResult = await ensureDaemon({
       session: flags.session,
@@ -670,10 +679,17 @@ async function main(): Promise<void> {
       }
     }
 
+    if (autoPluginSession) {
+      await sendCommand({ id: genId(), action: 'close' }, flags.session).catch(() => {});
+    }
+
     if (!resp.success) {
       process.exit(1);
     }
   } catch (e) {
+    if (autoPluginSession) {
+      await sendCommand({ id: genId(), action: 'close' }, flags.session).catch(() => {});
+    }
     printError(e instanceof Error ? e.message : String(e), flags.json);
     process.exit(1);
   }
