@@ -78,3 +78,12 @@ test-recordings/
 
 # Trae temp files
 .trae/
+
+# Tool temp files
+.codenomad/
+.agent-browser/
+.todo/
+/*-e2e-test.cjs
+/*-capture-sources*.cjs
+/*-cdp-raw.cjs
+/*-search-export.cjs
