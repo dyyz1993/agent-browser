@@ -43,7 +43,7 @@ const launchSchema = baseCommandSchema.extend({
     .optional(),
   executablePath: z.string().optional(),
   extensions: z.array(z.string()).optional(),
-  headers: z.record(z.string()).optional(),
+  headers: z.record(z.string(), z.string()).optional(),
   proxy: z
     .object({
       server: z.string().min(1),
@@ -64,7 +64,7 @@ const navigateSchema = baseCommandSchema.extend({
   action: z.literal('navigate'),
   url: z.string().min(1),
   waitUntil: z.enum(['load', 'domcontentloaded', 'networkidle', 'commit']).optional(),
-  headers: z.record(z.string()).optional(),
+  headers: z.record(z.string(), z.string()).optional(),
 });
 
 const clickSchema = withFrame(
@@ -269,7 +269,7 @@ const routeSchema = baseCommandSchema.extend({
       status: z.number().optional(),
       body: z.string().optional(),
       contentType: z.string().optional(),
-      headers: z.record(z.string()).optional(),
+      headers: z.record(z.string(), z.string()).optional(),
     })
     .optional(),
   abort: z.boolean().optional(),
@@ -571,7 +571,7 @@ const dispatchSchema = withFrame(
     action: z.literal('dispatch'),
     selector: z.string().min(1),
     event: z.string().min(1),
-    eventInit: z.record(z.unknown()).optional(),
+    eventInit: z.record(z.string(), z.unknown()).optional(),
   })
 );
 
@@ -612,7 +612,7 @@ const offlineSchema = baseCommandSchema.extend({
 
 const headersSchema = baseCommandSchema.extend({
   action: z.literal('headers'),
-  headers: z.record(z.string()),
+  headers: z.record(z.string(), z.string()),
 });
 
 const pauseSchema = baseCommandSchema.extend({
@@ -1021,7 +1021,7 @@ const pluginRunSchema = baseCommandSchema.extend({
   pluginName: z.string().min(1),
   commandName: z.string(),
   args: z.array(z.string()),
-  flags: z.record(z.union([z.string(), z.boolean()])),
+  flags: z.record(z.string(), z.union([z.string(), z.boolean()])),
 });
 
 const pluginCreateSchema = baseCommandSchema.extend({
@@ -1343,7 +1343,9 @@ export function parseCommand(input: string): ParseResult {
   const result = commandSchema.safeParse(json);
 
   if (!result.success) {
-    const errors = result.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
+    const errors = result.error.issues
+      .map((e: { path: PropertyKey[]; message: string }) => `${e.path.join('.')}: ${e.message}`)
+      .join(', ');
     return { success: false, error: `Validation error: ${errors}`, id };
   }
 
