@@ -17,7 +17,9 @@ export function handleNavigate(cmd: string, rest: string[], id: string, flags: F
   if (flags.headers) {
     try {
       navCmd.headers = JSON.parse(flags.headers);
-    } catch {}
+    } catch {
+      /* ignored */
+    }
   }
   if (flags.timeout) {
     navCmd.timeout = parseInt(flags.timeout, 10);

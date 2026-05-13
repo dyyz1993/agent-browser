@@ -33,7 +33,9 @@ export async function suggestSelectors(page: Page | Frame): Promise<string[]> {
         if (count > 0) {
           selectors.push(selector);
         }
-      } catch {}
+      } catch {
+        /* ignored */
+      }
     }
 
     if (selectors.length === 0) {
@@ -315,7 +317,9 @@ export async function generateStableSelectors(
             const uniqueSelector = makeUniqueWithNth(element, baseSelector);
             try {
               if (document.querySelectorAll(uniqueSelector).length === 1) return uniqueSelector;
-            } catch {}
+            } catch {
+              /* ignored */
+            }
             return null;
           }
 
@@ -400,7 +404,9 @@ export async function generateStableSelectors(
           xpath: selectorData.xpath,
         };
       }
-    } catch {}
+    } catch {
+      /* ignored */
+    }
   }
 
   return result;
@@ -470,7 +476,9 @@ async function buildCompactSelectors(
       if (bestSelector) {
         parts.push(`${ref}: ${bestSelector}`);
       }
-    } catch {}
+    } catch {
+      /* ignored */
+    }
   }
 
   return parts.join(' | ');
