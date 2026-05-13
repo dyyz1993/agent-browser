@@ -84,6 +84,8 @@ async function loadPluginFromFile(filePath: string): Promise<AgentBrowserPlugin>
   return plugin as AgentBrowserPlugin;
 }
 
+const initializedPlugins = new Set<string>();
+
 export class PluginRegistry {
   async install(source: string): Promise<InstallResult & { pluginsDir: string }> {
     for (const installer of installers) {
@@ -294,7 +296,10 @@ export class PluginRegistry {
 
     const ctx: PluginContext = createPluginContext(browser);
 
-    if (plugin.init) await plugin.init(ctx);
+    if (plugin.init && !initializedPlugins.has(pluginName)) {
+      initializedPlugins.add(pluginName);
+      await plugin.init(ctx);
+    }
 
     return handler(ctx, args, flags);
   }
