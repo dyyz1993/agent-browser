@@ -387,7 +387,11 @@ describe('Source code pattern verification', () => {
   });
 
   it('broadcastFrame crop includes resize step', () => {
-    expect(standaloneCode).toContain('.resize(box.width, box.height)');
+    const frameProcessorCode = fs.readFileSync(
+      path.join(__dirname, '../stream/frame-processor.ts'),
+      'utf-8'
+    );
+    expect(frameProcessorCode).toContain('.resize(box.width, box.height)');
   });
 
   it('no debug console.log remains in screenToPage', () => {

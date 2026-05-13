@@ -9,10 +9,12 @@ import * as http from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import sharp from 'sharp';
 import { getViewerHtml } from './viewer-html.js';
-import { isAllowedOrigin } from './stream-server.js';
+import { isAllowedOrigin, cropFrameForElement } from './stream/index.js';
+import type { ClientState } from './stream/index.js';
 import { getSocketDir } from './daemon.js';
 import { openApiSpec } from './openapi.js';
 import { getSwaggerUiHtml } from './swagger-ui.js';
+import { getVersion } from './version.js';
 import { BrowserManager } from './browser/index.js';
 
 const DEFAULT_STREAM_PORT = parseInt(process.env.AGENT_BROWSER_STREAM_PORT || '5005', 10);
@@ -27,13 +29,6 @@ interface SessionInfo {
   socketPath: string;
   lastSeen: number;
   instanceId: string;
-}
-
-interface ClientState {
-  selector?: string;
-  elementBox?: { x: number; y: number; width: number; height: number };
-  degraded?: boolean;
-  elementCheckTimer?: ReturnType<typeof setInterval>;
 }
 
 interface StreamMessage {
@@ -170,7 +165,6 @@ class StreamServerStandalone {
           return;
         }
 
-        // HTTP API: Execute command
         if (req.url === '/api/command' && req.method === 'POST') {
           let body = '';
           req.on('data', (chunk) => (body += chunk));
@@ -188,7 +182,6 @@ class StreamServerStandalone {
           return;
         }
 
-        // HTTP API: Plugin shortcuts (GET)
         if (req.url?.startsWith('/api/') && req.method === 'GET') {
           (async () => {
             const parsed = new URL(req.url!, `http://${req.headers.host}`);
@@ -262,7 +255,6 @@ class StreamServerStandalone {
               return;
             }
 
-            // GET /api/scrape?url=...
             if (parsed.pathname === '/api/scrape') {
               const targetUrl = parsed.searchParams.get('url');
               if (!targetUrl) {
@@ -322,7 +314,6 @@ class StreamServerStandalone {
               return;
             }
 
-            // GET /api/evaluate?script=...
             if (parsed.pathname === '/api/evaluate') {
               const script = parsed.searchParams.get('script');
               if (!script) {
@@ -351,27 +342,24 @@ class StreamServerStandalone {
           return;
         }
 
-        // HTTP API: OpenAPI specification
         if (req.url === '/api/openapi.json' && req.method === 'GET') {
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify(openApiSpec));
           return;
         }
 
-        // HTTP API: Swagger UI
         if (req.url === '/api/docs' && req.method === 'GET') {
           res.setHeader('Content-Type', 'text/html; charset=utf-8');
           res.end(getSwaggerUiHtml());
           return;
         }
 
-        // HTTP API: Help - list available commands
         if (req.url === '/api/help' && req.method === 'GET') {
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(
             JSON.stringify({
               title: 'agent-browser HTTP API',
-              version: '0.11.0',
+              version: getVersion(),
               endpoints: {
                 'POST /api/command': {
                   description: 'Execute a browser command',
@@ -641,44 +629,16 @@ class StreamServerStandalone {
         const header = JSON.parse(frame.header);
         const meta = header.metadata;
 
-        let left = Math.round(box.x);
-        let top = Math.round(box.y);
-        let w = Math.round(box.width);
-        let h = Math.round(box.height);
+        const buf = await cropFrameForElement(frame.data, box, meta);
 
-        if (meta?.deviceWidth && meta?.deviceHeight) {
-          const imgInfo = await sharp(frame.data).metadata();
-          const actualW = imgInfo.width || meta.deviceWidth;
-          const actualH = imgInfo.height || meta.deviceHeight;
-          const scaleX = actualW / meta.deviceWidth;
-          const scaleY = actualH / meta.deviceHeight;
+        if (ws.readyState !== WebSocket.OPEN) return;
 
-          if (scaleX !== 1 || scaleY !== 1) {
-            left = Math.round(box.x * scaleX);
-            top = Math.round(box.y * scaleY);
-            w = Math.round(box.width * scaleX);
-            h = Math.round(box.height * scaleY);
-          }
-
-          left = Math.max(0, Math.min(left, actualW - 1));
-          top = Math.max(0, Math.min(top, actualH - 1));
-          w = Math.min(w, actualW - left);
-          h = Math.min(h, actualH - top);
-        }
-
-        if (w <= 0 || h <= 0) {
+        if (buf === frame.data) {
           ws.send(frame.header);
           ws.send(frame.data);
           return;
         }
 
-        const buf = await sharp(frame.data)
-          .extract({ left, top, width: w, height: h })
-          .resize(box.width, box.height)
-          .jpeg({ quality: 80 })
-          .toBuffer();
-
-        if (ws.readyState !== WebSocket.OPEN) return;
         const croppedHeader = {
           ...header,
           metadata: {
@@ -902,7 +862,6 @@ class StreamServerStandalone {
 
     this.outboundSockets.set(session, socket);
 
-    // Send inject_focus_listener command to daemon via this outbound connection
     logDiag('[CTD] sending inject_focus_listener to daemon for session=' + session);
     try {
       socket.write(
@@ -912,7 +871,6 @@ class StreamServerStandalone {
       console.error('[StreamServer] Failed to send inject_focus_listener:', e);
     }
 
-    // Data handler: receive focus events from daemon's injectFocusListener callback
     socket.on('data', (data: Buffer) => {
       const raw = data.toString();
       logDiag(
@@ -929,7 +887,6 @@ class StreamServerStandalone {
         try {
           const msg = JSON.parse(line);
 
-          // Handle inject_focus_listener response — retry on "Browser not launched"
           if (msg.id && String(msg.id).startsWith('inject-fl-')) {
             if (msg.success === false && msg.error && msg.error.includes('Browser not launched')) {
               logDiag('[CTD] inject_focus_listener failed: ' + msg.error + ' — retrying in 2s');
@@ -997,7 +954,7 @@ class StreamServerStandalone {
       let metadata: Record<string, unknown> | undefined = message.metadata as
         | Record<string, unknown>
         | undefined;
-      let dataToSend = frameData;
+      let dataToSend: Buffer | null = frameData;
 
       const hasSelector = !!clientState?.selector;
       const hasBox = !!clientState?.elementBox;
@@ -1005,56 +962,18 @@ class StreamServerStandalone {
 
       if (hasSelector && hasBox && hasFrame) {
         try {
-          const box = clientState.elementBox as {
-            x: number;
-            y: number;
-            width: number;
-            height: number;
-          };
-          const meta = message.metadata;
+          const box = clientState!.elementBox!;
+          const cropped = await cropFrameForElement(frameData!, box, message.metadata);
 
-          let left = Math.round(box.x);
-          let top = Math.round(box.y);
-          let w = Math.round(box.width);
-          let h = Math.round(box.height);
-
-          if (meta?.deviceWidth && meta?.deviceHeight) {
-            const imgInfo = await sharp(frameData).metadata();
-            const actualW = imgInfo.width || meta.deviceWidth;
-            const actualH = imgInfo.height || meta.deviceHeight;
-            const scaleX = actualW / meta.deviceWidth;
-            const scaleY = actualH / meta.deviceHeight;
-
-            if (scaleX !== 1 || scaleY !== 1) {
-              left = Math.round(box.x * scaleX);
-              top = Math.round(box.y * scaleY);
-              w = Math.round(box.width * scaleX);
-              h = Math.round(box.height * scaleY);
-            }
-
-            left = Math.max(0, Math.min(left, actualW - 1));
-            top = Math.max(0, Math.min(top, actualH - 1));
-            w = Math.min(w, actualW - left);
-            h = Math.min(h, actualH - top);
-          }
-
-          if (w <= 0 || h <= 0) {
-            dataToSend = frameData;
-          } else {
-            const cropped = await sharp(frameData)
-              .extract({ left, top, width: w, height: h })
-              .resize(box.width, box.height)
-              .jpeg({ quality: 80 })
-              .toBuffer();
-
-            dataToSend = Buffer.from(cropped);
+          if (cropped !== frameData) {
+            dataToSend = cropped;
             if (metadata) {
               metadata = {
                 ...metadata,
                 deviceWidth: box.width,
                 deviceHeight: box.height,
                 element: {
-                  selector: clientState.selector as string,
+                  selector: clientState!.selector as string,
                   x: box.x,
                   y: box.y,
                   width: box.width,
@@ -1065,12 +984,7 @@ class StreamServerStandalone {
           }
         } catch (error) {
           const errMsg = error instanceof Error ? error.message : String(error);
-          const box = clientState.elementBox as {
-            x: number;
-            y: number;
-            width: number;
-            height: number;
-          };
+          const box = clientState!.elementBox!;
           metadata = {
             ...(metadata || {}),
             _cropError: errMsg,
@@ -1106,7 +1020,6 @@ class StreamServerStandalone {
       }
     }
 
-    // 保存最新帧（原始）
     if (frameData) {
       this.latestFrames.set(session, {
         header: JSON.stringify({
@@ -1133,7 +1046,7 @@ class StreamServerStandalone {
           connected,
           screencasting: connected,
           session,
-          version: '0.11.0',
+          version: getVersion(),
         };
         if (state?.selector && state.elementBox) {
           msg.element = {
@@ -1161,7 +1074,7 @@ class StreamServerStandalone {
       connected,
       screencasting: connected,
       session,
-      version: '0.11.0',
+      version: getVersion(),
     };
 
     if (clientState?.selector && clientState?.elementBox) {
@@ -1193,9 +1106,6 @@ class StreamServerStandalone {
     return total;
   }
 
-  /**
-   * Send a command to the daemon via Unix socket and return the response
-   */
   private async sendCommandToDaemon(commandJson: string): Promise<string> {
     return new Promise((resolve, reject) => {
       let targetSession: string | undefined;

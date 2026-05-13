@@ -2,429 +2,46 @@ import * as net from 'net';
 import * as fs from 'fs';
 import * as path from 'path';
 import { WebSocketServer, WebSocket } from 'ws';
-import sharp from 'sharp';
 import type { BrowserManager, ScreencastFrame } from './browser/index.js';
 import { setScreencastFrameCallback, setEventCallbacks } from './browser-events.js';
-import type { Command } from './types.js';
 import { executeCommand } from './actions/index.js';
 import { errorResponse, serializeResponse } from './protocol.js';
 import { getSocketDir, getSession, getInstanceId } from './daemon.js';
+import { getVersion } from './version.js';
+import {
+  StreamStateManager,
+  FrameRateController,
+  FrameProcessor,
+  STATE_CONFIGS,
+  isCommandMessage,
+  isAllowedOrigin,
+  getElementBox,
+  handleInputEvent,
+  cropFrameForElement,
+} from './stream/index.js';
+import type {
+  ClientState,
+  StreamState,
+  StreamStateConfig,
+  FrameMessage,
+  StatusMessage,
+  ErrorMessage,
+  TabCreatedMessage,
+  TabClosedMessage,
+  TabSwitchedMessage,
+  NavigationMessage,
+  StreamMessage,
+  InputMessage,
+} from './stream/index.js';
 
-export type StreamState = 'user_interacting' | 'screen_moving' | 'static';
+export type StreamStateType = StreamState;
+export type { StreamStateConfig, ClientState };
+export { StreamStateManager, FrameRateController, FrameProcessor, STATE_CONFIGS, isAllowedOrigin };
 
-export interface StreamStateConfig {
-  format: 'jpeg' | 'webp';
-  quality: number;
-  maxFps: number;
-  scale: number;
-}
+const STREAM_SERVER_IPC_FILE = 'stream-server.ipc';
 
-export const STATE_CONFIGS: Record<StreamState, StreamStateConfig> = {
-  user_interacting: { format: 'jpeg', quality: 80, maxFps: 60, scale: 0.6 },
-  screen_moving: { format: 'jpeg', quality: 75, maxFps: 8, scale: 0.8 },
-  static: { format: 'jpeg', quality: 80, maxFps: 2, scale: 1 },
-};
-
-export type StateChangeCallback = (newState: StreamState, previousState: StreamState) => void;
-
-export class StreamStateManager {
-  private currentState: StreamState = 'static';
-  private isUserInteracting: boolean = false;
-  private userInteractionTimer: ReturnType<typeof setTimeout> | null = null;
-  private lastFrameTime: number = 0;
-  private frameInterval: number = Infinity;
-  private onStateChange: StateChangeCallback | null = null;
-  private staticTimer: ReturnType<typeof setTimeout> | null = null;
-
-  private readonly USER_INTERACTION_TIMEOUT_MS = 1000;
-  private readonly SCREEN_MOVING_THRESHOLD_MS = 1000;
-  private readonly STATIC_TIMEOUT_MS = 1500;
-
-  setStateChangeCallback(callback: StateChangeCallback | null): void {
-    this.onStateChange = callback;
-  }
-
-  private setState(newState: StreamState): void {
-    if (newState !== this.currentState) {
-      const previousState = this.currentState;
-      this.currentState = newState;
-      this.onStateChange?.(newState, previousState);
-    }
-  }
-
-  private resetStaticTimer(): void {
-    if (this.staticTimer) {
-      clearTimeout(this.staticTimer);
-    }
-    this.staticTimer = setTimeout(() => {
-      if (!this.isUserInteracting) {
-        this.setState('static');
-      }
-    }, this.STATIC_TIMEOUT_MS);
-  }
-
-  onUserInteraction(): void {
-    this.setState('user_interacting');
-    this.isUserInteracting = true;
-    this.resetUserInteractionTimeout();
-    this.resetStaticTimer();
-  }
-
-  private resetUserInteractionTimeout(): void {
-    if (this.userInteractionTimer) {
-      clearTimeout(this.userInteractionTimer);
-    }
-    this.userInteractionTimer = setTimeout(() => {
-      this.isUserInteracting = false;
-      const newState =
-        this.frameInterval < this.SCREEN_MOVING_THRESHOLD_MS ? 'screen_moving' : 'static';
-      this.setState(newState);
-    }, this.USER_INTERACTION_TIMEOUT_MS);
-  }
-
-  onFrameReceived(): void {
-    const now = Date.now();
-    this.frameInterval = now - this.lastFrameTime;
-    this.lastFrameTime = now;
-
-    if (!this.isUserInteracting) {
-      const newState =
-        this.frameInterval < this.SCREEN_MOVING_THRESHOLD_MS ? 'screen_moving' : 'static';
-      this.setState(newState);
-    }
-
-    this.resetStaticTimer();
-  }
-
-  getConfig(): StreamStateConfig {
-    return STATE_CONFIGS[this.currentState];
-  }
-
-  getState(): StreamState {
-    return this.currentState;
-  }
-
-  getFrameInterval(): number {
-    return this.frameInterval;
-  }
-
-  getIsUserInteracting(): boolean {
-    return this.isUserInteracting;
-  }
-}
-
-export class FrameRateController {
-  private lastSentTime: number = 0;
-  private fpsFrameCount: number = 0;
-  private fpsLastTime: number = Date.now();
-  private currentFps: number = 0;
-
-  private readonly FPS_CALCULATION_INTERVAL_MS = 1000;
-
-  shouldSendFrame(maxFps: number): boolean {
-    const now = Date.now();
-    const minInterval = 1000 / maxFps;
-
-    if (now - this.lastSentTime >= minInterval) {
-      this.lastSentTime = now;
-      this.fpsFrameCount++;
-      this.calculateFps();
-      return true;
-    }
-    return false;
-  }
-
-  private calculateFps(): void {
-    const now = Date.now();
-    const elapsed = now - this.fpsLastTime;
-
-    if (elapsed >= this.FPS_CALCULATION_INTERVAL_MS) {
-      this.currentFps = Math.round((this.fpsFrameCount * 1000) / elapsed);
-      this.fpsFrameCount = 0;
-      this.fpsLastTime = now;
-    }
-  }
-
-  getCurrentFps(): number {
-    return this.currentFps;
-  }
-
-  reset(): void {
-    this.lastSentTime = 0;
-    this.fpsFrameCount = 0;
-    this.fpsLastTime = Date.now();
-    this.currentFps = 0;
-  }
-}
-
-export interface CropConfig {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-export class FrameProcessor {
-  private readonly screencastFormat: 'jpeg' | 'png' = 'jpeg';
-  private readonly screencastQuality: number = 80;
-
-  async process(
-    data: string,
-    config: StreamStateConfig,
-    viewportWidth?: number,
-    viewportHeight?: number,
-    cropConfig?: CropConfig
-  ): Promise<Buffer> {
-    const buffer = Buffer.from(data, 'base64');
-
-    const needsResize = config.scale < 1 && viewportWidth && viewportHeight;
-    const needsCrop = !!cropConfig;
-    const needsReencode =
-      config.format !== this.screencastFormat || config.quality !== this.screencastQuality;
-
-    if (!needsResize && !needsCrop && !needsReencode) {
-      return buffer;
-    }
-
-    let processed: sharp.Sharp = sharp(buffer);
-
-    if (cropConfig) {
-      processed = processed.extract({
-        left: Math.round(cropConfig.x),
-        top: Math.round(cropConfig.y),
-        width: Math.round(cropConfig.width),
-        height: Math.round(cropConfig.height),
-      });
-    }
-
-    if (needsResize) {
-      const newWidth = Math.round((viewportWidth ?? 0) * config.scale);
-      const newHeight = Math.round((viewportHeight ?? 0) * config.scale);
-      processed = processed.resize(newWidth, newHeight);
-    }
-
-    if (config.format === 'jpeg') {
-      processed = processed.jpeg({ quality: config.quality });
-    } else {
-      processed = processed.webp({ quality: config.quality });
-    }
-
-    return processed.toBuffer();
-  }
-}
-
-function isPrivateIP(hostname: string): boolean {
-  // IPv4 check
-  const parts = hostname.split('.').map(Number);
-  if (parts.length === 4 && parts.every((p) => !isNaN(p))) {
-    const [a, b] = parts;
-    if (a === 10) return true;
-    if (a === 172 && b >= 16 && b <= 31) return true;
-    if (a === 192 && b === 168) return true;
-    if (a === 127) return true;
-    if (a === 0) return true;
-  }
-
-  // IPv6 check
-  const lower = hostname.toLowerCase();
-  if (lower === '::1' || lower === '[::1]' || lower === '::' || lower === 'localhost') return true;
-  if (lower.startsWith('fc') || lower.startsWith('fd') || lower.startsWith('fe80')) return true;
-  if (hostname === 'localhost') return true;
-
-  return false;
-}
-
-export function isAllowedOrigin(origin: string | undefined): boolean {
-  // CLI connections (no browser origin) are allowed — CLI clients don't send Origin headers
-  if (!origin) {
-    return true;
-  }
-  if (origin.startsWith('file://')) {
-    return true;
-  }
-  try {
-    const url = new URL(origin);
-    if (isPrivateIP(url.hostname)) {
-      return true;
-    }
-  } catch {
-    // Invalid origin URL - reject
-  }
-  return false;
-}
-
-export interface FrameMessage {
-  type: 'frame';
-  metadata: {
-    offsetTop: number;
-    pageScaleFactor: number;
-    deviceWidth: number;
-    deviceHeight: number;
-    scrollOffsetX: number;
-    scrollOffsetY: number;
-    timestamp?: number;
-  };
-  format: 'jpeg' | 'webp';
-  fps: number;
-  state: StreamState;
-}
-
-export interface InputMouseMessage {
-  type: 'input_mouse';
-  eventType: 'mousePressed' | 'mouseReleased' | 'mouseMoved' | 'mouseWheel';
-  x: number;
-  y: number;
-  button?: 'left' | 'right' | 'middle' | 'none';
-  clickCount?: number;
-  deltaX?: number;
-  deltaY?: number;
-  modifiers?: number;
-}
-
-export interface InputKeyboardMessage {
-  type: 'input_keyboard';
-  eventType: 'keyDown' | 'keyUp' | 'rawKeyDown' | 'char';
-  key?: string;
-  code?: string;
-  text?: string;
-  modifiers?: number;
-}
-
-export interface InputTouchMessage {
-  type: 'input_touch';
-  eventType: 'touchStart' | 'touchEnd' | 'touchMove' | 'touchCancel';
-  touchPoints: Array<{ x: number; y: number; id?: number }>;
-  modifiers?: number;
-}
-
-export interface InputTextMessage {
-  type: 'input_text';
-  text: string;
-}
-
-export interface KeyboardDownMessage {
-  type: 'keyboard_down';
-  key: string;
-}
-
-export interface KeyboardUpMessage {
-  type: 'keyboard_up';
-  key: string;
-}
-
-export interface KeyboardInsertTextMessage {
-  type: 'keyboard_insert_text';
-  text: string;
-}
-
-export interface InputFillMessage {
-  type: 'input_fill';
-  selector?: string;
-  text?: string;
-}
-
-export interface InputBlurElementMessage {
-  type: 'input_blur_element';
-  selector?: string;
-}
-
-export interface StatusMessage {
-  type: 'status';
-  connected: boolean;
-  screencasting: boolean;
-  viewportWidth?: number;
-  viewportHeight?: number;
-  fps?: number;
-  state?: StreamState;
-  element?: {
-    selector: string;
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  };
-  degraded?: boolean;
-  version?: string;
-}
-
-export interface ErrorMessage {
-  type: 'error';
-  message: string;
-}
-
-export interface TabCreatedMessage {
-  type: 'tab_created';
-  data: { index: number; url: string; title: string };
-}
-
-export interface TabClosedMessage {
-  type: 'tab_closed';
-  data: { index: number; remainingTabs: number };
-}
-
-export interface TabSwitchedMessage {
-  type: 'tab_switched';
-  data: { fromIndex: number; toIndex: number };
-}
-
-export interface NavigationMessage {
-  type: 'navigation';
-  data: { url: string; title: string };
-}
-
-export interface UserActivityMessage {
-  type: 'user_activity';
-}
-
-export interface InputFocusedMessage {
-  type: 'input_focused';
-  tag: string;
-  inputType: string;
-  value: string;
-  placeholder: string;
-  id: string;
-}
-
-export interface InputValueMessage {
-  type: 'input_value';
-  text: string;
-}
-
-export interface InputBlurMessage {
-  type: 'input_blur';
-}
-
-export type StreamMessage =
-  | FrameMessage
-  | InputMouseMessage
-  | InputKeyboardMessage
-  | InputTouchMessage
-  | InputTextMessage
-  | KeyboardDownMessage
-  | KeyboardUpMessage
-  | KeyboardInsertTextMessage
-  | InputFocusedMessage
-  | InputValueMessage
-  | InputBlurMessage
-  | StatusMessage
-  | ErrorMessage
-  | TabCreatedMessage
-  | TabClosedMessage
-  | TabSwitchedMessage
-  | NavigationMessage
-  | UserActivityMessage
-  | Command;
-
-function isCommandMessage(msg: StreamMessage): msg is Command {
-  return 'id' in msg && 'action' in msg && !('type' in msg);
-}
-
-export interface ClientState {
-  selector?: string;
-  elementBox?: { x: number; y: number; width: number; height: number };
-  degraded?: boolean;
-  lastElementCheckTime?: number;
-  elementCheckTimer?: ReturnType<typeof setInterval>;
+export function getStreamServerIpcPath(): string {
+  return path.join(getSocketDir(), STREAM_SERVER_IPC_FILE);
 }
 
 export class StreamServer {
@@ -587,7 +204,7 @@ export class StreamServer {
     if (clientState.selector) {
       clientState.elementCheckTimer = setInterval(() => {
         if (!clientState.selector) return;
-        this.getElementBox(clientState.selector)
+        getElementBox(this.browser, clientState.selector)
           .then((newBox) => {
             if (!newBox) {
               if (clientState.elementBox || !clientState.degraded) {
@@ -679,56 +296,16 @@ export class StreamServer {
     try {
       switch (message.type) {
         case 'input_mouse':
-          this.stateManager.onUserInteraction();
-          await this.browser.injectMouseEvent({
-            type: message.eventType,
-            x: message.x,
-            y: message.y,
-            button: message.button,
-            clickCount: message.clickCount,
-            deltaX: message.deltaX,
-            deltaY: message.deltaY,
-            modifiers: message.modifiers,
-          });
-          break;
-
         case 'input_keyboard':
-          this.stateManager.onUserInteraction();
-          await this.browser.injectKeyboardEvent({
-            type: message.eventType,
-            key: message.key,
-            code: message.code,
-            text: message.text,
-            modifiers: message.modifiers,
-          });
-          break;
-
         case 'input_touch':
-          this.stateManager.onUserInteraction();
-          await this.browser.injectTouchEvent({
-            type: message.eventType,
-            touchPoints: message.touchPoints,
-            modifiers: message.modifiers,
-          });
-          break;
-
         case 'input_text':
-          this.stateManager.onUserInteraction();
-          await this.browser.insertText(message.text);
-          break;
-
         case 'keyboard_down':
-          this.stateManager.onUserInteraction();
-          await this.browser.getPage().keyboard.down(message.key);
-          break;
-
         case 'keyboard_up':
-          await this.browser.getPage().keyboard.up(message.key);
-          break;
-
         case 'keyboard_insert_text':
-          this.stateManager.onUserInteraction();
-          await this.browser.getPage().keyboard.insertText(message.text);
+        case 'input_fill':
+        case 'input_blur_element':
+        case 'user_activity':
+          await handleInputEvent(message as InputMessage, this.browser, this.stateManager);
           break;
 
         case 'input_focused':
@@ -743,10 +320,6 @@ export class StreamServer {
               }
             }
           }
-          break;
-
-        case 'user_activity':
-          this.stateManager.onUserInteraction();
           break;
 
         case 'status':
@@ -879,25 +452,24 @@ export class StreamServer {
     }
   }
 
-  private async getElementBox(
-    selector: string
-  ): Promise<{ x: number; y: number; width: number; height: number } | undefined> {
-    try {
-      const page = this.browser.getPage();
-      const box = await page.evaluate((sel) => {
-        const el = document.querySelector(sel);
-        if (!el) return null;
-        const rect = el.getBoundingClientRect();
-        return {
-          x: rect.x,
-          y: rect.y,
-          width: rect.width,
-          height: rect.height,
-        };
-      }, selector);
-      return box ?? undefined;
-    } catch {
-      return undefined;
+  private async refreshElementBox(ws: WebSocket, clientState: ClientState): Promise<void> {
+    if (!clientState.selector) return;
+    const box = await getElementBox(this.browser, clientState.selector);
+    if (box) {
+      clientState.elementBox = box;
+      clientState.degraded = false;
+    } else if (!clientState.degraded) {
+      clientState.elementBox = undefined;
+      clientState.degraded = true;
+      const message: StatusMessage = {
+        type: 'status',
+        connected: true,
+        screencasting: this.isScreencasting,
+        degraded: true,
+      };
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(message));
+      }
     }
   }
 
@@ -922,7 +494,7 @@ export class StreamServer {
       viewportHeight,
       fps: this.frameRateController.getCurrentFps(),
       state: this.stateManager.getState(),
-      version: process.env.npm_package_version || '0.9.5',
+      version: getVersion(),
     };
 
     if (clientState?.elementBox) {
@@ -943,27 +515,6 @@ export class StreamServer {
 
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(message));
-    }
-  }
-
-  private async refreshElementBox(ws: WebSocket, clientState: ClientState): Promise<void> {
-    if (!clientState.selector) return;
-    const box = await this.getElementBox(clientState.selector);
-    if (box) {
-      clientState.elementBox = box;
-      clientState.degraded = false;
-    } else if (!clientState.degraded) {
-      clientState.elementBox = undefined;
-      clientState.degraded = true;
-      const message: StatusMessage = {
-        type: 'status',
-        connected: true,
-        screencasting: this.isScreencasting,
-        degraded: true,
-      };
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify(message));
-      }
     }
   }
 
@@ -1075,12 +626,6 @@ export class StreamServer {
   }
 }
 
-const STREAM_SERVER_IPC_FILE = 'stream-server.ipc';
-
-export function getStreamServerIpcPath(): string {
-  return path.join(getSocketDir(), STREAM_SERVER_IPC_FILE);
-}
-
 export class StreamServerProxy {
   private browser: BrowserManager;
   private ipcSocket: net.Socket | null = null;
@@ -1175,14 +720,14 @@ export class StreamServerProxy {
           const line = buffer.substring(0, newlineIdx);
           buffer = buffer.substring(newlineIdx + 1);
           if (line.trim()) {
-            this.handleMessage(line);
+            this.handleIpcMessage(line);
           }
         }
       });
     });
   }
 
-  private handleMessage(line: string): void {
+  private async handleIpcMessage(line: string): Promise<void> {
     try {
       const message = JSON.parse(line) as Record<string, unknown>;
 
@@ -1197,7 +742,13 @@ export class StreamServerProxy {
         case 'input_fill':
         case 'input_blur_element':
         case 'user_activity':
-          this.handleInputMessage(message as unknown as InputMouseMessage);
+          await handleInputEvent(
+            message as unknown as InputMessage,
+            this.browser,
+            this.stateManager,
+            this.inputFillDebounceMap,
+            StreamServerProxy.INPUT_FILL_DEBOUNCE_MS
+          );
           break;
         case 'client_connected':
           this.handleClientConnected(message.session as string);
@@ -1207,7 +758,7 @@ export class StreamServerProxy {
           break;
         case 'request_element_box':
           (async () => {
-            const box = await this.getElementBox(message.selector as string);
+            const box = await getElementBox(this.browser, message.selector as string);
             const response: Record<string, unknown> = {
               type: 'selector_element',
               session: message.session ?? this.session,
@@ -1249,105 +800,6 @@ export class StreamServerProxy {
       await this.stopScreencast();
     } catch (error) {
       console.error('[StreamServerProxy] Failed to stop screencast on client disconnected:', error);
-    }
-  }
-
-  private async handleInputMessage(
-    message:
-      | InputMouseMessage
-      | InputKeyboardMessage
-      | InputTouchMessage
-      | InputTextMessage
-      | KeyboardDownMessage
-      | KeyboardUpMessage
-      | KeyboardInsertTextMessage
-      | InputFillMessage
-      | InputBlurElementMessage
-      | UserActivityMessage
-  ): Promise<void> {
-    try {
-      switch (message.type) {
-        case 'input_mouse':
-          this.stateManager.onUserInteraction();
-          await this.browser.injectMouseEvent({
-            type: message.eventType,
-            x: message.x,
-            y: message.y,
-            button: message.button,
-            clickCount: message.clickCount,
-            deltaX: message.deltaX,
-            deltaY: message.deltaY,
-            modifiers: message.modifiers,
-          });
-          break;
-
-        case 'input_keyboard':
-          this.stateManager.onUserInteraction();
-          await this.browser.injectKeyboardEvent({
-            type: message.eventType,
-            key: message.key,
-            code: message.code,
-            text: message.text,
-            modifiers: message.modifiers,
-          });
-          break;
-
-        case 'input_touch':
-          this.stateManager.onUserInteraction();
-          await this.browser.injectTouchEvent({
-            type: message.eventType,
-            touchPoints: message.touchPoints,
-            modifiers: message.modifiers,
-          });
-          break;
-
-        case 'input_text':
-          this.stateManager.onUserInteraction();
-          await this.browser.insertText(message.text);
-          break;
-
-        case 'keyboard_down':
-          this.stateManager.onUserInteraction();
-          await this.browser.getPage().keyboard.down(message.key);
-          break;
-
-        case 'keyboard_up':
-          await this.browser.getPage().keyboard.up(message.key);
-          break;
-
-        case 'keyboard_insert_text':
-          this.stateManager.onUserInteraction();
-          await this.browser.getPage().keyboard.insertText(message.text);
-          break;
-
-        case 'input_fill': {
-          const sel = (message as { selector?: string; text?: string }).selector || '';
-          const txt = (message as { selector?: string; text?: string }).text || '';
-          const key = sel || '__global__';
-          const prev = this.inputFillDebounceMap.get(key);
-          if (prev) clearTimeout(prev.timer);
-          const timer = setTimeout(async () => {
-            this.inputFillDebounceMap.delete(key);
-            try {
-              await this.browser.fillValue(sel, txt);
-            } catch (e) {
-              console.error('[StreamServer] input_fill debounce error:', (e as Error).message);
-            }
-          }, StreamServerProxy.INPUT_FILL_DEBOUNCE_MS);
-          this.inputFillDebounceMap.set(key, { timer, text: txt, selector: sel });
-          break;
-        }
-
-        case 'input_blur_element':
-          await this.browser.blurElement((message as { selector?: string }).selector || '');
-          break;
-
-        case 'user_activity':
-          this.stateManager.onUserInteraction();
-          break;
-      }
-    } catch (error) {
-      console.error('[StreamServerProxy] Failed to handle input:', error);
     }
   }
 
@@ -1424,32 +876,6 @@ export class StreamServerProxy {
       selector,
       elementBox,
     });
-  }
-
-  private async getElementBox(
-    selector: string
-  ): Promise<{ x: number; y: number; width: number; height: number } | undefined> {
-    try {
-      const page = this.browser.getPage();
-      if (!page) {
-        return undefined;
-      }
-      const box = await page.evaluate((sel) => {
-        const el = document.querySelector(sel);
-        if (!el) return null;
-        const rect = el.getBoundingClientRect();
-        return {
-          x: rect.x,
-          y: rect.y,
-          width: rect.width,
-          height: rect.height,
-        };
-      }, selector);
-      return box ?? undefined;
-    } catch (err) {
-      console.error('[StreamServerProxy] getElementBox error:', err);
-      return undefined;
-    }
   }
 
   private getDaemonSocketPath(): string {

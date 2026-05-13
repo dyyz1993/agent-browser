@@ -43,7 +43,7 @@ export interface PluginContext {
 
   goto(url: string, opts?: { waitUntil?: string; timeout?: number }): Promise<void>;
   scrape(url: string, opts?: { format?: string; selector?: string }): Promise<string>;
-  eval(expression: string): Promise<any>;
+  eval(expression: string): Promise<unknown>;
   snapshot(opts?: { interactive?: boolean }): Promise<string>;
 
   click(selector: string): Promise<void>;
@@ -73,9 +73,9 @@ export interface PluginContext {
     click(selector: string): Promise<void>;
     fill(selector: string, value: string): Promise<void>;
     waitForSelector(selector: string, opts?: { timeout?: number }): Promise<void>;
-    eval(expression: string): Promise<any>;
+    eval(expression: string): Promise<unknown>;
     snapshot(): Promise<string>;
-    locator(selector: string): any;
+    locator(selector: string): import('playwright-core').Locator;
   };
 
   /**
@@ -95,7 +95,7 @@ export type PluginCommandHandler = (
   ctx: PluginContext,
   args: string[],
   flags: Record<string, string | boolean>
-) => Promise<any>;
+) => Promise<unknown>;
 
 export interface AgentBrowserPlugin {
   meta: PluginMeta;

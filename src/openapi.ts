@@ -16,11 +16,13 @@ export interface OpenApiSpec {
   };
 }
 
+import { getVersion } from './version.js';
+
 export const openApiSpec: OpenApiSpec = {
   openapi: '3.0.0',
   info: {
     title: 'agent-browser API',
-    version: '0.11.0',
+    version: getVersion(),
     description:
       'Browser automation HTTP API for AI agents. Execute browser commands via REST API.',
   },

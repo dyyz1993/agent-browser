@@ -6,7 +6,7 @@ import {
   FrameProcessor,
   STATE_CONFIGS,
   type StreamStateConfig,
-} from './stream-server.js';
+} from './stream/index.js';
 
 describe('isAllowedOrigin', () => {
   describe('allowed origins', () => {

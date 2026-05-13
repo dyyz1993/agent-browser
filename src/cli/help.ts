@@ -1,25 +1,4 @@
-import { readFileSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-
-function getVersion(): string {
-  try {
-    const __filename = fileURLToPath(import.meta.url);
-    let dir = dirname(__filename);
-    for (let i = 0; i < 5; i++) {
-      try {
-        const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf-8'));
-        if (pkg.version) return pkg.version;
-      } catch {
-        /* keep going up */
-      }
-      dir = dirname(dir);
-    }
-    return '0.0.0';
-  } catch {
-    return '0.0.0';
-  }
-}
+import { getVersion } from '../version.js';
 
 const HELP_TEXT: Record<string, string> = {
   open: `
