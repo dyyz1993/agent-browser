@@ -355,8 +355,8 @@ async function main(): Promise<void> {
     const targetVersion = versionIdx !== -1 ? rawArgs[versionIdx + 1] : undefined;
 
     try {
-      const currentVersion = (await import('./../package.json', { assert: { type: 'json' } }))
-        .default.version as string;
+      const currentVersion = (await import('./../package.json', { with: { type: 'json' } })).default
+        .version as string;
 
       let latestVersion: string;
       try {
