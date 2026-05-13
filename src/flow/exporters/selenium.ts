@@ -351,7 +351,7 @@ export class SeleniumExporter implements ScriptExporter {
         break;
 
       default:
-        lines.push(`${indent}# TODO: unsupported action '${step.action}'`);
+        lines.push(`${indent}print('Unsupported action: ${step.action}')`);
     }
 
     return lines;

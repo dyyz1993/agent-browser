@@ -289,7 +289,7 @@ export class CypressExporter implements ScriptExporter {
         break;
 
       default:
-        lines.push(`${indent}// TODO: unsupported action '${step.action}'`);
+        lines.push(`${indent}cy.log('Unsupported action: ${step.action}');`);
     }
 
     return lines;
