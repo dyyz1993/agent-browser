@@ -1,7 +1,9 @@
 import * as net from 'net';
 import * as fs from 'fs';
 const LOG_FILE = '/tmp/standalone-diag.log';
+const DEBUG_ENABLED = !!process.env.AGENT_BROWSER_DEBUG;
 function logDiag(msg: string) {
+  if (!DEBUG_ENABLED) return;
   fs.appendFileSync(LOG_FILE, new Date().toISOString().substring(11, 23) + ' ' + msg + '\n');
 }
 import * as path from 'path';
