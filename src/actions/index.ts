@@ -83,6 +83,7 @@ import {
   handleViewport,
   handleUserAgent,
   handleDevice,
+  handleDevices,
   handleBack,
   handleForward,
   handleReload,
@@ -165,6 +166,7 @@ import {
   handleInputKeyboard,
   handleInputTouch,
 } from './screencast.js';
+import { handleTouch } from './touch.js';
 import { handleRecordingStart, handleRecordingStop, handleRecordingRestart } from './recording.js';
 import {
   handleRecorderStart,
@@ -245,6 +247,7 @@ const actionHandlers = new Map<string, ActionHandler>([
   ['viewport', handleViewport],
   ['useragent', handleUserAgent],
   ['device', handleDevice],
+  ['devices', handleDevices],
   ['back', handleBack],
   ['forward', handleForward],
   ['reload', handleReload],
@@ -318,6 +321,7 @@ const actionHandlers = new Map<string, ActionHandler>([
   ['input_mouse', handleInputMouse],
   ['input_keyboard', handleInputKeyboard],
   ['input_touch', handleInputTouch],
+  ['touch', handleTouch],
   ['recording_start', handleRecordingStart],
   ['recording_stop', handleRecordingStop],
   ['recording_restart', handleRecordingRestart],

@@ -25,6 +25,7 @@ import {
 import { SnapshotStore, SnapshotElement } from '../snapshot-store.js';
 import { getEventCallbacks } from '../browser-events.js';
 import { NetworkTracker } from './network-tracker.js';
+import type { NetworkPatternStore } from './network-pattern-store.js';
 import { ScreencastManager } from './screencast-manager.js';
 import { RecordingManager } from './recording-manager.js';
 import { RecorderManager } from './recorder-manager.js';
@@ -75,8 +76,11 @@ export class BrowserManager {
   readonly recording: RecordingManager;
   readonly recorder: RecorderManager;
 
-  constructor() {
-    this.network = new NetworkTracker(() => this.getPage());
+  private _patternStore?: NetworkPatternStore;
+
+  constructor(patternStore?: NetworkPatternStore) {
+    this._patternStore = patternStore;
+    this.network = new NetworkTracker(() => this.getPage(), patternStore);
     this.screencast = new ScreencastManager(() => this.getCDPSession());
     this.recording = new RecordingManager({
       getBrowser: () => this.browser,
@@ -120,6 +124,10 @@ export class BrowserManager {
     if (this.isPersistentContext) return true;
     if (!this.browser) return false;
     return this.browser.isConnected();
+  }
+
+  getPatternStore(): NetworkPatternStore | undefined {
+    return this._patternStore;
   }
 
   async getSnapshot(options?: {
@@ -215,6 +223,10 @@ export class BrowserManager {
     success: boolean
   ): void {
     this.commandHistory.push({ action, selector, value, success, timestamp: Date.now() });
+
+    if (success && value && ['fill', 'type', 'select', 'press'].includes(action)) {
+      this.network.analysis.rememberInput({ selector, value, timestamp: Date.now() });
+    }
   }
 
   getHistory(filter?: string): Array<{
@@ -573,6 +585,24 @@ export class BrowserManager {
     return Object.keys(devices);
   }
 
+  private static readonly QUICK_PROFILES: Record<
+    string,
+    { width: number; height: number; label: string }
+  > = {
+    mobile: { width: 375, height: 812, label: 'Mobile (iPhone X)' },
+    tablet: { width: 768, height: 1024, label: 'Tablet (iPad)' },
+    desktop: { width: 1280, height: 720, label: 'Desktop' },
+    desktop_lg: { width: 1920, height: 1080, label: 'Desktop Large' },
+  };
+
+  getQuickProfile(name: string): { width: number; height: number; label: string } | undefined {
+    return BrowserManager.QUICK_PROFILES[name.toLowerCase()];
+  }
+
+  listQuickProfiles(): string[] {
+    return Object.keys(BrowserManager.QUICK_PROFILES);
+  }
+
   async startHarRecording(): Promise<void> {
     this.isRecordingHar = true;
   }
@@ -680,6 +710,54 @@ export class BrowserManager {
 
   getActiveIndex(): number {
     return this.activePageIndex;
+  }
+
+  async detectNewTabDuringAction<T>(
+    action: () => Promise<T>,
+    timeout = 2000
+  ): Promise<{ result: T; newTab?: { index: number; url: string; title: string } }> {
+    const context = this.contexts[0];
+    if (!context) {
+      const result = await action();
+      return { result };
+    }
+
+    const pagesBefore = new Set(this.pages);
+    let newPageInfo: { index: number; url: string; title: string } | undefined;
+
+    const pagePromise = new Promise<{ page: Page }>((resolve) => {
+      const handler = (page: Page) => {
+        if (!pagesBefore.has(page)) {
+          context.off('page', handler);
+          resolve({ page });
+        }
+      };
+      context.on('page', handler);
+
+      setTimeout(() => {
+        context.off('page', handler);
+        resolve({ page: null as unknown as Page });
+      }, timeout);
+    });
+
+    const result = await action();
+
+    const { page: newPage } = await pagePromise;
+
+    if (newPage && this.pages.includes(newPage)) {
+      const index = this.pages.indexOf(newPage);
+      const url = newPage.url();
+      let title = '';
+      try {
+        title = await newPage.title();
+      } catch {
+        // title not available yet
+      }
+
+      newPageInfo = { index, url, title: title || url };
+    }
+
+    return { result, newTab: newPageInfo };
   }
 
   getBrowser(): Browser | null {
@@ -819,7 +897,12 @@ export class BrowserManager {
 
     const launcher =
       browserType === 'firefox' ? firefox : browserType === 'webkit' ? webkit : chromium;
-    const viewport = options.viewport ?? { width: 1280, height: 720 };
+    const devicePreset = options.device
+      ? devices[options.device as keyof typeof devices]
+      : undefined;
+    const resolvedViewport = options.viewport ??
+      devicePreset?.viewport ?? { width: 1280, height: 720 };
+    const resolvedUserAgent = options.userAgent ?? devicePreset?.userAgent;
 
     const fileAccessArgs = options.allowFileAccess
       ? ['--allow-file-access-from-files', '--allow-file-access']
@@ -852,9 +935,9 @@ export class BrowserManager {
           headless: false,
           executablePath: options.executablePath,
           args: allArgs,
-          viewport,
+          viewport: resolvedViewport,
           extraHTTPHeaders: options.headers,
-          userAgent: options.userAgent,
+          userAgent: resolvedUserAgent,
           ...(options.proxy && { proxy: options.proxy }),
           ignoreHTTPSErrors: options.ignoreHTTPSErrors ?? false,
         }
@@ -866,9 +949,9 @@ export class BrowserManager {
         headless: options.headless ?? true,
         executablePath: options.executablePath,
         args: baseArgs,
-        viewport,
+        viewport: resolvedViewport,
         extraHTTPHeaders: options.headers,
-        userAgent: options.userAgent,
+        userAgent: resolvedUserAgent,
         ...(options.proxy && { proxy: options.proxy }),
         ignoreHTTPSErrors: options.ignoreHTTPSErrors ?? false,
       });
@@ -881,9 +964,9 @@ export class BrowserManager {
       });
       this.cdpEndpoint = null;
       context = await this.browser.newContext({
-        viewport,
+        viewport: resolvedViewport,
         extraHTTPHeaders: options.headers,
-        userAgent: options.userAgent,
+        userAgent: resolvedUserAgent,
         ...(options.proxy && { proxy: options.proxy }),
         ignoreHTTPSErrors: options.ignoreHTTPSErrors ?? false,
         ...(options.storageState && { storageState: options.storageState }),
@@ -946,6 +1029,20 @@ export class BrowserManager {
       this.setupPageTracking(page);
     }
     this.activePageIndex = this.pages.length > 0 ? this.pages.length - 1 : 0;
+
+    if (devicePreset?.deviceScaleFactor && devicePreset.deviceScaleFactor !== 1) {
+      try {
+        const cdp = await this.getCDPSession();
+        await cdp.send('Emulation.setDeviceMetricsOverride', {
+          width: resolvedViewport.width,
+          height: resolvedViewport.height,
+          deviceScaleFactor: devicePreset.deviceScaleFactor,
+          mobile: devicePreset.isMobile ?? false,
+        });
+      } catch {
+        // CDP not available for non-Chromium browsers
+      }
+    }
   }
 
   private setupPageTracking(page: Page): void {

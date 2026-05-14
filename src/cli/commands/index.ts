@@ -128,6 +128,7 @@ export function parseCommand(args: string[], flags: Flags): Command {
     case 'preview':
     case 'ask':
     case 'config':
+    case 'devices':
     case 'history':
     case 'flow':
     case 'interact': {
@@ -202,6 +203,7 @@ export function parseCommand(args: string[], flags: Flags): Command {
     'viewer',
     'ask',
     'config',
+    'devices',
     'install',
     'dialog',
     'window',

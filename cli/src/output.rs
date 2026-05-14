@@ -1220,6 +1220,35 @@ Examples:
 "##
         }
 
+        // === Touch ===
+        "touch" => {
+            r##"
+agent-browser touch - Touch gesture operations
+
+Usage: agent-browser touch <subcommand> [args]
+
+Performs touch gestures via CDP Input.dispatchTouchEvent.
+
+Subcommands:
+  tap <x> <y>                  Quick tap at coordinates
+  long-press <x> <y> [ms]     Long press at coordinates (default: 800ms)
+  swipe <x1> <y1> <x2> <y2> [ms]  Swipe between two points (default: 300ms)
+  pinch <x> <y> <dist> [ms]   Pinch gesture at center point (default: 300ms)
+  multi <x1> <y1> <x2> <y2>   Two-finger touch at two points
+
+Global Options:
+  --json               Output as JSON
+  --session <name>     Use specific session
+
+Examples:
+  agent-browser touch tap 100 200
+  agent-browser touch long-press 100 200 1000
+  agent-browser touch swipe 100 200 100 400
+  agent-browser touch pinch 640 400 100
+  agent-browser touch multi 100 200 300 400
+"##
+        }
+
         // === Set ===
         "set" => {
             r##"
@@ -2012,6 +2041,9 @@ Find Elements:  agent-browser find <locator> <value> <action> [text]
 
 Mouse:  agent-browser mouse <action> [args]
   move <x> <y>, down [btn], up [btn], wheel <dy> [dx]
+
+Touch:  agent-browser touch <subcommand> [args]
+  tap, long-press, swipe, pinch, multi
 
 Browser Settings:  agent-browser set <setting> [value]
   viewport <w> <h>, device <name>, geo <lat> <lng>

@@ -4,7 +4,7 @@ import type { Page } from 'playwright-core';
 import type { BrowserManager } from '../browser/index.js';
 import { getInstanceId, getAppDir } from '../daemon.js';
 
-import { performDiff } from '../diff.js';
+import { performDiff, performPopupDetection, detectPopupsFromDiff } from '../diff.js';
 import { detectMainContent, generateContentTips } from '../content-detection.js';
 import {
   humanClick,
@@ -86,24 +86,68 @@ export async function handleClick(
   await assertElementExists(locator, command.selector, isRef);
 
   if (command.human?.enabled) {
-    const diffResult = await performDiff(locator, command.diffScope, async () => {
-      try {
-        const page = browser.getPage();
-        const box = await locator.boundingBox();
-        if (!box) {
-          throw new Error(`Element not visible: ${command.selector}`);
-        }
-        const targetX = box.x + box.width / 2;
-        const targetY = box.y + box.height / 2;
+    let diffResult: import('../diff.js').DiffResult | undefined;
+    let popupTips: import('../browser/popup-detector.js').PopupTip[] = [];
 
-        await humanClick(page, targetX, targetY, command.human as HumanConfig, {
-          button: command.button,
-          clickCount: command.clickCount,
+    if (command.diffScope !== undefined) {
+      const { result: dResult, newTab } = await browser.detectNewTabDuringAction(async () => {
+        return performDiff(locator, command.diffScope, async () => {
+          try {
+            const page = browser.getPage();
+            const box = await locator.boundingBox();
+            if (!box) throw new Error(`Element not visible: ${command.selector}`);
+            await humanClick(
+              page,
+              box.x + box.width / 2,
+              box.y + box.height / 2,
+              command.human as HumanConfig,
+              {
+                button: command.button,
+                clickCount: command.clickCount,
+              }
+            );
+          } catch (error) {
+            throw toAIFriendlyError(error, command.selector);
+          }
         });
-      } catch (error) {
-        throw toAIFriendlyError(error, command.selector);
-      }
-    });
+      });
+      diffResult = dResult;
+      if (newTab)
+        popupTips.push({
+          text: `New tab opened [${newTab.index}]: ${newTab.title} - ${newTab.url}`,
+          popup: { type: 'popup', role: 'tab' },
+        });
+      if (diffResult && diffResult.diff.added.length > 0)
+        popupTips = [...popupTips, ...detectPopupsFromDiff(diffResult.diff.added)];
+    } else {
+      const { newTab } = await browser.detectNewTabDuringAction(async () => {
+        popupTips = await performPopupDetection(browser.getPage(), async () => {
+          try {
+            const page = browser.getPage();
+            const box = await locator.boundingBox();
+            if (!box) throw new Error(`Element not visible: ${command.selector}`);
+            await humanClick(
+              page,
+              box.x + box.width / 2,
+              box.y + box.height / 2,
+              command.human as HumanConfig,
+              {
+                button: command.button,
+                clickCount: command.clickCount,
+              }
+            );
+          } catch (error) {
+            throw toAIFriendlyError(error, command.selector);
+          }
+        });
+        return undefined;
+      });
+      if (newTab)
+        popupTips.unshift({
+          text: `New tab opened [${newTab.index}]: ${newTab.title} - ${newTab.url}`,
+          popup: { type: 'popup', role: 'tab' },
+        });
+    }
 
     const result: Record<string, unknown> = { clicked: true, human: true };
     if (diffResult) {
@@ -111,21 +155,64 @@ export async function handleClick(
       result.diffScope = diffResult.diff.scope;
     }
     browser.recordCommand('click', command.selector, undefined, true);
-    return successResponse(command.id, result);
+
+    const tips = popupTips.length > 0 ? popupTips.map((t) => t.text) : undefined;
+    return successResponse(command.id, result, tips);
   }
 
-  const diffResult = await performDiff(locator, command.diffScope, async () => {
-    try {
-      await locator.click({
-        button: command.button,
-        clickCount: command.clickCount,
-        delay: command.delay,
-        timeout: command.timeout || 5000,
+  let diffResult: import('../diff.js').DiffResult | undefined;
+  let popupTips: import('../browser/popup-detector.js').PopupTip[] = [];
+
+  if (command.diffScope !== undefined) {
+    const { result: dResult, newTab } = await browser.detectNewTabDuringAction(async () => {
+      return performDiff(locator, command.diffScope, async () => {
+        try {
+          await locator.click({
+            button: command.button,
+            clickCount: command.clickCount,
+            delay: command.delay,
+            timeout: command.timeout || 5000,
+          });
+        } catch (error) {
+          throw toAIFriendlyError(error, command.selector);
+        }
       });
-    } catch (error) {
-      throw toAIFriendlyError(error, command.selector);
+    });
+
+    diffResult = dResult;
+    if (newTab) {
+      popupTips.push({
+        text: `New tab opened [${newTab.index}]: ${newTab.title} - ${newTab.url}`,
+        popup: { type: 'popup', role: 'tab' },
+      });
     }
-  });
+    if (diffResult && diffResult.diff.added.length > 0) {
+      popupTips = [...popupTips, ...detectPopupsFromDiff(diffResult.diff.added)];
+    }
+  } else {
+    const { newTab } = await browser.detectNewTabDuringAction(async () => {
+      popupTips = await performPopupDetection(browser.getPage(), async () => {
+        try {
+          await locator.click({
+            button: command.button,
+            clickCount: command.clickCount,
+            delay: command.delay,
+            timeout: command.timeout || 5000,
+          });
+        } catch (error) {
+          throw toAIFriendlyError(error, command.selector);
+        }
+      });
+      return undefined;
+    });
+
+    if (newTab) {
+      popupTips.unshift({
+        text: `New tab opened [${newTab.index}]: ${newTab.title} - ${newTab.url}`,
+        popup: { type: 'popup', role: 'tab' },
+      });
+    }
+  }
 
   const result: Record<string, unknown> = { clicked: true };
   if (diffResult) {
@@ -134,7 +221,9 @@ export async function handleClick(
   }
 
   browser.recordCommand('click', command.selector, undefined, true);
-  return successResponse(command.id, result);
+
+  const tips = popupTips.length > 0 ? popupTips.map((t) => t.text) : undefined;
+  return successResponse(command.id, result, tips);
 }
 
 export async function handleType(command: TypeCommand, browser: BrowserManager): Promise<Response> {
@@ -144,23 +233,49 @@ export async function handleType(command: TypeCommand, browser: BrowserManager):
   await assertElementExists(locator, command.selector, isRef);
 
   if (command.human?.enabled) {
-    const diffResult = await performDiff(locator, command.diffScope, async () => {
-      try {
-        const page = browser.getPage();
-        const box = await locator.boundingBox();
-        if (!box) {
-          throw new Error(`Element not visible: ${command.selector}`);
-        }
-        const targetX = box.x + box.width / 2;
-        const targetY = box.y + box.height / 2;
+    let diffResult: import('../diff.js').DiffResult | undefined;
+    let popupTips: import('../browser/popup-detector.js').PopupTip[] = [];
 
-        await humanClick(page, targetX, targetY, command.human as HumanConfig);
-        await locator.focus();
-        await humanType(page, command.text, command.human as HumanConfig);
-      } catch (error) {
-        throw toAIFriendlyError(error, command.selector);
+    if (command.diffScope !== undefined) {
+      diffResult = await performDiff(locator, command.diffScope, async () => {
+        try {
+          const page = browser.getPage();
+          const box = await locator.boundingBox();
+          if (!box) {
+            throw new Error(`Element not visible: ${command.selector}`);
+          }
+          const targetX = box.x + box.width / 2;
+          const targetY = box.y + box.height / 2;
+
+          await humanClick(page, targetX, targetY, command.human as HumanConfig);
+          await locator.focus();
+          await humanType(page, command.text, command.human as HumanConfig);
+        } catch (error) {
+          throw toAIFriendlyError(error, command.selector);
+        }
+      });
+      if (diffResult && diffResult.diff.added.length > 0) {
+        popupTips = detectPopupsFromDiff(diffResult.diff.added);
       }
-    });
+    } else {
+      popupTips = await performPopupDetection(browser.getPage(), async () => {
+        try {
+          const page = browser.getPage();
+          const box = await locator.boundingBox();
+          if (!box) {
+            throw new Error(`Element not visible: ${command.selector}`);
+          }
+          const targetX = box.x + box.width / 2;
+          const targetY = box.y + box.height / 2;
+
+          await humanClick(page, targetX, targetY, command.human as HumanConfig);
+          await locator.focus();
+          await humanType(page, command.text, command.human as HumanConfig);
+        } catch (error) {
+          throw toAIFriendlyError(error, command.selector);
+        }
+      });
+    }
 
     const result: Record<string, unknown> = { typed: true, human: true };
     if (diffResult) {
@@ -168,26 +283,53 @@ export async function handleType(command: TypeCommand, browser: BrowserManager):
       result.diffScope = diffResult.diff.scope;
     }
     browser.recordCommand('type', command.selector, command.text, true);
-    return successResponse(command.id, result);
+    const tips = popupTips.length > 0 ? popupTips.map((t) => t.text) : undefined;
+    return successResponse(command.id, result, tips);
   }
 
-  const diffResult = await performDiff(locator, command.diffScope, async () => {
-    try {
-      if (command.clear) {
-        await locator.fill('');
+  let diffResult: import('../diff.js').DiffResult | undefined;
+  let popupTips: import('../browser/popup-detector.js').PopupTip[] = [];
+
+  if (command.diffScope !== undefined) {
+    diffResult = await performDiff(locator, command.diffScope, async () => {
+      try {
+        if (command.clear) {
+          await locator.fill('');
+        }
+
+        await locator.pressSequentially(command.text, {
+          delay: command.delay,
+        });
+
+        await locator.evaluate((el) => {
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+      } catch (error) {
+        throw toAIFriendlyError(error, command.selector);
       }
-
-      await locator.pressSequentially(command.text, {
-        delay: command.delay,
-      });
-
-      await locator.evaluate((el) => {
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-      });
-    } catch (error) {
-      throw toAIFriendlyError(error, command.selector);
+    });
+    if (diffResult && diffResult.diff.added.length > 0) {
+      popupTips = detectPopupsFromDiff(diffResult.diff.added);
     }
-  });
+  } else {
+    popupTips = await performPopupDetection(browser.getPage(), async () => {
+      try {
+        if (command.clear) {
+          await locator.fill('');
+        }
+
+        await locator.pressSequentially(command.text, {
+          delay: command.delay,
+        });
+
+        await locator.evaluate((el) => {
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+      } catch (error) {
+        throw toAIFriendlyError(error, command.selector);
+      }
+    });
+  }
 
   const result: Record<string, unknown> = { typed: true };
   if (diffResult) {
@@ -196,7 +338,8 @@ export async function handleType(command: TypeCommand, browser: BrowserManager):
   }
 
   browser.recordCommand('type', command.selector, command.text, true);
-  return successResponse(command.id, result);
+  const tips = popupTips.length > 0 ? popupTips.map((t) => t.text) : undefined;
+  return successResponse(command.id, result, tips);
 }
 
 export async function handlePress(
@@ -542,13 +685,29 @@ export async function handleSelect(
 
   await assertElementExists(locator, command.selector, isRef);
 
-  const diffResult = await performDiff(locator, command.diffScope, async () => {
-    try {
-      await locator.selectOption(values);
-    } catch (error) {
-      throw toAIFriendlyError(error, command.selector);
+  let diffResult: import('../diff.js').DiffResult | undefined;
+  let popupTips: import('../browser/popup-detector.js').PopupTip[] = [];
+
+  if (command.diffScope !== undefined) {
+    diffResult = await performDiff(locator, command.diffScope, async () => {
+      try {
+        await locator.selectOption(values);
+      } catch (error) {
+        throw toAIFriendlyError(error, command.selector);
+      }
+    });
+    if (diffResult && diffResult.diff.added.length > 0) {
+      popupTips = detectPopupsFromDiff(diffResult.diff.added);
     }
-  });
+  } else {
+    popupTips = await performPopupDetection(browser.getPage(), async () => {
+      try {
+        await locator.selectOption(values);
+      } catch (error) {
+        throw toAIFriendlyError(error, command.selector);
+      }
+    });
+  }
 
   const result: Record<string, unknown> = { selected: values };
   if (diffResult) {
@@ -557,7 +716,8 @@ export async function handleSelect(
   }
 
   browser.recordCommand('select', command.selector, values.join(','), true);
-  return successResponse(command.id, result);
+  const tips = popupTips.length > 0 ? popupTips.map((t) => t.text) : undefined;
+  return successResponse(command.id, result, tips);
 }
 
 export async function handleHover(
@@ -570,37 +730,78 @@ export async function handleHover(
   await assertElementExists(locator, command.selector, isRef);
 
   if (command.human?.enabled) {
-    const diffResult = await performDiff(locator, command.diffScope, async () => {
-      try {
-        const page = browser.getPage();
-        const box = await locator.boundingBox();
-        if (!box) {
-          throw new Error(`Element not visible: ${command.selector}`);
-        }
-        const targetX = box.x + box.width / 2;
-        const targetY = box.y + box.height / 2;
+    let diffResult: import('../diff.js').DiffResult | undefined;
+    let popupTips: import('../browser/popup-detector.js').PopupTip[] = [];
 
-        await humanMoveTo(page, { x: targetX, y: targetY }, command.human as HumanConfig);
-      } catch (error) {
-        throw toAIFriendlyError(error, command.selector);
+    if (command.diffScope !== undefined) {
+      diffResult = await performDiff(locator, command.diffScope, async () => {
+        try {
+          const page = browser.getPage();
+          const box = await locator.boundingBox();
+          if (!box) {
+            throw new Error(`Element not visible: ${command.selector}`);
+          }
+          const targetX = box.x + box.width / 2;
+          const targetY = box.y + box.height / 2;
+
+          await humanMoveTo(page, { x: targetX, y: targetY }, command.human as HumanConfig);
+        } catch (error) {
+          throw toAIFriendlyError(error, command.selector);
+        }
+      });
+      if (diffResult && diffResult.diff.added.length > 0) {
+        popupTips = detectPopupsFromDiff(diffResult.diff.added);
       }
-    });
+    } else {
+      popupTips = await performPopupDetection(browser.getPage(), async () => {
+        try {
+          const page = browser.getPage();
+          const box = await locator.boundingBox();
+          if (!box) {
+            throw new Error(`Element not visible: ${command.selector}`);
+          }
+          const targetX = box.x + box.width / 2;
+          const targetY = box.y + box.height / 2;
+
+          await humanMoveTo(page, { x: targetX, y: targetY }, command.human as HumanConfig);
+        } catch (error) {
+          throw toAIFriendlyError(error, command.selector);
+        }
+      });
+    }
 
     const result: Record<string, unknown> = { hovered: true, human: true };
     if (diffResult) {
       result.diff = diffResult.output;
       result.diffScope = diffResult.diff.scope;
     }
-    return successResponse(command.id, result);
+    const tips = popupTips.length > 0 ? popupTips.map((t) => t.text) : undefined;
+    return successResponse(command.id, result, tips);
   }
 
-  const diffResult = await performDiff(locator, command.diffScope, async () => {
-    try {
-      await locator.hover();
-    } catch (error) {
-      throw toAIFriendlyError(error, command.selector);
+  let diffResult: import('../diff.js').DiffResult | undefined;
+  let popupTips: import('../browser/popup-detector.js').PopupTip[] = [];
+
+  if (command.diffScope !== undefined) {
+    diffResult = await performDiff(locator, command.diffScope, async () => {
+      try {
+        await locator.hover();
+      } catch (error) {
+        throw toAIFriendlyError(error, command.selector);
+      }
+    });
+    if (diffResult && diffResult.diff.added.length > 0) {
+      popupTips = detectPopupsFromDiff(diffResult.diff.added);
     }
-  });
+  } else {
+    popupTips = await performPopupDetection(browser.getPage(), async () => {
+      try {
+        await locator.hover();
+      } catch (error) {
+        throw toAIFriendlyError(error, command.selector);
+      }
+    });
+  }
 
   const result: Record<string, unknown> = { hovered: true };
   if (diffResult) {
@@ -608,7 +809,8 @@ export async function handleHover(
     result.diffScope = diffResult.diff.scope;
   }
 
-  return successResponse(command.id, result);
+  const tips = popupTips.length > 0 ? popupTips.map((t) => t.text) : undefined;
+  return successResponse(command.id, result, tips);
 }
 
 export async function handleContent(

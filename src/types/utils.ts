@@ -48,6 +48,7 @@ import type {
   ViewportCommand,
   UserAgentCommand,
   DeviceCommand,
+  DevicesCommand,
   BackCommand,
   ForwardCommand,
   ReloadCommand,
@@ -208,6 +209,7 @@ export type Command =
   | ViewportCommand
   | UserAgentCommand
   | DeviceCommand
+  | DevicesCommand
   | BackCommand
   | ForwardCommand
   | ReloadCommand

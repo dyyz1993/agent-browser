@@ -151,25 +151,39 @@ export function getViewerPort(): number {
   return isNaN(parsed) ? 5005 : parsed;
 }
 
+function appendPort(bare: string, port: number): string {
+  // bare is the host without protocol, e.g. "localhost" or "viewer.example.com:8443"
+  // Only append port if bare does not already contain one
+  if (bare.includes(':')) return bare;
+  return `${bare}:${port}`;
+}
+
 export function getViewerUrl(instanceId: string): string {
   const host = getViewerHost();
   const port = getViewerPort();
-  if (host.includes('://')) {
-    return `${host}/view?instanceId=${instanceId}`;
+  if (host.startsWith('https://')) {
+    const bare = host.replace('https://', '');
+    return `https://${appendPort(bare, port)}/view?instanceId=${instanceId}`;
   }
-  return `http://${host}:${port}/view?instanceId=${instanceId}`;
+  if (host.startsWith('http://')) {
+    const bare = host.replace('http://', '');
+    return `http://${appendPort(bare, port)}/view?instanceId=${instanceId}`;
+  }
+  return `http://${appendPort(host, port)}/view?instanceId=${instanceId}`;
 }
 
 export function getViewerWsUrl(instanceId: string): string {
   const host = getViewerHost();
   const port = getViewerPort();
   if (host.startsWith('https://')) {
-    return `wss://${host.replace('https://', '')}/?instanceId=${instanceId}`;
+    const bare = host.replace('https://', '');
+    return `wss://${appendPort(bare, port)}/?instanceId=${instanceId}`;
   }
   if (host.startsWith('http://')) {
-    return `ws://${host.replace('http://', '')}/?instanceId=${instanceId}`;
+    const bare = host.replace('http://', '');
+    return `ws://${appendPort(bare, port)}/?instanceId=${instanceId}`;
   }
-  return `ws://${host}:${port}/?instanceId=${instanceId}`;
+  return `ws://${appendPort(host, port)}/?instanceId=${instanceId}`;
 }
 
 export function getMessageBridgeUrl(): string {

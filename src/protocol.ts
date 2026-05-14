@@ -27,6 +27,7 @@ const launchSchema = baseCommandSchema.extend({
       height: z.number().positive(),
     })
     .optional(),
+  device: z.string().optional(),
   browser: z.enum(['chromium', 'firefox', 'webkit']).optional(),
   cdpPort: z.number().positive().optional(),
   cdpUrl: z
@@ -328,6 +329,11 @@ const userAgentSchema = baseCommandSchema.extend({
 const deviceSchema = baseCommandSchema.extend({
   action: z.literal('device'),
   device: z.string().min(1),
+});
+
+const devicesSchema = baseCommandSchema.extend({
+  action: z.literal('devices'),
+  filter: z.string().optional(),
 });
 
 const backSchema = baseCommandSchema.extend({
@@ -826,6 +832,21 @@ const inputTouchSchema = baseCommandSchema.extend({
   modifiers: z.number().optional(),
 });
 
+// High-level touch gesture command (wraps CDP Input.dispatchTouchEvent)
+const touchSchema = baseCommandSchema.extend({
+  action: z.literal('touch'),
+  subcommand: z.enum(['tap', 'long-press', 'swipe', 'pinch', 'multi']),
+  x: z.number().optional(),
+  y: z.number().optional(),
+  x1: z.number().optional(),
+  y1: z.number().optional(),
+  x2: z.number().optional(),
+  y2: z.number().optional(),
+  duration: z.number().optional(),
+  distance: z.number().optional(),
+  points: z.array(z.object({ x: z.number(), y: z.number() })).optional(),
+});
+
 // These schemas are verified by tests (mobile-input.test.ts)
 const inputFocusedSchema = z.object({
   type: z.literal('input_focused'),
@@ -1222,6 +1243,7 @@ const commandSchema = z.discriminatedUnion('action', [
   viewportSchema,
   userAgentSchema,
   deviceSchema,
+  devicesSchema,
   backSchema,
   forwardSchema,
   reloadSchema,
@@ -1302,6 +1324,7 @@ const commandSchema = z.discriminatedUnion('action', [
   inputMouseSchema,
   inputKeyboardSchema,
   inputTouchSchema,
+  touchSchema,
   viewerSchema,
   askSchema,
   configSchema,

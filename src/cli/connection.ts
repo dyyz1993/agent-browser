@@ -413,6 +413,7 @@ export async function ensureDaemon(options: DaemonOptions): Promise<DaemonResult
     if (options.profile) env.AGENT_BROWSER_PROFILE = options.profile;
     if (options.state) env.AGENT_BROWSER_STATE = options.state;
     if (options.provider) env.AGENT_BROWSER_PROVIDER = options.provider;
+    if (options.device) env.AGENT_BROWSER_DEVICE = options.device;
 
     const logFile = path.join(socketDir, `${session}.log`);
     const logStream = fs.openSync(logFile, 'a');
@@ -594,6 +595,7 @@ export interface IdleSessionInfo {
 }
 
 const IDLE_THRESHOLD_MINUTES = 5;
+const IDLE_MAX_DISPLAY = 3;
 const PING_TIMEOUT_MS = 3000;
 
 export async function queryIdleSessions(excludeSession: string): Promise<IdleSessionInfo[]> {
@@ -638,8 +640,9 @@ export function formatIdleSessionTips(idleSessions: IdleSessionInfo[]): string[]
   if (idleSessions.length === 0) return [];
 
   const tips: string[] = [];
+  const display = idleSessions.slice(0, IDLE_MAX_DISPLAY);
 
-  for (const s of idleSessions) {
+  for (const s of display) {
     const idleDesc =
       s.idleMinutes >= 60
         ? `${Math.floor(s.idleMinutes / 60)}h ${s.idleMinutes % 60}m`
@@ -657,6 +660,13 @@ export function formatIdleSessionTips(idleSessions: IdleSessionInfo[]): string[]
 
     lines.push(`  Consider closing it: agent-browser close --session ${s.session}`);
     tips.push(lines.join('\n'));
+  }
+
+  const remaining = idleSessions.length - IDLE_MAX_DISPLAY;
+  if (remaining > 0) {
+    tips.push(
+      `[Idle Session] ... and ${remaining} more idle session(s). Use 'agent-browser sessions' to list all.`
+    );
   }
 
   return tips;

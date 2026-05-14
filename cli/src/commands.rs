@@ -1383,6 +1383,9 @@ pub fn parse_command(args: &[String], flags: &Flags) -> Result<Value, ParseError
             }
         }
 
+        // === Touch ===
+        "touch" => parse_touch(&rest, &id),
+
         _ => Err(ParseError::UnknownCommand {
             command: cmd.to_string(),
         }),
@@ -1682,6 +1685,167 @@ fn parse_mouse(rest: &[&str], id: &str) -> Result<Value, ParseError> {
         None => Err(ParseError::MissingArguments {
             context: "mouse".to_string(),
             usage: "mouse <move|down|up|wheel> [args...]",
+        }),
+    }
+}
+
+fn parse_touch(rest: &[&str], id: &str) -> Result<Value, ParseError> {
+    const VALID: &[&str] = &["tap", "long-press", "swipe", "pinch", "multi"];
+
+    match rest.get(0).map(|s| *s) {
+        Some("tap") => {
+            let x_str = rest.get(1).ok_or_else(|| ParseError::MissingArguments {
+                context: "touch tap".to_string(),
+                usage: "touch tap <x> <y>",
+            })?;
+            let y_str = rest.get(2).ok_or_else(|| ParseError::MissingArguments {
+                context: "touch tap".to_string(),
+                usage: "touch tap <x> <y>",
+            })?;
+            let x = x_str.parse::<i32>().map_err(|_| ParseError::MissingArguments {
+                context: "touch tap".to_string(),
+                usage: "touch tap <x> <y>",
+            })?;
+            let y = y_str.parse::<i32>().map_err(|_| ParseError::MissingArguments {
+                context: "touch tap".to_string(),
+                usage: "touch tap <x> <y>",
+            })?;
+            Ok(json!({ "id": id, "action": "touch", "subcommand": "tap", "x": x, "y": y }))
+        }
+        Some("long-press") => {
+            let x_str = rest.get(1).ok_or_else(|| ParseError::MissingArguments {
+                context: "touch long-press".to_string(),
+                usage: "touch long-press <x> <y> [ms]",
+            })?;
+            let y_str = rest.get(2).ok_or_else(|| ParseError::MissingArguments {
+                context: "touch long-press".to_string(),
+                usage: "touch long-press <x> <y> [ms]",
+            })?;
+            let x = x_str.parse::<i32>().map_err(|_| ParseError::MissingArguments {
+                context: "touch long-press".to_string(),
+                usage: "touch long-press <x> <y> [ms]",
+            })?;
+            let y = y_str.parse::<i32>().map_err(|_| ParseError::MissingArguments {
+                context: "touch long-press".to_string(),
+                usage: "touch long-press <x> <y> [ms]",
+            })?;
+            let duration = rest.get(3).and_then(|s| s.parse::<u32>().ok()).unwrap_or(800);
+            Ok(json!({ "id": id, "action": "touch", "subcommand": "long-press", "x": x, "y": y, "duration": duration }))
+        }
+        Some("swipe") => {
+            let x1_str = rest.get(1).ok_or_else(|| ParseError::MissingArguments {
+                context: "touch swipe".to_string(),
+                usage: "touch swipe <x1> <y1> <x2> <y2> [ms]",
+            })?;
+            let y1_str = rest.get(2).ok_or_else(|| ParseError::MissingArguments {
+                context: "touch swipe".to_string(),
+                usage: "touch swipe <x1> <y1> <x2> <y2> [ms]",
+            })?;
+            let x2_str = rest.get(3).ok_or_else(|| ParseError::MissingArguments {
+                context: "touch swipe".to_string(),
+                usage: "touch swipe <x1> <y1> <x2> <y2> [ms]",
+            })?;
+            let y2_str = rest.get(4).ok_or_else(|| ParseError::MissingArguments {
+                context: "touch swipe".to_string(),
+                usage: "touch swipe <x1> <y1> <x2> <y2> [ms]",
+            })?;
+            let x1 = x1_str.parse::<i32>().map_err(|_| ParseError::MissingArguments {
+                context: "touch swipe".to_string(),
+                usage: "touch swipe <x1> <y1> <x2> <y2> [ms]",
+            })?;
+            let y1 = y1_str.parse::<i32>().map_err(|_| ParseError::MissingArguments {
+                context: "touch swipe".to_string(),
+                usage: "touch swipe <x1> <y1> <x2> <y2> [ms]",
+            })?;
+            let x2 = x2_str.parse::<i32>().map_err(|_| ParseError::MissingArguments {
+                context: "touch swipe".to_string(),
+                usage: "touch swipe <x1> <y1> <x2> <y2> [ms]",
+            })?;
+            let y2 = y2_str.parse::<i32>().map_err(|_| ParseError::MissingArguments {
+                context: "touch swipe".to_string(),
+                usage: "touch swipe <x1> <y1> <x2> <y2> [ms]",
+            })?;
+            let duration = rest.get(5).and_then(|s| s.parse::<u32>().ok()).unwrap_or(300);
+            Ok(json!({ "id": id, "action": "touch", "subcommand": "swipe", "x1": x1, "y1": y1, "x2": x2, "y2": y2, "duration": duration }))
+        }
+        Some("pinch") => {
+            let x_str = rest.get(1).ok_or_else(|| ParseError::MissingArguments {
+                context: "touch pinch".to_string(),
+                usage: "touch pinch <x> <y> <distance> [ms]",
+            })?;
+            let y_str = rest.get(2).ok_or_else(|| ParseError::MissingArguments {
+                context: "touch pinch".to_string(),
+                usage: "touch pinch <x> <y> <distance> [ms]",
+            })?;
+            let dist_str = rest.get(3).ok_or_else(|| ParseError::MissingArguments {
+                context: "touch pinch".to_string(),
+                usage: "touch pinch <x> <y> <distance> [ms]",
+            })?;
+            let x = x_str.parse::<i32>().map_err(|_| ParseError::MissingArguments {
+                context: "touch pinch".to_string(),
+                usage: "touch pinch <x> <y> <distance> [ms]",
+            })?;
+            let y = y_str.parse::<i32>().map_err(|_| ParseError::MissingArguments {
+                context: "touch pinch".to_string(),
+                usage: "touch pinch <x> <y> <distance> [ms]",
+            })?;
+            let distance = dist_str.parse::<i32>().map_err(|_| ParseError::MissingArguments {
+                context: "touch pinch".to_string(),
+                usage: "touch pinch <x> <y> <distance> [ms]",
+            })?;
+            let duration = rest.get(4).and_then(|s| s.parse::<u32>().ok()).unwrap_or(300);
+            Ok(json!({ "id": id, "action": "touch", "subcommand": "pinch", "x": x, "y": y, "distance": distance, "duration": duration }))
+        }
+        Some("multi") => {
+            let x1_str = rest.get(1).ok_or_else(|| ParseError::MissingArguments {
+                context: "touch multi".to_string(),
+                usage: "touch multi <x1> <y1> <x2> <y2>",
+            })?;
+            let y1_str = rest.get(2).ok_or_else(|| ParseError::MissingArguments {
+                context: "touch multi".to_string(),
+                usage: "touch multi <x1> <y1> <x2> <y2>",
+            })?;
+            let x2_str = rest.get(3).ok_or_else(|| ParseError::MissingArguments {
+                context: "touch multi".to_string(),
+                usage: "touch multi <x1> <y1> <x2> <y2>",
+            })?;
+            let y2_str = rest.get(4).ok_or_else(|| ParseError::MissingArguments {
+                context: "touch multi".to_string(),
+                usage: "touch multi <x1> <y1> <x2> <y2>",
+            })?;
+            let x1 = x1_str.parse::<i32>().map_err(|_| ParseError::MissingArguments {
+                context: "touch multi".to_string(),
+                usage: "touch multi <x1> <y1> <x2> <y2>",
+            })?;
+            let y1 = y1_str.parse::<i32>().map_err(|_| ParseError::MissingArguments {
+                context: "touch multi".to_string(),
+                usage: "touch multi <x1> <y1> <x2> <y2>",
+            })?;
+            let x2 = x2_str.parse::<i32>().map_err(|_| ParseError::MissingArguments {
+                context: "touch multi".to_string(),
+                usage: "touch multi <x1> <y1> <x2> <y2>",
+            })?;
+            let y2 = y2_str.parse::<i32>().map_err(|_| ParseError::MissingArguments {
+                context: "touch multi".to_string(),
+                usage: "touch multi <x1> <y1> <x2> <y2>",
+            })?;
+            Ok(json!({
+                "id": id,
+                "action": "touch",
+                "subcommand": "multi",
+                "points": [
+                    { "x": x1, "y": y1 },
+                    { "x": x2, "y": y2 }
+                ]
+            }))
+        }
+        Some(sub) => Err(ParseError::UnknownSubcommand {
+            subcommand: sub.to_string(),
+            valid_options: VALID,
+        }),
+        None => Err(ParseError::MissingArguments {
+            context: "touch".to_string(),
+            usage: "touch <tap|long-press|swipe|pinch|multi> [args...]",
         }),
     }
 }

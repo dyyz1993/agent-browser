@@ -2,6 +2,8 @@ import type { Page, Request, Response } from 'playwright-core';
 import path from 'node:path';
 import { existsSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
 import type { TrackedRequest, ConsoleMessage, PageError, TrackedWebSocket } from './types.js';
+import { AnalysisEngine } from './network-analysis.js';
+import type { NetworkPatternStore } from './network-pattern-store.js';
 
 export class NetworkTracker {
   private trackedRequests: TrackedRequest[] = [];
@@ -14,11 +16,16 @@ export class NetworkTracker {
   private pageErrors: PageError[] = [];
   private trackedWebSockets: TrackedWebSocket[] = [];
   private isWebSocketTrackingEnabled = false;
+  private analysisRequestListener: ((request: Request) => void) | null = null;
+  private analysisResponseListener: ((response: Response) => Promise<void>) | null = null;
+
+  readonly analysis: AnalysisEngine;
 
   private getPage: () => Page;
 
-  constructor(getPage: () => Page) {
+  constructor(getPage: () => Page, patternStore?: NetworkPatternStore) {
     this.getPage = getPage;
+    this.analysis = new AnalysisEngine({ patternStore });
   }
 
   get trackingEnabled(): boolean {
@@ -318,6 +325,34 @@ export class NetworkTracker {
         timestamp: Date.now(),
       });
     });
+
+    this.analysisRequestListener = (request: Request) => {
+      let postData: string | undefined;
+      try {
+        postData = request.postData() ?? undefined;
+      } catch {
+        // some requests don't support postData
+      }
+      this.analysis.onRequest({
+        url: request.url(),
+        method: request.method(),
+        headers: request.headers(),
+        timestamp: Date.now(),
+        resourceType: request.resourceType(),
+        postData,
+      });
+    };
+    page.on('request', this.analysisRequestListener);
+
+    this.analysisResponseListener = async (response: Response) => {
+      const req = response.request();
+      this.analysis.onResponse({
+        url: req.url(),
+        timestamp: Date.now(),
+        status: response.status(),
+      });
+    };
+    page.on('response', this.analysisResponseListener);
   }
 
   cleanup(page: import('playwright-core').Page | null): void {
@@ -329,6 +364,14 @@ export class NetworkTracker {
       if (this.responseListener) {
         page.off('response', this.responseListener);
         this.responseListener = null;
+      }
+      if (this.analysisRequestListener) {
+        page.off('request', this.analysisRequestListener);
+        this.analysisRequestListener = null;
+      }
+      if (this.analysisResponseListener) {
+        page.off('response', this.analysisResponseListener);
+        this.analysisResponseListener = null;
       }
       if (this.wsListener) {
         try {
@@ -347,5 +390,6 @@ export class NetworkTracker {
     this.trackedWebSockets = [];
     this.consoleMessages = [];
     this.pageErrors = [];
+    this.analysis.clear();
   }
 }

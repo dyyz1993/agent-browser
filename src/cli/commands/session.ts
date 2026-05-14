@@ -174,6 +174,10 @@ export function handleSession(
       return { id, action: 'config', json };
     }
 
+    case 'devices': {
+      return { id, action: 'devices', filter: rest[0] };
+    }
+
     case 'history': {
       const clear = rest.includes('--clear');
       const filterIdx = rest.indexOf('--filter');

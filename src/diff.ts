@@ -1,6 +1,13 @@
 import type { Locator, Page, Frame, FrameLocator } from 'playwright-core';
 import { getEnhancedSnapshot, resetRefs } from './snapshot.js';
 import type { DiffScope } from './types.js';
+import {
+  detectPopupsFromDiff as _detectPopupsFromDiff,
+  type PopupTip,
+} from './browser/popup-detector.js';
+
+export { _detectPopupsFromDiff as detectPopupsFromDiff };
+export type { PopupTip };
 
 export interface SnapshotDiff {
   added: ElementInfo[];
@@ -231,4 +238,30 @@ export async function performDiff(
     diff,
     output: formatDiff(diff),
   };
+}
+
+export async function performPopupDetection(
+  page: Page,
+  action: () => Promise<void>
+): Promise<PopupTip[]> {
+  resetRefs();
+  const beforeText = await getEnhancedSnapshot(page, { interactive: false, compact: true }).then(
+    (r) => r.tree
+  );
+
+  await action();
+
+  await new Promise((resolve) => setTimeout(resolve, 250));
+
+  resetRefs();
+  const afterText = await getEnhancedSnapshot(page, { interactive: false, compact: true }).then(
+    (r) => r.tree
+  );
+
+  if (beforeText === afterText) return [];
+
+  const diff = computeDiff(beforeText, afterText);
+  if (diff.added.length === 0) return [];
+
+  return _detectPopupsFromDiff(diff.added);
 }

@@ -144,10 +144,21 @@ export async function handleViewport(
   browser: BrowserManager
 ): Promise<Response> {
   await browser.setViewport(command.width, command.height);
-  return successResponse(command.id, {
-    width: command.width,
-    height: command.height,
-  });
+  try {
+    await browser.clearDeviceMetricsOverride();
+  } catch {
+    // Ignore if no override was set
+  }
+  const tips: string[] = [];
+  tips.push(`Viewport: ${command.width}x${command.height}`);
+  return successResponse(
+    command.id,
+    {
+      width: command.width,
+      height: command.height,
+    },
+    tips
+  );
 }
 
 export async function handleUserAgent(
@@ -186,12 +197,65 @@ export async function handleDevice(
     }
   }
 
-  return successResponse(command.id, {
-    device: command.device,
-    viewport: device.viewport,
-    userAgent: device.userAgent,
-    deviceScaleFactor: device.deviceScaleFactor,
+  const tips: string[] = [];
+  tips.push(
+    `Device: ${command.device} (${device.viewport.width}x${device.viewport.height}${device.isMobile ? ', mobile' : ''}${device.deviceScaleFactor > 1 ? `, ${device.deviceScaleFactor}x DPR` : ''})`
+  );
+
+  return successResponse(
+    command.id,
+    {
+      device: command.device,
+      viewport: device.viewport,
+      userAgent: device.userAgent,
+      deviceScaleFactor: device.deviceScaleFactor,
+      isMobile: device.isMobile ?? false,
+      hasTouch: device.hasTouch ?? false,
+    },
+    tips
+  );
+}
+
+export async function handleDevices(
+  command: { id: string; filter?: string },
+  browser: BrowserManager
+): Promise<Response> {
+  const allDevices = browser.listDevices();
+  const quickProfiles = browser.listQuickProfiles();
+
+  let filtered = allDevices;
+  if (command.filter) {
+    const f = command.filter.toLowerCase();
+    filtered = allDevices.filter((d) => d.toLowerCase().includes(f));
+  }
+
+  const deviceList = filtered.slice(0, 50).map((name) => {
+    const d = browser.getDevice(name);
+    return d
+      ? {
+          name,
+          viewport: d.viewport,
+          deviceScaleFactor: d.deviceScaleFactor,
+          isMobile: d.isMobile,
+          hasTouch: d.hasTouch,
+        }
+      : { name };
   });
+
+  const tips: string[] = [];
+  tips.push(`Quick profiles: ${quickProfiles.join(', ')}`);
+  tips.push(`Use: agent-browser set device "<name>" or agent-browser set viewport <w> <h>`);
+
+  return successResponse(
+    command.id,
+    {
+      total: allDevices.length,
+      showing: deviceList.length,
+      quickProfiles: quickProfiles,
+      devices: deviceList,
+    },
+    tips
+  );
 }
 
 export async function handleBack(

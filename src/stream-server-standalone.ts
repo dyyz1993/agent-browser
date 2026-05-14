@@ -1111,9 +1111,13 @@ class StreamServerStandalone {
   private async sendCommandToDaemon(commandJson: string): Promise<string> {
     return new Promise((resolve, reject) => {
       let targetSession: string | undefined;
+      let requestedTimeout: number | undefined;
       try {
         const parsed = JSON.parse(commandJson);
         targetSession = parsed.session;
+        if (typeof parsed.timeout === 'number' && parsed.timeout > 0) {
+          requestedTimeout = Math.min(parsed.timeout, 600000); // cap at 10 minutes
+        }
       } catch {
         /* ignored */
       }
@@ -1148,13 +1152,14 @@ class StreamServerStandalone {
 
       let buffer = '';
       let resolved = false;
+      const COMMAND_TIMEOUT_MS = requestedTimeout ?? 180000; // default 3min, max 10min via timeout field
       const timeout = setTimeout(() => {
         if (!resolved) {
           resolved = true;
           socket.destroy();
-          reject(new Error('Command timeout'));
+          reject(new Error(`Command timeout (${COMMAND_TIMEOUT_MS}ms)`));
         }
-      }, 120000);
+      }, COMMAND_TIMEOUT_MS);
 
       socket.on('data', (data) => {
         buffer += data.toString();

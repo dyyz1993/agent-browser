@@ -9,6 +9,7 @@ import { executeCommand } from './actions/index.js';
 import { getExecutablePath } from './rc-config.js';
 import { StreamServerProxy, getStreamServerIpcPath } from './stream-server.js';
 import { detectSSR } from './ssr-detection.js';
+import { NetworkPatternStore } from './browser/network-pattern-store.js';
 
 const isWindows = process.platform === 'win32';
 
@@ -301,7 +302,7 @@ export async function startDaemon(_options?: { provider?: string }): Promise<voi
 
   cleanupSocket();
 
-  const manager = new BrowserManager();
+  const manager = new BrowserManager(new NetworkPatternStore(getAppDir()));
   let shuttingDown = false;
 
   {
@@ -538,6 +539,7 @@ export async function startDaemon(_options?: { provider?: string }): Promise<voi
                   proxy,
                   ignoreHTTPSErrors: ignoreHTTPSErrors,
                   allowFileAccess: allowFileAccess,
+                  device: process.env.AGENT_BROWSER_DEVICE,
                 });
               }
             }
@@ -600,7 +602,11 @@ export async function startDaemon(_options?: { provider?: string }): Promise<voi
                 const isInitialUrl = lastUrl === null;
                 const urlChanged = !isInitialUrl && currentUrl !== lastUrl;
 
-                if (urlChanged) {
+                const hasNewTabTip = Array.isArray(response.tips)
+                  ? response.tips.some((t) => t.includes('New tab opened'))
+                  : typeof response.tips === 'string' && response.tips.includes('New tab opened');
+
+                if (urlChanged && !hasNewTabTip) {
                   const urlTip = `URL changed: ${lastUrl} -> ${currentUrl}`;
                   const existingTips = response.tips;
                   if (existingTips) {
@@ -643,6 +649,22 @@ export async function startDaemon(_options?: { provider?: string }): Promise<voi
                 lastUrl = currentUrl;
               } catch {
                 // Page may not be available (e.g., after close)
+              }
+
+              try {
+                const networkTips = manager.network.analysis.getTips();
+                if (networkTips.length > 0) {
+                  const existingTips = response.tips;
+                  const tipsArray = existingTips
+                    ? Array.isArray(existingTips)
+                      ? existingTips
+                      : [existingTips]
+                    : [];
+                  tipsArray.push(...networkTips.map((t) => `[net] ${t}`));
+                  response.tips = tipsArray;
+                }
+              } catch {
+                // Network tips generation failed, non-fatal
               }
             }
 
@@ -721,6 +743,11 @@ export async function startDaemon(_options?: { provider?: string }): Promise<voi
   const shutdown = async () => {
     if (shuttingDown) return;
     shuttingDown = true;
+
+    const store = manager.getPatternStore();
+    if (store) {
+      store.save();
+    }
 
     if (streamServerProxy) {
       await streamServerProxy.disconnect();

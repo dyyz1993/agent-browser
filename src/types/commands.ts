@@ -4,6 +4,7 @@ export interface LaunchCommand extends BaseCommand {
   action: 'launch';
   headless?: boolean;
   viewport?: { width: number; height: number };
+  device?: string;
   browser?: 'chromium' | 'firefox' | 'webkit';
   headers?: Record<string, string>;
   executablePath?: string;
@@ -275,6 +276,11 @@ export interface UserAgentCommand extends BaseCommand {
 export interface DeviceCommand extends BaseCommand {
   action: 'device';
   device: string;
+}
+
+export interface DevicesCommand extends BaseCommand {
+  action: 'devices';
+  filter?: string;
 }
 
 export interface BackCommand extends BaseCommand {

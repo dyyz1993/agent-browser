@@ -296,9 +296,9 @@ describe('rc-config', () => {
       expect(url).toBe('http://myhost:9000/view?instanceId=id1');
     });
 
-    it('should default to localhost (host contains ://, no port in URL)', () => {
+    it('should default to localhost with default port 5005', () => {
       const url = getViewerUrl('xyz');
-      expect(url).toBe('http://localhost/view?instanceId=xyz');
+      expect(url).toBe('http://localhost:5005/view?instanceId=xyz');
     });
   });
 
@@ -309,10 +309,10 @@ describe('rc-config', () => {
       expect(url).toBe('wss://viewer.example.com:8443/?instanceId=test-id');
     });
 
-    it('should convert http:// to ws://', () => {
+    it('should convert http:// to ws:// with port', () => {
       process.env.AGENT_BROWSER_VIEWER_HOST = 'http://myhost.com';
       const url = getViewerWsUrl('id2');
-      expect(url).toBe('ws://myhost.com/?instanceId=id2');
+      expect(url).toBe('ws://myhost.com:5005/?instanceId=id2');
     });
 
     it('should use host:port for plain host', () => {
@@ -321,9 +321,9 @@ describe('rc-config', () => {
       expect(url).toBe('ws://myhost:4000/?instanceId=id3');
     });
 
-    it('should default to ws://localhost (http:// stripped to ws://)', () => {
+    it('should default to ws://localhost with port', () => {
       const url = getViewerWsUrl('id4');
-      expect(url).toBe('ws://localhost/?instanceId=id4');
+      expect(url).toBe('ws://localhost:5005/?instanceId=id4');
     });
   });
 
