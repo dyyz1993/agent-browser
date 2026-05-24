@@ -10,6 +10,7 @@ import { getExecutablePath } from './rc-config.js';
 import { StreamServerProxy, getStreamServerIpcPath } from './stream-server.js';
 import { detectSSR } from './ssr-detection.js';
 import { NetworkPatternStore } from './browser/network-pattern-store.js';
+import { pluginRegistry } from './plugins/registry.js';
 
 const isWindows = process.platform === 'win32';
 
@@ -754,6 +755,7 @@ export async function startDaemon(_options?: { provider?: string }): Promise<voi
       streamServerProxy = null;
     }
 
+    await pluginRegistry.cleanupAll();
     await manager.close();
     server.close();
     cleanupSocket();

@@ -246,8 +246,8 @@ describe('rc-config', () => {
   });
 
   describe('getViewerHost', () => {
-    it('should return default http://localhost when nothing configured', () => {
-      expect(getViewerHost()).toBe('http://localhost');
+    it('should return default http://localhost:5005 when nothing configured', () => {
+      expect(getViewerHost()).toBe('http://localhost:5005');
     });
 
     it('should return configured host', () => {

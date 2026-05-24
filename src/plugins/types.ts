@@ -8,10 +8,25 @@ export interface PluginCommandMeta {
   options?: Record<string, string>;
 }
 
+export type PluginPermission =
+  | 'browser:read'
+  | 'browser:write'
+  | 'browser:navigate'
+  | 'browser:tab'
+  | 'network:read'
+  | 'network:write'
+  | 'fs:read'
+  | 'fs:write'
+  | 'eval'
+  | 'screenshot'
+  | 'ask'
+  | 'dispatch';
+
 export interface PluginMeta {
   name: string;
   version: string;
   description?: string;
+  permissions?: PluginPermission[];
   commands: Record<string, PluginCommandMeta>;
 }
 

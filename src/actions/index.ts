@@ -195,6 +195,7 @@ const PLUGIN_ACTIONS = new Set([
   'plugin_search',
   'plugin_create',
   'plugin_run',
+  'plugin_publish',
 ]);
 
 const actionHandlers = new Map<string, ActionHandler>([

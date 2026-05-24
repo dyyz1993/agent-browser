@@ -38,9 +38,21 @@ export interface PluginRunCommand extends BaseCommand {
   flags: Record<string, string | boolean>;
 }
 
+export interface PluginBrowseCommand extends BaseCommand {
+  action: 'plugin_browse';
+  tag?: string;
+  sort?: 'downloads' | 'stars' | 'updated';
+  json?: boolean;
+}
+
 export interface PluginCreateCommand extends BaseCommand {
   action: 'plugin_create';
   name: string;
   dir?: string;
   minimal?: boolean;
+}
+
+export interface PluginPublishCommand extends BaseCommand {
+  action: 'plugin_publish';
+  dir?: string;
 }

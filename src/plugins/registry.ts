@@ -87,6 +87,8 @@ async function loadPluginFromFile(filePath: string): Promise<AgentBrowserPlugin>
 const initializedPlugins = new Set<string>();
 
 export class PluginRegistry {
+  private loadedPlugins = new Map<string, AgentBrowserPlugin>();
+
   async install(source: string): Promise<InstallResult & { pluginsDir: string }> {
     for (const installer of installers) {
       if (installer.detect(source)) {
@@ -114,6 +116,14 @@ export class PluginRegistry {
     if (builtinInstaller.listBuiltins().includes(name)) {
       throw new Error(`Cannot uninstall builtin plugin "${name}"`);
     }
+
+    const loaded = this.loadedPlugins.get(name);
+    if (loaded?.cleanup) {
+      try {
+        await loaded.cleanup();
+      } catch {}
+    }
+    this.loadedPlugins.delete(name);
 
     for (const pluginsDir of getPluginsDirs()) {
       const registry = loadRegistry(pluginsDir);
@@ -286,6 +296,8 @@ export class PluginRegistry {
     const plugin = await this.find(pluginName);
     if (!plugin) throw new Error(`Plugin "${pluginName}" not found`);
 
+    this.loadedPlugins.set(pluginName, plugin);
+
     const handler = plugin.handlers[commandName];
     if (!handler) {
       const available = Object.keys(plugin.handlers).join(', ');
@@ -294,7 +306,11 @@ export class PluginRegistry {
       );
     }
 
-    const ctx: PluginContext = createPluginContext(browser);
+    let ctx: PluginContext = createPluginContext(browser);
+    if (plugin.meta.permissions && !plugin.meta.permissions.includes('dispatch')) {
+      const { createPermissionCheckedContext } = await import('./permission-check.js');
+      ctx = createPermissionCheckedContext(ctx, plugin.meta.permissions);
+    }
 
     if (plugin.init && !initializedPlugins.has(pluginName)) {
       initializedPlugins.add(pluginName);
@@ -302,6 +318,17 @@ export class PluginRegistry {
     }
 
     return handler(ctx, args, flags);
+  }
+
+  async cleanupAll(): Promise<void> {
+    for (const [, plugin] of this.loadedPlugins) {
+      if (plugin.cleanup) {
+        try {
+          await plugin.cleanup();
+        } catch {}
+      }
+    }
+    this.loadedPlugins.clear();
   }
 }
 

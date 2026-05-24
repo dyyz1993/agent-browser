@@ -2,6 +2,8 @@ import type { BrowserManager } from '../browser/index.js';
 import type { AnyCommand, Response } from '../types.js';
 import { successResponse, errorResponse } from '../protocol.js';
 import { pluginRegistry } from '../plugins/index.js';
+import { publishPlugin } from '../plugins/marketplace/publish.js';
+import { MarketplaceRegistry } from '../plugins/marketplace/index.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -70,6 +72,35 @@ export async function handlePluginCommand(
     case 'plugin_info': {
       const info = await pluginRegistry.info(command.name as string);
       if (!info) {
+        try {
+          const registry = new MarketplaceRegistry();
+          const mp = await registry.getPlugin(command.name as string);
+          if (mp) {
+            const lines = [
+              `Plugin: ${mp.name} (from marketplace, not installed)`,
+              `Version: ${mp.version}`,
+              `Author: ${mp.author}`,
+              `Description: ${mp.description}`,
+              `Repository: ${mp.repository}`,
+              `Tags: ${mp.tags.join(', ')}`,
+              '',
+              'Commands:',
+            ];
+            for (const [cmd, meta] of Object.entries(mp.commands)) {
+              lines.push(
+                `  ${cmd.padEnd(16)} ${(meta as { description?: string }).description ?? ''}`
+              );
+            }
+            lines.push('', `Install with: agent-browser plugin install ${mp.installSource}`);
+            return successResponse(command.id, {
+              text: lines.join('\n'),
+              marketplace: true,
+              ...mp,
+            });
+          }
+        } catch {
+          /* marketplace unavailable */
+        }
         return errorResponse(command.id, `Plugin "${command.name}" not found`);
       }
       const lines = [
@@ -91,11 +122,73 @@ export async function handlePluginCommand(
 
     case 'plugin_search': {
       const results = pluginRegistry.search(command.keyword as string);
-      return successResponse(command.id, {
-        keyword: command.keyword,
-        found: results.length,
-        plugins: results,
-      });
+      if (results.length > 0) {
+        return successResponse(command.id, {
+          keyword: command.keyword,
+          found: results.length,
+          plugins: results,
+        });
+      }
+      try {
+        const registry = new MarketplaceRegistry();
+        const searchResult = await registry.search(command.keyword as string);
+        const lines = ['SEARCH RESULTS (from marketplace)', ''];
+        if (searchResult.results.length === 0) {
+          lines.push('  (no results)');
+        } else {
+          for (const p of searchResult.results) {
+            const tags = p.tags.length > 0 ? ` [${p.tags.join(', ')}]` : '';
+            const stars = p.stars != null ? ` \u2605 ${p.stars}` : '';
+            lines.push(
+              `  ${p.name.padEnd(16)} v${p.version.padEnd(8)} ${p.description}${tags}${stars}`
+            );
+          }
+          lines.push('', 'Install with: agent-browser plugin install <name>');
+        }
+        return successResponse(command.id, {
+          keyword: command.keyword,
+          found: searchResult.total,
+          plugins: searchResult.results,
+          marketplace: true,
+          text: lines.join('\n'),
+        });
+      } catch {
+        return successResponse(command.id, {
+          keyword: command.keyword,
+          found: 0,
+          plugins: [],
+          marketplaceError: 'Marketplace unavailable. Check your network connection.',
+        });
+      }
+    }
+
+    case 'plugin_browse': {
+      try {
+        const registry = new MarketplaceRegistry();
+        const plugins = await registry.list({
+          tag: command.tag as string | undefined,
+          sort: command.sort as 'downloads' | 'stars' | 'updated' | undefined,
+        });
+        if (command.json) {
+          return successResponse(command.id, { plugins });
+        }
+        const lines = ['Available Plugins (from marketplace)', ''];
+        if (plugins.length === 0) {
+          lines.push('  (no plugins found)');
+        } else {
+          for (const p of plugins) {
+            const tags = p.tags.length > 0 ? ` [${p.tags.join(', ')}]` : '';
+            const stars = p.stars != null ? ` \u2605 ${p.stars}` : '';
+            lines.push(
+              `  ${p.name.padEnd(16)} v${p.version.padEnd(8)} ${p.description}${tags}${stars}`
+            );
+          }
+          lines.push('', 'Install with: agent-browser plugin install <name>');
+        }
+        return successResponse(command.id, { text: lines.join('\n'), plugins });
+      } catch {
+        return errorResponse(command.id, 'Marketplace unavailable. Check your network connection.');
+      }
     }
 
     case 'plugin_run': {
@@ -134,6 +227,32 @@ export async function handlePluginCommand(
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
         return errorResponse(command.id, `Create failed: ${msg}`);
+      }
+    }
+
+    case 'plugin_publish': {
+      try {
+        const { prUrl, entry } = await publishPlugin(command.dir as string | undefined);
+        const isGhPr = prUrl.includes('github.com') && !prUrl.includes('compare');
+        if (isGhPr) {
+          return successResponse(command.id, {
+            submitted: true,
+            prUrl,
+            plugin: entry.name,
+            version: entry.version,
+            text: `Plugin submitted! PR: ${prUrl}`,
+          });
+        }
+        return successResponse(command.id, {
+          submitted: false,
+          prUrl,
+          plugin: entry.name,
+          version: entry.version,
+          text: `Open this URL to submit: ${prUrl}`,
+        });
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return errorResponse(command.id, `Publish failed: ${msg}`);
       }
     }
 

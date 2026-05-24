@@ -169,7 +169,6 @@ async function handleRecorderReplay(
     const eqIdx = envLine.indexOf('=');
     if (eqIdx > 0) {
       const key = envLine.substring(0, eqIdx);
-      if (key === 'AGENT_BROWSER_HUMAN') continue;
       let value = envLine.substring(eqIdx + 1);
       const spaceIdx = value.indexOf(' ');
       if (spaceIdx > 0) {

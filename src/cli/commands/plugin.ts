@@ -6,7 +6,7 @@ export function handlePlugin(rest: string[], id: string): Command {
   if (!subcmd)
     error(
       'Missing subcommand',
-      'agent-browser plugin <install|uninstall|update|list|info|search|run|create> [args...]'
+      'agent-browser plugin <install|uninstall|update|list|info|search|run|create|publish> [args...]'
     );
   switch (subcmd) {
     case 'install': {
@@ -31,6 +31,24 @@ export function handlePlugin(rest: string[], id: string): Command {
       const name = rest[1];
       if (!name) error('Missing name', 'agent-browser plugin info <name>');
       return { id, action: 'plugin_info' as const, name };
+    }
+    case 'browse': {
+      const tagIdx = rest.indexOf('--tag');
+      const tag = tagIdx !== -1 && rest[tagIdx + 1] ? rest[tagIdx + 1] : undefined;
+      const sortIdx = rest.indexOf('--sort');
+      const sortVal = sortIdx !== -1 && rest[sortIdx + 1] ? rest[sortIdx + 1] : undefined;
+      const sort =
+        sortVal === 'downloads' || sortVal === 'stars' || sortVal === 'updated'
+          ? sortVal
+          : undefined;
+      const json = rest.includes('--json');
+      return {
+        id,
+        action: 'plugin_browse' as const,
+        tag,
+        sort,
+        json: json || undefined,
+      };
     }
     case 'search': {
       const keyword = rest[1];
@@ -71,15 +89,27 @@ export function handlePlugin(rest: string[], id: string): Command {
       const name = rest[1];
       if (!name)
         error('Missing name', 'agent-browser plugin create <name> [--dir <dir>] [--minimal]');
-      const dirIdx = rest.indexOf('--dir');
-      const dir = dirIdx !== -1 && rest[dirIdx + 1] ? rest[dirIdx + 1] : undefined;
+      const createDirIdx = rest.indexOf('--dir');
+      const createDir =
+        createDirIdx !== -1 && rest[createDirIdx + 1] ? rest[createDirIdx + 1] : undefined;
       const minimal = rest.includes('--minimal');
-      return { id, action: 'plugin_create' as const, name, dir, minimal: minimal || undefined };
+      return {
+        id,
+        action: 'plugin_create' as const,
+        name,
+        dir: createDir,
+        minimal: minimal || undefined,
+      };
+    }
+    case 'publish': {
+      const pubDirIdx = rest.indexOf('--dir');
+      const pubDir = pubDirIdx !== -1 && rest[pubDirIdx + 1] ? rest[pubDirIdx + 1] : undefined;
+      return { id, action: 'plugin_publish' as const, dir: pubDir };
     }
     default:
       error(
         `Unknown plugin subcommand: ${subcmd}`,
-        'agent-browser plugin <install|uninstall|update|list|info|search|run|create> [args...]'
+        'agent-browser plugin <install|uninstall|update|list|info|search|run|create|publish> [args...]'
       );
   }
 }

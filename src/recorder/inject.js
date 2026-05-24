@@ -2,8 +2,10 @@
   'use strict';
 
   // 配置常量
-  const TRAJECTORY_INTERVAL = 50;
-  const MAX_TRAJECTORY_POINTS = 10;
+  const TRAJECTORY_INTERVAL = 30;
+  const MAX_TRAJECTORY_POINTS = 100;
+  const TRAJECTORY_FLUSH_INTERVAL = 2000;
+  const TRAJECTORY_KEEP_POINTS = 30;
   const SCROLL_THRESHOLD = 50;
   const HIGHLIGHT_THROTTLE = 100;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -71,6 +73,7 @@
   // 鼠标轨迹
   let mousePath = [];
   let lastTime = 0;
+  let lastTrajectoryFlushTime = 0;
   let lastScrollX = window.scrollX;
   let lastScrollY = window.scrollY;
   let scrollTimeout = null;
@@ -245,29 +248,38 @@
 
       const now = Date.now();
       if (now - lastTime > TRAJECTORY_INTERVAL) {
-        mousePath.push({ x: e.clientX, y: e.clientY, t: now });
+        mousePath.push({ x: e.pageX, y: e.pageY, cx: e.clientX, cy: e.clientY, t: now });
         if (mousePath.length > MAX_TRAJECTORY_POINTS) {
           mousePath.shift();
         }
         lastTime = now;
+
+        if (now - lastTrajectoryFlushTime >= TRAJECTORY_FLUSH_INTERVAL && mousePath.length > 0) {
+          flushTrajectory();
+        }
       }
     },
     true
   );
 
   function getTrajectory() {
-    // 检查当前会话是否是最新的
-    // 由于 addInitScript 是累积的，旧的监听器可能会继续工作
-    // 通过比较时间戳来确保只有最新的会话记录事件
     const currentTimestamp = parseInt((window.xyzSessionId || '').replace('recorder-', '')) || 0;
     if (thisTimestamp > 0 && currentTimestamp > thisTimestamp) {
       mousePath = [];
       return [];
     }
 
-    const points = mousePath.slice(-4);
+    const points = mousePath.slice(-TRAJECTORY_KEEP_POINTS);
     mousePath = [];
     return points;
+  }
+
+  function flushTrajectory() {
+    const points = getTrajectory();
+    if (points.length > 0) {
+      lastTrajectoryFlushTime = Date.now();
+      syncStepDirect({ timestamp: Date.now(), action: 'trajectory', points: points });
+    }
   }
 
   let panelElement = null;
@@ -331,7 +343,18 @@
     }
     const trajectory = getTrajectory();
     if (trajectory.length > 0) {
-      syncStepDirect({ timestamp: Date.now(), action: 'trajectory', points: trajectory });
+      const trajectoryStep = {
+        timestamp: Date.now(),
+        action: 'trajectory',
+        points: trajectory,
+        scrollX: window.scrollX,
+        scrollY: window.scrollY,
+        viewport: { width: window.innerWidth, height: window.innerHeight },
+      };
+      if (step.selector) {
+        trajectoryStep.targetSelector = step.selector;
+      }
+      syncStepDirect(trajectoryStep);
     }
     syncStepDirect(step);
   }

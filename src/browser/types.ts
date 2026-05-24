@@ -82,6 +82,10 @@ export interface RecorderStep {
   from?: string | { width: number; height: number };
   to?: string | { width: number; height: number };
   points?: Array<Record<string, number>>;
+  scrollX?: number;
+  scrollY?: number;
+  viewport?: { width: number; height: number };
+  targetSelector?: string;
   url?: string;
   annotation?: {
     type?: string;

@@ -786,7 +786,7 @@ export class RecorderManager {
 
       case 'trajectory':
         if (step.points && Array.isArray(step.points) && step.points.length > 0) {
-          const maxPoints = 5;
+          const maxPoints = 20;
           let sampled: Array<Record<string, number>>;
           if (step.points.length <= maxPoints) {
             sampled = step.points as Array<Record<string, number>>;
@@ -799,14 +799,24 @@ export class RecorderManager {
             }
           }
 
+          const hasScrollOffset = step.scrollX !== undefined || step.scrollY !== undefined;
+          const scrollX = Number(step.scrollX) || 0;
+          const scrollY = Number(step.scrollY) || 0;
+
           const segments = sampled.map((p: Record<string, number>, i: number) => {
-            const x = Math.round(p.x);
-            const y = Math.round(p.y);
+            const rawX = p.x !== undefined ? p.x : p.cx || 0;
+            const rawY = p.y !== undefined ? p.y : p.cy || 0;
+            const x = Math.round(rawX);
+            const y = Math.round(rawY);
             const delay = i === 0 ? 0 : Math.round(p.t - sampled[i - 1].t);
             return `${x}:${y}:${delay}`;
           });
 
-          return `AGENT_BROWSER_HUMAN=bezier agent-browser mouse trajectory "${segments.join(';')}"`;
+          let cmd = `agent-browser mouse trajectory "${segments.join(';')}"`;
+          if (hasScrollOffset && (scrollX !== 0 || scrollY !== 0)) {
+            cmd = `agent-browser mouse wheel 0 ${scrollX} ${scrollY} && ${cmd}`;
+          }
+          return cmd;
         }
         return null;
 

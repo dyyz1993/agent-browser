@@ -141,7 +141,9 @@ export function getEffectiveValue(key: string): string | number | undefined {
 }
 
 export function getViewerHost(): string {
-  return (getEffectiveValue('viewer.host') as string) || `http://localhost:${getViewerPort() || 5005}`;
+  return (
+    (getEffectiveValue('viewer.host') as string) || `http://localhost:${getViewerPort() || 5005}`
+  );
 }
 
 export function getViewerPort(): number {
@@ -207,13 +209,9 @@ export function formatTips(command: 'viewer' | 'ask'): string[] {
 
   if (command === 'viewer' && !isViewerConfigured()) {
     tips.push('');
-<<<<<<< HEAD
-    tips.push(`[Tip] Viewer host not configured. Using default (http://localhost:${getViewerPort() || 5005}).`);
-=======
     tips.push(
       `[Tip] Viewer host not configured. Using default (http://localhost:${getViewerPort() || 5005}).`
     );
->>>>>>> f2428ff (fix: default viewer.host includes port 5005 instead of bare localhost)
     tips.push('  To set a custom viewer host, run:');
     tips.push('    agent-browser config set viewer.host http://192.168.x.x:5005');
     tips.push('  Or set environment variable: AGENT_BROWSER_VIEWER_HOST');

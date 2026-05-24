@@ -574,6 +574,9 @@ async function main(): Promise<void> {
       cdpValue.startsWith('https://')
     ) {
       launchCmd = { id: genId(), action: 'launch', cdpUrl: cdpValue };
+    } else if (cdpValue.includes(':')) {
+      const cdpUrl = cdpValue.startsWith('http') ? cdpValue : `http://${cdpValue}`;
+      launchCmd = { id: genId(), action: 'launch', cdpUrl };
     } else {
       const port = parseInt(cdpValue, 10);
       if (isNaN(port) || port <= 0 || port > 65535) {

@@ -1138,6 +1138,9 @@ Subcommands:
   list [--json]          List installed plugins
   info <name>            Show detailed plugin info
   search <keyword>       Search installed plugins by keyword
+  browse [--tag <tag>] [--sort downloads|stars|updated]
+                         Browse marketplace plugins
+  publish [--dir <path>] Publish current plugin to marketplace
   run <name> <cmd> [args]  Run a plugin command directly
   create <name> [options]  Create a new plugin from template
     --dir <dir>            Target directory (default: ~/.agent-browser/plugins)
@@ -1286,6 +1289,10 @@ Plugins:
   plugin list [--json]       List installed plugins
   plugin info <name>         Show plugin info
   plugin search <keyword>    Search plugins
+  plugin browse [--tag <tag>] [--sort downloads|stars|updated]
+                            Browse marketplace plugins
+  plugin publish [--dir <path>]
+                            Publish current plugin to marketplace
   plugin create <name>       Create plugin from template
   plugin run <name> <cmd>    Run a plugin command
 

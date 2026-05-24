@@ -314,6 +314,8 @@ export async function connectViaCDP(
     cdpUrl = cdpEndpoint;
   } else if (/^\d+$/.test(cdpEndpoint)) {
     cdpUrl = `http://localhost:${cdpEndpoint}`;
+  } else if (cdpEndpoint.includes(':')) {
+    cdpUrl = `http://${cdpEndpoint}`;
   } else {
     cdpUrl = `http://localhost:${cdpEndpoint}`;
   }
