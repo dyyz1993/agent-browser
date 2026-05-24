@@ -3,6 +3,7 @@ import type { MarketplacePlugin, MarketplaceIndex, SearchResult } from './types.
 const DEFAULT_REGISTRY_URL =
   'https://raw.githubusercontent.com/dyyz1993/agent-browser-plugins/main/registry.json';
 const DEFAULT_TTL_MS = 5 * 60 * 1000;
+const FETCH_TIMEOUT_MS = 10 * 1000;
 
 export class MarketplaceRegistry {
   private registryUrl: string;
@@ -22,7 +23,7 @@ export class MarketplaceRegistry {
       return this.cachedIndex;
     }
 
-    const res = await fetch(this.registryUrl);
+    const res = await fetch(this.registryUrl, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
     if (!res.ok) {
       throw new Error(`Failed to fetch marketplace registry: ${res.status} ${res.statusText}`);
     }

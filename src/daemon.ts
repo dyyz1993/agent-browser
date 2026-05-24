@@ -12,6 +12,20 @@ import { detectSSR } from './ssr-detection.js';
 import { NetworkPatternStore } from './browser/network-pattern-store.js';
 import { pluginRegistry } from './plugins/registry.js';
 
+const NO_BROWSER_NEEDED = new Set([
+  'launch',
+  'close',
+  'plugin_install',
+  'plugin_uninstall',
+  'plugin_update',
+  'plugin_list',
+  'plugin_info',
+  'plugin_search',
+  'plugin_create',
+  'plugin_browse',
+  'plugin_publish',
+]);
+
 const isWindows = process.platform === 'win32';
 
 let currentSession = process.env.AGENT_BROWSER_SESSION || 'default';
@@ -491,12 +505,8 @@ export async function startDaemon(_options?: { provider?: string }): Promise<voi
               continue;
             }
 
-            // Auto-launch if not already launched and this isn't a launch/close command
-            if (
-              !manager.isLaunched() &&
-              parseResult.command.action !== 'launch' &&
-              parseResult.command.action !== 'close'
-            ) {
+            // Auto-launch if not already launched and command requires a browser
+            if (!manager.isLaunched() && !NO_BROWSER_NEEDED.has(parseResult.command.action)) {
               if (manager instanceof BrowserManager) {
                 // Auto-launch desktop browser
                 const extensions = process.env.AGENT_BROWSER_EXTENSIONS

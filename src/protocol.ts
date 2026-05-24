@@ -1052,6 +1052,18 @@ const pluginCreateSchema = baseCommandSchema.extend({
   minimal: z.boolean().optional(),
 });
 
+const pluginBrowseSchema = baseCommandSchema.extend({
+  action: z.literal('plugin_browse'),
+  tag: z.string().optional(),
+  sort: z.enum(['downloads', 'stars', 'updated']).optional(),
+  json: z.boolean().optional(),
+});
+
+const pluginPublishSchema = baseCommandSchema.extend({
+  action: z.literal('plugin_publish'),
+  dir: z.string().optional(),
+});
+
 // Interact command schemas
 const interactStepSchema = z.union([
   z.object({
@@ -1192,6 +1204,8 @@ const commandSchema = z.discriminatedUnion('action', [
   pluginSearchSchema,
   pluginRunSchema,
   pluginCreateSchema,
+  pluginBrowseSchema,
+  pluginPublishSchema,
   launchSchema,
   navigateSchema,
   clickSchema,

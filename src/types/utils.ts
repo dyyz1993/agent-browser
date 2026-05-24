@@ -147,6 +147,8 @@ import type {
   PluginSearchCommand,
   PluginRunCommand,
   PluginCreateCommand,
+  PluginBrowseCommand,
+  PluginPublishCommand,
 } from './plugins.js';
 import type { ScrapeCommand, SearchCommand, CrawlCommand, MapCommand } from './crawl.js';
 import type { InteractCommand } from './interact.js';
@@ -160,6 +162,8 @@ export type Command =
   | PluginSearchCommand
   | PluginRunCommand
   | PluginCreateCommand
+  | PluginBrowseCommand
+  | PluginPublishCommand
   | LaunchCommand
   | NavigateCommand
   | ClickCommand
