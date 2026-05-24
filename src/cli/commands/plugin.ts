@@ -6,7 +6,7 @@ export function handlePlugin(rest: string[], id: string): Command {
   if (!subcmd)
     error(
       'Missing subcommand',
-      'agent-browser plugin <install|uninstall|update|list|info|search|run|create|publish> [args...]'
+      'agent-browser plugin <install|uninstall|update|list|info|search|run|create|browse|publish> [args...]'
     );
   switch (subcmd) {
     case 'install': {
@@ -109,7 +109,7 @@ export function handlePlugin(rest: string[], id: string): Command {
     default:
       error(
         `Unknown plugin subcommand: ${subcmd}`,
-        'agent-browser plugin <install|uninstall|update|list|info|search|run|create|publish> [args...]'
+        'agent-browser plugin <install|uninstall|update|list|info|search|run|create|browse|publish> [args...]'
       );
   }
 }
