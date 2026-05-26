@@ -183,6 +183,8 @@ export function buildViewerScript(): string {
     let shouldReconnect = true;
     let reconnectTimer = null;
     let backgroundTimer = null;
+    let reconnectAttempts = 0;
+    let everConnected = false;
     const BACKGROUND_TIMEOUT = 60000; // 60 seconds
     
     const screen = document.getElementById('screen');
@@ -191,6 +193,11 @@ export function buildViewerScript(): string {
     const urlDisplay = document.getElementById('urlDisplay');
     const qualityBadge = document.getElementById('qualityBadge');
     const connecting = document.getElementById('connecting');
+    const disconnectedPage = document.getElementById('disconnectedPage');
+    const disconnectedIcon = document.getElementById('disconnectedIcon');
+    const disconnectedTitle = document.getElementById('disconnectedTitle');
+    const disconnectedDesc = document.getElementById('disconnectedDesc');
+    const disconnectedHint = document.getElementById('disconnectedHint');
 
     const ua = (navigator.userAgent || '').toLowerCase();
 
@@ -351,16 +358,42 @@ export function buildViewerScript(): string {
         statusDot.classList.add('connected');
         statusText.textContent = 'Connected';
         connecting.style.display = 'none';
+        hideDisconnectedPage();
         reconnectTimer = null;
+        reconnectAttempts = 0;
+        everConnected = true;
       };
 
       ws.onclose = () => {
         statusDot.classList.remove('connected');
         statusText.textContent = 'Disconnected';
-        connecting.style.display = 'flex';
+        reconnectAttempts++;
 
-        // Only reconnect if we should (page is visible)
-        if (shouldReconnect) {
+        if (!everConnected) {
+          var iconEl = document.getElementById('connectingIcon');
+          var spinnerEl = document.getElementById('connectingSpinner');
+          var textEl = document.getElementById('connectingText');
+          if (iconEl) iconEl.style.display = 'none';
+          if (spinnerEl) spinnerEl.style.display = '';
+          if (textEl) textEl.textContent = 'Connecting to browser...';
+          connecting.style.display = 'flex';
+        } else if (reconnectAttempts > 3) {
+          showDisconnectedPage(
+            'Session Closed',
+            'The browser session has ended or was killed.',
+            'Please start a new browser session to continue.',
+            '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#e74c3c" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'
+          );
+        } else {
+          showDisconnectedPage(
+            'Disconnected',
+            'Connection to the browser was lost.',
+            'Reconnecting (' + reconnectAttempts + ')...',
+            '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#f39c12" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1112.73 12.73"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="12" y1="21" x2="12" y2="23"/></svg>'
+          );
+        }
+
+        if (shouldReconnect && reconnectAttempts <= 10) {
           reconnectTimer = setTimeout(connect, 2000);
         }
       };
@@ -494,9 +527,18 @@ export function buildViewerScript(): string {
         connecting.style.display = 'none';
         screen.style.display = 'block';
         fitImageToContainer();
-        if (!cursorInitialized && DeviceMode.current === 'mobile') {
-          cursorInitialized = true;
-          setTimeout(initCursor, 50);
+        if (DeviceMode.current === 'mobile') {
+          if (!cursorInitialized) {
+            cursorInitialized = true;
+            setTimeout(initCursor, 50);
+          } else {
+            updateScreenRect();
+            if (cursorPos && screenRect && screenRect.width > 0) {
+              cursorPos.x = clampCursor(cursorPos.x, screenRect.left, screenRect.right);
+              cursorPos.y = clampCursor(cursorPos.y, screenRect.top, screenRect.bottom);
+              updateCursor();
+            }
+          }
         }
       };
 
@@ -530,6 +572,14 @@ export function buildViewerScript(): string {
       screen.style.width = Math.round(dw) + 'px';
       screen.style.height = Math.round(dh) + 'px';
 
+      if (DeviceMode.current === 'mobile') {
+        updateScreenRect();
+        if (cursorPos) {
+          cursorPos.x = clampCursor(cursorPos.x, screenRect.left, screenRect.right);
+          cursorPos.y = clampCursor(cursorPos.y, screenRect.top, screenRect.bottom);
+          updateCursor();
+        }
+      }
     }
     
     function safeSend(data) {
@@ -775,6 +825,68 @@ export function buildViewerScript(): string {
 
     function updateScreenRect() {
       screenRect = screen.getBoundingClientRect();
+    }
+
+    function showDisconnectedPage(title, desc, hint, icon) {
+      var toolbar = document.querySelector('.toolbar');
+      var viewport = document.querySelector('.viewport');
+      var touchpadEl = document.getElementById('touchpad');
+      var inputPanel = document.getElementById('input-panel');
+      if (toolbar) toolbar.style.display = 'none';
+      if (viewport) viewport.style.display = 'none';
+      if (touchpadEl) touchpadEl.style.display = 'none';
+      if (inputPanel) inputPanel.style.display = 'none';
+      document.body.style.background = '#0d1117';
+
+      if (disconnectedTitle) disconnectedTitle.textContent = title || '';
+      if (disconnectedDesc) disconnectedDesc.textContent = desc || '';
+      if (disconnectedHint) { disconnectedHint.textContent = hint || ''; disconnectedHint.style.display = hint ? '' : 'none'; }
+      if (disconnectedIcon) disconnectedIcon.innerHTML = icon || '';
+
+      if (!document.getElementById('dcPage')) {
+        var dp = document.createElement('div');
+        dp.id = 'dcPage';
+        var iid = (typeof URLSearchParams !== 'undefined' && typeof location !== 'undefined') ? (new URLSearchParams(location.search)).get('instanceId') : '';
+        dp.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0d1117;padding:24px;text-align:center;';
+        dp.innerHTML =
+          '<div id="dcIcon" style="width:64px;height:64px;margin-bottom:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.05);"></div>' +
+          '<div id="dcTitle" style="font-size:22px;font-weight:600;color:#fff;margin-bottom:8px;"></div>' +
+          '<div id="dcDesc" style="font-size:14px;color:#aaa;line-height:1.6;max-width:300px;"></div>' +
+          '<div id="dcHint" style="font-size:12px;color:#555;margin-top:16px;display:none;"></div>' +
+          (iid ? '<div style="margin-top:24px;padding:10px 16px;background:rgba(255,255,255,0.05);border-radius:8px;max-width:320px;">' +
+            '<div style="font-size:11px;color:#555;margin-bottom:4px;">SESSION INFO</div>' +
+            '<div style="font-size:13px;color:#888;font-family:monospace;word-break:break-all;">' + iid + '</div>' +
+            '<div id="dcTime" style="font-size:11px;color:#555;margin-top:6px;"></div>' +
+            '</div>' : '');
+        document.body.appendChild(dp);
+      }
+
+      var dcTime = document.getElementById('dcTime');
+      if (dcTime) dcTime.textContent = 'Disconnected at: ' + new Date().toLocaleString();
+
+      var dcIcon = document.getElementById('dcIcon');
+      var dcTitle = document.getElementById('dcTitle');
+      var dcDesc = document.getElementById('dcDesc');
+      var dcHint = document.getElementById('dcHint');
+      if (dcIcon) dcIcon.innerHTML = icon || '';
+      if (dcTitle) dcTitle.textContent = title || '';
+      if (dcDesc) dcDesc.textContent = desc || '';
+      if (dcHint) { dcHint.textContent = hint || ''; dcHint.style.display = hint ? '' : 'none'; }
+    }
+
+    function hideDisconnectedPage() {
+      var toolbar = document.querySelector('.toolbar');
+      var viewport = document.querySelector('.viewport');
+      var touchpadEl = document.getElementById('touchpad');
+      var inputPanel = document.getElementById('input-panel');
+      var dcPage = document.getElementById('dcPage');
+      if (toolbar) toolbar.style.display = '';
+      if (viewport) viewport.style.display = '';
+      if (touchpadEl) touchpadEl.style.display = '';
+      if (inputPanel) inputPanel.style.display = '';
+      document.body.style.background = '#1a1a2e';
+      if (dcPage) dcPage.remove();
+      if (disconnectedPage) disconnectedPage.classList.remove('active');
     }
 
     function enterInputMode(initialValue, inputType, placeholder, selector) {
@@ -1033,6 +1145,10 @@ export function buildViewerScript(): string {
 
     function initCursor() {
       updateScreenRect();
+      if (screenRect.width <= 0 || screenRect.height <= 0) {
+        setTimeout(initCursor, 100);
+        return;
+      }
       cursorPos = { x: screenRect.left + screenRect.width / 2, y: screenRect.top + screenRect.height / 2 };
       updateCursor();
       cursor.style.display = 'block';
@@ -1372,6 +1488,12 @@ export function buildViewerScript(): string {
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(function() {
         fitImageToContainer();
+        updateScreenRect();
+        if (DeviceMode.current === 'mobile' && cursorPos && screenRect) {
+          cursorPos.x = clampCursor(cursorPos.x, screenRect.left, screenRect.right);
+          cursorPos.y = clampCursor(cursorPos.y, screenRect.top, screenRect.bottom);
+          updateCursor();
+        }
         DeviceMode.autoDetectAndSwitch();
       }, 100);
     });

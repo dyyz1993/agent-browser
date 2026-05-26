@@ -191,6 +191,71 @@ export function getViewerHtml(): string {
       flex-direction: column;
       align-items: center;
       gap: 16px;
+      z-index: 20;
+    }
+    .connecting-card {
+      background: rgba(22, 33, 62, 0.95);
+      border: 1px solid #4ecca3;
+      border-radius: 12px;
+      padding: 28px 32px;
+      text-align: center;
+      max-width: 300px;
+      box-shadow: 0 8px 32px rgba(78, 204, 163, 0.15);
+    }
+    .connecting-icon {
+      font-size: 36px;
+      margin-bottom: 8px;
+    }
+    .connecting-text {
+      font-size: 15px;
+      color: #eee;
+      line-height: 1.5;
+    }
+    .connecting-text-hint {
+      font-size: 12px;
+      color: #888;
+      margin-top: 6px;
+    }
+
+    .disconnected-page {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 100;
+      background: #1a1a2e;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 24px;
+    }
+    .disconnected-page.active { display: flex; }
+    .disconnected-icon {
+      font-size: 56px;
+      margin-bottom: 16px;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(1.05); }
+    }
+    .disconnected-title {
+      font-size: 22px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+    .disconnected-desc {
+      font-size: 14px;
+      color: #aaa;
+      line-height: 1.6;
+      max-width: 280px;
+      margin-bottom: 4px;
+    }
+    .disconnected-hint {
+      font-size: 12px;
+      color: #666;
+      margin-top: 16px;
     }
     .spinner {
       width: 40px;
@@ -315,6 +380,13 @@ export function getViewerHtml(): string {
   </style>
 </head>
 <body>
+  <div class="disconnected-page" id="disconnectedPage">
+    <div class="disconnected-icon" id="disconnectedIcon">&#x1F4CF;&#xFE0F;</div>
+    <div class="disconnected-title" id="disconnectedTitle">Disconnected</div>
+    <div class="disconnected-desc" id="disconnectedDesc">The browser session has ended.</div>
+    <div class="disconnected-hint" id="disconnectedHint">Please start a new browser session to continue.</div>
+  </div>
+
   <div class="toolbar">
     <div class="status">
       <div class="status-dot" id="statusDot"></div>
@@ -330,8 +402,12 @@ export function getViewerHtml(): string {
   
   <div class="viewport">
     <div class="connecting" id="connecting">
-      <div class="spinner"></div>
-      <span>Connecting to browser...</span>
+      <div class="connecting-card">
+        <div class="connecting-icon" id="connectingIcon">&#x1F4CF;&#xFE0F;</div>
+        <div class="spinner" id="connectingSpinner" style="display:none;"></div>
+        <div class="connecting-text" id="connectingText">Connecting to browser...</div>
+        <div class="connecting-text-hint" id="connectingHint"></div>
+      </div>
     </div>
     <div class="screen-container" id="screenContainer">
       <img id="screen" style="display: none;" draggable="false">
