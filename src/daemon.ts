@@ -5,6 +5,7 @@ import * as os from 'os';
 import { randomUUID } from 'crypto';
 import { BrowserManager } from './browser/index.js';
 import { parseCommand, serializeResponse, errorResponse, successResponse } from './protocol.js';
+import type { SuccessResponse } from './types/responses.js';
 import { executeCommand } from './actions/index.js';
 import { getExecutablePath } from './rc-config.js';
 import { StreamServerProxy, getStreamServerIpcPath } from './stream-server.js';
@@ -624,7 +625,7 @@ export async function startDaemon(_options?: { provider?: string }): Promise<voi
                     const tipsArray = Array.isArray(existingTips) ? existingTips : [existingTips];
                     response.tips = [urlTip, ...tipsArray];
                   } else {
-                    (response as { tips?: string[] }).tips = [urlTip];
+                    (response as SuccessResponse).tips = [urlTip];
                   }
                 }
 

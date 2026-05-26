@@ -9,6 +9,7 @@ import type {
   SelectorsOfCommand,
   ValidateCommand,
 } from '../types.js';
+import type { SuccessResponse } from '../types/responses.js';
 import { errorResponse } from '../protocol.js';
 
 export {
@@ -366,25 +367,24 @@ export async function executeCommand(
         if ('selector' in cmd && typeof cmd.selector === 'string') {
           selectors.push(cmd.selector);
         }
-        if ('source' in cmd) {
-          const src = (cmd as unknown as Record<string, unknown>).source;
-          if (typeof src === 'string') selectors.push(src);
+        const cmdObj = cmd as unknown as Record<string, unknown>;
+        if ('source' in cmd && typeof cmdObj.source === 'string') {
+          selectors.push(cmdObj.source);
         }
-        if ('target' in cmd) {
-          const tgt = (cmd as unknown as Record<string, unknown>).target;
-          if (typeof tgt === 'string') selectors.push(tgt);
+        if ('target' in cmd && typeof cmdObj.target === 'string') {
+          selectors.push(cmdObj.target);
         }
         for (const sel of selectors) {
           const refTip = await browser.getRefSelectorTip(sel);
           if (refTip) tips.push(refTip);
         }
         if (tips.length > 0) {
-          const resp = response as unknown as Record<string, unknown>;
-          const existing = resp['tips'];
-          resp['tips'] = existing
+          const resp = response as SuccessResponse;
+          const existing = resp.tips;
+          resp.tips = existing
             ? Array.isArray(existing)
               ? [...existing, ...tips]
-              : [existing as string, ...tips]
+              : [existing, ...tips]
             : tips.length === 1
               ? tips[0]
               : tips;
