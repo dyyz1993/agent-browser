@@ -666,6 +666,7 @@ export interface WheelCommand extends BaseCommand {
   deltaX?: number;
   deltaY?: number;
   selector?: string;
+  inFrame?: string;
 }
 
 export interface TapCommand extends BaseCommand {

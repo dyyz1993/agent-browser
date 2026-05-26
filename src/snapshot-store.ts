@@ -137,6 +137,15 @@ export class SnapshotStore {
   }
 
   /**
+   * Get snapshot IDs ordered from most recent to oldest.
+   */
+  getRecentIds(): string[] {
+    const entries = Array.from(this.snapshots.entries());
+    entries.sort((a, b) => b[1].timestamp - a[1].timestamp);
+    return entries.map(([id]) => id);
+  }
+
+  /**
    * Mark selectors as generated for a snapshot.
    */
   markSelectorsGenerated(id: string): void {

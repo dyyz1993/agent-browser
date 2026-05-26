@@ -188,8 +188,7 @@ export async function generateStableSelectors(
             const tag = element.tagName.toLowerCase();
             const classes = filterUsefulClasses(element);
             if (classes.length === 0) return null;
-            classes.sort((a, b) => b.length - a.length);
-            const bestClass = classes[0];
+            const bestClass = classes.reduce((a, b) => (a.length <= b.length ? a : b));
             for (const attr of SEMANTIC_ATTRS) {
               const value = element.getAttribute(attr);
               if (value) {
@@ -204,7 +203,7 @@ export async function generateStableSelectors(
           function getBestClassSelector(element: Element): string | null {
             const classes = filterUsefulClasses(element);
             if (classes.length === 0) return null;
-            classes.sort((a, b) => b.length - a.length);
+            classes.sort((a, b) => a.length - b.length);
             const tag = element.tagName.toLowerCase();
             for (const cls of classes) {
               const sel = tag + '.' + CSS.escape(cls);
@@ -234,7 +233,7 @@ export async function generateStableSelectors(
             }
             const classes = filterUsefulClasses(element);
             if (classes.length > 0) {
-              classes.sort((a, b) => b.length - a.length);
+              classes.sort((a, b) => a.length - b.length);
               const sel = element.tagName.toLowerCase() + '.' + CSS.escape(classes[0]);
               if (isUniqueSelector(sel)) return sel;
             }
@@ -245,7 +244,7 @@ export async function generateStableSelectors(
             let sel = element.tagName.toLowerCase();
             const classes = filterUsefulClasses(element);
             if (classes.length > 0) {
-              classes.sort((a, b) => b.length - a.length);
+              classes.sort((a, b) => a.length - b.length);
               sel +=
                 '.' +
                 classes
@@ -327,7 +326,7 @@ export async function generateStableSelectors(
             const parts: string[] = [];
             let current: Element | null = element;
             let depth = 0;
-            while (current && current !== document.body && depth < 5) {
+            while (current && current !== document.body && depth < 20) {
               const baseSelector = getBaseSelector(current);
               const selector = makeUniqueWithNth(current, baseSelector);
               parts.unshift(selector);
@@ -336,7 +335,7 @@ export async function generateStableSelectors(
               current = current.parentElement;
               depth++;
             }
-            return parts.length > 0 ? parts.join(' > ') : null;
+            return null;
           }
 
           function generateXPath(element: Element): string {

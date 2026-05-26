@@ -349,23 +349,16 @@ export async function handlePress(
   const page = browser.getPage();
   let locator = page.locator('body');
 
-  if (command.inFrame && command.selector) {
-    const frameLocator = browser.getFrame(command.inFrame);
-    locator = frameLocator.locator(command.selector);
-  } else if (command.selector) {
-    locator = page.locator(command.selector);
+  if (command.selector) {
+    locator = browser.getLocator(command.selector, command.inFrame);
   }
 
   const diffResult = await performDiff(locator, command.diffScope, async () => {
-    if (command.inFrame && command.selector) {
-      const frameLocator = browser.getFrame(command.inFrame);
-      await frameLocator.locator(command.selector).press(command.key);
+    if (command.selector) {
+      const targetLocator = browser.getLocator(command.selector, command.inFrame);
+      await targetLocator.press(command.key);
     } else {
-      if (command.selector) {
-        await page.press(command.selector, command.key);
-      } else {
-        await page.keyboard.press(command.key);
-      }
+      await page.keyboard.press(command.key);
     }
 
     await page.evaluate((key) => {

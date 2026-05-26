@@ -277,6 +277,21 @@ export class BrowserManager {
     return locator;
   }
 
+  async getRefSelectorTip(selector: string): Promise<string | null> {
+    const ref = parseRef(selector);
+    if (!ref) return null;
+
+    const store = this.snapshotStore;
+    for (const snapId of store.getRecentIds()) {
+      await this.ensureSelectorsGenerated(snapId);
+      const el = store.getElement(snapId, ref);
+      if (el && el.cssSelector) {
+        return `[ref=${ref}] => ${el.cssSelector}`;
+      }
+    }
+    return null;
+  }
+
   isRef(selector: string): boolean {
     return parseRef(selector) !== null;
   }

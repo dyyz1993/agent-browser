@@ -169,8 +169,8 @@ export async function handleWheel(
   const page = browser.getPage();
 
   if (command.selector) {
-    const element = page.locator(command.selector);
-    await element.hover();
+    const locator = browser.getLocator(command.selector, command.inFrame);
+    await locator.hover();
   }
 
   await page.mouse.wheel(command.deltaX ?? 0, command.deltaY ?? 0);
@@ -262,8 +262,8 @@ export async function handleSetValue(
   command: SetValueCommand,
   browser: BrowserManager
 ): Promise<Response> {
-  const page = browser.getPage();
-  await page.locator(command.selector).fill(command.value);
+  const locator = browser.getLocator(command.selector, command.inFrame);
+  await locator.fill(command.value);
   return successResponse(command.id, { set: true });
 }
 
@@ -271,8 +271,8 @@ export async function handleDispatch(
   command: DispatchEventCommand,
   browser: BrowserManager
 ): Promise<Response> {
-  const page = browser.getPage();
-  await page.locator(command.selector).dispatchEvent(command.event, command.eventInit);
+  const locator = browser.getLocator(command.selector, command.inFrame);
+  await locator.dispatchEvent(command.event, command.eventInit);
   return successResponse(command.id, { dispatched: command.event });
 }
 

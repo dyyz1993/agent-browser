@@ -359,7 +359,38 @@ export async function executeCommand(
     }
     const handler = actionHandlers.get(cmd.action);
     if (handler) {
-      return await handler(cmd, browser);
+      const response = await handler(cmd, browser);
+      if (response.success) {
+        const tips: string[] = [];
+        const selectors: string[] = [];
+        if ('selector' in cmd && typeof cmd.selector === 'string') {
+          selectors.push(cmd.selector);
+        }
+        if ('source' in cmd) {
+          const src = (cmd as unknown as Record<string, unknown>).source;
+          if (typeof src === 'string') selectors.push(src);
+        }
+        if ('target' in cmd) {
+          const tgt = (cmd as unknown as Record<string, unknown>).target;
+          if (typeof tgt === 'string') selectors.push(tgt);
+        }
+        for (const sel of selectors) {
+          const refTip = await browser.getRefSelectorTip(sel);
+          if (refTip) tips.push(refTip);
+        }
+        if (tips.length > 0) {
+          const resp = response as unknown as Record<string, unknown>;
+          const existing = resp['tips'];
+          resp['tips'] = existing
+            ? Array.isArray(existing)
+              ? [...existing, ...tips]
+              : [existing as string, ...tips]
+            : tips.length === 1
+              ? tips[0]
+              : tips;
+        }
+      }
+      return response;
     }
     return errorResponse(cmd.id, `Unknown action: ${cmd.action}`);
   } catch (error) {
