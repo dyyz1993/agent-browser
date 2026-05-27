@@ -29,6 +29,7 @@ import type { NetworkPatternStore } from './network-pattern-store.js';
 import { ScreencastManager } from './screencast-manager.js';
 import { RecordingManager } from './recording-manager.js';
 import { RecorderManager } from './recorder-manager.js';
+import { CollectorManager } from './collector-manager.js';
 import {
   connectToBrowserbase,
   connectToKernel,
@@ -75,6 +76,7 @@ export class BrowserManager {
   readonly screencast: ScreencastManager;
   readonly recording: RecordingManager;
   readonly recorder: RecorderManager;
+  readonly collector: CollectorManager;
 
   private _patternStore?: NetworkPatternStore;
 
@@ -118,6 +120,7 @@ export class BrowserManager {
       getCDPSession: () => this.getCDPSession(),
       getCdpEndpoint: () => this.cdpEndpoint,
     });
+    this.collector = new CollectorManager(() => this.getPage());
   }
 
   isLaunched(): boolean {
@@ -1512,8 +1515,43 @@ export class BrowserManager {
       })();
     `;
 
-    await page.addInitScript(injectScript);
-    await page.evaluate(injectScript);
+    try {
+      await page.addInitScript(injectScript);
+    } catch (initErr) {
+      console.warn(
+        '[BrowserManager] addInitScript failed:',
+        initErr instanceof Error ? initErr.message : String(initErr)
+      );
+    }
+    try {
+      await page.evaluate(injectScript);
+    } catch (evalErr) {
+      console.warn(
+        '[BrowserManager] page.evaluate injectScript failed:',
+        evalErr instanceof Error ? evalErr.message : String(evalErr)
+      );
+      // Fallback to CDP-based injection
+      try {
+        const cdp = await this.getCDPSession().catch(() => null);
+        if (cdp) {
+          await cdp
+            .send('Page.addScriptToEvaluateOnNewDocument', { source: injectScript })
+            .catch(() => {});
+          await cdp
+            .send('Runtime.evaluate', {
+              expression: injectScript,
+              awaitPromise: false,
+            })
+            .catch(() => {});
+          console.log('[BrowserManager] injectFocusListener succeeded via CDP fallback');
+        }
+      } catch (cdpErr) {
+        console.warn(
+          '[BrowserManager] CDP fallback inject also failed:',
+          cdpErr instanceof Error ? cdpErr.message : String(cdpErr)
+        );
+      }
+    }
   }
 
   isRecording(): boolean {

@@ -368,20 +368,32 @@ export async function startDaemon(_options?: { provider?: string }): Promise<voi
                 action === 'inject_focus_listener' &&
                 manager instanceof BrowserManager
               ) {
-                try {
-                  await manager.injectFocusListener((data) => {
-                    try {
-                      socket.write(JSON.stringify(data) + '\n');
-                    } catch {
-                      // Socket write to disconnected client, non-fatal
+                let injectSuccess = false;
+                for (let attempt = 0; attempt < 3; attempt++) {
+                  try {
+                    await manager.injectFocusListener((data) => {
+                      try {
+                        socket.write(JSON.stringify(data) + '\n');
+                      } catch {
+                        // Socket write to disconnected client, non-fatal
+                      }
+                    });
+                    socket.write(
+                      serializeResponse(successResponse(quickParse.id, { injected: true })) + '\n'
+                    );
+                    injectSuccess = true;
+                    break;
+                  } catch (err) {
+                    const message = err instanceof Error ? err.message : String(err);
+                    if (attempt < 2) {
+                      console.warn(
+                        `[Daemon] injectFocusListener attempt ${attempt + 1} failed: ${message} — retrying in 1s`
+                      );
+                      await new Promise((r) => setTimeout(r, 1000));
+                    } else {
+                      socket.write(serializeResponse(errorResponse(quickParse.id, message)) + '\n');
                     }
-                  });
-                  socket.write(
-                    serializeResponse(successResponse(quickParse.id, { injected: true })) + '\n'
-                  );
-                } catch (err) {
-                  const message = err instanceof Error ? err.message : String(err);
-                  socket.write(serializeResponse(errorResponse(quickParse.id, message)) + '\n');
+                  }
                 }
                 continue;
               }
@@ -582,23 +594,35 @@ export async function startDaemon(_options?: { provider?: string }): Promise<voi
               parseResult.command.action === 'inject_focus_listener' &&
               manager instanceof BrowserManager
             ) {
-              try {
-                await manager.injectFocusListener((data) => {
-                  try {
-                    socket.write(JSON.stringify(data) + '\n');
-                  } catch {
-                    // Socket write to disconnected client, non-fatal
+              let injectSuccess = false;
+              for (let attempt = 0; attempt < 3; attempt++) {
+                try {
+                  await manager.injectFocusListener((data) => {
+                    try {
+                      socket.write(JSON.stringify(data) + '\n');
+                    } catch {
+                      // Socket write to disconnected client, non-fatal
+                    }
+                  });
+                  socket.write(
+                    serializeResponse(successResponse(parseResult.command.id, { injected: true })) +
+                      '\n'
+                  );
+                  injectSuccess = true;
+                  break;
+                } catch (err) {
+                  const message = err instanceof Error ? err.message : String(err);
+                  if (attempt < 2) {
+                    console.warn(
+                      `[Daemon] injectFocusListener (std) attempt ${attempt + 1} failed: ${message} — retrying in 1s`
+                    );
+                    await new Promise((r) => setTimeout(r, 1000));
+                  } else {
+                    socket.write(
+                      serializeResponse(errorResponse(parseResult.command.id, message)) + '\n'
+                    );
                   }
-                });
-                socket.write(
-                  serializeResponse(successResponse(parseResult.command.id, { injected: true })) +
-                    '\n'
-                );
-              } catch (err) {
-                const message = err instanceof Error ? err.message : String(err);
-                socket.write(
-                  serializeResponse(errorResponse(parseResult.command.id, message)) + '\n'
-                );
+                }
               }
               continue;
             }

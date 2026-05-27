@@ -890,8 +890,9 @@ class StreamServerStandalone {
           const msg = JSON.parse(line);
 
           if (msg.id && String(msg.id).startsWith('inject-fl-')) {
-            if (msg.success === false && msg.error && msg.error.includes('Browser not launched')) {
-              logDiag('[CTD] inject_focus_listener failed: ' + msg.error + ' — retrying in 2s');
+            if (msg.success === false) {
+              const errMsg = msg.error || 'unknown error';
+              logDiag('[CTD] inject_focus_listener failed: ' + errMsg + ' — retrying in 2s');
               setTimeout(() => {
                 try {
                   socket.write(
