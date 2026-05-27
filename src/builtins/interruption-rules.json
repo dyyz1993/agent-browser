@@ -1,0 +1,230 @@
+[
+  {
+    "name": "Google reCAPTCHA v2",
+    "domains": ["*"],
+    "selectors": ["iframe[src*='recaptcha/api2/anchor']", "iframe[src*='recaptcha']", ".g-recaptcha", "div#rc-anchor-container"],
+    "type": "captcha",
+    "subType": "recaptcha_v2",
+    "confidence": 0.95
+  },
+  {
+    "name": "Google reCAPTCHA v3",
+    "domains": ["*"],
+    "selectors": ["script[src*='recaptcha/api.js']", ".grecaptcha-badge"],
+    "type": "captcha",
+    "subType": "recaptcha_v3",
+    "confidence": 0.85
+  },
+  {
+    "name": "hCaptcha",
+    "domains": ["*"],
+    "selectors": ["iframe[src*='hcaptcha.com']", "div.h-captcha", "[data-hcaptcha-widget-id]"],
+    "type": "captcha",
+    "subType": "hcaptcha",
+    "confidence": 0.95
+  },
+  {
+    "name": "Cloudflare Turnstile",
+    "domains": ["*"],
+    "selectors": ["iframe[src*='challenges.cloudflare.com/turnstile']", "div.cf-turnstile"],
+    "type": "captcha",
+    "subType": "cloudflare_turnstile",
+    "confidence": 0.93
+  },
+  {
+    "name": "Slide Verification (Generic)",
+    "domains": ["*"],
+    "selectors": ["div.slider-btn", "div.slider-track", "[class*='slide-verify']", "[class*='captcha-slider']"],
+    "type": "captcha",
+    "subType": "slide_verify",
+    "confidence": 0.8
+  },
+  {
+    "name": "Taobao Login",
+    "domains": ["login.taobao.com", "login.tmall.com"],
+    "paths": ["/member/login.jhtml"],
+    "selectors": ["form#J_Form", "div#login-form", "div.login-form"],
+    "type": "login",
+    "subType": "full_page",
+    "confidence": 0.98
+  },
+  {
+    "name": "JD Login",
+    "domains": ["passport.jd.com", "passport.jd.hk"],
+    "paths": ["/new/login.aspx", "/uc/login"],
+    "selectors": ["div.login-form", "form#form-login"],
+    "type": "login",
+    "subType": "full_page",
+    "confidence": 0.97
+  },
+  {
+    "name": "Google Login",
+    "domains": ["accounts.google.com"],
+    "paths": ["/signin", "/login", "/ServiceLogin"],
+    "selectors": ["form[action*='signin']", "div#view_container"],
+    "type": "login",
+    "subType": "full_page",
+    "confidence": 0.97
+  },
+  {
+    "name": "GitHub Login",
+    "domains": ["github.com"],
+    "paths": ["/login", "/session"],
+    "selectors": ["form[action='/session']", "div#login"],
+    "type": "login",
+    "subType": "full_page",
+    "confidence": 0.97
+  },
+  {
+    "name": "WeChat Login QR",
+    "domains": ["open.weixin.qq.com"],
+    "selectors": ["div.qrcode", "iframe[src*='qrconnect']", "div.wx-login"],
+    "type": "login",
+    "subType": "modal",
+    "confidence": 0.92
+  },
+  {
+    "name": "Cookie Consent (Generic)",
+    "domains": ["*"],
+    "selectors": ["div#cookie-banner", "div#cookie-consent", "div.cookie-banner", "div.cookie-consent", "div#onetrust-banner-sdk", "div#CybotCookiebotDialog", "div.cc-banner", "div[id*='cookie']", "div[class*='cookie-banner']", "div[class*='consent-banner']"],
+    "type": "popup",
+    "subType": "cookie_consent",
+    "confidence": 0.75
+  },
+  {
+    "name": "Newsletter Popup (Generic)",
+    "domains": ["*"],
+    "selectors": ["div[class*='newsletter-popup']", "div[class*='subscribe-popup']", "div[class*='email-popup']", "form[class*='newsletter']"],
+    "type": "popup",
+    "subType": "newsletter",
+    "confidence": 0.7
+  },
+  {
+    "name": "Baidu Login",
+    "domains": ["passport.baidu.com"],
+    "paths": ["/v2/?login"],
+    "selectors": ["div#passport-login-pop", "div.login-form", "form[action*='login']"],
+    "type": "login",
+    "subType": "full_page",
+    "confidence": 0.97
+  },
+  {
+    "name": "Bilibili Login",
+    "domains": ["passport.bilibili.com"],
+    "selectors": ["div.login-scan-wp", "div.login-pwd-wp", "form.login-form"],
+    "type": "login",
+    "subType": "full_page",
+    "confidence": 0.96
+  },
+  {
+    "name": "Douyin Login",
+    "domains": ["sso.douyin.com"],
+    "selectors": ["div.login-panel", "form#login-form"],
+    "type": "login",
+    "subType": "full_page",
+    "confidence": 0.96
+  },
+  {
+    "name": "Cloudflare Challenge",
+    "domains": ["*"],
+    "selectors": ["div#challenge-running", "div#challenge-success", "div.cf-browser-verification"],
+    "type": "captcha",
+    "subType": "cloudflare_turnstile",
+    "confidence": 0.92
+  },
+  {
+    "name": "JD Slide Captcha",
+    "domains": ["www.jd.com", "item.jd.com", "search.jd.com", "cart.jd.com"],
+    "selectors": ["div.JDJRV-bigimg", "div.JDJRV-slide", "div.slider-btn"],
+    "type": "captcha",
+    "subType": "slide_verify",
+    "confidence": 0.9
+  },
+  {
+    "name": "Taobao Slide Captcha",
+    "domains": ["www.taobao.com", "s.taobao.com", "item.taobao.com", "login.taobao.com"],
+    "selectors": ["div#nc_1__scale_text", "span.btn_slide", "div#J_MIDDLESAFE_FRAME"],
+    "type": "captcha",
+    "subType": "slide_verify",
+    "confidence": 0.9
+  },
+  {
+    "name": "Age Verification (Generic)",
+    "domains": ["*"],
+    "selectors": ["div[class*='age-verify']", "div[class*='age-gate']", "div[id*='age-verify']", "div[id*='agegate']"],
+    "type": "age_verify",
+    "subType": "",
+    "confidence": 0.8
+  },
+  {
+    "name": "SMS Verification (Generic)",
+    "domains": ["*"],
+    "selectors": ["input[autocomplete='one-time-code']", "input[type='text'][name*='otp']", "input[type='number'][name*='otp']", "input[inputmode='numeric'][pattern*='[0-9]'][maxlength='6']"],
+    "type": "captcha",
+    "subType": "sms_verify",
+    "confidence": 0.70
+  },
+  {
+    "name": "Amazon Login",
+    "domains": ["www.amazon.com", "amazon.com", "smile.amazon.com"],
+    "paths": ["/ap/signin", "/gp/sign-in", "/ap/register"],
+    "selectors": ["form[name='signIn']", "#ap_email", "#ap_password", "input[name='email']", "input[name='password']"],
+    "type": "login",
+    "subType": "full_page",
+    "confidence": 0.92
+  },
+  {
+    "name": "Facebook Login",
+    "domains": ["www.facebook.com", "facebook.com", "m.facebook.com"],
+    "paths": ["/login", "/login.php"],
+    "selectors": ["form[action*='login']", "#email", "#pass", "input[name='email']", "input[name='pass']"],
+    "type": "login",
+    "subType": "full_page",
+    "confidence": 0.92
+  },
+  {
+    "name": "Twitter/X Login",
+    "domains": ["x.com", "twitter.com", "mobile.twitter.com"],
+    "paths": ["/login", "/i/flow/login"],
+    "selectors": ["form[action*='sessions']", "input[name='text']", "input[name='password']", "input[autocomplete='username']", "[data-testid='LoginForm_Login_Button']"],
+    "type": "login",
+    "subType": "full_page",
+    "confidence": 0.90
+  },
+  {
+    "name": "LinkedIn Login",
+    "domains": ["www.linkedin.com", "linkedin.com"],
+    "paths": ["/login", "/checkpoint/lg/login", "/uas/login"],
+    "selectors": ["#username", "#password", "form[class*='login']", "input[name='session_key']", "input[name='session_password']"],
+    "type": "login",
+    "subType": "full_page",
+    "confidence": 0.92
+  },
+  {
+    "name": "Microsoft Login",
+    "domains": ["login.microsoftonline.com", "login.live.com", "aad.portal.azure.com"],
+    "paths": ["/", "/common/oauth2/authorize"],
+    "selectors": ["input[name='loginfmt']", "input[type='password'][name='passwd']", "#idSIButton9", "div[class*='sign-in-box']", "form[action*='login']"],
+    "type": "login",
+    "subType": "full_page",
+    "confidence": 0.93
+  },
+  {
+    "name": "Apple Login",
+    "domains": ["appleid.apple.com", "idmsa.apple.com"],
+    "paths": ["/auth/authorize", "/account", "/sign-in"],
+    "selectors": ["input[name='accountName']", "input[name='password']", "form[action*='appleid']", "#sign-in"],
+    "type": "login",
+    "subType": "full_page",
+    "confidence": 0.91
+  },
+  {
+    "name": "Instagram Login",
+    "domains": ["www.instagram.com", "instagram.com"],
+    "paths": ["/accounts/login/", "/accounts/login"],
+    "selectors": ["input[name='username']", "input[name='password']", "form[id='loginForm']", "button[type='submit'][disabled]"],
+    "type": "login",
+    "subType": "full_page",
+    "confidence": 0.91
+  }
+]

@@ -6,3 +6,4 @@ export * from './interact.js';
 export * from './browser.js';
 export * from './responses.js';
 export * from './utils.js';
+export * from './interruption.js';

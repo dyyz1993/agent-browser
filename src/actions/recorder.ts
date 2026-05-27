@@ -1,4 +1,5 @@
 import { existsSync, writeFileSync, readdirSync, statSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import type { BrowserManager } from '../browser/index.js';
 import type {
@@ -9,7 +10,6 @@ import type {
   RecorderReplayCommand,
 } from '../types.js';
 import { successResponse, errorResponse } from '../protocol.js';
-import { getAppDir } from '../daemon.js';
 
 export async function handleRecorderStart(
   command: RecorderStartCommand,
@@ -26,7 +26,7 @@ export async function handleRecorderStop(
   const result = await browser.stopRecorder();
 
   if (result.wasRecording === false) {
-    const recorderDir = path.join(getAppDir(), 'tmp', 'recordings');
+    const recorderDir = path.join(os.tmpdir(), 'agent-browser', 'recordings');
     if (existsSync(recorderDir)) {
       const files = readdirSync(recorderDir)
         .filter((f) => f.endsWith('.yaml') || f.endsWith('.yml'))
@@ -59,7 +59,7 @@ export async function handleRecorderStop(
   if (command.output) {
     outputPath = path.resolve(command.output);
   } else {
-    const recorderDir = path.join(getAppDir(), 'tmp', 'recordings');
+    const recorderDir = path.join(os.tmpdir(), 'agent-browser', 'recordings');
     if (!existsSync(recorderDir)) {
       const { mkdirSync } = await import('node:fs');
       mkdirSync(recorderDir, { recursive: true });
@@ -96,7 +96,7 @@ async function handleRecorderReplay(
 
   let yamlPath = command.path;
   if (!yamlPath) {
-    const recorderDir = pathModule.join(getAppDir(), 'tmp', 'recordings');
+    const recorderDir = pathModule.join(os.tmpdir(), 'agent-browser', 'recordings');
     if (!fs.existsSync(recorderDir)) {
       return errorResponse(command.id, 'No recordings found. Please record first.');
     }

@@ -1,4 +1,6 @@
 import { handlePluginCommand } from './plugins.js';
+import { scanForInterruptions, formatInterruptionTip } from '../browser/interruption-detector.js';
+import { handleCollectStart, handleCollectStop } from './collector.js';
 
 import type { BrowserManager } from '../browser/index.js';
 import type {
@@ -344,6 +346,8 @@ const actionHandlers = new Map<string, ActionHandler>([
   ['selector-for', (cmd, br) => handleSelectorFor(cmd as SelectorForCommand, br)],
   ['selectors-of', (cmd, br) => handleSelectorsOf(cmd as SelectorsOfCommand, br)],
   ['validate', (cmd, br) => handleValidate(cmd as ValidateCommand, br)],
+  ['collect_start', handleCollectStart],
+  ['collect_stop', handleCollectStop],
 ] as readonly [string, ActionHandler][]);
 
 export async function executeCommand(
@@ -361,7 +365,7 @@ export async function executeCommand(
     const handler = actionHandlers.get(cmd.action);
     if (handler) {
       const response = await handler(cmd, browser);
-      if (response.success) {
+      if (response.success && cmd.action !== 'close') {
         const tips: string[] = [];
         const selectors: string[] = [];
         if ('selector' in cmd && typeof cmd.selector === 'string') {
@@ -388,6 +392,32 @@ export async function executeCommand(
             : tips.length === 1
               ? tips[0]
               : tips;
+        }
+        const NAVIGATION_ACTIONS = new Set([
+          'navigate',
+          'click',
+          'dblclick',
+          'tap',
+          'back',
+          'forward',
+          'reload',
+          'submit',
+          'frame',
+          'mainframe',
+        ]);
+        if (!process.env.AGENT_BROWSER_NO_INTERRUPT && NAVIGATION_ACTIONS.has(cmd.action)) {
+          const interruptions = await scanForInterruptions(browser.getPage());
+          if (interruptions.length > 0) {
+            const resp = response as SuccessResponse;
+            const intTips = interruptions.map(formatInterruptionTip);
+            resp.tips = resp.tips
+              ? Array.isArray(resp.tips)
+                ? [...resp.tips, ...intTips]
+                : [resp.tips as string, ...intTips]
+              : intTips.length === 1
+                ? intTips[0]
+                : intTips;
+          }
         }
       }
       return response;

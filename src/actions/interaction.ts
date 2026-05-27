@@ -1,8 +1,9 @@
 import { mkdirSync, existsSync, readFileSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import type { Page } from 'playwright-core';
 import type { BrowserManager } from '../browser/index.js';
-import { getInstanceId, getAppDir } from '../daemon.js';
+import { getInstanceId } from '../daemon.js';
 
 import { performDiff, performPopupDetection, detectPopupsFromDiff } from '../diff.js';
 import { detectMainContent, generateContentTips } from '../content-detection.js';
@@ -437,7 +438,7 @@ export async function handleScreenshot(
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const random = Math.random().toString(36).substring(2, 8);
       const filename = `screenshot-${timestamp}-${random}.${ext}`;
-      const screenshotDir = path.join(getAppDir(), 'tmp', 'screenshots');
+      const screenshotDir = path.join(os.tmpdir(), 'agent-browser', 'screenshots');
       mkdirSync(screenshotDir, { recursive: true });
       savePath = path.join(screenshotDir, filename);
     }

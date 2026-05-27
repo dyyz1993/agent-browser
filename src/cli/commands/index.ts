@@ -143,6 +143,14 @@ export function parseCommand(args: string[], flags: Flags): Command {
     case 'plugin':
       return handlePlugin(rest, id);
 
+    case 'collect': {
+      const subcmd = rest[0];
+      if (!subcmd) error('Missing subcommand', 'agent-browser collect <start|stop>');
+      if (subcmd === 'start') return { id, action: 'collect_start' };
+      if (subcmd === 'stop') return { id, action: 'collect_stop' };
+      error('Unknown collect subcommand: ' + subcmd, 'agent-browser collect <start|stop>');
+    }
+
     default:
       break;
   }
@@ -212,6 +220,7 @@ export function parseCommand(args: string[], flags: Flags): Command {
     'flow',
     'plugin',
     'interact',
+    'collect',
   ];
   const subCommand = rest[0] || '';
   const pluginArgs: string[] = [];

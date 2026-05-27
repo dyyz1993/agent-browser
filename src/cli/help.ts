@@ -1126,6 +1126,43 @@ Examples:
   agent-browser flow export recording.yaml --format python --headless
   agent-browser flow export recording.yaml --format playwright --base-url https://staging.example.com
 `,
+  collect: `
+agent-browser collect - Start/stop collection mode for interruption detection
+
+Usage: agent-browser collect <start|stop>
+
+Start or stop the collector overlay that lets you capture page interruption
+patterns (captcha, login, popup, etc.) for building custom detection rules.
+
+Subcommands:
+  start    Activate the collection overlay on the current page
+           Hold Ctrl+Shift+P to highlight elements, release to select type
+  stop     Stop collection and save session data to ~/.agent-browser/collections/
+
+Examples:
+  agent-browser collect start
+  agent-browser collect stop
+`,
+  'process-collections': `
+agent-browser process-collections - Process collected interruption data into rules
+
+Usage: agent-browser process-collections [options]
+
+Reads all collection session files from ~/.agent-browser/collections/,
+extracts patterns (domains, selectors, iframe patterns), and generates
+detection rules.
+
+Options:
+  --output <path>     Write rules JSON to file
+  --dir <path>        Custom collections directory
+  --json              Output as JSON
+
+Examples:
+  agent-browser process-collections
+  agent-browser process-collections --json
+  agent-browser process-collections --output my-rules.json
+  agent-browser process-collections --dir /path/to/collections
+`,
   plugin: `
 agent-browser plugin - Manage plugins
 

@@ -1194,6 +1194,14 @@ const windowNewSchema = baseCommandSchema.extend({
     .optional(),
 });
 
+const collectStartSchema = baseCommandSchema.extend({
+  action: z.literal('collect_start'),
+});
+
+const collectStopSchema = baseCommandSchema.extend({
+  action: z.literal('collect_stop'),
+});
+
 // Union schema for all commands
 const commandSchema = z.discriminatedUnion('action', [
   pluginInstallSchema,
@@ -1351,6 +1359,8 @@ const commandSchema = z.discriminatedUnion('action', [
   interactSchema,
   crawlSchema,
   mapSchema,
+  collectStartSchema,
+  collectStopSchema,
 ]);
 
 // Parse result type

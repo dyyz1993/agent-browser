@@ -1453,106 +1453,90 @@ export class BrowserManager {
     await page.keyboard.press(key);
   }
 
+  private focusListenerAttached = false;
+
   async injectFocusListener(
     onEvent: (data: { type: string; [key: string]: unknown }) => void
   ): Promise<void> {
     const page = this.getPage();
     if (!page) return;
 
+    if (this.focusListenerAttached) return;
+    this.focusListenerAttached = true;
+
+    page.on('console', (msg) => {
+      if (msg.type() !== 'log') return;
+      const text = msg.text();
+      if (typeof text === 'string' && text.startsWith('__AB_INPUT__')) {
+        try {
+          const data = JSON.parse(text.slice('__AB_INPUT__'.length));
+          onEvent(data);
+        } catch {}
+      }
+    });
+
     try {
       await page.exposeFunction('__agentBrowserInputEvent', (data: unknown) => {
         onEvent(data as { type: string; [key: string]: unknown });
       });
-    } catch {
-      // Already registered from previous injection - safe to continue
-    }
+    } catch {}
 
-    const injectScript = `
-      (function() {
-        if (window.__agentBrowserListenerInjected) return;
-        window.__agentBrowserListenerInjected = true;
-
-        document.addEventListener('focus', function(e) {
-          var el = e.target;
-          if (!el) return;
-          var tag = el.tagName;
-          if (tag !== 'INPUT' && tag !== 'TEXTAREA' && !el.isContentEditable) return;
-          try {
-            window.__agentBrowserInputEvent({
-              type: 'input_focused',
-              tag: tag,
-              inputType: el.type || '',
-              value: typeof el.value === 'string' ? el.value : '',
-              placeholder: el.placeholder || '',
-              id: el.id || '',
-              selector: (function() {
-                if (el.id) return '#' + el.id;
-                if (el.name && el.name) return '[name="' + el.name + '"]';
-                return el.tagName.toLowerCase();
-              })()
-            });
-          } catch(ex) {}
-        }, true);
-
-        document.addEventListener('input', function(e) {
-          var el = e.target;
-          if (!el) return;
-          var tag = el.tagName;
-          if (tag !== 'INPUT' && tag !== 'TEXTAREA' && !el.isContentEditable) return;
-          try {
-            window.__agentBrowserInputEvent({
-              type: 'input_value',
-              text: typeof el.value === 'string' ? el.value : ''
-            });
-          } catch(ex) {}
-        }, true);
-
-        document.addEventListener('blur', function() {
-          try {
-            window.__agentBrowserInputEvent({ type: 'input_blur' });
-          } catch(ex) {}
-        }, true);
-      })();
-    `;
-
+    const injectScript = this.focusInjectScript;
     try {
       await page.addInitScript(injectScript);
-    } catch (initErr) {
-      console.warn(
-        '[BrowserManager] addInitScript failed:',
-        initErr instanceof Error ? initErr.message : String(initErr)
-      );
-    }
+    } catch {}
     try {
       await page.evaluate(injectScript);
-    } catch (evalErr) {
-      console.warn(
-        '[BrowserManager] page.evaluate injectScript failed:',
-        evalErr instanceof Error ? evalErr.message : String(evalErr)
-      );
-      // Fallback to CDP-based injection
-      try {
-        const cdp = await this.getCDPSession().catch(() => null);
-        if (cdp) {
-          await cdp
-            .send('Page.addScriptToEvaluateOnNewDocument', { source: injectScript })
-            .catch(() => {});
-          await cdp
-            .send('Runtime.evaluate', {
-              expression: injectScript,
-              awaitPromise: false,
-            })
-            .catch(() => {});
-          console.log('[BrowserManager] injectFocusListener succeeded via CDP fallback');
-        }
-      } catch (cdpErr) {
-        console.warn(
-          '[BrowserManager] CDP fallback inject also failed:',
-          cdpErr instanceof Error ? cdpErr.message : String(cdpErr)
-        );
-      }
-    }
+    } catch {}
+
+    try {
+      const cdp = await this.getCDPSession();
+      await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: injectScript });
+    } catch {}
   }
+
+  private focusInjectScript = `
+    (function() {
+      if (window.__agentBrowserListenerInjected) return;
+      window.__agentBrowserListenerInjected = true;
+      var _abSend = function(data) {
+        try { console.log('__AB_INPUT__' + JSON.stringify(data)); } catch(ex) {}
+        try { if (typeof window.__agentBrowserInputEvent === 'function') window.__agentBrowserInputEvent(data); } catch(ex) {}
+      };
+      document.addEventListener('focus', function(e) {
+        var el = e.target;
+        if (!el) return;
+        var tag = el.tagName;
+        if (tag !== 'INPUT' && tag !== 'TEXTAREA' && !el.isContentEditable) return;
+        _abSend({
+          type: 'input_focused',
+          tag: tag,
+          inputType: el.type || '',
+          value: typeof el.value === 'string' ? el.value : '',
+          placeholder: el.placeholder || '',
+          id: el.id || '',
+          selector: (function() {
+            if (el.id) return '#' + el.id;
+            if (el.name && el.name) return '[name="' + el.name + '"]';
+            return el.tagName.toLowerCase();
+          })()
+        });
+      }, true);
+      document.addEventListener('input', function(e) {
+        var el = e.target;
+        if (!el) return;
+        var tag = el.tagName;
+        if (tag !== 'INPUT' && tag !== 'TEXTAREA' && !el.isContentEditable) return;
+        _abSend({
+          type: 'input_value',
+          text: typeof el.value === 'string' ? el.value : ''
+        });
+      }, true);
+      document.addEventListener('blur', function() {
+        _abSend({ type: 'input_blur' });
+      }, true);
+    })();
+  `;
 
   isRecording(): boolean {
     return this.recording.isRecording();

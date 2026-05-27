@@ -14,6 +14,7 @@ import {
 } from './cli/connection.js';
 import { parseCommand, CliError } from './cli/commands.js';
 import { printHelp, printCommandHelp, printVersion } from './cli/help.js';
+import { handleProcessCollections } from './cli/commands/process-collections.js';
 import {
   printResponse,
   printSession,
@@ -342,6 +343,16 @@ async function main(): Promise<void> {
           }
         }
       }
+    } catch (e) {
+      printError(e instanceof Error ? e.message : String(e), flags.json);
+      process.exit(1);
+    }
+    return;
+  }
+
+  if (args[0] === 'process-collections') {
+    try {
+      handleProcessCollections(args.slice(1), flags);
     } catch (e) {
       printError(e instanceof Error ? e.message : String(e), flags.json);
       process.exit(1);

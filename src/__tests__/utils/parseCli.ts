@@ -1377,6 +1377,14 @@ export function parseCliArgs(args: string[]): Command {
       return { id, action: 'config', json };
     }
 
+    case 'collect': {
+      const subcmd = rest[0];
+      if (!subcmd) error('Missing subcommand', 'agent-browser collect <start|stop>');
+      if (subcmd === 'start') return { id, action: 'collect_start' };
+      if (subcmd === 'stop') return { id, action: 'collect_stop' };
+      error('Unknown collect command', 'agent-browser collect <start|stop>');
+    }
+
     default: {
       const allCommands = [
         'open',

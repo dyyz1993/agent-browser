@@ -907,3 +907,11 @@ export interface ValidateCommand extends BaseCommand {
   action: 'validate';
   target: string;
 }
+
+export interface CollectStartCommand extends BaseCommand {
+  action: 'collect_start';
+}
+
+export interface CollectStopCommand extends BaseCommand {
+  action: 'collect_stop';
+}

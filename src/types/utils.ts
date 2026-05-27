@@ -150,6 +150,7 @@ import type {
   PluginBrowseCommand,
   PluginPublishCommand,
 } from './plugins.js';
+import type { CollectStartCommand, CollectStopCommand } from './commands.js';
 import type { ScrapeCommand, SearchCommand, CrawlCommand, MapCommand } from './crawl.js';
 import type { InteractCommand } from './interact.js';
 
@@ -306,7 +307,9 @@ export type Command =
   | SearchCommand
   | InteractCommand
   | CrawlCommand
-  | MapCommand;
+  | MapCommand
+  | CollectStartCommand
+  | CollectStopCommand;
 
 export interface LooseCommand {
   id: string;
