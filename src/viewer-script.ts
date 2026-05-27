@@ -518,7 +518,9 @@ export function buildViewerScript(): string {
 
           case 'input_focused':
             if (inputMode) return;
-            if (DeviceMode.current !== 'mobile') return;
+            var hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+            console.log('[Viewer] input_focused received, hasTouch=' + hasTouch + ', deviceMode=' + DeviceMode.current);
+            if (!hasTouch) return;
             var sel = msg.selector || (msg.id ? '#' + msg.id : '');
             enterInputMode(msg.value || '', msg.inputType || msg.tag || '', msg.placeholder || '', sel);
             break;
@@ -653,14 +655,34 @@ export function buildViewerScript(): string {
 
     let screenTouchStartPos = null;
     let screenTouchMoved = false;
+    let screenDragMode = false;
+    let screenLongPressTimer = null;
+
+    function cancelScreenLongPress() {
+      if (screenLongPressTimer) {
+        clearTimeout(screenLongPressTimer);
+        screenLongPressTimer = null;
+      }
+    }
+
+    function enterScreenDragMode() {
+      screenDragMode = true;
+      cancelScreenLongPress();
+      updateScreenRect();
+      cursor.classList.add('cursor-drag');
+      var pagePos = screenToPage(cursorPos.x, cursorPos.y);
+      safeSend(JSON.stringify({ type: 'input_mouse', eventType: 'mousePressed', x: pagePos.x, y: pagePos.y, button: 'left', clickCount: 1, modifiers: 0 }));
+    }
 
     screen.addEventListener('touchstart', (e) => {
-      if (DeviceMode.current !== 'mobile') return;
+      if (DeviceMode.current !== 'mobile' && DeviceMode.current !== 'desktop') return;
       e.preventDefault();
       if (e.touches.length === 1) {
         const t = e.touches[0];
         screenTouchStartPos = { x: t.clientX, y: t.clientY };
         screenTouchMoved = false;
+        screenDragMode = false;
+        cancelScreenLongPress();
         updateScreenRect();
         if (!cursorInitialized && screenRect && screenRect.width > 0) {
           cursorPos = { x: screenRect.left + screenRect.width / 2, y: screenRect.top + screenRect.height / 2 };
@@ -668,7 +690,20 @@ export function buildViewerScript(): string {
           cursor.style.display = 'block';
           cursorInitialized = true;
         }
+        screenLongPressTimer = setTimeout(function() {
+          if (!screenTouchMoved && screenTouchStartPos) {
+            enterScreenDragMode();
+          }
+        }, 400);
       } else if (e.touches.length === 2) {
+        cancelScreenLongPress();
+        if (screenDragMode) {
+          screenDragMode = false;
+          cursor.classList.remove('cursor-drag');
+          updateScreenRect();
+          var pagePos = screenToPage(cursorPos.x, cursorPos.y);
+          safeSend(JSON.stringify({ type: 'input_mouse', eventType: 'mouseReleased', x: pagePos.x, y: pagePos.y, button: 'left', clickCount: 1, modifiers: 0 }));
+        }
         screenTouchStartPos = null;
         const t0 = e.touches[0];
         const t1 = e.touches[1];
@@ -680,7 +715,7 @@ export function buildViewerScript(): string {
     }, { passive: false });
 
     screen.addEventListener('touchmove', (e) => {
-      if (DeviceMode.current !== 'mobile') return;
+      if (DeviceMode.current !== 'mobile' && DeviceMode.current !== 'desktop') return;
       e.preventDefault();
 
       if (e.touches.length === 2 && twoFingerStartPos) {
@@ -712,36 +747,57 @@ export function buildViewerScript(): string {
         const dy = t.clientY - screenTouchStartPos.y;
         if (!screenTouchMoved && Math.sqrt(dx * dx + dy * dy) > 3) {
           screenTouchMoved = true;
+          cancelScreenLongPress();
         }
         if (screenTouchMoved) {
           updateScreenRect();
-          cursorPos.x = clampCursor(cursorPos.x + dx, screenRect.left, screenRect.right);
-          cursorPos.y = clampCursor(cursorPos.y + dy, screenRect.top, screenRect.bottom);
+          var accel = computeAcceleration(dx, dy);
+          cursorPos.x = clampCursor(cursorPos.x + dx * accel, screenRect.left, screenRect.right);
+          cursorPos.y = clampCursor(cursorPos.y + dy * accel, screenRect.top, screenRect.bottom);
           updateCursor();
           const pagePos = screenToPage(cursorPos.x, cursorPos.y);
-          safeSend(JSON.stringify({
-            type: 'input_mouse',
-            eventType: 'mouseMoved',
-            x: pagePos.x,
-            y: pagePos.y,
-            button: 'none',
-            clickCount: 1,
-            modifiers: 0
-          }));
+          if (screenDragMode) {
+            safeSend(JSON.stringify({
+              type: 'input_mouse',
+              eventType: 'mouseMoved',
+              x: pagePos.x,
+              y: pagePos.y,
+              button: 'left',
+              clickCount: 1,
+              modifiers: 0
+            }));
+          } else {
+            safeSend(JSON.stringify({
+              type: 'input_mouse',
+              eventType: 'mouseMoved',
+              x: pagePos.x,
+              y: pagePos.y,
+              button: 'none',
+              clickCount: 1,
+              modifiers: 0
+            }));
+          }
           screenTouchStartPos = { x: t.clientX, y: t.clientY };
         }
       }
     }, { passive: false });
 
     screen.addEventListener('touchend', (e) => {
-      if (DeviceMode.current !== 'mobile') return;
+      if (DeviceMode.current !== 'mobile' && DeviceMode.current !== 'desktop') return;
       e.preventDefault();
+      cancelScreenLongPress();
       if (e.touches.length === 0) {
-        if (!screenTouchMoved && screenTouchStartPos) {
+        if (screenDragMode) {
           updateScreenRect();
-          const pagePos = screenToPage(cursorPos.x, cursorPos.y);
-          safeSend(JSON.stringify({ type: 'input_mouse', eventType: 'mousePressed', x: pagePos.x, y: pagePos.y, button: 'left', clickCount: 1, modifiers: 0 }));
+          var pagePos = screenToPage(cursorPos.x, cursorPos.y);
           safeSend(JSON.stringify({ type: 'input_mouse', eventType: 'mouseReleased', x: pagePos.x, y: pagePos.y, button: 'left', clickCount: 1, modifiers: 0 }));
+          screenDragMode = false;
+          cursor.classList.remove('cursor-drag');
+        } else if (!screenTouchMoved) {
+          updateScreenRect();
+          var tapPos = screenToPage(cursorPos.x, cursorPos.y);
+          safeSend(JSON.stringify({ type: 'input_mouse', eventType: 'mousePressed', x: tapPos.x, y: tapPos.y, button: 'left', clickCount: 1, modifiers: 0 }));
+          safeSend(JSON.stringify({ type: 'input_mouse', eventType: 'mouseReleased', x: tapPos.x, y: tapPos.y, button: 'left', clickCount: 1, modifiers: 0 }));
         }
         screenTouchStartPos = null;
         screenTouchMoved = false;
