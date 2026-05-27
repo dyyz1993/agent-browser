@@ -82,18 +82,32 @@ export function getViewerHtml(): string {
       flex-shrink: 0;
     }
     .record-btn {
-      background: #0f3460;
-      border: 1px solid #1a4a7a;
-      color: #eee;
-      padding: 6px 12px;
+      background: #1a4a5e;
+      color: #fff;
+      border: none;
+      padding: 5px 10px;
       border-radius: 4px;
       cursor: pointer;
+      font-size: 12px;
       display: flex;
       align-items: center;
-      gap: 6px;
-      font-size: 12px;
+      gap: 4px;
       flex-shrink: 0;
     }
+    .mode-btn {
+      background: #2a2a4a;
+      color: #4ecca3;
+      border: 1px solid #4ecca3;
+      padding: 5px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    .mode-btn:hover { background: #1a4a5e; }
     .record-btn:hover { background: #1a4a7a; }
     .record-dot {
       width: 8px;
@@ -373,9 +387,12 @@ export function getViewerHtml(): string {
       .quality-badge { font-size: 10px; padding: 3px 6px; }
       .record-btn { padding: 4px 8px; font-size: 11px; min-height: 44px; }
       .record-btn span { display: none; }
+      .mode-btn { padding: 4px 8px; font-size: 11px; min-height: 44px; }
+      .mode-btn span { display: none; }
     }
     @media (hover: none) {
       .record-btn { min-height: 44px; }
+      .mode-btn { min-height: 44px; }
     }
   </style>
 </head>
@@ -394,6 +411,9 @@ export function getViewerHtml(): string {
     </div>
     <input type="text" class="url-display" id="urlDisplay" readonly placeholder="No page loaded">
     <div class="quality-badge" id="qualityBadge">--</div>
+    <button class="mode-btn" id="modeBtn" title="Switch interaction mode">
+      <span id="modeText">Desktop</span>
+    </button>
     <button class="record-btn" id="recordBtn" title="Toggle Recording">
       <div class="record-dot"></div>
       <span id="recordText">Record</span>

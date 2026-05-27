@@ -242,6 +242,31 @@ export function buildViewerScript(): string {
       }
     };
 
+    const modeBtn = document.getElementById('modeBtn');
+    const modeText = document.getElementById('modeText');
+
+    function updateModeButton() {
+      if (!modeText) return;
+      var mode = DeviceMode.current;
+      modeText.textContent = mode === 'desktop' ? '🖱️ Desktop' : '📱 Mobile';
+      if (modeBtn) {
+        modeBtn.title = 'Switch to ' + (mode === 'desktop' ? 'Mobile' : 'Desktop') + ' mode';
+      }
+    }
+
+    if (modeBtn) {
+      modeBtn.addEventListener('click', function() {
+        var newMode = DeviceMode.current === 'desktop' ? 'mobile' : 'desktop';
+        DeviceMode.setManual(newMode);
+      });
+    }
+
+    DeviceMode.onModeChange(function(mode) {
+      updateModeButton();
+    });
+
+    updateModeButton();
+
     var hiddenInput = null;
     let cursorInitialized = false;
 
@@ -321,7 +346,8 @@ export function buildViewerScript(): string {
       attach: function() {
         if (touchpad) { touchpad.style.display = 'flex'; touchpad.style.position = 'relative'; touchpad.style.background = 'linear-gradient(180deg, #1a1a2e 0%, #16213e 100%)'; touchpad.style.borderTop = '2px solid #4ecca3'; touchpad.style.justifyContent = 'center'; touchpad.style.zIndex = '10'; }
         setupToolbar();
-        if (!cursorInitialized) { cursorInitialized = true; setTimeout(initCursor, 50); }
+        cursorInitialized = false;
+        setTimeout(initCursor, 100);
       },
       detach: function() {
         var ip = document.getElementById('input-panel');
@@ -527,18 +553,9 @@ export function buildViewerScript(): string {
         connecting.style.display = 'none';
         screen.style.display = 'block';
         fitImageToContainer();
-        if (DeviceMode.current === 'mobile') {
-          if (!cursorInitialized) {
-            cursorInitialized = true;
-            setTimeout(initCursor, 50);
-          } else {
-            updateScreenRect();
-            if (cursorPos && screenRect && screenRect.width > 0) {
-              cursorPos.x = clampCursor(cursorPos.x, screenRect.left, screenRect.right);
-              cursorPos.y = clampCursor(cursorPos.y, screenRect.top, screenRect.bottom);
-              updateCursor();
-            }
-          }
+        if (!cursorInitialized && DeviceMode.current === 'mobile') {
+          cursorInitialized = true;
+          setTimeout(initCursor, 50);
         }
       };
 
@@ -572,14 +589,6 @@ export function buildViewerScript(): string {
       screen.style.width = Math.round(dw) + 'px';
       screen.style.height = Math.round(dh) + 'px';
 
-      if (DeviceMode.current === 'mobile') {
-        updateScreenRect();
-        if (cursorPos) {
-          cursorPos.x = clampCursor(cursorPos.x, screenRect.left, screenRect.right);
-          cursorPos.y = clampCursor(cursorPos.y, screenRect.top, screenRect.bottom);
-          updateCursor();
-        }
-      }
     }
     
     function safeSend(data) {
@@ -641,7 +650,105 @@ export function buildViewerScript(): string {
     screen.addEventListener('click', () => {
       if (DeviceMode.current === 'desktop') focusHiddenInput();
     });
-    
+
+    let screenTouchStartPos = null;
+    let screenTouchMoved = false;
+
+    screen.addEventListener('touchstart', (e) => {
+      if (DeviceMode.current !== 'mobile') return;
+      e.preventDefault();
+      if (e.touches.length === 1) {
+        const t = e.touches[0];
+        screenTouchStartPos = { x: t.clientX, y: t.clientY };
+        screenTouchMoved = false;
+        updateScreenRect();
+        if (!cursorInitialized && screenRect && screenRect.width > 0) {
+          cursorPos = { x: screenRect.left + screenRect.width / 2, y: screenRect.top + screenRect.height / 2 };
+          updateCursor();
+          cursor.style.display = 'block';
+          cursorInitialized = true;
+        }
+      } else if (e.touches.length === 2) {
+        screenTouchStartPos = null;
+        const t0 = e.touches[0];
+        const t1 = e.touches[1];
+        twoFingerStartPos = {
+          lastMidX: (t0.clientX + t1.clientX) / 2,
+          lastMidY: (t0.clientY + t1.clientY) / 2,
+        };
+      }
+    }, { passive: false });
+
+    screen.addEventListener('touchmove', (e) => {
+      if (DeviceMode.current !== 'mobile') return;
+      e.preventDefault();
+
+      if (e.touches.length === 2 && twoFingerStartPos) {
+        const t0 = e.touches[0];
+        const t1 = e.touches[1];
+        const midX = (t0.clientX + t1.clientX) / 2;
+        const midY = (t0.clientY + t1.clientY) / 2;
+        const rawDX = midX - twoFingerStartPos.lastMidX;
+        const rawDY = midY - twoFingerStartPos.lastMidY;
+        twoFingerStartPos.lastMidX = midX;
+        twoFingerStartPos.lastMidY = midY;
+        updateScreenRect();
+        const pagePos = screenToPage(cursorPos.x, cursorPos.y);
+        safeSend(JSON.stringify({
+          type: 'input_mouse',
+          eventType: 'mouseWheel',
+          x: pagePos.x,
+          y: pagePos.y,
+          deltaX: rawDX * 1.5,
+          deltaY: rawDY * 1.5,
+          modifiers: 0
+        }));
+        return;
+      }
+
+      if (e.touches.length === 1 && screenTouchStartPos) {
+        const t = e.touches[0];
+        const dx = t.clientX - screenTouchStartPos.x;
+        const dy = t.clientY - screenTouchStartPos.y;
+        if (!screenTouchMoved && Math.sqrt(dx * dx + dy * dy) > 3) {
+          screenTouchMoved = true;
+        }
+        if (screenTouchMoved) {
+          updateScreenRect();
+          cursorPos.x = clampCursor(cursorPos.x + dx, screenRect.left, screenRect.right);
+          cursorPos.y = clampCursor(cursorPos.y + dy, screenRect.top, screenRect.bottom);
+          updateCursor();
+          const pagePos = screenToPage(cursorPos.x, cursorPos.y);
+          safeSend(JSON.stringify({
+            type: 'input_mouse',
+            eventType: 'mouseMoved',
+            x: pagePos.x,
+            y: pagePos.y,
+            button: 'none',
+            clickCount: 1,
+            modifiers: 0
+          }));
+          screenTouchStartPos = { x: t.clientX, y: t.clientY };
+        }
+      }
+    }, { passive: false });
+
+    screen.addEventListener('touchend', (e) => {
+      if (DeviceMode.current !== 'mobile') return;
+      e.preventDefault();
+      if (e.touches.length === 0) {
+        if (!screenTouchMoved && screenTouchStartPos) {
+          updateScreenRect();
+          const pagePos = screenToPage(cursorPos.x, cursorPos.y);
+          safeSend(JSON.stringify({ type: 'input_mouse', eventType: 'mousePressed', x: pagePos.x, y: pagePos.y, button: 'left', clickCount: 1, modifiers: 0 }));
+          safeSend(JSON.stringify({ type: 'input_mouse', eventType: 'mouseReleased', x: pagePos.x, y: pagePos.y, button: 'left', clickCount: 1, modifiers: 0 }));
+        }
+        screenTouchStartPos = null;
+        screenTouchMoved = false;
+        twoFingerStartPos = null;
+      }
+    }, { passive: false });
+
     screen.addEventListener('mousemove', (e) => {
       sendUserActivity();
       const pos = screenToPage(e.clientX, e.clientY);
@@ -878,12 +985,10 @@ export function buildViewerScript(): string {
       var toolbar = document.querySelector('.toolbar');
       var viewport = document.querySelector('.viewport');
       var touchpadEl = document.getElementById('touchpad');
-      var inputPanel = document.getElementById('input-panel');
       var dcPage = document.getElementById('dcPage');
       if (toolbar) toolbar.style.display = '';
       if (viewport) viewport.style.display = '';
       if (touchpadEl) touchpadEl.style.display = '';
-      if (inputPanel) inputPanel.style.display = '';
       document.body.style.background = '#1a1a2e';
       if (dcPage) dcPage.remove();
       if (disconnectedPage) disconnectedPage.classList.remove('active');
@@ -1145,13 +1250,14 @@ export function buildViewerScript(): string {
 
     function initCursor() {
       updateScreenRect();
-      if (screenRect.width <= 0 || screenRect.height <= 0) {
+      if (!screenRect || screenRect.width <= 0 || screenRect.height <= 0) {
         setTimeout(initCursor, 100);
         return;
       }
       cursorPos = { x: screenRect.left + screenRect.width / 2, y: screenRect.top + screenRect.height / 2 };
       updateCursor();
       cursor.style.display = 'block';
+      cursorInitialized = true;
     }
 
     function updateCursor() {
@@ -1383,7 +1489,7 @@ export function buildViewerScript(): string {
 
           if (touchMoved) {
             sendUserActivity();
-            if (!screenRect) updateScreenRect();
+            updateScreenRect();
             const accel = computeAcceleration(dx, dy);
             cursorPos.x = clampCursor(cursorPos.x + dx * accel, screenRect.left, screenRect.right);
             cursorPos.y = clampCursor(cursorPos.y + dy * accel, screenRect.top, screenRect.bottom);
@@ -1488,12 +1594,6 @@ export function buildViewerScript(): string {
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(function() {
         fitImageToContainer();
-        updateScreenRect();
-        if (DeviceMode.current === 'mobile' && cursorPos && screenRect) {
-          cursorPos.x = clampCursor(cursorPos.x, screenRect.left, screenRect.right);
-          cursorPos.y = clampCursor(cursorPos.y, screenRect.top, screenRect.bottom);
-          updateCursor();
-        }
         DeviceMode.autoDetectAndSwitch();
       }, 100);
     });
