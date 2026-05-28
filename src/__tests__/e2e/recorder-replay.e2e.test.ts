@@ -5,8 +5,8 @@ import { parseCliArgs } from '../utils/parseCli';
 import { getFixturePath } from './utils/test-helpers';
 import { isSuccessResponse } from '../../types.js';
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
-import { getAppDir } from '../../daemon.js';
 
 interface ReplayData {
   path?: string;
@@ -65,7 +65,7 @@ describe('Recorder Replay E2E Test', { sequential: true }, () => {
     }
 
     // Clean up old recording files to avoid interference
-    const recordingsDir = path.join(getAppDir(), 'tmp', 'recordings');
+    const recordingsDir = path.join(os.tmpdir(), 'agent-browser', 'recordings');
     if (fs.existsSync(recordingsDir)) {
       const files = fs
         .readdirSync(recordingsDir)

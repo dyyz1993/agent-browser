@@ -941,6 +941,30 @@ class StreamServerStandalone {
     });
   }
 
+  private frameScale = 0.5;
+  private frameQuality = 60;
+
+  private async compressFrame(
+    frameData: Buffer,
+    metadata: Record<string, unknown> | undefined
+  ): Promise<Buffer> {
+    const dw = metadata?.deviceWidth as number | undefined;
+    const dh = metadata?.deviceHeight as number | undefined;
+    if (!dw || !dh) return frameData;
+
+    const targetW = Math.round(dw * this.frameScale);
+    const targetH = Math.round(dh * this.frameScale);
+
+    try {
+      return await sharp(frameData)
+        .resize(targetW, targetH)
+        .jpeg({ quality: this.frameQuality })
+        .toBuffer();
+    } catch {
+      return frameData;
+    }
+  }
+
   private async broadcastFrame(message: StreamMessage): Promise<void> {
     const session = message.session;
     if (!session) return;
@@ -948,7 +972,15 @@ class StreamServerStandalone {
 
     if (!clients || clients.size === 0) return;
 
-    const frameData = message.data ? Buffer.from(message.data, 'base64') : null;
+    let frameData: Buffer | null = message.data ? Buffer.from(message.data, 'base64') : null;
+
+    if (frameData) {
+      const compressed = await this.compressFrame(
+        frameData,
+        message.metadata as Record<string, unknown> | undefined
+      );
+      frameData = compressed as Buffer;
+    }
 
     for (const client of clients) {
       if (client.readyState !== WebSocket.OPEN) continue;

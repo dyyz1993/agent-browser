@@ -568,7 +568,8 @@ export function buildViewerScript(): string {
 
     function fitImageToContainer() {
       if (!metadata.deviceWidth || !metadata.deviceHeight) return;
-      var container = screen.parentElement;
+      var vp = document.querySelector('.viewport');
+      var container = vp || screen.parentElement;
       if (!container) return;
       var cw = container.clientWidth;
       var ch = container.clientHeight;

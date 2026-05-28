@@ -134,6 +134,7 @@ export function getViewerHtml(): string {
     .screen-container {
       position: relative;
       width: 100%;
+      height: 100%;
       display: flex;
       align-items: flex-start;
       justify-content: center;
@@ -380,7 +381,7 @@ export function getViewerHtml(): string {
       height: 12px;
       stroke: rgba(78,204,163,0.5);
     }
-    @media (max-width: 600px) {
+    @media (max-width: 600px) and (hover: none) and (pointer: coarse) {
       .toolbar { padding: 4px 8px; gap: 4px; }
       .status span { display: none; }
       .url-display { font-size: 16px; padding: 4px 6px; }
@@ -389,6 +390,16 @@ export function getViewerHtml(): string {
       .record-btn span { display: none; }
       .mode-btn { padding: 4px 8px; font-size: 11px; min-height: 44px; }
       .mode-btn span { display: none; }
+      .viewport {
+        max-height: 40vh;
+        flex-shrink: 1;
+      }
+    }
+    @media (min-width: 601px) and (max-width: 1024px) and (orientation: portrait) and (hover: none) and (pointer: coarse) {
+      .viewport {
+        max-height: 45vh;
+        flex-shrink: 1;
+      }
     }
     @media (hover: none) {
       .record-btn { min-height: 44px; }

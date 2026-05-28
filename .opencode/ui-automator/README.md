@@ -8,12 +8,14 @@
 | [selectors/bilibili.md](selectors/bilibili.md) | Bilibili | ✅ | 2026-05-12 |
 | [selectors/douyin.md](selectors/douyin.md) | 抖音 (douyin.com) | ✅ | 2026-05-12 |
 | [selectors/deepseek.md](selectors/deepseek.md) | DeepSeek | ✅ | 2026-05-12 |
-| [selectors/doubao.md](selectors/doubao.md) | 豆包 (doubao.com) | ✅ | 2026-05-12 |
+| [selectors/doubao.md](selectors/doubao.md) | 豆包 (doubao.com) | ✅ | 2026-05-15 |
 | [selectors/opencode.md](selectors/opencode.md) | opencode.ai | ✅ | 2026-05-12 |
 
 ## 复用模式
 | 文件 | 模式 | 最后更新 |
 |------|------|----------|
+| [patterns/doubao-music-generation.md](patterns/doubao-music-generation.md) | 豆包音乐生成全流程 | 2026-05-15 |
+| [patterns/audio-stream-extraction.md](patterns/audio-stream-extraction.md) | 音频流拦截提取 | 2026-05-15 |
 | [patterns/cdp-raw-connection.md](patterns/cdp-raw-connection.md) | CDP 原始连接 | 2026-05-12 |
 | [patterns/ssr-scraping.md](patterns/ssr-scraping.md) | SSR 数据提取 | 2026-05-12 |
 | [patterns/httponly-cookie-login-check.md](patterns/httponly-cookie-login-check.md) | httpOnly Cookie 登录检测 | 2026-05-12 |
@@ -21,6 +23,7 @@
 ## 踩坑记录
 | 文件 | 问题 | 最后更新 |
 |------|------|----------|
+| [troubleshooting/daemon-process-conflict.md](troubleshooting/daemon-process-conflict.md) | Daemon 进程冲突 | 2026-05-15 |
 | [troubleshooting/jiti-cache.md](troubleshooting/jiti-cache.md) | jiti 编译缓存 | 2026-05-12 |
 | [troubleshooting/shell-script-selectors-unreliable.md](troubleshooting/shell-script-selectors-unreliable.md) | Shell 脚本选择器不可靠 | 2026-05-12 |
 
