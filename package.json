@@ -4,10 +4,16 @@
   "description": "Headless browser automation CLI for AI agents",
   "type": "module",
   "main": "dist/daemon.js",
+  "packageManager": "pnpm@11.1.3",
+  "engines": {
+    "node": ">=24.0.0",
+    "pnpm": ">=11.0.0"
+  },
   "files": [
     "dist",
     "bin",
     "scripts",
+    "skill-data",
     "skills"
   ],
   "bin": {
@@ -38,6 +44,7 @@
     "test:e2e:crawl": "vitest run --config vitest.integration.config.ts test/e2e/scrape-crawl-map.e2e.test.ts",
     "test:watch": "vitest",
     "postinstall": "node scripts/postinstall.js",
+    "build:dashboard": "cd packages/dashboard && pnpm build",
     "changeset": "changeset",
     "ci:version": "changeset version && pnpm run version:sync && pnpm install --no-frozen-lockfile",
     "ci:publish": "pnpm run version:sync && pnpm run build && changeset publish"

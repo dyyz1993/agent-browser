@@ -3,18 +3,75 @@ export type NavItem = {
   href: string;
 };
 
-export const allDocsPages: NavItem[] = [
-  { name: 'Introduction', href: '/' },
-  { name: 'Installation', href: '/installation' },
-  { name: 'Quick Start', href: '/quick-start' },
-  { name: 'Commands', href: '/commands' },
-  { name: 'Selectors', href: '/selectors' },
-  { name: 'Snapshots', href: '/snapshots' },
-  { name: 'Sessions', href: '/sessions' },
-  { name: 'Self-Healing', href: '/self-healing' },
-  { name: 'Recording & Replay', href: '/recording' },
-  { name: 'Script Export', href: '/script-export' },
-  { name: 'Streaming', href: '/streaming' },
-  { name: 'CDP Mode', href: '/cdp-mode' },
-  { name: 'Changelog', href: '/changelog' },
+export type NavSection = {
+  title: string | null;
+  items: NavItem[];
+};
+
+export const navigation: NavSection[] = [
+  {
+    title: null,
+    items: [
+      { name: "Introduction", href: "/" },
+      { name: "Installation", href: "/installation" },
+      { name: "Quick Start", href: "/quick-start" },
+      { name: "Skills", href: "/skills" },
+    ],
+  },
+  {
+    title: "Reference",
+    items: [
+      { name: "Commands", href: "/commands" },
+      { name: "Configuration", href: "/configuration" },
+      { name: "Selectors", href: "/selectors" },
+      { name: "Snapshots", href: "/snapshots" },
+    ],
+  },
+  {
+    title: "Features",
+    items: [
+      { name: "Sessions", href: "/sessions" },
+      { name: "Dashboard", href: "/dashboard" },
+      { name: "Diffing", href: "/diffing" },
+      { name: "Network", href: "/network" },
+      { name: "CDP Mode", href: "/cdp-mode" },
+      { name: "Streaming", href: "/streaming" },
+      { name: "Video Recording", href: "/recording" },
+      { name: "Debugging", href: "/debugging" },
+      { name: "Profiler", href: "/profiler" },
+      { name: "React & Web Vitals", href: "/react" },
+      { name: "Files & Clipboard", href: "/files" },
+      { name: "Init Scripts", href: "/init-scripts" },
+      { name: "Proxy", href: "/proxy" },
+      { name: "iOS Simulator", href: "/ios" },
+      { name: "Security", href: "/security" },
+      { name: "Next.js + Vercel", href: "/next" },
+      { name: "Native Mode", href: "/native-mode" },
+    ],
+  },
+  {
+    title: "Providers",
+    items: [
+      { name: "AgentCore", href: "/providers/agentcore" },
+      { name: "Browser Use", href: "/providers/browser-use" },
+      { name: "Browserbase", href: "/providers/browserbase" },
+      { name: "Browserless", href: "/providers/browserless" },
+      { name: "Kernel", href: "/providers/kernel" },
+    ],
+  },
+  {
+    title: "Engines",
+    items: [
+      { name: "Chrome", href: "/engines/chrome" },
+      { name: "Lightpanda", href: "/engines/lightpanda" },
+    ],
+  },
+  {
+    title: null,
+    items: [{ name: "Changelog", href: "/changelog" }],
+  },
 ];
+
+export const allDocsPages: NavItem[] = navigation.flatMap(
+  (section) => section.items
+);

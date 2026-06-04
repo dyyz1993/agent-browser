@@ -1,157 +1,96 @@
-export const metadata = { title: 'Recording & Replay' };
+# Video Recording
 
-# Recording & Replay
+Use `record` to capture browser automation as a WebM video for debugging, CI evidence, product walkthroughs, or repro reports.
 
-Record browser interactions and replay them later. Useful for building test scripts, reproducing bugs, and automating repetitive flows.
-
-## Basic recording
-
-### Start recording
+## Basic workflow
 
 ```bash
-agent-browser record start
-# Recording started (session: default)
-```
-
-All subsequent commands are captured in the recording buffer.
-
-### Stop recording
-
-```bash
-agent-browser record stop
-# Recording stopped. 7 actions captured.
-```
-
-### Replay a recording
-
-```bash
-agent-browser flow run <flow-file>
-```
-
-## Full workflow
-
-```bash
-# 1. Open a page
 agent-browser open https://example.com
+agent-browser record start ./demo.webm
+agent-browser snapshot -i
+agent-browser click @e1
 
-# 2. Start recording
-agent-browser record start
-
-# 3. Perform actions (these are recorded)
-agent-browser fill "#email" "user@example.com"
-agent-browser fill "#password" "s3cret"
-agent-browser click "#submit"
-agent-browser wait --text "Dashboard"
-
-# 4. Stop recording
-agent-browser record stop
-
-# 5. Export the recording
-agent-browser export playwright --output tests/login.spec.ts
-
-# 6. Or save as a flow for later replay
-agent-browser flow save login-flow
-
-# 7. Replay the flow
-agent-browser flow run login-flow
-```
-
-## Enhanced recording features
-
-### Fallback selectors
-
-Each recorded action stores multiple selector strategies. If the primary selector breaks during replay, fallback selectors are tried automatically.
-
-```bash
-agent-browser record start
-# Each action stores:
-#   primary:   #submit-btn
-#   fallbacks: [data-testid=submit], button:has-text("Submit"), role=button[name="Submit"]
 agent-browser record stop
 ```
 
-This pairs with the [self-healing](/self-healing) system during replay.
-
-### Element identity tracking
-
-Recordings track element identity beyond just selectors. When the page structure changes, the replay engine uses identity heuristics to find the right element.
-
-Tracked identity properties:
-
-- **Text content** - Visible text of the element
-- **ARIA role + name** - Semantic identity
-- **Position hint** - Relative position in the DOM tree
-- **Nearby landmarks** - Parent form, heading, or section
-
-### SPA URL detection
-
-Single-page application navigations are detected and recorded properly:
+After launching a session, `record start` can also navigate immediately:
 
 ```bash
-agent-browser record start
-agent-browser click "#nav-link"      # SPA route change (no full page load)
+agent-browser open
+agent-browser record start ./demo.webm https://example.com
+```
+
+If no URL is provided, recording starts from the current page. The recording context copies cookies from the active session.
+
+## Commands
+
+<table>
+  <thead>
+    <tr><th>Command</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>record start &lt;path.webm&gt; [url]</code></td><td>Start recording to a WebM file</td></tr>
+    <tr><td><code>record stop</code></td><td>Stop the active recording and save the file</td></tr>
+    <tr><td><code>record restart &lt;path.webm&gt; [url]</code></td><td>Stop the current recording and immediately start another</td></tr>
+  </tbody>
+</table>
+
+## CI evidence
+
+```bash
+#!/bin/bash
+set -e
+
+cleanup() {
+  agent-browser record stop 2>/dev/null || true
+  agent-browser close 2>/dev/null || true
+}
+trap cleanup EXIT
+
+agent-browser open https://app.example.com/login
+agent-browser record start "./artifacts/login-flow.webm"
+agent-browser snapshot -i
+agent-browser fill @e1 "demo@example.com"
+agent-browser fill @e2 "password"
+agent-browser click @e3
 agent-browser wait --url "**/dashboard"
-agent-browser click "#settings-tab"  # Another SPA route change
+```
+
+Keep recordings as CI artifacts when browser failures are hard to diagnose from text output alone.
+
+## Human-readable demos
+
+Add small waits when the video is meant for a person to watch:
+
+```bash
+agent-browser open https://shop.example.com
+agent-browser record start ./checkout.webm
+agent-browser wait 500
+agent-browser click @e4
+agent-browser wait 500
+agent-browser screenshot ./screenshots/cart.png
 agent-browser record stop
-# Recording captures:
-#   action: click #nav-link
-#   expected_url: /dashboard
-#   wait_strategy: url_pattern
 ```
 
-During replay, the engine waits for the URL to match before proceeding to the next action, even without a full page reload.
+Screenshots and videos work well together: screenshots capture precise still states, while the video shows timing, transitions, and unexpected overlays.
 
-### DOM stability detection
+## Output format
 
-Before recording each action, the engine waits for the DOM to stabilize. This prevents recording actions against elements that are still animating or loading.
+<table>
+  <thead>
+    <tr><th>Property</th><th>Value</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Container</td><td>WebM</td></tr>
+    <tr><td>Common extension</td><td><code>.webm</code></td></tr>
+    <tr><td>Viewport</td><td>Uses the active browser viewport settings</td></tr>
+    <tr><td>State</td><td>Copies cookies from the active session</td></tr>
+  </tbody>
+</table>
 
-```bash
-agent-browser record start --stability-timeout 2000
-# Waits up to 2000ms for DOM mutations to settle between actions
-```
+## Limitations
 
-Stability is detected by monitoring:
-
-1. No new DOM mutations for 500ms
-2. Network requests have settled (no pending XHR)
-3. No active CSS transitions or animations
-
-## Recording options
-
-| Option                     | Description                                                |
-| -------------------------- | ---------------------------------------------------------- |
-| `--stability-timeout <ms>` | Max wait for DOM stability between actions (default: 1000) |
-| `--include-screenshots`    | Capture screenshot after each action                       |
-| `--include-network`        | Record network requests in the flow                        |
-| `--capture-html`           | Save HTML snapshot at each step                            |
-
-## Flow management
-
-```bash
-agent-browser flow save <name>              # Save current recording as a flow
-agent-browser flow run <name>               # Replay a saved flow
-agent-browser flow list                     # List saved flows
-agent-browser flow delete <name>            # Delete a saved flow
-agent-browser flow export <name> <format>   # Export flow to test script
-```
-
-### Run options
-
-```bash
-agent-browser flow run <name> --speed 0.5   # Slow replay (0.1 - 2.0, default 1.0)
-agent-browser flow run <name> --headless    # Run in headless mode
-agent-browser flow run <name> --stop-on-error  # Stop on first failure
-agent-browser flow run <name> --session ci  # Use named session
-```
-
-## Combining with script export
-
-See [Script Export](/script-export) for converting recordings to Playwright, Cypress, Selenium, or Python test scripts.
-
-## Best practices
-
-1. Use `--stability-timeout` on dynamic sites to avoid recording mid-transition
-2. Add explicit `wait` commands in your recording for reliable replay
-3. Export to a test framework for CI/CD integration
-4. Use `--include-screenshots` to create visual documentation of flows
-5. Combine with [self-healing](/self-healing) for resilient replays on changing pages
+- Recording adds overhead to automation.
+- Long recordings can use significant disk space.
+- Use `record stop` before closing a session if you need the file flushed.
+- Some constrained headless environments may have codec or GPU limitations.

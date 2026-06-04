@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import {
   useRef,
@@ -6,15 +6,15 @@ import {
   useState,
   useCallback,
   type PointerEvent as ReactPointerEvent,
-} from 'react';
-import { useChat } from '@ai-sdk/react';
-import { DefaultChatTransport } from 'ai';
-import { Streamdown } from 'streamdown';
-import Link from 'next/link';
-import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
+} from "react";
+import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
+import { Streamdown } from "streamdown";
+import Link from "next/link";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 
-const STORAGE_KEY = 'docs-chat-messages';
-const transport = new DefaultChatTransport({ api: '/api/docs-chat' });
+const STORAGE_KEY = "docs-chat-messages";
+const transport = new DefaultChatTransport({ api: "/api/docs-chat" });
 
 const DESKTOP_DEFAULT_WIDTH = 400;
 const DESKTOP_MIN_WIDTH = 300;
@@ -24,9 +24,12 @@ function setCookie(name: string, value: string) {
   document.cookie = `${name}=${encodeURIComponent(value)};path=/;max-age=${60 * 60 * 24 * 365};samesite=lax`;
 }
 
-const TOOL_LABELS: Record<string, { label: string; pastLabel: string; argKey?: string }> = {
-  readFile: { label: 'Reading', pastLabel: 'Read', argKey: 'path' },
-  bash: { label: 'Running', pastLabel: 'Ran', argKey: 'command' },
+const TOOL_LABELS: Record<
+  string,
+  { label: string; pastLabel: string; argKey?: string }
+> = {
+  readFile: { label: "Reading", pastLabel: "Read", argKey: "path" },
+  bash: { label: "Running", pastLabel: "Ran", argKey: "command" },
 };
 
 function isToolPart(part: { type: string }): part is {
@@ -38,12 +41,12 @@ function isToolPart(part: { type: string }): part is {
   output?: unknown;
   errorText?: string;
 } {
-  return part.type.startsWith('tool-') || part.type === 'dynamic-tool';
+  return part.type.startsWith("tool-") || part.type === "dynamic-tool";
 }
 
 function getToolName(part: { type: string; toolName?: string }): string {
-  if (part.type === 'dynamic-tool') return part.toolName ?? 'tool';
-  return part.type.replace(/^tool-/, '');
+  if (part.type === "dynamic-tool") return part.toolName ?? "tool";
+  return part.type.replace(/^tool-/, "");
 }
 
 function ToolCallDisplay({
@@ -64,8 +67,8 @@ function ToolCallDisplay({
     label: toolName,
     pastLabel: toolName,
   };
-  const isDone = part.state === 'output-available';
-  const isError = part.state === 'output-error';
+  const isDone = part.state === "output-available";
+  const isError = part.state === "output-error";
   const isRunning = !isDone && !isError;
   const displayLabel = isRunning ? config.label : config.pastLabel;
 
@@ -74,13 +77,14 @@ function ToolCallDisplay({
   const argPreview =
     argValue != null
       ? String(argValue)
-          .replace(/^\/workspace\//, '/')
-          .replace(/\.md$/, '')
-          .replace(/\/index$/, '') || '/'
-      : '';
+          .replace(/^\/workspace\//, "/")
+          .replace(/\.md$/, "")
+          .replace(/\/index$/, "") || "/"
+      : "";
 
   // Link to the docs page if it's a readFile path
-  const docsLink = toolName === 'readFile' && argPreview.startsWith('/') ? argPreview : null;
+  const docsLink =
+    toolName === "readFile" && argPreview.startsWith("/") ? argPreview : null;
 
   const argEl = argPreview ? (
     docsLink ? (
@@ -111,11 +115,11 @@ function ToolCallDisplay({
 }
 
 const SUGGESTIONS = [
-  'What is agent-browser?',
-  'How do I install it?',
-  'What commands are available?',
-  'How do snapshots work?',
-  'How do I use CDP mode?',
+  "What is agent-browser?",
+  "How do I install it?",
+  "What commands are available?",
+  "How do snapshots work?",
+  "How do I use CDP mode?",
 ];
 
 export function DocsChat({
@@ -126,11 +130,11 @@ export function DocsChat({
   defaultWidth?: number;
 }) {
   const [open, setOpen] = useState(defaultOpen);
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState("");
   const [isDesktop, setIsDesktop] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
   const [desktopWidth, setDesktopWidth] = useState(
-    Math.min(DESKTOP_MAX_WIDTH, Math.max(DESKTOP_MIN_WIDTH, defaultWidth))
+    Math.min(DESKTOP_MAX_WIDTH, Math.max(DESKTOP_MIN_WIDTH, defaultWidth)),
   );
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -141,12 +145,12 @@ export function DocsChat({
     transport,
   });
 
-  const isLoading = status === 'streaming' || status === 'submitted';
+  const isLoading = status === "streaming" || status === "submitted";
   const showMessages = messages.length > 0 || !!error || isLoading;
 
   // Detect desktop vs mobile. Close sidebar on mobile if it was open from cookie.
   useEffect(() => {
-    const mq = window.matchMedia('(min-width: 640px)');
+    const mq = window.matchMedia("(min-width: 640px)");
     setIsDesktop(mq.matches);
     setHasMounted(true);
     // If on mobile but sidebar was open from cookie, close it
@@ -154,15 +158,15 @@ export function DocsChat({
       setOpen(false);
     }
     const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Persist open state to cookie (only after mount to avoid overwriting on mobile)
   useEffect(() => {
     if (hasMounted) {
-      setCookie('docs-chat-open', String(open));
+      setCookie("docs-chat-open", String(open));
     }
   }, [open, hasMounted]);
 
@@ -174,15 +178,15 @@ export function DocsChat({
     if (isDesktop && open) {
       body.style.paddingRight = `${desktopWidth}px`;
       if (!isDraggingRef.current) {
-        body.style.transition = 'padding-right 150ms ease';
+        body.style.transition = "padding-right 150ms ease";
       }
     } else if (isDesktop) {
-      body.style.paddingRight = '0px';
-      body.style.transition = 'padding-right 150ms ease';
+      body.style.paddingRight = "0px";
+      body.style.transition = "padding-right 150ms ease";
     }
     return () => {
-      body.style.paddingRight = '0px';
-      body.style.transition = '';
+      body.style.paddingRight = "0px";
+      body.style.transition = "";
     };
   }, [isDesktop, open, desktopWidth]);
 
@@ -191,7 +195,7 @@ export function DocsChat({
     (e: ReactPointerEvent<HTMLDivElement>) => {
       e.preventDefault();
       isDraggingRef.current = true;
-      document.documentElement.style.transition = 'none';
+      document.documentElement.style.transition = "none";
       const startX = e.clientX;
       const startWidth = desktopWidth;
 
@@ -199,27 +203,27 @@ export function DocsChat({
         const delta = startX - ev.clientX;
         const newWidth = Math.min(
           DESKTOP_MAX_WIDTH,
-          Math.max(DESKTOP_MIN_WIDTH, startWidth + delta)
+          Math.max(DESKTOP_MIN_WIDTH, startWidth + delta),
         );
         setDesktopWidth(newWidth);
       };
 
       const onPointerUp = () => {
         isDraggingRef.current = false;
-        document.documentElement.style.transition = '';
-        document.removeEventListener('pointermove', onPointerMove);
-        document.removeEventListener('pointerup', onPointerUp);
+        document.documentElement.style.transition = "";
+        document.removeEventListener("pointermove", onPointerMove);
+        document.removeEventListener("pointerup", onPointerUp);
       };
 
-      document.addEventListener('pointermove', onPointerMove);
-      document.addEventListener('pointerup', onPointerUp);
+      document.addEventListener("pointermove", onPointerMove);
+      document.addEventListener("pointerup", onPointerUp);
     },
-    [desktopWidth]
+    [desktopWidth],
   );
 
   // Persist width to cookie
   useEffect(() => {
-    setCookie('docs-chat-width', String(desktopWidth));
+    setCookie("docs-chat-width", String(desktopWidth));
   }, [desktopWidth]);
 
   // Restore messages from sessionStorage on mount
@@ -257,7 +261,7 @@ export function DocsChat({
   // Cmd+K to open sidebar and focus prompt, Escape to close
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
+      if (e.key === "i" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         setOpen((prev) => {
           if (!prev) {
@@ -266,12 +270,12 @@ export function DocsChat({
           return !prev;
         });
       }
-      if (e.key === 'Escape' && open && isDesktop) {
+      if (e.key === "Escape" && open && isDesktop) {
         setOpen(false);
       }
     };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [open, isDesktop]);
 
   // Auto-focus input when opened
@@ -301,9 +305,9 @@ export function DocsChat({
       e.preventDefault();
       if (!input.trim() || isLoading) return;
       sendMessage({ text: input });
-      setInput('');
+      setInput("");
     },
-    [input, isLoading, sendMessage]
+    [input, isLoading, sendMessage],
   );
 
   const handleClear = useCallback(() => {
@@ -311,15 +315,19 @@ export function DocsChat({
     sessionStorage.removeItem(STORAGE_KEY);
   }, [setMessages]);
 
-  const hasVisibleContent = (parts: (typeof messages)[number]['parts']): boolean => {
-    return parts.some((p) => (p.type === 'text' && p.text.length > 0) || isToolPart(p));
+  const hasVisibleContent = (
+    parts: (typeof messages)[number]["parts"],
+  ): boolean => {
+    return parts.some(
+      (p) => (p.type === "text" && p.text.length > 0) || isToolPart(p),
+    );
   };
 
   // Shared chat panel content used by both desktop and mobile
   const chatPanel = (
     <>
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 shrink-0">
         <span className="text-sm font-medium">agent-browser Docs</span>
         <div className="flex items-center gap-3">
           {showMessages && (
@@ -355,22 +363,28 @@ export function DocsChat({
 
       {/* Content: suggestions or messages */}
       {showMessages ? (
-        <div ref={messagesScrollRef} className="flex-1 min-h-0 p-4 space-y-4 overflow-y-auto">
+        <div
+          ref={messagesScrollRef}
+          className="flex-1 min-h-0 p-4 space-y-4 overflow-y-auto"
+        >
           {messages.map((message) => {
             if (!hasVisibleContent(message.parts)) return null;
             return (
               <div key={message.id}>
-                {message.role === 'user' ? (
+                {message.role === "user" ? (
                   <div className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
                     {message.parts
-                      .filter((p): p is Extract<typeof p, { type: 'text' }> => p.type === 'text')
+                      .filter(
+                        (p): p is Extract<typeof p, { type: "text" }> =>
+                          p.type === "text",
+                      )
                       .map((p) => p.text)
-                      .join('')}
+                      .join("")}
                   </div>
                 ) : (
                   <div className="space-y-2">
                     {message.parts.map((part, i) => {
-                      if (part.type === 'text' && part.text) {
+                      if (part.type === "text" && part.text) {
                         return (
                           <div
                             key={i}
@@ -381,7 +395,9 @@ export function DocsChat({
                         );
                       }
                       if (isToolPart(part)) {
-                        return <ToolCallDisplay key={part.toolCallId} part={part} />;
+                        return (
+                          <ToolCallDisplay key={part.toolCallId} part={part} />
+                        );
                       }
                       return null;
                     })}
@@ -397,7 +413,9 @@ export function DocsChat({
                   const parsed = JSON.parse(error.message);
                   return parsed.message || parsed.error || error.message;
                 } catch {
-                  return error.message || 'Something went wrong. Please try again.';
+                  return (
+                    error.message || "Something went wrong. Please try again."
+                  );
                 }
               })()}
             </div>
@@ -423,20 +441,23 @@ export function DocsChat({
       )}
 
       {/* Input bar */}
-      <form onSubmit={handleSubmit} className="flex items-end gap-2 px-4 py-3 border-t shrink-0">
+      <form
+        onSubmit={handleSubmit}
+        className="flex items-end gap-2 px-4 py-3 border-t border-border/50 shrink-0"
+      >
         <textarea
           ref={inputRef}
           value={input}
           onChange={(e) => {
             setInput(e.target.value);
-            e.target.style.height = 'auto';
+            e.target.style.height = "auto";
             e.target.style.height = `${e.target.scrollHeight}px`;
           }}
           rows={1}
           enterKeyHint="send"
           placeholder="Ask a question..."
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
+            if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
               handleSubmit(e);
             }
@@ -473,19 +494,19 @@ export function DocsChat({
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="fixed z-50 bottom-4 left-1/2 -translate-x-1/2 sm:left-auto sm:translate-x-0 sm:right-4 flex items-center gap-2 px-4 py-2 rounded-lg border bg-background text-primary shadow-lg hover:bg-primary hover:text-primary-foreground transition-colors text-sm font-medium"
+          className="fixed z-50 bottom-4 left-1/2 -translate-x-1/2 sm:left-auto sm:translate-x-0 sm:right-4 flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground shadow-lg hover:opacity-90 transition-opacity text-sm font-medium"
           aria-label="Ask AI"
         >
           Ask AI
           <kbd className="hidden sm:inline-flex items-center gap-0.5 text-xs opacity-60 font-mono">
-            <span>&#8984;</span>K
+            <span>&#8984;</span>I
           </kbd>
         </button>
       )}
 
       {/* Desktop: resizable side pane -- always rendered, hidden on mobile via CSS */}
       <aside
-        className={`hidden sm:flex fixed top-0 right-0 bottom-0 z-40 border-l bg-background transition-transform duration-150 ease-in-out ${open ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`hidden sm:flex fixed top-0 right-0 bottom-0 z-40 border-l border-border/50 bg-background transition-transform duration-150 ease-in-out ${open ? "translate-x-0" : "translate-x-full"}`}
         style={{ width: desktopWidth }}
         aria-hidden={!open}
       >
@@ -504,8 +525,8 @@ export function DocsChat({
             side="right"
             showCloseButton={false}
             overlayClassName="bg-background!"
-            className="inset-0! w-full! h-full! max-w-none! p-0 flex flex-col"
-            style={{ backgroundColor: 'var(--background)', opacity: 1 }}
+            className="inset-0! w-full! h-full! max-w-none! border-l-0! p-0 flex flex-col"
+            style={{ backgroundColor: "var(--background)", opacity: 1 }}
           >
             <SheetTitle className="sr-only">AI Chat</SheetTitle>
             {chatPanel}

@@ -52,10 +52,17 @@ docs/package-lock.json
 
 # pnpm
 .pnpm-store/
+
+# TypeScript
+*.tsbuildinfo
+
+# next
+.next/
+out/
 acne-products-detail/
 *.sh
 !skills/**/*.sh
-!skills/**/*.sh
+!skill-data/**/*.sh
 *.csv
 scripts/*.sh
 scripts/test-*.ts
