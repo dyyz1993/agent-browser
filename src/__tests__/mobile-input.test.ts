@@ -90,12 +90,11 @@ describe('Mobile input mode - injected focus listener', () => {
     expect(viewerScript).toContain('touchpad.style.zIndex');
   });
 
-  it('screen does NOT have touch handlers (touchpad handles all touch on mobile)', () => {
-    // Screen uses mouse events only; touch events go through overlaying touchpad
+  it('screen has direct touch handlers for mobile touch mode', () => {
     const hasScreenTouchStart = viewerScript.includes("screen.addEventListener('touchstart'");
     const hasScreenTouchEnd = viewerScript.includes("screen.addEventListener('touchend'");
-    expect(hasScreenTouchStart).toBe(false);
-    expect(hasScreenTouchEnd).toBe(false);
+    expect(hasScreenTouchStart).toBe(true);
+    expect(hasScreenTouchEnd).toBe(true);
   });
 
   it('input_focused case calls enterInputMode with value/type/placeholder', () => {
@@ -187,7 +186,7 @@ describe('Mobile input mode - injected focus listener', () => {
     expect(ifMatch).not.toBeNull();
     const block = viewerScript.substring(
       viewerScript.indexOf(ifMatch![0]),
-      viewerScript.indexOf(ifMatch![0]) + 200
+      viewerScript.indexOf(ifMatch![0]) + 400
     );
     expect(block).toContain('msg.id');
     expect(block).toContain('#');

@@ -116,10 +116,10 @@ describe('Virtual Touchpad - buildViewerScript patterns', () => {
     expect(script).toContain('navigator.maxTouchPoints');
   });
 
-  it('should not have screen touch handlers', () => {
-    expect(script).not.toMatch(/screen\.addEventListener\(\s*['"]touchstart['"]/);
-    expect(script).not.toMatch(/screen\.addEventListener\(\s*['"]touchmove['"]/);
-    expect(script).not.toMatch(/screen\.addEventListener\(\s*['"]touchend['"]/);
+  it('should support direct touch handlers on screen', () => {
+    expect(script).toMatch(/screen\.addEventListener\(\s*['"]touchstart['"]/);
+    expect(script).toMatch(/screen\.addEventListener\(\s*['"]touchmove['"]/);
+    expect(script).toMatch(/screen\.addEventListener\(\s*['"]touchend['"]/);
   });
 
   it('should not reference old touch variables', () => {

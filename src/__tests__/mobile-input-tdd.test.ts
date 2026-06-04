@@ -191,12 +191,12 @@ describe('Mobile input message format - TDD', () => {
 
   describe('input_focused handler in viewer', () => {
     it('input_focused case calls enterInputMode', () => {
-      const ifMatch = viewerScript.match(/case\s+['"]input_focused['"][\s\S]{0,200}enterInputMode/);
+      const ifMatch = viewerScript.match(/case\s+['"]input_focused['"][\s\S]{0,400}enterInputMode/);
       expect(ifMatch).not.toBeNull();
     });
 
     it('input_focused constructs selector from id', () => {
-      const ifMatch = viewerScript.match(/case\s+['"]input_focused['"][\s\S]{0,200}#/);
+      const ifMatch = viewerScript.match(/case\s+['"]input_focused['"][\s\S]{0,400}msg\.id[\s\S]{0,120}#/);
       expect(ifMatch).not.toBeNull();
     });
 

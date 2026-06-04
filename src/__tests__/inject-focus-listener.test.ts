@@ -108,11 +108,9 @@ describe('injectFocusListener - script content correctness', () => {
   });
 
   it('focus event captures tag, inputType, value, placeholder, id', () => {
-    // The injected script uses plain JS object literals (not Zod schemas)
-    // Check that the focus handler includes these property names
-    const focusHandler = browserCode.match(
-      /addEventListener\('focus'[\s\S]*?window\.__agentBrowserInputEvent[\s\S]*?\},\s*true\)/
-    );
+    // The focus handler now routes through _abSend, which then bridges to
+    // console logging and the exposed callback.
+    const focusHandler = browserCode.match(/addEventListener\('focus'[\s\S]*?\},\s*true\)/);
     expect(focusHandler).not.toBeNull();
     const block = focusHandler![0];
     expect(block).toContain('tag:');
