@@ -321,6 +321,7 @@ export async function startDaemon(_options?: { provider?: string }): Promise<voi
 
   const manager = new BrowserManager(new NetworkPatternStore(getAppDir()));
   let shuttingDown = false;
+  let focusListenerInjected = false;
 
   setEventCallbacks({
     onNavigation: (event) => {
@@ -644,6 +645,19 @@ export async function startDaemon(_options?: { provider?: string }): Promise<voi
             const response = await executeCommand(parseResult.command, manager as BrowserManager);
 
             if (response.success && manager instanceof BrowserManager && manager.isLaunched()) {
+              if (!focusListenerInjected && streamServerProxy) {
+                focusListenerInjected = true;
+                try {
+                  await manager.injectFocusListener((data) => {
+                    if (streamServerProxy) {
+                      streamServerProxy.broadcastEvent({ type: data.type, data });
+                    }
+                  });
+                  console.log('[Daemon] Auto-injected focus listener for stream server');
+                } catch (err) {
+                  console.warn('[Daemon] Auto-inject focus listener failed:', err);
+                }
+              }
               try {
                 const currentUrl = manager.getPage().url();
                 const isInitialUrl = lastUrl === null;
