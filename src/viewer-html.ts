@@ -290,7 +290,11 @@ export function getViewerHtml(): string {
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
+    body.mobile-mode #touchpad { display: flex; }
     body:not(.mobile-mode) #touchpad { display: none !important; }
+    body.input-mode #touchpad { display: none !important; }
+    body.input-mode #input-panel { display: flex !important; }
+    body:not(.input-mode) #input-panel { display: none !important; }
     #touchpad {
       flex: 1 1 auto;
       min-height: 80px;
@@ -392,11 +396,11 @@ export function getViewerHtml(): string {
     @media (max-width: 600px) {
       .toolbar { padding: 4px 6px; gap: 4px; }
       .status span { display: none; }
-      .url-display { font-size: 13px; padding: 4px 6px; }
-      .quality-badge { display: none; }
+      .url-display { font-size: 12px; padding: 4px 6px; }
+      .quality-badge { font-size: 9px; padding: 2px 4px; }
       .record-btn { display: none !important; }
-      .mode-btn { padding: 4px 8px; font-size: 11px; min-height: 44px; flex-shrink: 1; }
-      .mode-btn span { display: none; }
+      .mode-btn { padding: 4px 6px; font-size: 10px; min-height: 44px; min-width: 36px; flex-shrink: 0; }
+      .mode-btn span { display: inline; }
       .viewport {
         max-height: 40vh;
         flex-shrink: 1;
@@ -405,11 +409,11 @@ export function getViewerHtml(): string {
     @media (min-width: 601px) and (max-width: 1024px) {
       .toolbar { padding: 5px 8px; gap: 6px; }
       .status span { display: none; }
-      .url-display { font-size: 13px; padding: 5px 8px; }
+      .url-display { font-size: 12px; padding: 5px 8px; }
       .quality-badge { font-size: 10px; padding: 3px 6px; }
       .record-btn { display: none !important; }
-      .mode-btn { padding: 5px 10px; font-size: 11px; min-height: 44px; flex-shrink: 1; }
-      .mode-btn span { display: none; }
+      .mode-btn { padding: 5px 8px; font-size: 11px; min-height: 44px; min-width: 40px; flex-shrink: 0; }
+      .mode-btn span { display: inline; }
       .viewport {
         max-height: 45vh;
         flex-shrink: 1;
@@ -465,7 +469,7 @@ export function getViewerHtml(): string {
     </div>
   </div>
 
-  <div id="input-panel" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:9999;padding:6px 12px;padding-bottom:calc(6px + env(safe-area-inset-bottom,0px));background:rgba(255,255,255,0.95);border-top:1px solid #eee;box-sizing:border-box;flex-direction:column;">
+  <div id="input-panel" style="position:fixed;left:0;right:0;bottom:0;z-index:9999;padding:6px 12px;padding-bottom:calc(6px + env(safe-area-inset-bottom,0px));background:rgba(255,255,255,0.95);border-top:1px solid #eee;box-sizing:border-box;flex-direction:column;">
     <div id="input-target" style="color:#999;font-size:11px;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">target: --</div>
     <div style="display:flex;gap:8px;align-items:center;width:100%;">
       <input id="input-field" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="..."

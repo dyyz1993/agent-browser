@@ -1066,14 +1066,7 @@ export function buildViewerScript(): string {
 
       cursor.style.display = 'none';
 
-      const ip = document.getElementById('input-panel');
-      const tp = document.getElementById('touchpad');
-      
-      if (ip) {
-        ip.style.display = 'flex';
-        ip.style.bottom = '0px';
-      }
-      if (tp) tp.style.display = 'none';
+      document.body.classList.add('input-mode');
 
       var labelParts = [];
       if (inputType) labelParts.push(inputType);
@@ -1199,14 +1192,7 @@ export function buildViewerScript(): string {
       const field = document.getElementById('input-field');
       if (field) { field.value = ''; field.blur(); delete field.dataset.lastSent; }
 
-      const ip = document.getElementById('input-panel');
-      const tp = document.getElementById('touchpad');
-      
-      if (ip) {
-        ip.style.display = 'none';
-        ip.style.bottom = '0px';
-      }
-      if (tp) tp.style.display = '';
+      document.body.classList.remove('input-mode');
 
       // Cleanup visualViewport handler
       if (keyboardVvHandler && window.visualViewport) {
