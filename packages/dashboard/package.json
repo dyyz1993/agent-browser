@@ -1,6 +1,6 @@
 {
   "name": "dashboard",
-  "version": "0.31.18",
+  "version": "0.31.19",
   "private": true,
   "scripts": {
     "dev": "next dev",
