@@ -115,6 +115,12 @@ export function getViewerHtml(): string {
       height: 8px;
       border-radius: 50%;
       background: #e94560;
+      flex-shrink: 0;
+    }
+    .record-btn.recording .record-dot { background: #4ecca3; animation: pulse 1s infinite; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
     }
     .recording .record-dot {
       animation: pulse 1s infinite;
@@ -284,6 +290,7 @@ export function getViewerHtml(): string {
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
+    body:not(.mobile-mode) #touchpad { display: none !important; }
     #touchpad {
       flex: 1 1 auto;
       min-height: 80px;
@@ -294,7 +301,7 @@ export function getViewerHtml(): string {
       -webkit-user-select: none;
       user-select: none;
       -webkit-touch-callout: none;
-      display: none;
+      display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: flex-start;
@@ -386,10 +393,9 @@ export function getViewerHtml(): string {
       .toolbar { padding: 4px 6px; gap: 4px; }
       .status span { display: none; }
       .url-display { font-size: 13px; padding: 4px 6px; }
-      .quality-badge { font-size: 10px; padding: 3px 6px; }
-      .record-btn { padding: 4px 8px; font-size: 11px; min-height: 44px; }
-      .record-btn span { display: none; }
-      .mode-btn { padding: 4px 8px; font-size: 11px; min-height: 44px; }
+      .quality-badge { display: none; }
+      .record-btn { display: none !important; }
+      .mode-btn { padding: 4px 8px; font-size: 11px; min-height: 44px; flex-shrink: 1; }
       .mode-btn span { display: none; }
       .viewport {
         max-height: 40vh;
@@ -401,9 +407,8 @@ export function getViewerHtml(): string {
       .status span { display: none; }
       .url-display { font-size: 13px; padding: 5px 8px; }
       .quality-badge { font-size: 10px; padding: 3px 6px; }
-      .record-btn { padding: 5px 10px; font-size: 11px; min-height: 44px; }
-      .record-btn span { display: none; }
-      .mode-btn { padding: 5px 10px; font-size: 11px; min-height: 44px; }
+      .record-btn { display: none !important; }
+      .mode-btn { padding: 5px 10px; font-size: 11px; min-height: 44px; flex-shrink: 1; }
       .mode-btn span { display: none; }
       .viewport {
         max-height: 45vh;

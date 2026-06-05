@@ -249,7 +249,7 @@ export function buildViewerScript(): string {
     function updateModeButton() {
       if (!modeText) return;
       var mode = DeviceMode.current;
-      modeText.textContent = mode === 'desktop' ? '🖱️ Desktop' : '📱 Mobile';
+      modeText.textContent = mode === 'desktop' ? '🖥️ Desktop' : '📱 Mobile';
       if (modeBtn) {
         modeBtn.title = 'Switch to ' + (mode === 'desktop' ? 'Mobile' : 'Desktop') + ' mode';
       }
@@ -345,15 +345,17 @@ export function buildViewerScript(): string {
 
     const MobileModule = {
       attach: function() {
-        if (touchpad) { touchpad.style.display = 'flex'; touchpad.style.position = 'relative'; touchpad.style.background = 'linear-gradient(180deg, #1a1a2e 0%, #16213e 100%)'; touchpad.style.borderTop = '2px solid #4ecca3'; touchpad.style.justifyContent = 'center'; touchpad.style.zIndex = '10'; }
+        document.body.classList.add('mobile-mode');
+        if (touchpad) { touchpad.style.position = 'relative'; touchpad.style.zIndex = '10'; }
         setupToolbar();
         cursorInitialized = false;
         setTimeout(initCursor, 100);
       },
       detach: function() {
+        document.body.classList.remove('mobile-mode');
         var ip = document.getElementById('input-panel');
         if (ip) { ip.style.display = 'none'; ip.style.bottom = '0px'; }
-        if (touchpad) { touchpad.style.display = 'none'; }
+        if (touchpad) { touchpad.style.display = ''; }
         if (cursor) cursor.style.display = 'block';
       }
     };
@@ -1204,7 +1206,7 @@ export function buildViewerScript(): string {
         ip.style.display = 'none';
         ip.style.bottom = '0px';
       }
-      if (tp) tp.style.display = DeviceMode.current === 'mobile' ? 'flex' : 'none';
+      if (tp) tp.style.display = '';
 
       // Cleanup visualViewport handler
       if (keyboardVvHandler && window.visualViewport) {
@@ -1407,6 +1409,7 @@ export function buildViewerScript(): string {
 
         if (e.touches.length === 1) {
           if (Date.now() < moveCooldownUntil) return;
+          updateScreenRect();
           moveAllowed = true;
           setCursorMode('move');
           showModeBadge('MOVE', 'rgba(68, 140, 255, 0.7)');
