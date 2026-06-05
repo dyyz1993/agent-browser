@@ -396,15 +396,23 @@ export function getViewerHtml(): string {
         flex-shrink: 1;
       }
     }
-    @media (max-width: 400px) {
-      .toolbar { padding: 3px 4px; gap: 3px; }
-      .quality-badge { display: none; }
-    }
-    @media (min-width: 601px) and (max-width: 1024px) and (orientation: portrait) {
+    @media (min-width: 601px) and (max-width: 1024px) {
+      .toolbar { padding: 5px 8px; gap: 6px; }
+      .status span { display: none; }
+      .url-display { font-size: 13px; padding: 5px 8px; }
+      .quality-badge { font-size: 10px; padding: 3px 6px; }
+      .record-btn { padding: 5px 10px; font-size: 11px; min-height: 44px; }
+      .record-btn span { display: none; }
+      .mode-btn { padding: 5px 10px; font-size: 11px; min-height: 44px; }
+      .mode-btn span { display: none; }
       .viewport {
         max-height: 45vh;
         flex-shrink: 1;
       }
+    }
+    @media (max-width: 400px) {
+      .toolbar { padding: 3px 4px; gap: 3px; }
+      .quality-badge { display: none; }
     }
     @media (hover: none) {
       .record-btn { min-height: 44px; }

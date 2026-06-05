@@ -689,11 +689,22 @@ export class StreamServerProxy {
       this.ipcSocket = net.createConnection({ path: this.ipcPath }, () => {
         console.log(`[StreamServerProxy] Connected to Stream Server for session: ${this.session}`);
 
+        let currentUrl = '';
+        let currentTitle = '';
+        try {
+          const page = this.browser.getPage();
+          if (page) {
+            currentUrl = page.url() || '';
+          }
+        } catch {}
+
         this.send({
           type: 'register',
           session: this.session,
           instanceId: getInstanceId(),
           socketPath: this.getDaemonSocketPath(),
+          url: currentUrl,
+          title: currentTitle,
         });
 
         this.setupFrameCallback();

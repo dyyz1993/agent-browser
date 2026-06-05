@@ -204,8 +204,9 @@ export function buildViewerScript(): string {
     function detectDeviceMode() {
       var uaMatch = /iphone|ipod|android(?=.*mobile)|mobile|tablet|ipad/i.test(ua);
       var hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-      var narrowScreen = window.innerWidth <= 1024;
-      return uaMatch || (hasTouch && narrowScreen) ? 'mobile' : 'desktop';
+      var isIPad = /macintosh/i.test(ua) && hasTouch && navigator.maxTouchPoints > 1;
+      var narrowScreen = window.innerWidth <= 1280;
+      return uaMatch || isIPad || (hasTouch && narrowScreen) ? 'mobile' : 'desktop';
     }
 
     var _deviceCurrent = detectDeviceMode();
@@ -267,6 +268,12 @@ export function buildViewerScript(): string {
     });
 
     updateModeButton();
+
+    if (DeviceMode.current === 'mobile') {
+      MobileModule.attach();
+    } else {
+      DesktopModule.attach();
+    }
 
     var hiddenInput = null;
     let cursorInitialized = false;

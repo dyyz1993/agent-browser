@@ -745,6 +745,8 @@ class StreamServerStandalone {
             socketPath: message.socketPath,
             lastSeen: Date.now(),
             instanceId: message.instanceId,
+            currentUrl: typeof message.url === 'string' ? message.url : undefined,
+            currentTitle: typeof message.title === 'string' ? message.title : undefined,
           });
           this.instanceIdToSession.set(message.instanceId, message.session);
           this.daemonSockets.set(message.session, socket);
@@ -836,15 +838,14 @@ class StreamServerStandalone {
       case 'navigation':
         if (message.session) {
           const sess = this.sessions.get(message.session);
+          const navData = typeof message.data === 'string' ? JSON.parse(message.data) : (message.data || message);
           if (sess) {
             sess.lastSeen = Date.now();
-            const navData = message.data ? JSON.parse(message.data) : message;
             if (navData.url) sess.currentUrl = navData.url;
             if (navData.title) sess.currentTitle = navData.title;
           }
           const navClients = this.clients.get(message.session);
           if (navClients) {
-            const navData = message.data ? JSON.parse(message.data) : message;
             const payload = JSON.stringify({ type: 'navigation', data: navData });
             for (const client of navClients) {
               if (client.readyState === WebSocket.OPEN) {
