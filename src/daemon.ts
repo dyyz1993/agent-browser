@@ -645,17 +645,32 @@ export async function startDaemon(_options?: { provider?: string }): Promise<voi
             const response = await executeCommand(parseResult.command, manager as BrowserManager);
 
             if (response.success && manager instanceof BrowserManager && manager.isLaunched()) {
-              if (!focusListenerInjected && streamServerProxy) {
-                focusListenerInjected = true;
-                try {
-                  await manager.injectFocusListener((data) => {
-                    if (streamServerProxy) {
-                      streamServerProxy.broadcastEvent({ type: data.type, data });
+              if (!focusListenerInjected) {
+                if (!streamServerProxy) {
+                  const ipcPath = getStreamServerIpcPath();
+                  if (fs.existsSync(ipcPath)) {
+                    streamServerProxy = new StreamServerProxy(manager);
+                    try {
+                      await streamServerProxy.connect();
+                      console.log('[Daemon] Late-connected to Stream Server');
+                    } catch (err) {
+                      console.error('[Daemon] Late-connect Stream Server failed:', err);
+                      streamServerProxy = null;
                     }
-                  });
-                  console.log('[Daemon] Auto-injected focus listener for stream server');
-                } catch (err) {
-                  console.warn('[Daemon] Auto-inject focus listener failed:', err);
+                  }
+                }
+                if (streamServerProxy) {
+                  focusListenerInjected = true;
+                  try {
+                    await manager.injectFocusListener((data) => {
+                      if (streamServerProxy) {
+                        streamServerProxy.broadcastEvent({ type: data.type, data });
+                      }
+                    });
+                    console.log('[Daemon] Auto-injected focus listener for stream server');
+                  } catch (err) {
+                    console.warn('[Daemon] Auto-inject focus listener failed:', err);
+                  }
                 }
               }
               try {

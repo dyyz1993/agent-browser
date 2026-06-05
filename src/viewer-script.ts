@@ -527,9 +527,7 @@ export function buildViewerScript(): string {
 
           case 'input_focused':
             if (inputMode) return;
-            var hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-            console.log('[Viewer] input_focused received, hasTouch=' + hasTouch + ', deviceMode=' + DeviceMode.current);
-            if (!hasTouch) return;
+            if (DeviceMode.current !== 'mobile') return;
             var sel = msg.selector || (msg.id ? '#' + msg.id : '');
             enterInputMode(msg.value || '', msg.inputType || msg.tag || '', msg.placeholder || '', sel);
             break;
