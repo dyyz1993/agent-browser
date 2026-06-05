@@ -1,6 +1,6 @@
 {
   "name": "@dyyz1993/agent-browser",
-  "version": "0.31.21",
+  "version": "0.31.22",
   "description": "Browser automation CLI for AI agents",
   "type": "module",
   "packageManager": "pnpm@11.1.3",
@@ -48,7 +48,6 @@
     "url": "https://github.com/xuyingzhou/agent-browser/issues"
   },
   "homepage": "https://github.com/xuyingzhou/agent-browser#readme",
-  "devDependencies": {},
   "directories": {
     "doc": "docs",
     "test": "test"
