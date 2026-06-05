@@ -359,12 +359,6 @@ export function buildViewerScript(): string {
       }
     };
 
-    if (DeviceMode.current === 'mobile') {
-      MobileModule.attach();
-    } else {
-      DesktopModule.attach();
-    }
-
     const degradedToast = document.createElement('div');
     degradedToast.id = 'degraded-toast';
     degradedToast.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);background:rgba(255,200,0,0.9);color:#000;padding:10px 20px;border-radius:4px;font-family:sans-serif;font-size:14px;z-index:9999;display:none;pointer-events:none;';
