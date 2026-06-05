@@ -269,12 +269,6 @@ export function buildViewerScript(): string {
 
     updateModeButton();
 
-    if (DeviceMode.current === 'mobile') {
-      MobileModule.attach();
-    } else {
-      DesktopModule.attach();
-    }
-
     var hiddenInput = null;
     let cursorInitialized = false;
 
@@ -364,6 +358,12 @@ export function buildViewerScript(): string {
         if (cursor) cursor.style.display = 'block';
       }
     };
+
+    if (DeviceMode.current === 'mobile') {
+      MobileModule.attach();
+    } else {
+      DesktopModule.attach();
+    }
 
     const degradedToast = document.createElement('div');
     degradedToast.id = 'degraded-toast';
