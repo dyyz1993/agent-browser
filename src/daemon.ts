@@ -660,15 +660,15 @@ export async function startDaemon(_options?: { provider?: string }): Promise<voi
                   }
                 }
                 if (streamServerProxy) {
-                  focusListenerInjected = true;
-                  try {
-                    await manager.injectFocusListener((data) => {
-                      if (streamServerProxy) {
-                        const { type, ...rest } = data as { type: string; [key: string]: unknown };
-                        streamServerProxy.broadcastEvent({ type, ...rest });
-                      }
-                    });
-                    console.log('[Daemon] Auto-injected focus listener for stream server');
+                    focusListenerInjected = true;
+                    try {
+                      await manager.injectFocusListener((data) => {
+                        if (streamServerProxy) {
+                          const { type, ...rest } = data as { type: string; [key: string]: unknown };
+                          streamServerProxy.broadcastEvent({ type, ...rest });
+                        }
+                      });
+                      console.log('[Daemon] Auto-injected focus listener for stream server');
                   } catch (err) {
                     console.warn('[Daemon] Auto-inject focus listener failed:', err);
                   }

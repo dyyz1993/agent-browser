@@ -1464,35 +1464,43 @@ export class BrowserManager {
     if (this.focusListenerAttached) return;
     this.focusListenerAttached = true;
 
+    // Secondary channel: console.log intercepted by Playwright
     page.on('console', (msg) => {
-      if (msg.type() !== 'log') return;
       const text = msg.text();
       if (typeof text === 'string' && text.startsWith('__AB_INPUT__')) {
         try {
           const data = JSON.parse(text.slice('__AB_INPUT__'.length));
           onEvent(data);
-        } catch {}
+        } catch {
+          // Non-fatal: malformed JSON in console message
+        }
       }
     });
 
-    try {
-      await page.exposeFunction('__agentBrowserInputEvent', (data: unknown) => {
-        onEvent(data as { type: string; [key: string]: unknown });
-      });
-    } catch {}
-
+    const cdp = await this.getCDPSession();
     const injectScript = this.focusInjectScript;
-    try {
-      await page.addInitScript(injectScript);
-    } catch {}
-    try {
-      await page.evaluate(injectScript);
-    } catch {}
 
-    try {
-      const cdp = await this.getCDPSession();
-      await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: injectScript });
-    } catch {}
+    // Enable Runtime to receive bindingCalled events
+    await cdp.send('Runtime.enable');
+
+    // Primary channel: CDP binding in the main world
+    await cdp.send('Runtime.addBinding', { name: '__abInputEvent' });
+    cdp.on('Runtime.bindingCalled', (params: Record<string, unknown>) => {
+      if (params.name === '__abInputEvent') {
+        try {
+          const data = JSON.parse(params.payload as string);
+          onEvent(data);
+        } catch {
+          // Non-fatal: malformed binding payload
+        }
+      }
+    });
+
+    // Inject into main world on every new navigation
+    await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: injectScript });
+
+    // Inject into main world on the current page
+    await cdp.send('Runtime.evaluate', { expression: injectScript });
   }
 
   private focusInjectScript = `
@@ -1501,7 +1509,7 @@ export class BrowserManager {
       window.__agentBrowserListenerInjected = true;
       var _abSend = function(data) {
         try { console.log('__AB_INPUT__' + JSON.stringify(data)); } catch(ex) {}
-        try { if (typeof window.__agentBrowserInputEvent === 'function') window.__agentBrowserInputEvent(data); } catch(ex) {}
+        try { if (typeof window.__abInputEvent === 'function') window.__abInputEvent(JSON.stringify(data)); } catch(ex) {}
       };
       document.addEventListener('focus', function(e) {
         var el = e.target;
