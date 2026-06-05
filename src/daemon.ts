@@ -664,7 +664,8 @@ export async function startDaemon(_options?: { provider?: string }): Promise<voi
                   try {
                     await manager.injectFocusListener((data) => {
                       if (streamServerProxy) {
-                        streamServerProxy.broadcastEvent({ type: data.type, data });
+                        const { type, ...rest } = data as { type: string; [key: string]: unknown };
+                        streamServerProxy.broadcastEvent({ type, ...rest });
                       }
                     });
                     console.log('[Daemon] Auto-injected focus listener for stream server');

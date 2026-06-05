@@ -877,7 +877,7 @@ export class StreamServerProxy {
     }
   }
 
-  broadcastEvent(event: { type: string; data: unknown }): void {
+  broadcastEvent(event: Record<string, unknown>): void {
     this.send({ ...event, session: this.session });
   }
 
