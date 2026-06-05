@@ -1,8 +1,28 @@
 # agent-browser
 
-## 0.27.1
+## 0.31.14
 
 <!-- release:start -->
+### New Features
+
+- **Native CLI by default** - The npm package now defaults to the native Rust/CDP CLI path and no longer publishes or installs the old TypeScript/Playwright runtime. The package manifest and lockfile no longer include `playwright-core`.
+
+### Bug Fixes
+
+- Fixed **`doctor --offline --quick --json` hanging on macOS** when Chrome's app binary does not exit promptly for `--version`. The doctor now reads Chrome app bundle metadata from `Info.plist` before falling back to executing the binary.
+
+### Infrastructure
+
+- Merged the upstream native Rust/CDP codebase into the fork, including the native CLI wrapper, built-in skills, dashboard workspace, release binary workflow, and native test coverage.
+
+### Contributors
+
+- @xuyingzhou
+- @ctate
+<!-- release:end -->
+
+## 0.27.1
+
 ### Improvements
 
 - Improved **`vitals` command** output formatting for better readability (#1404)
@@ -10,7 +30,6 @@
 ### Documentation
 
 - Surfaced agent-browser feature coverage in documentation (#1403)
-<!-- release:end -->
 
 ## 0.27.0
 

@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.31.14
+
+<p className="text-[#888] text-sm">June 5, 2026</p>
+
+### New Features
+
+- **Native CLI by default** - The npm package now defaults to the native Rust/CDP CLI path and no longer publishes or installs the old TypeScript/Playwright runtime. The package manifest and lockfile no longer include `playwright-core`.
+
+### Bug Fixes
+
+- Fixed **`doctor --offline --quick --json` hanging on macOS** when Chrome's app binary does not exit promptly for `--version`. The doctor now reads Chrome app bundle metadata from `Info.plist` before falling back to executing the binary.
+
+### Infrastructure
+
+- Merged the upstream native Rust/CDP codebase into the fork, including the native CLI wrapper, built-in skills, dashboard workspace, release binary workflow, and native test coverage.
+
+---
+
 ## v0.27.0
 
 <p className="text-[#888] text-sm">May 7, 2026</p>
