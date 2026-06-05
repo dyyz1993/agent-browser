@@ -64,6 +64,20 @@ function getBinaryName() {
 }
 
 function main() {
+  // Check if FORCE_NODE_CLI is set — use Node.js CLI instead of native binary
+  if (process.env.AGENT_BROWSER_FORCE_NODE_CLI === '1') {
+    const nodeCli = join(__dirname, '..', 'dist', 'cli.js');
+    if (existsSync(nodeCli)) {
+      const child = spawn(process.execPath, [nodeCli, ...process.argv.slice(2)], {
+        stdio: 'inherit',
+        windowsHide: false,
+      });
+      child.on('error', (err) => { console.error(`Error: ${err.message}`); process.exit(1); });
+      child.on('close', (code) => { process.exit(code ?? 0); });
+      return;
+    }
+  }
+
   const binaryName = getBinaryName();
 
   if (!binaryName) {
@@ -74,11 +88,18 @@ function main() {
   const binaryPath = join(__dirname, binaryName);
 
   if (!existsSync(binaryPath)) {
+    // Fallback to Node.js CLI
+    const nodeCli = join(__dirname, '..', 'dist', 'cli.js');
+    if (existsSync(nodeCli)) {
+      const child = spawn(process.execPath, [nodeCli, ...process.argv.slice(2)], {
+        stdio: 'inherit',
+        windowsHide: false,
+      });
+      child.on('error', (err) => { console.error(`Error: ${err.message}`); process.exit(1); });
+      child.on('close', (code) => { process.exit(code ?? 0); });
+      return;
+    }
     console.error(`Error: No binary found for ${platform()}-${arch()}`);
-    console.error(`Expected: ${binaryPath}`);
-    console.error('');
-    console.error('Run "pnpm run build:native" to build for your platform,');
-    console.error('or reinstall the package to trigger the postinstall download.');
     process.exit(1);
   }
 

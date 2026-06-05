@@ -31,6 +31,8 @@ interface SessionInfo {
   socketPath: string;
   lastSeen: number;
   instanceId: string;
+  currentUrl?: string;
+  currentTitle?: string;
 }
 
 interface StreamMessage {
@@ -58,6 +60,8 @@ interface StreamMessage {
   focused?: boolean;
   tag?: string;
   text?: string;
+  url?: string;
+  title?: string;
 }
 
 class StreamServerStandalone {
@@ -828,6 +832,32 @@ class StreamServerStandalone {
           }
         }
         break;
+
+      case 'navigation':
+        if (message.session) {
+          const sess = this.sessions.get(message.session);
+          if (sess) {
+            sess.lastSeen = Date.now();
+            const navData = message.data ? JSON.parse(message.data) : message;
+            if (navData.url) sess.currentUrl = navData.url;
+            if (navData.title) sess.currentTitle = navData.title;
+          }
+          const navClients = this.clients.get(message.session);
+          if (navClients) {
+            const navData = message.data ? JSON.parse(message.data) : message;
+            const payload = JSON.stringify({ type: 'navigation', data: navData });
+            for (const client of navClients) {
+              if (client.readyState === WebSocket.OPEN) {
+                try {
+                  client.send(payload);
+                } catch {
+                  /* empty */
+                }
+              }
+            }
+          }
+        }
+        break;
     }
   }
 
@@ -1104,6 +1134,7 @@ class StreamServerStandalone {
 
   private sendStatus(ws: WebSocket, session: string, clientState?: ClientState): void {
     const connected = this.sessions.has(session);
+    const sessionInfo = this.sessions.get(session);
     const message: Record<string, unknown> = {
       type: 'status',
       connected,
@@ -1111,6 +1142,13 @@ class StreamServerStandalone {
       session,
       version: getVersion(),
     };
+
+    if (sessionInfo?.currentUrl) {
+      message.url = sessionInfo.currentUrl;
+    }
+    if (sessionInfo?.currentTitle) {
+      message.title = sessionInfo.currentTitle;
+    }
 
     if (clientState?.selector && clientState?.elementBox) {
       message.element = {

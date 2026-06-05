@@ -204,7 +204,8 @@ export function buildViewerScript(): string {
     function detectDeviceMode() {
       var uaMatch = /iphone|ipod|android(?=.*mobile)|mobile|tablet|ipad/i.test(ua);
       var hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-      return uaMatch || hasTouch ? 'mobile' : 'desktop';
+      var narrowScreen = window.innerWidth <= 1024;
+      return uaMatch || (hasTouch && narrowScreen) ? 'mobile' : 'desktop';
     }
 
     var _deviceCurrent = detectDeviceMode();
@@ -493,6 +494,12 @@ export function buildViewerScript(): string {
               if (p) p.textContent = 'The browser instance has been closed or not found.';
               connecting.style.display = 'flex';
             } else {
+              if (msg.url) {
+                urlDisplay.value = msg.url;
+              }
+              if (msg.title) {
+                document.title = msg.title + ' - Agent Browser Viewer';
+              }
               if (msg.viewportWidth) {
                 metadata.deviceWidth = msg.viewportWidth;
                 metadata.deviceHeight = msg.viewportHeight;

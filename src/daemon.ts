@@ -12,6 +12,7 @@ import { StreamServerProxy, getStreamServerIpcPath } from './stream-server.js';
 import { detectSSR } from './ssr-detection.js';
 import { NetworkPatternStore } from './browser/network-pattern-store.js';
 import { pluginRegistry } from './plugins/registry.js';
+import { setEventCallbacks } from './browser-events.js';
 
 const NO_BROWSER_NEEDED = new Set([
   'launch',
@@ -320,6 +321,16 @@ export async function startDaemon(_options?: { provider?: string }): Promise<voi
 
   const manager = new BrowserManager(new NetworkPatternStore(getAppDir()));
   let shuttingDown = false;
+
+  setEventCallbacks({
+    onNavigation: (event) => {
+      if (streamServerProxy) {
+        try {
+          streamServerProxy.broadcastEvent({ type: 'navigation', data: event });
+        } catch {}
+      }
+    },
+  });
 
   {
     const ipcPath = getStreamServerIpcPath();

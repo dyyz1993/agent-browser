@@ -866,6 +866,10 @@ export class StreamServerProxy {
     }
   }
 
+  broadcastEvent(event: { type: string; data: unknown }): void {
+    this.send({ ...event, session: this.session });
+  }
+
   sendSelectorElement(
     selector: string,
     elementBox: { x: number; y: number; width: number; height: number }
