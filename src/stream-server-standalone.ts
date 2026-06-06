@@ -82,6 +82,7 @@ class StreamServerStandalone {
   private instanceIdToSession: Map<string, string> = new Map();
   private latestFrames: Map<string, { header: string; data: Buffer }> = new Map();
   private clientStates: Map<WebSocket, ClientState> = new Map();
+  private lastViewsPerSession: Map<string, unknown[]> = new Map();
   browser?: BrowserManager;
 
   constructor(port: number = DEFAULT_STREAM_PORT) {
@@ -496,6 +497,13 @@ class StreamServerStandalone {
       this.sendCroppedFrame(ws, latestFrame, clientState);
     }
 
+    const cachedViews = this.lastViewsPerSession.get(session);
+    if (cachedViews && cachedViews.length > 0) {
+      try {
+        ws.send(JSON.stringify({ type: 'views_update', views: cachedViews }));
+      } catch {}
+    }
+
     logDiag(
       '[WSCONN] viewer session=' +
         session +
@@ -865,6 +873,9 @@ class StreamServerStandalone {
       case 'input_blur':
       case 'views_update':
         logDiag('[IPC] ' + String(message.type) + ' clients=' + this.clients.size);
+        if (message.type === 'views_update' && message.session) {
+          this.lastViewsPerSession.set(message.session, (message as { views: unknown[] }).views || []);
+        }
         for (const [, clients] of this.clients) {
           for (const client of clients) {
             if (client.readyState === WebSocket.OPEN) {

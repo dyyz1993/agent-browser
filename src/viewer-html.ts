@@ -158,12 +158,8 @@ export function getViewerHtml(): string {
       touch-action: none;
     }
     .view-tabs {
-      position: fixed;
-      top: 40px;
-      left: 0;
-      right: 0;
       display: none;
-      z-index: 95;
+      flex: 0 0 auto;
       background: #1a1a2e;
       border-bottom: 1px solid #2a2a4e;
       padding: 2px 4px;
@@ -332,6 +328,7 @@ export function getViewerHtml(): string {
     }
     #input-panel { display: none !important; }
     body.input-mode #input-panel { display: flex !important; }
+    body.input-mode #touchpad { display: none !important; }
     #touchpad { display: none; flex: 1 1 auto; min-height: 80px; background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%); border-top: 2px solid #4ecca3; position: relative; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; flex-direction: column; align-items: center; justify-content: flex-start; gap: 0; padding-bottom: env(safe-area-inset-bottom, 0px); }
     body.mobile-mode #touchpad { display: flex !important; max-height: 35vh; }
     body.mobile-mode .viewport {
