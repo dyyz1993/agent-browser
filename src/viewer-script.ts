@@ -43,6 +43,12 @@ export interface ViewerState {
   fixedSize: boolean;
 }
 
+interface ViewInfo {
+  id: string;
+  label: string;
+  rect: { x: number; y: number; width: number; height: number };
+}
+
 export function createInitialState(): ViewerState {
   return {
     ws: null,
@@ -377,6 +383,13 @@ export function buildViewerScript(): string {
     let isRecording = false;
     var _inputPollRaf = null;
 
+    var detectedViews: ViewInfo[] = [];
+    var activeViewId = 'main';
+    var viewSwitching = false;
+    var originalViewport: { width: number; height: number } | null = null;
+    var viewportLocked = false;
+    var fullPageSnapshot: HTMLCanvasElement | null = null;
+
     function connect() {
       ws = new WebSocket(wsUrl);
       ws.binaryType = 'arraybuffer';
@@ -423,6 +436,15 @@ export function buildViewerScript(): string {
         if (shouldReconnect && reconnectAttempts <= 10) {
           reconnectTimer = setTimeout(connect, 2000);
         }
+
+        if (originalViewport) {
+          metadata.deviceWidth = originalViewport.width;
+          metadata.deviceHeight = originalViewport.height;
+          originalViewport = null;
+        }
+        viewportLocked = false;
+        viewSwitching = false;
+        activeViewId = 'main';
       };
       
       ws.onerror = () => {
@@ -471,14 +493,17 @@ export function buildViewerScript(): string {
         switch (msg.type) {
           case 'frame':
             pendingBinary = true;
-            const prevElement = metadata.element;
-            metadata = msg.metadata;
-            if (prevElement && !metadata.element) {
-              metadata.element = prevElement;
-            }
-            if (metadata.element) {
-              metadata.deviceWidth = metadata.element.width;
-              metadata.deviceHeight = metadata.element.height;
+            if (!viewportLocked && !viewSwitching && msg.metadata) {
+              const prevElement = metadata.element;
+              metadata = msg.metadata;
+              if (prevElement && !metadata.element) {
+                metadata.element = prevElement;
+              }
+              if (metadata.element) {
+                metadata.deviceWidth = metadata.element.width;
+                metadata.deviceHeight = metadata.element.height;
+              }
+              viewportLocked = true;
             }
             if (msg.format) metadata.format = msg.format;
             if (msg.state) {
@@ -501,8 +526,21 @@ export function buildViewerScript(): string {
                 document.title = msg.title + ' - Agent Browser Viewer';
               }
               if (msg.viewportWidth) {
-                metadata.deviceWidth = msg.viewportWidth;
-                metadata.deviceHeight = msg.viewportHeight;
+                if (viewSwitching) {
+                  metadata.deviceWidth = msg.viewportWidth;
+                  metadata.deviceHeight = msg.viewportHeight;
+                  viewportLocked = true;
+                  viewSwitching = false;
+                  if (activeViewId === 'main') {
+                    originalViewport = null;
+                  }
+                } else {
+                  if (!viewportLocked) {
+                    metadata.deviceWidth = msg.viewportWidth;
+                    metadata.deviceHeight = msg.viewportHeight;
+                    viewportLocked = true;
+                  }
+                }
               }
               if (msg.element) {
                 metadata.element = msg.element;
@@ -540,6 +578,10 @@ export function buildViewerScript(): string {
 
           case 'input_blur':
             exitInputMode();
+            break;
+
+          case 'views_update':
+            updateViewTabs(msg.views || []);
             break;
 
           default:
@@ -1222,6 +1264,118 @@ export function buildViewerScript(): string {
         type: 'input_blur_element',
         selector: window._currentTargetSelector || ''
       }));
+    }
+
+    function updateViewTabs(views: ViewInfo[]) {
+      detectedViews = views || [];
+      if (activeViewId !== 'main' && !detectedViews.some((v: ViewInfo) => v.id === activeViewId)) {
+        selectView('main');
+      }
+      renderViewTabs();
+    }
+
+    function renderViewTabs() {
+      var viewTabsEl = document.getElementById('viewTabs');
+      if (!viewTabsEl) return;
+
+      if (detectedViews.length === 0) {
+        viewTabsEl.classList.remove('visible');
+        viewTabsEl.innerHTML = '';
+        return;
+      }
+
+      viewTabsEl.classList.add('visible');
+      var html = '<button class="view-tab' + (activeViewId === 'main' ? ' active' : '') +
+        '" data-vid="main"><span>\u4e3b\u9875\u9762</span></button>';
+
+      for (var i = 0; i < detectedViews.length; i++) {
+        var v = detectedViews[i];
+        var label = v.label || v.id;
+        html += '<button class="view-tab' + (activeViewId === v.id ? ' active' : '') +
+          '" data-vid="' + v.id +
+          '" title="' + label + ' ' + v.rect.width + 'x' + v.rect.height +
+          '"><img id="vt-img-' + v.id + '" /><span>' + label + '</span></button>';
+      }
+
+      viewTabsEl.innerHTML = html;
+
+      var btns = viewTabsEl.querySelectorAll('.view-tab');
+      for (var j = 0; j < btns.length; j++) {
+        btns[j].addEventListener('click', function(e) {
+          var t = (e.target as HTMLElement).closest('.view-tab') || e.target as HTMLElement;
+          selectView(t.getAttribute('data-vid') || 'main');
+        });
+      }
+
+      generateThumbnails();
+    }
+
+    function selectView(vid: string) {
+      viewSwitching = true;
+      activeViewId = vid;
+
+      if (vid === 'main') {
+        safeSend(JSON.stringify({ type: 'select_view', rect: null }));
+        if (originalViewport) {
+          metadata.deviceWidth = originalViewport.width;
+          metadata.deviceHeight = originalViewport.height;
+        }
+        viewportLocked = true;
+      } else {
+        var v = detectedViews.find((x: ViewInfo) => x.id === vid);
+        if (v) {
+          if (!originalViewport) {
+            originalViewport = { width: metadata.deviceWidth, height: metadata.deviceHeight };
+          }
+          safeSend(JSON.stringify({ type: 'select_view', viewId: vid, rect: v.rect }));
+          metadata.deviceWidth = v.rect.width;
+          metadata.deviceHeight = v.rect.height;
+          metadata.element = {
+            selector: vid,
+            x: v.rect.x,
+            y: v.rect.y,
+            width: v.rect.width,
+            height: v.rect.height,
+          };
+          viewportLocked = true;
+        }
+      }
+
+      if (screen.src && metadata.deviceWidth && metadata.deviceHeight) {
+        fitImageToContainer();
+      }
+      renderViewTabs();
+    }
+
+    function generateThumbnails() {
+      var imgEl = document.getElementById('screen') as HTMLImageElement;
+      if (!imgEl || !imgEl.naturalWidth) return;
+
+      var fullVP = originalViewport || { width: metadata.deviceWidth, height: metadata.deviceHeight };
+      var scaleW = imgEl.naturalWidth / fullVP.width;
+      var scaleH = imgEl.naturalHeight / fullVP.height;
+
+      for (var i = 0; i < detectedViews.length; i++) {
+        var v = detectedViews[i];
+        var thumb = document.getElementById('vt-img-' + v.id) as HTMLImageElement;
+        if (!thumb) continue;
+
+        try {
+          var sx = Math.round(v.rect.x * scaleW);
+          var sy = Math.round(v.rect.y * scaleH);
+          var sw = Math.max(1, Math.min(Math.round(v.rect.width * scaleW), imgEl.naturalWidth - sx));
+          var sh = Math.max(1, Math.min(Math.round(v.rect.height * scaleH), imgEl.naturalHeight - sy));
+
+          var tc = document.createElement('canvas');
+          tc.width = 36;
+          tc.height = 22;
+          var tctx = tc.getContext('2d');
+          if (tctx) {
+            tctx.drawImage(imgEl, sx, sy, sw, sh, 0, 0, 36, 22);
+            thumb.src = tc.toDataURL('image/jpeg', 0.5);
+          }
+        } catch { /* bounds error */ }
+      }
     }
 
     var _syncDebounceTimer = null;

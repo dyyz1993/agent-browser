@@ -157,6 +157,62 @@ export function getViewerHtml(): string {
       -webkit-user-select: none;
       touch-action: none;
     }
+    .view-tabs {
+      position: fixed;
+      top: 40px;
+      left: 0;
+      right: 0;
+      display: none;
+      z-index: 95;
+      background: #1a1a2e;
+      border-bottom: 1px solid #2a2a4e;
+      padding: 2px 4px;
+      overflow-x: auto;
+      white-space: nowrap;
+      gap: 2px;
+      height: 28px;
+      align-items: center;
+    }
+    .view-tabs.visible {
+      display: flex;
+    }
+    .view-tab {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 6px;
+      border-radius: 4px 4px 0 0;
+      background: #2a2a4e;
+      color: #8af;
+      font-size: 11px;
+      cursor: pointer;
+      border: none;
+      font-family: inherit;
+      max-width: 140px;
+      overflow: hidden;
+      position: relative;
+      height: 28px;
+    }
+    .view-tab img {
+      width: 36px;
+      height: 22px;
+      object-fit: cover;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+    .view-tab span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .view-tab.active {
+      background: #0f3460;
+      color: #cde;
+      font-weight: 600;
+    }
+    .view-tab:active {
+      background: #1a5276;
+    }
     #cursor {
       position: fixed;
       width: 12px;
@@ -419,6 +475,8 @@ export function getViewerHtml(): string {
     </button>
   </div>
   
+  <div class="view-tabs" id="viewTabs"></div>
+
   <div class="viewport">
     <div class="connecting" id="connecting">
       <div class="connecting-card">

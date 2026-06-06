@@ -4,4 +4,6 @@ export interface ClientState {
   degraded?: boolean;
   lastElementCheckTime?: number;
   elementCheckTimer?: ReturnType<typeof setInterval>;
+  viewId?: string;
+  viewRect?: { x: number; y: number; width: number; height: number };
 }

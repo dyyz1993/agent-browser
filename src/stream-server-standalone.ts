@@ -33,6 +33,8 @@ interface SessionInfo {
   instanceId: string;
   currentUrl?: string;
   currentTitle?: string;
+  viewportWidth?: number;
+  viewportHeight?: number;
 }
 
 interface StreamMessage {
@@ -62,6 +64,9 @@ interface StreamMessage {
   text?: string;
   url?: string;
   title?: string;
+  rect?: { x: number; y: number; width: number; height: number };
+  viewId?: string;
+  views?: Array<{ id: string; label: string; rect: { x: number; y: number; width: number; height: number } }>;
 }
 
 class StreamServerStandalone {
@@ -523,7 +528,7 @@ class StreamServerStandalone {
             this.requestElementBox(session, clientState.selector);
           }
         } else {
-          this.handleClientMessage(session, message);
+          this.handleClientMessage(ws, session, message);
         }
       } catch (error) {
         console.error('[StreamServer] Failed to parse client message:', error);
@@ -557,8 +562,37 @@ class StreamServerStandalone {
     });
   }
 
-  private handleClientMessage(session: string, message: StreamMessage): void {
+  private handleClientMessage(
+    ws: WebSocket,
+    session: string,
+    message: StreamMessage
+  ): void {
     const msgType = message.type;
+
+    if (msgType === 'select_view') {
+      const clientState = this.clientStates.get(ws);
+      if (clientState) {
+        if (message.rect) {
+          clientState.viewId = message.viewId as string | undefined;
+          clientState.viewRect = message.rect as { x: number; y: number; width: number; height: number };
+          clientState.selector = undefined;
+          clientState.elementBox = undefined;
+          clientState.degraded = false;
+        } else {
+          clientState.viewId = undefined;
+          clientState.viewRect = undefined;
+        }
+        if (ws.readyState === WebSocket.OPEN) {
+          this.sendStatus(ws, session, clientState);
+        }
+        const latestFrame = this.latestFrames.get(session);
+        if (latestFrame) {
+          this.sendCroppedFrame(ws, latestFrame, clientState);
+        }
+      }
+      return;
+    }
+
     if (msgType === 'input_fill') {
       logDiag(
         '[CM] input_fill SESSION=' +
@@ -630,13 +664,14 @@ class StreamServerStandalone {
     frame: { header: string; data: Buffer },
     clientState: ClientState
   ): Promise<void> {
-    if (clientState.selector && clientState.elementBox && ws.readyState === WebSocket.OPEN) {
+    const cropBox = clientState.viewRect || (clientState.selector ? clientState.elementBox : undefined);
+
+    if (cropBox && ws.readyState === WebSocket.OPEN) {
       try {
-        const box = clientState.elementBox;
         const header = JSON.parse(frame.header);
         const meta = header.metadata;
 
-        const buf = await cropFrameForElement(frame.data, box, meta);
+        const buf = await cropFrameForElement(frame.data, cropBox, meta);
 
         if (ws.readyState !== WebSocket.OPEN) return;
 
@@ -650,14 +685,14 @@ class StreamServerStandalone {
           ...header,
           metadata: {
             ...header.metadata,
-            deviceWidth: box.width,
-            deviceHeight: box.height,
+            deviceWidth: cropBox.width,
+            deviceHeight: cropBox.height,
             element: {
-              selector: clientState.selector as string,
-              x: box.x,
-              y: box.y,
-              width: box.width,
-              height: box.height,
+              selector: clientState.selector || clientState.viewId || 'view',
+              x: cropBox.x,
+              y: cropBox.y,
+              width: cropBox.width,
+              height: cropBox.height,
             },
           },
         };
@@ -822,6 +857,7 @@ class StreamServerStandalone {
       case 'input_focused':
       case 'input_value':
       case 'input_blur':
+      case 'views_update':
         logDiag('[IPC] ' + String(message.type) + ' clients=' + this.clients.size);
         for (const [, clients] of this.clients) {
           for (const client of clients) {
@@ -1023,54 +1059,33 @@ class StreamServerStandalone {
         | undefined;
       let dataToSend: Buffer | null = frameData;
 
-      const hasSelector = !!clientState?.selector;
-      const hasBox = !!clientState?.elementBox;
+      const cropBox = clientState?.viewRect || (clientState?.selector ? clientState.elementBox : undefined);
       const hasFrame = !!frameData;
 
-      if (hasSelector && hasBox && hasFrame) {
+      if (cropBox && hasFrame) {
         try {
-          const box = clientState!.elementBox!;
-          const cropped = await cropFrameForElement(frameData!, box, message.metadata);
+          const cropped = await cropFrameForElement(frameData!, cropBox, message.metadata);
 
           if (cropped !== frameData) {
             dataToSend = cropped;
             if (metadata) {
               metadata = {
                 ...metadata,
-                deviceWidth: box.width,
-                deviceHeight: box.height,
+                deviceWidth: cropBox.width,
+                deviceHeight: cropBox.height,
                 element: {
-                  selector: clientState!.selector as string,
-                  x: box.x,
-                  y: box.y,
-                  width: box.width,
-                  height: box.height,
+                  selector: clientState?.selector || clientState?.viewId || 'view',
+                  x: cropBox.x,
+                  y: cropBox.y,
+                  width: cropBox.width,
+                  height: cropBox.height,
                 },
               };
             }
           }
-        } catch (error) {
-          const errMsg = error instanceof Error ? error.message : String(error);
-          const box = clientState!.elementBox!;
-          metadata = {
-            ...(metadata || {}),
-            _cropError: errMsg,
-            _cropBox: {
-              left: Math.round(box.x),
-              top: Math.round(box.y),
-              width: Math.round(box.width),
-              height: Math.round(box.height),
-            },
-            _selector: clientState?.selector,
-          };
+        } catch {
           dataToSend = frameData;
         }
-      } else if (hasSelector) {
-        metadata = {
-          ...(metadata || {}),
-          _skipCrop: `hasBox=${hasBox} hasFrame=${hasFrame}`,
-          _selector: clientState?.selector,
-        };
       }
 
       const headerMessage = {
@@ -1098,6 +1113,18 @@ class StreamServerStandalone {
         }),
         data: frameData,
       });
+    }
+
+    if (frameData) {
+      const sess = this.sessions.get(session);
+      if (sess && message.metadata) {
+        const mw = message.metadata.deviceWidth as number | undefined;
+        const mh = message.metadata.deviceHeight as number | undefined;
+        if (mw && mh) {
+          sess.viewportWidth = mw;
+          sess.viewportHeight = mh;
+        }
+      }
     }
   }
 
@@ -1152,16 +1179,20 @@ class StreamServerStandalone {
       message.title = sessionInfo.currentTitle;
     }
 
-    if (clientState?.selector && clientState?.elementBox) {
+    const cropBox = clientState?.viewRect || (clientState?.selector ? clientState.elementBox : undefined);
+    if (cropBox) {
       message.element = {
-        selector: clientState.selector,
-        x: clientState.elementBox.x,
-        y: clientState.elementBox.y,
-        width: clientState.elementBox.width,
-        height: clientState.elementBox.height,
+        selector: clientState?.selector || clientState?.viewId || 'view',
+        x: cropBox.x,
+        y: cropBox.y,
+        width: cropBox.width,
+        height: cropBox.height,
       };
-      message.viewportWidth = clientState.elementBox.width;
-      message.viewportHeight = clientState.elementBox.height;
+      message.viewportWidth = cropBox.width;
+      message.viewportHeight = cropBox.height;
+    } else if (sessionInfo?.viewportWidth && sessionInfo?.viewportHeight) {
+      message.viewportWidth = sessionInfo.viewportWidth;
+      message.viewportHeight = sessionInfo.viewportHeight;
     }
 
     if (clientState?.degraded) {

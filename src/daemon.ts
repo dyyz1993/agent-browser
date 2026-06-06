@@ -351,6 +351,65 @@ export async function startDaemon(_options?: { provider?: string }): Promise<voi
     }
   }
 
+  const VIEW_SCAN_INTERVAL = 3000;
+  const VIEW_SCAN_SELECTOR =
+    '[role="dialog"],dialog,[class*="modal"],[class*="popup"],[class*="overlay"],[class*="drawer"],form';
+  let lastViewsJson = '';
+
+  setInterval(async () => {
+    if (!streamServerProxy) return;
+    if (!(manager instanceof BrowserManager) || !manager.isLaunched()) return;
+    try {
+      const page = manager.getPage();
+      if (!page) return;
+      const views = await page.evaluate((sel: string) => {
+        const elList = Array.from(document.querySelectorAll(sel));
+        const results: Array<{
+          tag: string;
+          id: string;
+          cls: string;
+          rect: { x: number; y: number; width: number; height: number };
+        }> = [];
+        const vpW = window.innerWidth;
+        const vpH = window.innerHeight;
+        for (const el of elList) {
+          const r = el.getBoundingClientRect();
+          if (r.width < 50 || r.height < 30) continue;
+          if (r.width * r.height > vpW * vpH * 0.9) continue;
+          const style = window.getComputedStyle(el);
+          if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0')
+            continue;
+          const htmlEl = el as HTMLElement;
+          results.push({
+            tag: el.tagName,
+            id: el.id || '',
+            cls: (typeof htmlEl.className === 'string' ? htmlEl.className : '').slice(0, 40),
+            rect: {
+              x: Math.round(r.x),
+              y: Math.round(r.y),
+              width: Math.round(r.width),
+              height: Math.round(r.height),
+            },
+          });
+        }
+        return results;
+      }, VIEW_SCAN_SELECTOR);
+
+      const viewInfos = views.map((e, i) => ({
+        id: 'el-' + i + '-' + (e.id || e.tag),
+        label: e.id || e.cls || e.tag,
+        rect: e.rect,
+      }));
+      const json = JSON.stringify(viewInfos);
+      if (json !== lastViewsJson) {
+        lastViewsJson = json;
+        streamServerProxy.broadcastEvent({ type: 'views_update', views: viewInfos });
+      }
+    } catch {
+      // Page might be navigating or unavailable
+    }
+  }, VIEW_SCAN_INTERVAL);
+
   const server = net.createServer((socket) => {
     let buffer = '';
     let httpChecked = false;
@@ -514,6 +573,59 @@ export async function startDaemon(_options?: { provider?: string }): Promise<voi
                   const message = err instanceof Error ? err.message : String(err);
                   socket.write(serializeResponse(errorResponse(quickParse.id, message)) + '\n');
                 }
+                continue;
+              }
+
+              if (
+                quickParse &&
+                action === 'request_element_box' &&
+                manager instanceof BrowserManager
+              ) {
+                try {
+                  const page = manager.getPage();
+                  if (page) {
+                    const sel = quickParse.selector || '';
+                    const box = await page.evaluate((s: string) => {
+                      const el = document.querySelector(s);
+                      if (!el) return null;
+                      const rect = el.getBoundingClientRect();
+                      return {
+                        x: rect.x,
+                        y: rect.y,
+                        width: rect.width,
+                        height: rect.height,
+                      };
+                    }, sel);
+                    socket.write(
+                      JSON.stringify({
+                        type: 'selector_element',
+                        session: currentSession,
+                        selector: sel,
+                        elementBox: box,
+                      }) + '\n'
+                    );
+                  }
+                } catch {
+                  socket.write(
+                    JSON.stringify({
+                      type: 'selector_element',
+                      session: currentSession,
+                      selector: quickParse.selector || '',
+                      elementBox: null,
+                    }) + '\n'
+                  );
+                }
+                continue;
+              }
+
+              if (
+                quickParse &&
+                action === 'select_view' &&
+                manager instanceof BrowserManager
+              ) {
+                socket.write(
+                  serializeResponse(successResponse(quickParse.id, { selected: true })) + '\n'
+                );
                 continue;
               }
             } catch {
