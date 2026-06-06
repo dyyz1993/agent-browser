@@ -787,6 +787,12 @@ class StreamServerStandalone {
           this.instanceIdToSession.set(message.instanceId, message.session);
           this.daemonSockets.set(message.session, socket);
           this.broadcastStatus(message.session, true);
+
+          const existingClients = this.clients.get(message.session);
+          if (existingClients && existingClients.size > 0) {
+            logDiag('[LATE-JOIN] daemon registered with ' + existingClients.size + ' existing viewers, sending client_connected');
+            socket.write(JSON.stringify({ type: 'client_connected', session: message.session }) + '\n');
+          }
         }
         break;
 

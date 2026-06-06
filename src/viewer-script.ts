@@ -383,12 +383,12 @@ export function buildViewerScript(): string {
     let isRecording = false;
     var _inputPollRaf = null;
 
-    var detectedViews: ViewInfo[] = [];
+    var detectedViews = [];
     var activeViewId = 'main';
     var viewSwitching = false;
-    var originalViewport: { width: number; height: number } | null = null;
+    var originalViewport = null;
     var viewportLocked = false;
-    var fullPageSnapshot: HTMLCanvasElement | null = null;
+    var fullPageSnapshot = null;
 
     function connect() {
       ws = new WebSocket(wsUrl);
@@ -1266,9 +1266,9 @@ export function buildViewerScript(): string {
       }));
     }
 
-    function updateViewTabs(views: ViewInfo[]) {
+    function updateViewTabs(views) {
       detectedViews = views || [];
-      if (activeViewId !== 'main' && !detectedViews.some((v: ViewInfo) => v.id === activeViewId)) {
+      if (activeViewId !== 'main' && !detectedViews.some(function(v) { return v.id === activeViewId; })) {
         selectView('main');
       }
       renderViewTabs();
@@ -1302,7 +1302,7 @@ export function buildViewerScript(): string {
       var btns = viewTabsEl.querySelectorAll('.view-tab');
       for (var j = 0; j < btns.length; j++) {
         btns[j].addEventListener('click', function(e) {
-          var t = (e.target as HTMLElement).closest('.view-tab') || e.target as HTMLElement;
+          var t = (e.target).closest('.view-tab') || e.target;
           selectView(t.getAttribute('data-vid') || 'main');
         });
       }
@@ -1310,7 +1310,7 @@ export function buildViewerScript(): string {
       generateThumbnails();
     }
 
-    function selectView(vid: string) {
+    function selectView(vid) {
       viewSwitching = true;
       activeViewId = vid;
 
@@ -1322,7 +1322,7 @@ export function buildViewerScript(): string {
         }
         viewportLocked = true;
       } else {
-        var v = detectedViews.find((x: ViewInfo) => x.id === vid);
+        var v = detectedViews.find(function(x) { return x.id === vid; });
         if (v) {
           if (!originalViewport) {
             originalViewport = { width: metadata.deviceWidth, height: metadata.deviceHeight };
@@ -1348,7 +1348,7 @@ export function buildViewerScript(): string {
     }
 
     function generateThumbnails() {
-      var imgEl = document.getElementById('screen') as HTMLImageElement;
+      var imgEl = document.getElementById('screen');
       if (!imgEl || !imgEl.naturalWidth) return;
 
       var fullVP = originalViewport || { width: metadata.deviceWidth, height: metadata.deviceHeight };
@@ -1357,7 +1357,7 @@ export function buildViewerScript(): string {
 
       for (var i = 0; i < detectedViews.length; i++) {
         var v = detectedViews[i];
-        var thumb = document.getElementById('vt-img-' + v.id) as HTMLImageElement;
+        var thumb = document.getElementById('vt-img-' + v.id);
         if (!thumb) continue;
 
         try {
