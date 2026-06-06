@@ -364,20 +364,6 @@ export function buildViewerScript(): string {
     degradedToast.textContent = 'Element not found, showing full page';
     document.body.appendChild(degradedToast);
 
-    // Diagnostic: last 5 WS events
-    var _dbgEvents = [];
-    var _dbgBox = document.createElement('div');
-    _dbgBox.id = 'event-debug';
-    _dbgBox.style.cssText = 'position:fixed;top:48px;right:8px;background:rgba(0,0,0,0.85);color:#0f0;font-size:10px;font-family:monospace;padding:6px 8px;border-radius:4px;z-index:9998;max-width:300px;max-height:120px;overflow:hidden;pointer-events:none;line-height:1.4;';
-    _dbgBox.textContent = 'events: (none)';
-    document.body.appendChild(_dbgBox);
-    function _logWsEvent(typeStr, extra) {
-      var ts = new Date().toLocaleTimeString();
-      _dbgEvents.unshift(ts + ' ' + typeStr + (extra ? ' ' + extra : ''));
-      if (_dbgEvents.length > 5) _dbgEvents.length = 5;
-      if (_dbgBox) _dbgBox.innerHTML = _dbgEvents.join('<br>');
-    }
-
     let ws = null;
     let metadata = { deviceWidth: 1280, deviceHeight: 720, pageScaleFactor: 1, format: 'jpeg' };
     let userActivityTimeout = null;
@@ -501,7 +487,6 @@ export function buildViewerScript(): string {
             break;
 
           case 'status':
-            _logWsEvent('status', 'connected=' + msg.connected);
             if (msg.connected === false) {
               statusDot.classList.remove('connected');
               statusText.textContent = 'Instance not found';
@@ -534,20 +519,17 @@ export function buildViewerScript(): string {
             break;
 
           case 'navigation':
-            _logWsEvent('navigation', msg.data ? msg.data.url : '');
             urlDisplay.value = msg.data.url;
             document.title = msg.data.title + ' - Agent Browser Viewer';
             break;
 
           case 'input_focused':
-            _logWsEvent('input_focused', 'sel=' + (msg.selector || '') + ' tag=' + (msg.tag || ''));
             if (inputMode) return;
             var sel = msg.selector || (msg.id ? '#' + msg.id : '');
             enterInputMode(msg.value || '', msg.inputType || msg.tag || '', msg.placeholder || '', sel, msg.rect);
             break;
 
           case 'input_value':
-            _logWsEvent('input_value', 'text="' + (msg.text || '') + '"');
             if (!inputMode) {
               var field = document.getElementById('input-field');
               if (field && typeof msg.text === 'string') {
@@ -557,12 +539,10 @@ export function buildViewerScript(): string {
             break;
 
           case 'input_blur':
-            _logWsEvent('input_blur', '');
             exitInputMode();
             break;
 
           default:
-            _logWsEvent(msg.type || 'unknown', '');
         }
       };
     }
@@ -1087,41 +1067,7 @@ export function buildViewerScript(): string {
 
       var ip = document.getElementById('input-panel');
 
-      // PC/desktop: position input panel near the focused element
-      if (DeviceMode.current === 'desktop' && ip && rect) {
-        fitImageToContainer();
-        var imgRect = screen.getBoundingClientRect();
-        if (imgRect && imgRect.width > 0 && metadata.deviceWidth > 0) {
-          var sx = imgRect.width / metadata.deviceWidth;
-          var sy = imgRect.height / metadata.deviceHeight;
-          var screenX = imgRect.left + rect.x * sx;
-          var screenY = imgRect.top + rect.y * sy;
-          var elW = rect.width * sx;
-          var elH = rect.height * sy;
-
-          if (_dbgBox) _dbgBox.textContent = 'rect: ' + Math.round(rect.x) + ',' + Math.round(rect.y) +
-            ' img:' + Math.round(imgRect.left) + ',' + Math.round(imgRect.top) +
-            ' ' + Math.round(imgRect.width) + 'x' + Math.round(imgRect.height) +
-            ' dev:' + metadata.deviceWidth + 'x' + metadata.deviceHeight +
-            ' screenXY:' + Math.round(screenX) + ',' + Math.round(screenY);
-
-          var panelW = Math.min(300, Math.max(elW + 40, 200));
-          var left = screenX + (elW - panelW) / 2;
-          left = Math.max(8, Math.min(left, window.innerWidth - panelW - 8));
-
-          var top = screenY + elH + 8;
-          if (top + 80 > window.innerHeight) top = screenY - 84;
-
-          ip.style.position = 'fixed';
-          ip.style.left = left + 'px';
-          ip.style.top = top + 'px';
-          ip.style.right = 'auto';
-          ip.style.bottom = 'auto';
-          ip.style.width = panelW + 'px';
-          ip.style.borderRadius = '12px';
-          ip.style.boxShadow = '0 4px 24px rgba(0,0,0,0.4)';
-        }
-      }
+      if (DeviceMode.current === 'desktop') return;
 
       var labelParts = [];
       if (inputType) labelParts.push(inputType);
@@ -1146,13 +1092,6 @@ export function buildViewerScript(): string {
 
       setTimeout(function() {
         if (!field) return;
-
-        // Desktop mode: just focus the field, no keyboard handling needed
-        if (DeviceMode.current === 'desktop') {
-          field.focus();
-          field.click();
-          return;
-        }
 
         // Mobile: handle virtual keyboard, scroll guards, IME polling
         var origVh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
@@ -1617,13 +1556,6 @@ export function buildViewerScript(): string {
             updateCursor();
 
             const pagePos = screenToPage(cursorPos.x, cursorPos.y);
-            var dbg = document.getElementById('debug-overlay');
-            if (dbg && (!window._moveDebugCount)) window._moveDebugCount = 0;
-            if (dbg && window._moveDebugCount < 8) {
-              window._moveDebugCount++;
-              dbg.textContent += ' | cur:' + Math.round(cursorPos.x) + ',' + Math.round(cursorPos.y)
-                + ' -> page:' + pagePos.x + ',' + pagePos.y;
-            }
 
             safeSend(JSON.stringify({
               type: 'input_mouse',

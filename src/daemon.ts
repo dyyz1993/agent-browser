@@ -660,6 +660,12 @@ export async function startDaemon(_options?: { provider?: string }): Promise<voi
                   }
                 }
                 if (streamServerProxy) {
+                    // Skip injection on about:blank — wait for actual navigation
+                    const currentUrl = manager.getPage().url();
+                    if (currentUrl === 'about:blank' || currentUrl === '') {
+                      // Don't set focusListenerInjected so it retries on next command
+                      console.log('[Daemon] Skipping focus listener injection on about:blank');
+                    } else {
                     focusListenerInjected = true;
                     try {
                       await manager.injectFocusListener((data) => {
@@ -672,6 +678,7 @@ export async function startDaemon(_options?: { provider?: string }): Promise<voi
                   } catch (err) {
                     console.warn('[Daemon] Auto-inject focus listener failed:', err);
                   }
+                    }
                 }
               }
               try {

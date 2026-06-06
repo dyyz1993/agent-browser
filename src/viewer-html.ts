@@ -170,23 +170,6 @@ export function getViewerHtml(): string {
       display: none;
       transition: width 0.15s, height 0.15s, background 0.15s, box-shadow 0.15s;
     }
-    #debug-overlay {
-      position: fixed;
-      top: 50px;
-      left: 8px;
-      background: rgba(0,0,0,0.85);
-      color: #4ecca3;
-      font-size: 11px;
-      font-family: monospace;
-      padding: 6px 10px;
-      border-radius: 4px;
-      z-index: 2000;
-      max-width: 90vw;
-      word-break: break-all;
-      pointer-events: none;
-      display: none;
-      transition: width 0.15s, height 0.15s, background 0.15s, box-shadow 0.15s;
-    }
     #cursor.cursor-move {
       background: rgba(68, 140, 255, 0.9);
       box-shadow: 0 0 8px rgba(68, 140, 255, 0.6);
@@ -448,7 +431,6 @@ export function getViewerHtml(): string {
     <div class="screen-container" id="screenContainer">
       <img id="screen" style="display: none;" draggable="false">
       <div id="cursor"></div>
-      <div id="debug-overlay"></div>
     </div>
   </div>
 

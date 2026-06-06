@@ -1477,6 +1477,9 @@ export class BrowserManager {
       }
     });
 
+    // Invalidate cached CDP session to ensure we connect to the current page,
+    // not a stale about:blank from before navigation
+    this.cdpSession = null;
     const cdp = await this.getCDPSession();
     const injectScript = this.focusInjectScript;
 
@@ -1511,17 +1514,11 @@ export class BrowserManager {
         try { console.log('__AB_INPUT__' + JSON.stringify(data)); } catch(ex) {}
         try { if (typeof window.__abInputEvent === 'function') window.__abInputEvent(JSON.stringify(data)); } catch(ex) {}
       };
-      var _abLastInteraction = 0;
-      document.addEventListener('mousedown', function() { _abLastInteraction = Date.now(); }, true);
-      document.addEventListener('touchstart', function() { _abLastInteraction = Date.now(); }, true);
-      document.addEventListener('keydown', function() { _abLastInteraction = Date.now(); }, true);
       document.addEventListener('focus', function(e) {
         var el = e.target;
         if (!el) return;
         var tag = el.tagName;
         if (tag !== 'INPUT' && tag !== 'TEXTAREA' && !el.isContentEditable) return;
-        // Block programmatic focus: only allow if user interacted within last 500ms
-        if (Date.now() - _abLastInteraction > 500) return;
         var r = el.getBoundingClientRect ? el.getBoundingClientRect() : null;
         _abSend({
           type: 'input_focused',
