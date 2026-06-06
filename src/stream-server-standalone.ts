@@ -1,10 +1,20 @@
 import * as net from 'net';
 import * as fs from 'fs';
 const LOG_FILE = '/tmp/standalone-diag.log';
+const EVENT_LOG_FILE = '/tmp/agent-browser-events.log';
 const DEBUG_ENABLED = !!process.env.AGENT_BROWSER_DEBUG;
 function logDiag(msg: string) {
   if (!DEBUG_ENABLED) return;
   fs.appendFileSync(LOG_FILE, new Date().toISOString().substring(11, 23) + ' ' + msg + '\n');
+}
+function logEvent(direction: string, type: string, extra: string = ''): void {
+  const ts = new Date().toISOString();
+  const line = '[' + ts + '] [' + direction + '] ' + type + (extra ? ' ' + extra : '') + '\n';
+  try {
+    fs.appendFileSync(EVENT_LOG_FILE, line);
+  } catch {
+    /* empty */
+  }
 }
 import * as path from 'path';
 import * as http from 'http';
@@ -449,6 +459,12 @@ class StreamServerStandalone {
     const instanceIdParam = url.searchParams.get('instanceId');
     const rawSelector = url.searchParams.get('selector');
 
+    logEvent(
+      'WS-CONNECT',
+      'new_client',
+      'session=' + sessionParam + ' instanceId=' + (instanceIdParam || '-') + ' ua="' + (req.headers['user-agent'] || '').substring(0, 80) + '"'
+    );
+
     const clientState: ClientState = {};
     if (rawSelector) {
       clientState.selector = decodeURIComponent(rawSelector);
@@ -823,6 +839,14 @@ class StreamServerStandalone {
       case 'input_value':
       case 'input_blur':
         logDiag('[IPC] ' + String(message.type) + ' clients=' + this.clients.size);
+        logEvent(
+          'IPC-RECV',
+          String(message.type),
+          'session=' + (message.session || '-') +
+            ' tag=' + (message.tag || '-') +
+            ' selector=' + (message.selector || '-') +
+            ' value="' + (typeof message.text === 'string' ? message.text : '') + '"'
+        );
         for (const [, clients] of this.clients) {
           for (const client of clients) {
             if (client.readyState === WebSocket.OPEN) {
@@ -869,6 +893,8 @@ class StreamServerStandalone {
     const sessionInfo = this.sessions.get(session);
     if (!sessionInfo) return;
 
+    logEvent('CTD', 'connectToDaemon_start', 'session=' + session);
+
     const socketPath = sessionInfo.socketPath;
 
     const socket = net.createConnection({ path: socketPath }, async () => {
@@ -897,6 +923,7 @@ class StreamServerStandalone {
     this.outboundSockets.set(session, socket);
 
     logDiag('[CTD] sending inject_focus_listener to daemon for session=' + session);
+    logEvent('CTD', 'send_inject_focus_listener', 'session=' + session);
     try {
       socket.write(
         JSON.stringify({ id: 'inject-fl-' + Date.now(), action: 'inject_focus_listener' }) + '\n'
@@ -953,6 +980,14 @@ class StreamServerStandalone {
                 ' to ' +
                 (clients?.size || 0) +
                 ' viewer clients'
+            );
+            logEvent(
+              'CTD-RECV',
+              String(msg.type),
+              'session=' + session +
+                ' tag=' + (msg.tag || '-') +
+                ' selector=' + (msg.selector || '-') +
+                ' clients=' + (clients?.size || 0)
             );
             if (clients) {
               for (const client of clients) {

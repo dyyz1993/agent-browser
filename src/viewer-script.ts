@@ -364,6 +364,20 @@ export function buildViewerScript(): string {
     degradedToast.textContent = 'Element not found, showing full page';
     document.body.appendChild(degradedToast);
 
+    // Diagnostic: last 5 WS events
+    var _dbgEvents = [];
+    var _dbgBox = document.createElement('div');
+    _dbgBox.id = 'event-debug';
+    _dbgBox.style.cssText = 'position:fixed;top:48px;right:8px;background:rgba(0,0,0,0.85);color:#0f0;font-size:10px;font-family:monospace;padding:6px 8px;border-radius:4px;z-index:9998;max-width:300px;max-height:120px;overflow:hidden;pointer-events:none;line-height:1.4;';
+    _dbgBox.textContent = 'events: (none)';
+    document.body.appendChild(_dbgBox);
+    function _logWsEvent(typeStr, extra) {
+      var ts = new Date().toLocaleTimeString();
+      _dbgEvents.unshift(ts + ' ' + typeStr + (extra ? ' ' + extra : ''));
+      if (_dbgEvents.length > 5) _dbgEvents.length = 5;
+      if (_dbgBox) _dbgBox.innerHTML = _dbgEvents.join('<br>');
+    }
+
     let ws = null;
     let metadata = { deviceWidth: 1280, deviceHeight: 720, pageScaleFactor: 1, format: 'jpeg' };
     let userActivityTimeout = null;
@@ -487,6 +501,7 @@ export function buildViewerScript(): string {
             break;
 
           case 'status':
+            _logWsEvent('status', 'connected=' + msg.connected);
             if (msg.connected === false) {
               statusDot.classList.remove('connected');
               statusText.textContent = 'Instance not found';
@@ -519,17 +534,20 @@ export function buildViewerScript(): string {
             break;
 
           case 'navigation':
+            _logWsEvent('navigation', msg.data ? msg.data.url : '');
             urlDisplay.value = msg.data.url;
             document.title = msg.data.title + ' - Agent Browser Viewer';
             break;
 
           case 'input_focused':
+            _logWsEvent('input_focused', 'sel=' + (msg.selector || '') + ' tag=' + (msg.tag || ''));
             if (inputMode) return;
             var sel = msg.selector || (msg.id ? '#' + msg.id : '');
             enterInputMode(msg.value || '', msg.inputType || msg.tag || '', msg.placeholder || '', sel, msg.rect);
             break;
 
           case 'input_value':
+            _logWsEvent('input_value', 'text="' + (msg.text || '') + '"');
             if (!inputMode) {
               var field = document.getElementById('input-field');
               if (field && typeof msg.text === 'string') {
@@ -539,8 +557,12 @@ export function buildViewerScript(): string {
             break;
 
           case 'input_blur':
+            _logWsEvent('input_blur', '');
             exitInputMode();
             break;
+
+          default:
+            _logWsEvent(msg.type || 'unknown', '');
         }
       };
     }

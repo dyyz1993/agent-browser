@@ -291,6 +291,8 @@ export function getViewerHtml(): string {
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
+    #input-panel { display: none !important; }
+    body.input-mode #input-panel { display: flex !important; }
     #touchpad { display: none; flex: 1 1 auto; min-height: 80px; background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%); border-top: 2px solid #4ecca3; position: relative; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; flex-direction: column; align-items: center; justify-content: flex-start; gap: 0; padding-bottom: env(safe-area-inset-bottom, 0px); }
     body.mobile-mode #touchpad { display: flex !important; max-height: 35vh; }
     body.mobile-mode .viewport {
