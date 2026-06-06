@@ -1061,13 +1061,14 @@ export function buildViewerScript(): string {
       if (inputMode) return;
       inputMode = true;
 
+      if (DeviceMode.current === 'desktop') {
+        inputMode = false;
+        return;
+      }
+
       cursor.style.display = 'none';
 
       document.body.classList.add('input-mode');
-
-      var ip = document.getElementById('input-panel');
-
-      if (DeviceMode.current === 'desktop') return;
 
       var labelParts = [];
       if (inputType) labelParts.push(inputType);
