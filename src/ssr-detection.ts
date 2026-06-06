@@ -114,6 +114,10 @@ export async function detectSSR(page: Page): Promise<SSRDetectionResult> {
       return { detected: false };
     }
 
+    if (results.every((r) => r.framework === 'Unknown')) {
+      return { detected: false };
+    }
+
     const primary = results[0];
     const globalNames = primary.globals.map((g) => g.name);
     const totalSize = primary.globals.reduce((sum, g) => sum + g.size, 0);
