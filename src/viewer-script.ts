@@ -1067,32 +1067,30 @@ export function buildViewerScript(): string {
 
       // PC/desktop: position input panel near the focused element
       if (DeviceMode.current === 'desktop' && ip && rect) {
-        var screenImg = document.getElementById('screen');
-        var imgRect = screenImg ? screenImg.getBoundingClientRect() : null;
-        if (imgRect && imgRect.width > 0) {
-          var pageDevWidth = parseInt(screenImg.style.width) || imgRect.width;
-          var pageDevHeight = parseInt(screenImg.style.height) || imgRect.height;
-          var scaleX = imgRect.width / pageDevWidth;
-          var scaleY = imgRect.height / pageDevHeight;
-          var screenX = imgRect.left + rect.x * scaleX;
-          var screenY = imgRect.top + rect.y * scaleY;
-          var elH = rect.height * scaleY;
+        var imgRect = screen.getBoundingClientRect();
+        if (imgRect && imgRect.width > 0 && metadata.deviceWidth > 0) {
+          var sx = imgRect.width / metadata.deviceWidth;
+          var sy = imgRect.height / metadata.deviceHeight;
+          var screenX = imgRect.left + rect.x * sx;
+          var screenY = imgRect.top + rect.y * sy;
+          var elW = rect.width * sx;
+          var elH = rect.height * sy;
 
-          var panelW = 320;
-          var left = screenX + (rect.width * scaleX - panelW) / 2;
+          var panelW = Math.min(300, elW + 40);
+          var left = screenX + (elW - panelW) / 2;
           left = Math.max(8, Math.min(left, window.innerWidth - panelW - 8));
 
-          var top = screenY + elH + 6;
-          if (top + 80 > window.innerHeight) top = screenY - 80;
+          var top = screenY + elH + 8;
+          if (top + 70 > window.innerHeight) top = screenY - 76;
 
           ip.style.position = 'fixed';
           ip.style.left = left + 'px';
           ip.style.top = top + 'px';
           ip.style.right = 'auto';
           ip.style.bottom = 'auto';
+          ip.style.width = panelW + 'px';
           ip.style.borderRadius = '12px';
           ip.style.boxShadow = '0 4px 24px rgba(0,0,0,0.4)';
-          ip.style.maxWidth = panelW + 'px';
         }
       }
 
@@ -1232,14 +1230,7 @@ export function buildViewerScript(): string {
       // Reset PC floating panel styles
       var ip = document.getElementById('input-panel');
       if (ip) {
-        ip.style.left = '';
-        ip.style.top = '';
-        ip.style.right = '';
-        ip.style.bottom = '';
-        ip.style.borderRadius = '';
-        ip.style.boxShadow = '';
-        ip.style.maxWidth = '';
-        ip.style.position = '';
+        ip.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:9999;padding:6px 12px;padding-bottom:calc(6px + env(safe-area-inset-bottom,0px));background:rgba(255,255,255,0.95);border-top:1px solid #eee;box-sizing:border-box;flex-direction:column;';
       }
 
       // Cleanup visualViewport handler

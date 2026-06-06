@@ -136,7 +136,8 @@ export function getViewerHtml(): string {
       overflow: hidden;
       position: relative;
       background: #111;
-      flex-shrink: 0;
+      flex: 1 1 auto;
+      min-height: 0;
     }
     .screen-container {
       position: relative;
@@ -294,7 +295,7 @@ export function getViewerHtml(): string {
     body.mobile-mode #touchpad { display: flex !important; max-height: 35vh; }
     body.mobile-mode .viewport {
       max-height: 45vh;
-      flex-shrink: 1;
+      flex: 0 1 auto;
     }
     .touchpad-hint {
       color: #4ecca3;
@@ -366,10 +367,6 @@ export function getViewerHtml(): string {
       width: 12px;
       height: 12px;
       stroke: rgba(78,204,163,0.5);
-    }
-    body.mobile-mode .viewport {
-      max-height: 40vh;
-      flex-shrink: 1;
     }
     body.mobile-mode .toolbar { padding: 4px 6px; gap: 4px; }
     body.mobile-mode .status span { display: none; }
