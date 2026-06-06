@@ -1516,6 +1516,7 @@ export class BrowserManager {
         if (!el) return;
         var tag = el.tagName;
         if (tag !== 'INPUT' && tag !== 'TEXTAREA' && !el.isContentEditable) return;
+        var r = el.getBoundingClientRect ? el.getBoundingClientRect() : null;
         _abSend({
           type: 'input_focused',
           tag: tag,
@@ -1523,6 +1524,7 @@ export class BrowserManager {
           value: typeof el.value === 'string' ? el.value : '',
           placeholder: el.placeholder || '',
           id: el.id || '',
+          rect: r ? { x: r.x, y: r.y, width: r.width, height: r.height } : null,
           selector: (function() {
             if (el.id) return '#' + el.id;
             if (el.name && el.name) return '[name="' + el.name + '"]';

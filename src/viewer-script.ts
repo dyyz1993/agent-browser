@@ -525,9 +525,8 @@ export function buildViewerScript(): string {
 
           case 'input_focused':
             if (inputMode) return;
-            if (DeviceMode.current !== 'mobile') return;
             var sel = msg.selector || (msg.id ? '#' + msg.id : '');
-            enterInputMode(msg.value || '', msg.inputType || msg.tag || '', msg.placeholder || '', sel);
+            enterInputMode(msg.value || '', msg.inputType || msg.tag || '', msg.placeholder || '', sel, msg.rect);
             break;
 
           case 'input_value':
@@ -1056,13 +1055,46 @@ export function buildViewerScript(): string {
       if (disconnectedPage) disconnectedPage.classList.remove('active');
     }
 
-    function enterInputMode(initialValue, inputType, placeholder, selector) {
+    function enterInputMode(initialValue, inputType, placeholder, selector, rect) {
       if (inputMode) return;
       inputMode = true;
 
       cursor.style.display = 'none';
 
       document.body.classList.add('input-mode');
+
+      var ip = document.getElementById('input-panel');
+
+      // PC/desktop: position input panel near the focused element
+      if (DeviceMode.current === 'desktop' && ip && rect) {
+        var screenImg = document.getElementById('screen');
+        var imgRect = screenImg ? screenImg.getBoundingClientRect() : null;
+        if (imgRect && imgRect.width > 0) {
+          var pageDevWidth = parseInt(screenImg.style.width) || imgRect.width;
+          var pageDevHeight = parseInt(screenImg.style.height) || imgRect.height;
+          var scaleX = imgRect.width / pageDevWidth;
+          var scaleY = imgRect.height / pageDevHeight;
+          var screenX = imgRect.left + rect.x * scaleX;
+          var screenY = imgRect.top + rect.y * scaleY;
+          var elH = rect.height * scaleY;
+
+          var panelW = 320;
+          var left = screenX + (rect.width * scaleX - panelW) / 2;
+          left = Math.max(8, Math.min(left, window.innerWidth - panelW - 8));
+
+          var top = screenY + elH + 6;
+          if (top + 80 > window.innerHeight) top = screenY - 80;
+
+          ip.style.position = 'fixed';
+          ip.style.left = left + 'px';
+          ip.style.top = top + 'px';
+          ip.style.right = 'auto';
+          ip.style.bottom = 'auto';
+          ip.style.borderRadius = '12px';
+          ip.style.boxShadow = '0 4px 24px rgba(0,0,0,0.4)';
+          ip.style.maxWidth = panelW + 'px';
+        }
+      }
 
       var labelParts = [];
       if (inputType) labelParts.push(inputType);
@@ -1088,7 +1120,14 @@ export function buildViewerScript(): string {
       setTimeout(function() {
         if (!field) return;
 
-        // Capture original viewport height AFTER panel is visible, BEFORE focus
+        // Desktop mode: just focus the field, no keyboard handling needed
+        if (DeviceMode.current === 'desktop') {
+          field.focus();
+          field.click();
+          return;
+        }
+
+        // Mobile: handle virtual keyboard, scroll guards, IME polling
         var origVh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
 
         // Register visualViewport listener for keyboard detection
@@ -1189,6 +1228,19 @@ export function buildViewerScript(): string {
       if (field) { field.value = ''; field.blur(); delete field.dataset.lastSent; }
 
       document.body.classList.remove('input-mode');
+
+      // Reset PC floating panel styles
+      var ip = document.getElementById('input-panel');
+      if (ip) {
+        ip.style.left = '';
+        ip.style.top = '';
+        ip.style.right = '';
+        ip.style.bottom = '';
+        ip.style.borderRadius = '';
+        ip.style.boxShadow = '';
+        ip.style.maxWidth = '';
+        ip.style.position = '';
+      }
 
       // Cleanup visualViewport handler
       if (keyboardVvHandler && window.visualViewport) {
