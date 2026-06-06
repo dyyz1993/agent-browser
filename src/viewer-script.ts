@@ -1089,6 +1089,7 @@ export function buildViewerScript(): string {
 
       // PC/desktop: position input panel near the focused element
       if (DeviceMode.current === 'desktop' && ip && rect) {
+        fitImageToContainer();
         var imgRect = screen.getBoundingClientRect();
         if (imgRect && imgRect.width > 0 && metadata.deviceWidth > 0) {
           var sx = imgRect.width / metadata.deviceWidth;
@@ -1098,12 +1099,18 @@ export function buildViewerScript(): string {
           var elW = rect.width * sx;
           var elH = rect.height * sy;
 
-          var panelW = Math.min(300, elW + 40);
+          if (_dbgBox) _dbgBox.textContent = 'rect: ' + Math.round(rect.x) + ',' + Math.round(rect.y) +
+            ' img:' + Math.round(imgRect.left) + ',' + Math.round(imgRect.top) +
+            ' ' + Math.round(imgRect.width) + 'x' + Math.round(imgRect.height) +
+            ' dev:' + metadata.deviceWidth + 'x' + metadata.deviceHeight +
+            ' screenXY:' + Math.round(screenX) + ',' + Math.round(screenY);
+
+          var panelW = Math.min(300, Math.max(elW + 40, 200));
           var left = screenX + (elW - panelW) / 2;
           left = Math.max(8, Math.min(left, window.innerWidth - panelW - 8));
 
           var top = screenY + elH + 8;
-          if (top + 70 > window.innerHeight) top = screenY - 76;
+          if (top + 80 > window.innerHeight) top = screenY - 84;
 
           ip.style.position = 'fixed';
           ip.style.left = left + 'px';

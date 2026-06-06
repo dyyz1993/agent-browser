@@ -150,7 +150,7 @@ export function getViewerHtml(): string {
     #screen {
       max-width: 100%;
       max-height: 100%;
-      object-fit: fill;
+      object-fit: contain;
       -webkit-user-drag: none;
       -webkit-touch-callout: none;
       user-select: none;
