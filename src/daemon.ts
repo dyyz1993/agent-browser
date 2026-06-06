@@ -353,7 +353,7 @@ export async function startDaemon(_options?: { provider?: string }): Promise<voi
 
   const VIEW_SCAN_INTERVAL = 3000;
   const VIEW_SCAN_SELECTOR =
-    '[role="dialog"],dialog,[class*="modal"],[class*="popup"],[class*="pop-"],[class*="-pop"],[class*="overlay"],[class*="layer"],[class*="lightbox"],[class*="drawer"],[class*="mask"],[class*="sheet"],form';
+    '[role="dialog"],[aria-modal="true"],dialog,[class*="modal"],[class*="popup"],[class*="pop-"],[class*="-pop"],[class*="overlay"],[class*="layer"],[class*="lightbox"],[class*="drawer"],[class*="mask"],[class*="sheet"],[class*="dialog"],[class*="tang"],[class*="pass-pop"],form';
   let lastViewsJson = '';
 
   setInterval(async () => {
