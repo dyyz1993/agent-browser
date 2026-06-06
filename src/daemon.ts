@@ -353,47 +353,60 @@ export async function startDaemon(_options?: { provider?: string }): Promise<voi
 
   const VIEW_SCAN_INTERVAL = 3000;
   const VIEW_SCAN_SELECTOR =
-    '[role="dialog"],dialog,[class*="modal"],[class*="popup"],[class*="overlay"],[class*="drawer"],form';
+    '[role="dialog"],dialog,[class*="modal"],[class*="popup"],[class*="pop-"],[class*="-pop"],[class*="overlay"],[class*="layer"],[class*="lightbox"],[class*="drawer"],[class*="mask"],[class*="sheet"],form';
   let lastViewsJson = '';
 
   setInterval(async () => {
     if (!streamServerProxy) return;
     if (!(manager instanceof BrowserManager) || !manager.isLaunched()) return;
     try {
-      const page = manager.getPage();
-      if (!page) return;
-      const views = await page.evaluate((sel: string) => {
-        const elList = Array.from(document.querySelectorAll(sel));
-        const results: Array<{
-          tag: string;
-          id: string;
-          cls: string;
-          rect: { x: number; y: number; width: number; height: number };
-        }> = [];
-        const vpW = window.innerWidth;
-        const vpH = window.innerHeight;
-        for (const el of elList) {
-          const r = el.getBoundingClientRect();
-          if (r.width < 50 || r.height < 30) continue;
-          if (r.width * r.height > vpW * vpH * 0.9) continue;
-          const style = window.getComputedStyle(el);
-          if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0')
-            continue;
-          const htmlEl = el as HTMLElement;
-          results.push({
-            tag: el.tagName,
-            id: el.id || '',
-            cls: (typeof htmlEl.className === 'string' ? htmlEl.className : '').slice(0, 40),
-            rect: {
-              x: Math.round(r.x),
-              y: Math.round(r.y),
-              width: Math.round(r.width),
-              height: Math.round(r.height),
-            },
-          });
-        }
-        return results;
-      }, VIEW_SCAN_SELECTOR);
+      const cdp = await manager.getCDPSession();
+      if (!cdp) return;
+      const url = manager.getPage().url();
+      if (url === 'about:blank' || !url) return;
+
+      const result = await cdp.send('Runtime.evaluate', {
+        expression: `(function() {
+          const sel = '${VIEW_SCAN_SELECTOR.replace(/'/g, "\\'")}';
+          const elList = Array.from(document.querySelectorAll(sel));
+          const vpW = window.innerWidth, vpH = window.innerHeight;
+          const candidates = [];
+          for (const el of elList) {
+            const r = el.getBoundingClientRect();
+            const s = window.getComputedStyle(el);
+            const cls = (typeof el.className === 'string' ? el.className : '').slice(0, 60);
+            if (r.width < 50 || r.height < 30) continue;
+            if (r.width * r.height > vpW * vpH * 0.9) continue;
+            if (r.bottom < 0 || r.top > vpH || r.right < 0 || r.left > vpW) continue;
+            if (s.display === 'none' || s.visibility === 'hidden' || s.opacity === '0') continue;
+            candidates.push({ el, cls, rect: { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) }, tag: el.tagName, id: el.id || '' });
+          }
+          const results = [];
+          for (let i = 0; i < candidates.length; i++) {
+            let contained = false;
+            for (let j = 0; j < candidates.length; j++) {
+              if (i === j) continue;
+              if (candidates[j].el.contains(candidates[i].el)) { contained = true; break; }
+            }
+            if (!contained) results.push({ tag: candidates[i].tag, id: candidates[i].id, cls: candidates[i].cls, rect: candidates[i].rect });
+          }
+          return JSON.stringify(results);
+        })()`,
+        returnByValue: true,
+        awaitPromise: true,
+      });
+
+      if (result.exceptionDetails) {
+        return;
+      }
+      if (!result.result || result.result.value === undefined) {
+        return;
+      }
+      const raw = result.result.value;
+      const views: Array<{ tag: string; id: string; cls: string; rect: { x: number; y: number; width: number; height: number } }> = JSON.parse(raw);
+      if (views.length > 0) {
+        console.log('[Daemon] View scan found ' + views.length + ' elements:', views.map(v => v.id || v.cls || v.tag).join(', '));
+      }
 
       const viewInfos = views.map((e, i) => ({
         id: 'el-' + i + '-' + (e.id || e.tag),
@@ -403,10 +416,11 @@ export async function startDaemon(_options?: { provider?: string }): Promise<voi
       const json = JSON.stringify(viewInfos);
       if (json !== lastViewsJson) {
         lastViewsJson = json;
+        console.log('[Daemon] Broadcasting views_update: ' + viewInfos.length + ' views');
         streamServerProxy.broadcastEvent({ type: 'views_update', views: viewInfos });
       }
     } catch {
-      // Page might be navigating or unavailable
+      // Page might be navigating
     }
   }, VIEW_SCAN_INTERVAL);
 

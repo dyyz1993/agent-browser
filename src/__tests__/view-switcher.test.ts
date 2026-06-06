@@ -288,7 +288,10 @@ describe('View Switcher — daemon scan', () => {
   it('scans for dialog/modal/popup/overlay/drawer/form', () => {
     expect(daemonCode).toContain('[role="dialog"]');
     expect(daemonCode).toContain('[class*="modal"]');
-    expect(daemonCode).toContain('[class*="popup"]');
+    expect(daemonCode).toContain('[class*="pop-"]');
+    expect(daemonCode).toContain('[class*="-pop"]');
+    expect(daemonCode).toContain('[class*="layer"]');
+    expect(daemonCode).toContain('[class*="mask"]');
     expect(daemonCode).toContain('form');
   });
 
