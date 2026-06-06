@@ -1511,11 +1511,17 @@ export class BrowserManager {
         try { console.log('__AB_INPUT__' + JSON.stringify(data)); } catch(ex) {}
         try { if (typeof window.__abInputEvent === 'function') window.__abInputEvent(JSON.stringify(data)); } catch(ex) {}
       };
+      var _abUserInteracting = false;
+      document.addEventListener('mousedown', function() { _abUserInteracting = true; }, true);
+      document.addEventListener('touchstart', function() { _abUserInteracting = true; }, true);
+      document.addEventListener('keydown', function() { _abUserInteracting = true; }, true);
       document.addEventListener('focus', function(e) {
         var el = e.target;
         if (!el) return;
         var tag = el.tagName;
         if (tag !== 'INPUT' && tag !== 'TEXTAREA' && !el.isContentEditable) return;
+        if (!_abUserInteracting) return;
+        _abUserInteracting = false;
         var r = el.getBoundingClientRect ? el.getBoundingClientRect() : null;
         _abSend({
           type: 'input_focused',
