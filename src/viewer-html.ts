@@ -373,6 +373,16 @@ export function getViewerHtml(): string {
       height: 12px;
       stroke: rgba(78,204,163,0.5);
     }
+    body.mobile-mode .viewport {
+      max-height: 40vh;
+      flex-shrink: 1;
+    }
+    body.mobile-mode .toolbar { padding: 4px 6px; gap: 4px; }
+    body.mobile-mode .status span { display: none; }
+    body.mobile-mode .url-display { font-size: 12px; padding: 4px 6px; }
+    body.mobile-mode .quality-badge { font-size: 9px; padding: 2px 4px; }
+    body.mobile-mode .record-btn { display: none !important; }
+    body.mobile-mode .mode-btn { padding: 4px 6px; font-size: 10px; min-height: 44px; min-width: 36px; flex-shrink: 0; }
     @media (max-width: 600px) {
       .toolbar { padding: 4px 6px; gap: 4px; }
       .status span { display: none; }
