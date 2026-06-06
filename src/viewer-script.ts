@@ -203,8 +203,6 @@ export function buildViewerScript(): string {
 
     function detectDeviceMode() {
       var uaMatch = /iphone|ipod|android(?=.*mobile)|mobile|tablet|ipad/i.test(ua);
-      var hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-      if (hasTouch) return 'mobile';
       return uaMatch ? 'mobile' : 'desktop';
     }
 
