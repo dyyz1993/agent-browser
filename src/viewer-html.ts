@@ -290,28 +290,8 @@ export function getViewerHtml(): string {
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
-    body.mobile-mode #touchpad { display: flex; }
-    body:not(.mobile-mode) #touchpad { display: none !important; }
-    body.input-mode #touchpad { display: none !important; }
-    body.input-mode #input-panel { display: flex !important; }
-    body:not(.input-mode) #input-panel { display: none !important; }
-    #touchpad {
-      flex: 1 1 auto;
-      min-height: 80px;
-      background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
-      border-top: 2px solid #4ecca3;
-      position: relative;
-      touch-action: none;
-      -webkit-user-select: none;
-      user-select: none;
-      -webkit-touch-callout: none;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      gap: 0;
-      padding-bottom: env(safe-area-inset-bottom, 0px);
-    }
+    #touchpad { display: none; flex: 1 1 auto; min-height: 80px; background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%); border-top: 2px solid #4ecca3; position: relative; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; flex-direction: column; align-items: center; justify-content: flex-start; gap: 0; padding-bottom: env(safe-area-inset-bottom, 0px); }
+    body.mobile-mode #touchpad { display: flex !important; }
     .touchpad-body {
       flex: 1 1 auto;
       display: flex;
