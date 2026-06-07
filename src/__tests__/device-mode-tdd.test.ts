@@ -6,7 +6,7 @@ describe('DeviceMode dynamic switching - TDD', () => {
   let viewerScript: string;
 
   beforeAll(() => {
-    viewerScript = fs.readFileSync(path.join(__dirname, '../viewer-script.ts'), 'utf-8');
+    viewerScript = fs.readFileSync(path.join(__dirname, '../viewer/app.js'), 'utf-8');
   });
 
   // ============================================================
@@ -14,22 +14,21 @@ describe('DeviceMode dynamic switching - TDD', () => {
   // ============================================================
   describe('detectDeviceMode function', () => {
     it('should exist as a named function', () => {
-      const fnMatch = viewerScript.match(/function detectDeviceMode\(\)[\s\S]*?^}/m);
+      const fnMatch = viewerScript.match(/function detectDeviceMode\(\) \{[\s\S]*?\n\s*\}/);
       expect(fnMatch).not.toBeNull();
       const block = fnMatch![0];
-      expect(block).toContain('ontouchstart');
-      expect(block).toContain('maxTouchPoints');
+      expect(block).toMatch(/iphone|ipod|android|mobile|tablet|ipad/i);
     });
 
     it('should return mobile when touch capability detected', () => {
-      const fnMatch = viewerScript.match(/function detectDeviceMode\(\)[\s\S]*?^}/m);
+      const fnMatch = viewerScript.match(/function detectDeviceMode\(\) \{[\s\S]*?\n\s*\}/);
       expect(fnMatch).not.toBeNull();
       const block = fnMatch![0];
       expect(block).toContain("'mobile'");
     });
 
     it('should return desktop as fallback', () => {
-      const fnMatch = viewerScript.match(/function detectDeviceMode\(\)[\s\S]*?^}/m);
+      const fnMatch = viewerScript.match(/function detectDeviceMode\(\) \{[\s\S]*?\n\s*\}/);
       expect(fnMatch).not.toBeNull();
       const block = fnMatch![0];
       expect(block).toContain("'desktop'");

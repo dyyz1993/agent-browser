@@ -359,7 +359,7 @@ describe('Source code pattern verification', () => {
   let standaloneCode: string;
 
   beforeAll(() => {
-    viewerScript = fs.readFileSync(path.join(__dirname, '../viewer-script.ts'), 'utf-8');
+    viewerScript = fs.readFileSync(path.join(__dirname, '../viewer/app.js'), 'utf-8');
     standaloneCode = fs.readFileSync(
       path.join(__dirname, '../stream-server-standalone.ts'),
       'utf-8'
@@ -386,12 +386,14 @@ describe('Source code pattern verification', () => {
     expect(funcMatch![0]).toContain('element:');
   });
 
-  it('broadcastFrame crop includes resize step', () => {
+  it('broadcastFrame crop does NOT include resize step (crop at full resolution)', () => {
     const frameProcessorCode = fs.readFileSync(
       path.join(__dirname, '../stream/frame-processor.ts'),
       'utf-8'
     );
-    expect(frameProcessorCode).toContain('.resize(box.width, box.height)');
+    const cropMatch = frameProcessorCode.match(/export async function cropFrameForElement[\s\S]*?\n\}/);
+    expect(cropMatch).not.toBeNull();
+    expect(cropMatch![0]).not.toContain('.resize(');
   });
 
   it('no debug console.log remains in screenToPage', () => {
@@ -409,7 +411,7 @@ describe('Source code pattern verification', () => {
   });
 
   it('viewer-html has no coord-debug div', () => {
-    const html = fs.readFileSync(path.join(__dirname, '../viewer-html.ts'), 'utf-8');
+    const html = fs.readFileSync(path.join(__dirname, '../viewer/styles.css'), 'utf-8') + fs.readFileSync(path.join(__dirname, '../viewer/index.html'), 'utf-8');
     expect(html).not.toContain('coord-debug');
   });
 });

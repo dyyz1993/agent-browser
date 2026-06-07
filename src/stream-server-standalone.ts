@@ -66,6 +66,7 @@ interface StreamMessage {
   title?: string;
   rect?: { x: number; y: number; width: number; height: number };
   viewId?: string;
+  switchId?: number;
   views?: Array<{ id: string; label: string; rect: { x: number; y: number; width: number; height: number } }>;
 }
 
@@ -580,6 +581,8 @@ class StreamServerStandalone {
     if (msgType === 'select_view') {
       const clientState = this.clientStates.get(ws);
       if (clientState) {
+        const switchExtra =
+          message.switchId !== undefined ? { switchId: message.switchId } : undefined;
         if (message.rect) {
           clientState.viewId = message.viewId as string | undefined;
           clientState.viewRect = message.rect as { x: number; y: number; width: number; height: number };
@@ -591,7 +594,7 @@ class StreamServerStandalone {
           clientState.viewRect = undefined;
         }
         if (ws.readyState === WebSocket.OPEN) {
-          this.sendStatus(ws, session, clientState);
+          this.sendStatus(ws, session, clientState, switchExtra);
         }
         const latestFrame = this.latestFrames.get(session);
         if (latestFrame) {
@@ -1026,13 +1029,14 @@ class StreamServerStandalone {
     });
   }
 
-  private frameScale = 0.5;
-  private frameQuality = 60;
+  private frameScale = 0.8;
+  private frameQuality = 85;
 
   private async compressFrame(
     frameData: Buffer,
     metadata: Record<string, unknown> | undefined
   ): Promise<Buffer> {
+    if (this.frameScale >= 1.0) return frameData;
     const dw = metadata?.deviceWidth as number | undefined;
     const dh = metadata?.deviceHeight as number | undefined;
     if (!dw || !dh) return frameData;
@@ -1059,12 +1063,15 @@ class StreamServerStandalone {
 
     let frameData: Buffer | null = message.data ? Buffer.from(message.data, 'base64') : null;
 
-    if (frameData) {
-      const compressed = await this.compressFrame(
+    const frameState = (message as unknown as Record<string, unknown>).state as string | undefined;
+    const isStatic = !frameState || frameState === 'static';
+
+    let compressedData: Buffer | null = null;
+    if (frameData && !isStatic) {
+      compressedData = await this.compressFrame(
         frameData,
         message.metadata as Record<string, unknown> | undefined
       );
-      frameData = compressed as Buffer;
     }
 
     for (const client of clients) {
@@ -1074,14 +1081,14 @@ class StreamServerStandalone {
       let metadata: Record<string, unknown> | undefined = message.metadata as
         | Record<string, unknown>
         | undefined;
-      let dataToSend: Buffer | null = frameData;
+      let dataToSend: Buffer | null = isStatic ? frameData : (compressedData || frameData);
 
       const cropBox = clientState?.viewRect || (clientState?.selector ? clientState.elementBox : undefined);
       const hasFrame = !!frameData;
 
-      if (cropBox && hasFrame) {
+      if (cropBox && hasFrame && frameData) {
         try {
-          const cropped = await cropFrameForElement(frameData!, cropBox, message.metadata);
+          const cropped = await cropFrameForElement(frameData, cropBox, message.metadata);
 
           if (cropped !== frameData) {
             dataToSend = cropped;
@@ -1101,7 +1108,7 @@ class StreamServerStandalone {
             }
           }
         } catch {
-          dataToSend = frameData;
+          dataToSend = isStatic ? frameData : (compressedData || frameData);
         }
       }
 
@@ -1178,7 +1185,12 @@ class StreamServerStandalone {
     }
   }
 
-  private sendStatus(ws: WebSocket, session: string, clientState?: ClientState): void {
+  private sendStatus(
+    ws: WebSocket,
+    session: string,
+    clientState?: ClientState,
+    extra?: Record<string, unknown>
+  ): void {
     const connected = this.sessions.has(session);
     const sessionInfo = this.sessions.get(session);
     const message: Record<string, unknown> = {
@@ -1214,6 +1226,10 @@ class StreamServerStandalone {
 
     if (clientState?.degraded) {
       message.degraded = true;
+    }
+
+    if (extra) {
+      Object.assign(message, extra);
     }
 
     if (ws.readyState === WebSocket.OPEN) {

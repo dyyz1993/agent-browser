@@ -353,7 +353,7 @@ export async function startDaemon(_options?: { provider?: string }): Promise<voi
 
   const VIEW_SCAN_INTERVAL = 3000;
   const VIEW_SCAN_SELECTOR =
-    '[role="dialog"],[aria-modal="true"],dialog,[class*="modal"],[class*="popup"],[class*="pop-"],[class*="-pop"],[class*="overlay"],[class*="layer"],[class*="lightbox"],[class*="drawer"],[class*="mask"],[class*="sheet"],[class*="dialog"],[class*="tang"],[class*="pass-pop"],form';
+    '[role="dialog"],[aria-modal="true"],dialog,[class*="modal"],[class*="popup"],[class*="pop-"],[class*="-pop"],[class*="overlay"],[class*="layer"],[class*="lightbox"],[class*="drawer"],[class*="mask"],[class*="sheet"],[class*="dialog"],[class*="tang"],[class*="pass-pop"],form,nav,[role="navigation"],header,[role="banner"],aside,[role="complementary"],main,[role="main"],iframe';
   let lastViewsJson = '';
 
   setInterval(async () => {
@@ -367,30 +367,56 @@ export async function startDaemon(_options?: { provider?: string }): Promise<voi
 
       const result = await cdp.send('Runtime.evaluate', {
         expression: `(function() {
-          const sel = '${VIEW_SCAN_SELECTOR.replace(/'/g, "\\'")}';
-          const elList = Array.from(document.querySelectorAll(sel));
-          const vpW = window.innerWidth, vpH = window.innerHeight;
-          const candidates = [];
-          for (const el of elList) {
-            const r = el.getBoundingClientRect();
-            const s = window.getComputedStyle(el);
-            const cls = (typeof el.className === 'string' ? el.className : '').slice(0, 60);
+          var sel = '${VIEW_SCAN_SELECTOR.replace(/'/g, "\\'")}';
+          var elList = Array.from(document.querySelectorAll(sel));
+          var vpW = window.innerWidth, vpH = window.innerHeight;
+          var candidates = [];
+          for (var el of elList) {
+            var r = el.getBoundingClientRect();
+            var s = window.getComputedStyle(el);
+            var cls = (typeof el.className === 'string' ? el.className : '').slice(0, 60);
             if (r.width < 50 || r.height < 30) continue;
             if (r.width * r.height > vpW * vpH * 0.9) continue;
             if (r.bottom < 0 || r.top > vpH || r.right < 0 || r.left > vpW) continue;
             if (s.display === 'none' || s.visibility === 'hidden' || s.opacity === '0') continue;
-            candidates.push({ el, cls, rect: { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) }, tag: el.tagName, id: el.id || '' });
+            var idStr = el.id || '';
+            var lc = (cls + ' ' + idStr + ' ' + el.tagName).toLowerCase();
+            var type = 'container';
+            if (/captcha|verify|yanzheng|geetest|nc_|tc-|dun|yidun/.test(lc)) type = 'captcha';
+            else if (el.tagName === 'FORM' || /form/.test(lc)) type = 'form';
+            else if (/dialog|modal|popup|pop-|-pop|lightbox|drawer|sheet|overlay|mask|tang|pass-pop/.test(lc) || el.getAttribute('role') === 'dialog' || el.getAttribute('aria-modal') === 'true') type = 'dialog';
+            else if (el.tagName === 'NAV' || el.getAttribute('role') === 'navigation' || el.tagName === 'HEADER' || /nav|header|menu/.test(lc)) type = 'nav';
+            else if (el.tagName === 'ASIDE' || el.getAttribute('role') === 'complementary' || /sidebar|aside/.test(lc)) type = 'sidebar';
+            else if (el.tagName === 'IFRAME') type = 'iframe';
+            candidates.push({ el: el, cls: cls, rect: { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) }, tag: el.tagName, id: idStr, type: type });
           }
-          const results = [];
-          for (let i = 0; i < candidates.length; i++) {
-            let contained = false;
-            for (let j = 0; j < candidates.length; j++) {
+          var results = [];
+          for (var i = 0; i < candidates.length; i++) {
+            var contained = false;
+            for (var j = 0; j < candidates.length; j++) {
               if (i === j) continue;
               if (candidates[j].el.contains(candidates[i].el)) { contained = true; break; }
             }
-            if (!contained) results.push({ tag: candidates[i].tag, id: candidates[i].id, cls: candidates[i].cls, rect: candidates[i].rect });
+            if (!contained) results.push(candidates[i]);
           }
-          return JSON.stringify(results);
+          var filtered = [];
+          for (var i = 0; i < results.length; i++) {
+            var ri = results[i].rect;
+            var areaI = ri.width * ri.height;
+            var overlap = false;
+            for (var j = 0; j < results.length; j++) {
+              if (i === j) continue;
+              var rj = results[j].rect;
+              var areaJ = rj.width * rj.height;
+              var ix = Math.max(ri.x, rj.x), iy = Math.max(ri.y, rj.y);
+              var ax = Math.min(ri.x + ri.width, rj.x + rj.width), ay = Math.min(ri.y + ri.height, rj.y + rj.height);
+              if (ix >= ax || iy >= ay) continue;
+              var overlapArea = (ax - ix) * (ay - iy);
+              if (overlapArea / areaI > 0.5 && areaJ > areaI) { overlap = true; break; }
+            }
+            if (!overlap) filtered.push({ tag: results[i].tag, id: results[i].id, cls: results[i].cls, rect: results[i].rect, type: results[i].type });
+          }
+          return JSON.stringify(filtered);
         })()`,
         returnByValue: true,
         awaitPromise: true,
@@ -403,14 +429,15 @@ export async function startDaemon(_options?: { provider?: string }): Promise<voi
         return;
       }
       const raw = result.result.value;
-      const views: Array<{ tag: string; id: string; cls: string; rect: { x: number; y: number; width: number; height: number } }> = JSON.parse(raw);
+      const views: Array<{ tag: string; id: string; cls: string; rect: { x: number; y: number; width: number; height: number }; type: string }> = JSON.parse(raw);
       if (views.length > 0) {
-        console.log('[Daemon] View scan found ' + views.length + ' elements:', views.map(v => v.id || v.cls || v.tag).join(', '));
+        console.log('[Daemon] View scan found ' + views.length + ' elements:', views.map(v => v.type + ':' + (v.id || v.cls || v.tag)).join(', '));
       }
 
       const viewInfos = views.map((e, i) => ({
         id: 'el-' + i + '-' + (e.id || e.tag),
         label: e.id || e.cls || e.tag,
+        type: e.type,
         rect: e.rect,
       }));
       const json = JSON.stringify(viewInfos);

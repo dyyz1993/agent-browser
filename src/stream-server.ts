@@ -541,9 +541,9 @@ export class StreamServer {
       try {
         await this.browser.startScreencast((frame) => this.broadcastFrame(frame), {
           format: 'jpeg',
-          quality: 80,
-          maxWidth: 1280,
-          maxHeight: 720,
+          quality: 90,
+          maxWidth: 1920,
+          maxHeight: 1080,
           everyNthFrame: 1,
         });
       } catch (startError) {
@@ -932,9 +932,9 @@ export class StreamServerProxy {
 
       await this.browser.startScreencast((frame) => this.sendFrame(frame), {
         format: 'jpeg',
-        quality: 80,
-        maxWidth: 1280,
-        maxHeight: 720,
+        quality: 90,
+        maxWidth: 1920,
+        maxHeight: 1080,
         everyNthFrame: 1,
       });
     } catch (error) {

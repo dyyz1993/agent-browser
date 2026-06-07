@@ -10,8 +10,8 @@ describe('Mobile input mode - injected focus listener', () => {
   let browserCode: string;
 
   beforeAll(() => {
-    viewerScript = fs.readFileSync(path.join(__dirname, '../viewer-script.ts'), 'utf-8');
-    viewerHtml = fs.readFileSync(path.join(__dirname, '../viewer-html.ts'), 'utf-8');
+    viewerScript = fs.readFileSync(path.join(__dirname, '../viewer/app.js'), 'utf-8');
+    viewerHtml = fs.readFileSync(path.join(__dirname, '../viewer/styles.css'), 'utf-8') + fs.readFileSync(path.join(__dirname, '../viewer/index.html'), 'utf-8');
     standaloneCode = fs.readFileSync(
       path.join(__dirname, '../stream-server-standalone.ts'),
       'utf-8'
@@ -70,23 +70,24 @@ describe('Mobile input mode - injected focus listener', () => {
   });
 
   it('touchpad is at bottom of screen on touch devices', () => {
-    // On touch devices, touchpad is at bottom (CSS dvh-based height) with visible styling
+    // Mobile mode activates touchpad via CSS class + JS position/zIndex
+    expect(viewerScript).toContain("classList.add('mobile-mode')");
     expect(viewerScript).toContain("touchpad.style.position = 'relative'");
-    expect(viewerScript).toContain("touchpad.style.display = 'flex'");
     expect(viewerScript).toContain('touchpad.style.zIndex');
-    expect(viewerScript).toContain('touchpad.style.background');
+    expect(viewerHtml).toContain('#touchpad');
   });
 
   it('touchpad has visible styling on mobile (not transparent)', () => {
-    // Touchpad should be visible with gradient background
-    expect(viewerScript).toContain('touchpad.style.background');
-    expect(viewerScript).toContain('touchpad.style.borderTop');
+    // Touchpad visible styling is in CSS (gradient background, border-top)
+    expect(viewerHtml).toContain('#touchpad');
+    expect(viewerHtml).toContain('background');
+    expect(viewerHtml).toContain('border-top');
   });
 
   it('touchpad is visible at bottom on touch devices', () => {
-    // On touch devices, touchpad is at bottom with visible styling
+    // Mobile mode class + JS positioning; visible styling via CSS
+    expect(viewerScript).toContain("classList.add('mobile-mode')");
     expect(viewerScript).toContain("touchpad.style.position = 'relative'");
-    expect(viewerScript).toContain('touchpad.style.background');
     expect(viewerScript).toContain('touchpad.style.zIndex');
   });
 
@@ -159,8 +160,10 @@ describe('Mobile input mode - injected focus listener', () => {
     expect(emMatch).not.toBeNull();
     const emBlock = emMatch![0];
     expect(emBlock).toContain("cursor.style.display = 'none'");
+    expect(emBlock).toContain("classList.add('input-mode')");
     expect(emBlock).toContain('input-panel');
-    expect(emBlock).toContain("tp.style.display = 'none'");
+    // touchpad hiding is via CSS: body.input-mode #touchpad
+    expect(viewerHtml).toContain('body.input-mode #touchpad');
   });
 
   it('exitInputMode restores cursor, hides input-panel, clears field', () => {
@@ -407,9 +410,9 @@ describe('Browser injectFocusListener method', () => {
     expect(browserCode).toContain('injectFocusListener');
   });
 
-  it('uses exposeFunction for callback bridge', () => {
-    expect(browserCode).toContain('__agentBrowserInputEvent');
-    expect(browserCode).toContain('exposeFunction');
+  it('uses Runtime.addBinding for callback bridge', () => {
+    expect(browserCode).toContain('Runtime.addBinding');
+    expect(browserCode).toContain('__abInputEvent');
   });
 
   it('uses addInitScript or evaluateOnNewDocument for injection', () => {
@@ -548,7 +551,7 @@ describe('Daemon pre-validation: type/action field normalization (Bug fix)', () 
 
   it('viewer sends messages with type field (not action)', () => {
     // Viewer uses 'type' for message routing
-    const viewerScript = fs.readFileSync(path.join(__dirname, '../viewer-script.ts'), 'utf-8');
+    const viewerScript = fs.readFileSync(path.join(__dirname, '../viewer/app.js'), 'utf-8');
     expect(viewerScript).toMatch(/type:\s*['"]input_fill['"]/);
     expect(viewerScript).toMatch(/type:\s*['"]input_blur_element['"]/);
   });
@@ -561,5 +564,44 @@ describe('Daemon pre-validation: type/action field normalization (Bug fix)', () 
   it('standalone forwards viewer messages as-is (preserves type field)', () => {
     // handleClientMessage forwards the raw message object from viewer
     expect(standaloneCode).toContain('JSON.stringify(message)');
+  });
+});
+
+describe('Viewer CSS integrity', () => {
+  let viewerHtml: string;
+
+  beforeAll(() => {
+    viewerHtml = fs.readFileSync(path.join(__dirname, '../viewer/styles.css'), 'utf-8') + fs.readFileSync(path.join(__dirname, '../viewer/index.html'), 'utf-8');
+  });
+
+  it('CSS braces are balanced (no stray closing braces)', () => {
+    const cssMatches = viewerHtml.match(/\{[^{}]*\}/g);
+    expect(cssMatches).not.toBeNull();
+    const opens = (viewerHtml.match(/\{/g) || []).length;
+    const closes = (viewerHtml.match(/\}/g) || []).length;
+    expect(opens).toBe(closes);
+  });
+
+  it('input-panel CSS rules are present and correct', () => {
+    expect(viewerHtml).toContain('#input-panel { display: none');
+    expect(viewerHtml).toContain('body.input-mode #input-panel { display: flex');
+    expect(viewerHtml).toContain('body.input-mode #touchpad { display: none');
+  });
+});
+
+describe('enterInputMode variable integrity', () => {
+  let viewerScript: string;
+
+  beforeAll(() => {
+    viewerScript = fs.readFileSync(path.join(__dirname, '../viewer/app.js'), 'utf-8');
+  });
+
+  it('enterInputMode defines ip variable before using it in keyboardVvHandler', () => {
+    const fnMatch = viewerScript.match(
+      /function enterInputMode[\s\S]*?function exitInputMode/
+    );
+    expect(fnMatch).not.toBeNull();
+    const fnBody = fnMatch![0];
+    expect(fnBody).toContain("var ip = document.getElementById('input-panel')");
   });
 });

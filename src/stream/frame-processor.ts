@@ -11,8 +11,8 @@ export interface StreamStateConfig {
 
 export const STATE_CONFIGS: Record<StreamState, StreamStateConfig> = {
   user_interacting: { format: 'jpeg', quality: 80, maxFps: 60, scale: 0.6 },
-  screen_moving: { format: 'jpeg', quality: 75, maxFps: 8, scale: 0.8 },
-  static: { format: 'jpeg', quality: 80, maxFps: 2, scale: 1 },
+  screen_moving: { format: 'jpeg', quality: 75, maxFps: 8, scale: 0.7 },
+  static: { format: 'jpeg', quality: 90, maxFps: 2, scale: 1 },
 };
 
 export type StateChangeCallback = (newState: StreamState, previousState: StreamState) => void;
@@ -156,7 +156,7 @@ export interface CropConfig {
 
 export class FrameProcessor {
   private readonly screencastFormat: 'jpeg' | 'png' = 'jpeg';
-  private readonly screencastQuality: number = 80;
+  private readonly screencastQuality: number = 90;
 
   async process(
     data: string,
@@ -242,7 +242,6 @@ export async function cropFrameForElement(
 
   return sharp(frameData)
     .extract({ left, top, width: w, height: h })
-    .resize(box.width, box.height)
-    .jpeg({ quality: 80 })
+    .jpeg({ quality: 95 })
     .toBuffer();
 }

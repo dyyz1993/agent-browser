@@ -125,7 +125,7 @@ describe('Inline viewer script - pattern verification', () => {
   let script: string;
 
   beforeAll(() => {
-    const srcPath = path.join(__dirname, '../viewer-script.ts');
+    const srcPath = path.join(__dirname, '../viewer/app.js');
     const srcContent = fs.readFileSync(srcPath, 'utf-8');
 
     // Extract buildViewerScript function body to find inline template

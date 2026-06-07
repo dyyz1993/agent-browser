@@ -7,7 +7,7 @@ describe('Mobile input message format - TDD', () => {
   let daemonCode: string;
 
   beforeAll(() => {
-    viewerScript = fs.readFileSync(path.join(__dirname, '../viewer-script.ts'), 'utf-8');
+    viewerScript = fs.readFileSync(path.join(__dirname, '../viewer/app.js'), 'utf-8');
     daemonCode = fs.readFileSync(path.join(__dirname, '../daemon.ts'), 'utf-8');
   });
 
@@ -36,7 +36,7 @@ describe('Mobile input message format - TDD', () => {
       expect(emMatch).not.toBeNull();
       const block = emMatch![0];
       expect(block).toContain("getElementById('input-panel')");
-      expect(block).toMatch(/ip\.style\.display\s*=\s*['"]flex['"]/);
+      expect(block).toContain("classList.add('input-mode')");
     });
 
     it('enterInputMode hides #cursor', () => {
@@ -50,7 +50,7 @@ describe('Mobile input message format - TDD', () => {
       const emMatch = viewerScript.match(/function enterInputMode[\s\S]*?^    \}/m);
       expect(emMatch).not.toBeNull();
       const block = emMatch![0];
-      expect(block).toMatch(/tp\.style\.display\s*=\s*['"]none['"]/);
+      expect(block).toContain("classList.add('input-mode')");
     });
 
     it('enterInputMode pre-fills field with initialValue', () => {
@@ -137,7 +137,7 @@ describe('Mobile input message format - TDD', () => {
       const exMatch = viewerScript.match(/function exitInputMode[\s\S]*?^    \}/m);
       expect(exMatch).not.toBeNull();
       const block = exMatch![0];
-      expect(block).toMatch(/ip\.style\.display\s*=\s*['"]none['"]/);
+      expect(block).toContain("classList.remove('input-mode')");
     });
 
     it('exitInputMode shows cursor again', () => {
@@ -151,9 +151,7 @@ describe('Mobile input message format - TDD', () => {
       const exMatch = viewerScript.match(/function exitInputMode[\s\S]*?^    \}/m);
       expect(exMatch).not.toBeNull();
       const block = exMatch![0];
-      expect(block).toMatch(
-        /tp\.style\.display\s*=\s*DeviceMode\.current\s*===\s*['"]mobile['"]\s*\?\s*['"]flex['"]\s*:\s*['"]none['"]/
-      );
+      expect(block).toContain("classList.remove('input-mode')");
     });
 
     it('exitInputMode sends input_blur_element to daemon', () => {

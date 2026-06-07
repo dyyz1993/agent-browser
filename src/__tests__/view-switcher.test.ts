@@ -7,8 +7,8 @@ describe('View Switcher — viewer script', () => {
   let viewerHtml: string;
 
   beforeAll(() => {
-    viewerScript = fs.readFileSync(path.join(__dirname, '../viewer-script.ts'), 'utf-8');
-    viewerHtml = fs.readFileSync(path.join(__dirname, '../viewer-html.ts'), 'utf-8');
+    viewerScript = fs.readFileSync(path.join(__dirname, '../viewer/app.js'), 'utf-8');
+    viewerHtml = fs.readFileSync(path.join(__dirname, '../viewer/styles.css'), 'utf-8') + fs.readFileSync(path.join(__dirname, '../viewer/index.html'), 'utf-8');
   });
 
   describe('State variables', () => {
@@ -110,6 +110,19 @@ describe('View Switcher — viewer script', () => {
       expect(match).toBeTruthy();
       expect(match![0]).toContain('viewportLocked = true');
     });
+
+    it('clears metadata.element when switching to main', () => {
+      const match = viewerScript.match(/function selectView[\s\S]*?^    \}/m);
+      expect(match).toBeTruthy();
+      expect(match![0]).toContain('metadata.element = undefined');
+    });
+
+    it('increments viewSwitchId and sends switchId', () => {
+      const match = viewerScript.match(/function selectView[\s\S]*?^    \}/m);
+      expect(match).toBeTruthy();
+      expect(match![0]).toContain('viewSwitchId++');
+      expect(match![0]).toContain('switchId: mySwitchId');
+    });
   });
 
   describe('generateThumbnails', () => {
@@ -145,6 +158,11 @@ describe('View Switcher — viewer script', () => {
       expect(viewerScript).toContain('viewSwitching = false');
     });
 
+    it('status handler validates switchId to discard stale status', () => {
+      expect(viewerScript).toContain('msg.switchId === viewSwitchId');
+      expect(viewerScript).toContain('msg.switchId === undefined');
+    });
+
     it('ws.onclose resets view state', () => {
       expect(viewerScript).toContain('viewportLocked = false');
       expect(viewerScript).toContain("activeViewId = 'main'");
@@ -165,7 +183,7 @@ describe('View Switcher — viewer HTML', () => {
   let viewerHtml: string;
 
   beforeAll(() => {
-    viewerHtml = fs.readFileSync(path.join(__dirname, '../viewer-html.ts'), 'utf-8');
+    viewerHtml = fs.readFileSync(path.join(__dirname, '../viewer/styles.css'), 'utf-8') + fs.readFileSync(path.join(__dirname, '../viewer/index.html'), 'utf-8');
   });
 
   it('has view-tabs container', () => {
@@ -242,6 +260,11 @@ describe('View Switcher — server side', () => {
 
     it('resends latest frame after view switch', () => {
       expect(standaloneCode).toMatch(/select_view[\s\S]*sendCroppedFrame/);
+    });
+
+    it('forwards switchId to sendStatus', () => {
+      expect(standaloneCode).toContain('message.switchId');
+      expect(standaloneCode).toContain('switchExtra');
     });
   });
 

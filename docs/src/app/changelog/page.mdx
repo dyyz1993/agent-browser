@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.31.70
+
+<p className="text-[#888] text-sm">June 7, 2026</p>
+
+### New Features
+
+- **View switcher** - Mobile viewer auto-detects modals/dialogs and shows a tab bar for switching between cropped views with thumbnail previews
+- **Mobile input panel** - Touch-friendly input panel with CJK/IME support and real-time value sync
+
+### Improvements
+
+- **Viewer frontend refactor** - Split CSS/JS/HTML into independent files with golden-snapshot verification
+- **State-aware frame compression** - Static frames at q90, interacting frames compressed for fluidity
+
+### Bug Fixes
+
+- **View switch race condition** - Fixed viewport not restoring on quick view switching via switchId stale-message discard
+- **Desktop input panel hidden**, touchpad event conflict, reconnection state sync fixes
+- Updated 10 stale test assertions to match refactored implementation
+
+---
+
 ## v0.31.14
 
 <p className="text-[#888] text-sm">June 5, 2026</p>

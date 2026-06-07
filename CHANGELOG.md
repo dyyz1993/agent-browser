@@ -1,8 +1,34 @@
 # agent-browser
 
-## 0.31.14
+## 0.31.70
 
 <!-- release:start -->
+### New Features
+
+- **View switcher** - The mobile viewer now auto-detects modals, dialogs, and embedded viewports on the page and shows a tab bar for switching between them. Each view is cropped and streamed independently with thumbnail previews.
+- **Mobile input panel** - Touch-friendly input panel with CJK/IME composition support, real-time value sync via `input_fill`, and automatic focus detection through a `Runtime.addBinding` callback bridge.
+
+### Improvements
+
+- **Viewer frontend refactor** - Split embedded CSS/JS/HTML template strings into independent files (`src/viewer/styles.css`, `app.js`, `index.html`) with golden-snapshot byte-identical verification, enabling IDE syntax checking and preventing regression.
+- **State-aware frame compression** - Static frames passthrough at high quality (q90, 1920x1080); interacting and moving frames compress (0.8x, q85) for fluidity. Crop always operates on the original frame to avoid secondary quality loss.
+- **Fullscreen screencast clarity** - Full-page view uses 1920x1080 at q90 for crisp readability.
+
+### Bug Fixes
+
+- **View switch race condition** - Fixed viewport size not restoring when quickly switching views back to main. A `switchId` mechanism now discards stale `status` messages from previous view selections, and `metadata.element` is cleared on switch-back to prevent click coordinate offset.
+- **Desktop input panel hidden** - Input panel and touchpad no longer appear on desktop devices.
+- **Touchpad event conflict** - `preventDefault` in touchpad `touchstart` no longer blocks child button clicks; added `contains()` guard.
+- **Reconnection state sync** - Viewer view state (`viewportLocked`, `viewSwitching`, `activeViewId`) properly resets on WebSocket reconnect.
+- **Test assertion sync** - Updated 10 stale test assertions to match the refactored implementation (CSS-class-based touchpad visibility, `Runtime.addBinding` callback bridge, UA-based device detection).
+
+### Contributors
+
+- @xuyingzhou
+<!-- release:end -->
+
+## 0.31.14
+
 ### New Features
 
 - **Native CLI by default** - The npm package now defaults to the native Rust/CDP CLI path and no longer publishes or installs the old TypeScript/Playwright runtime. The package manifest and lockfile no longer include `playwright-core`.
@@ -19,7 +45,6 @@
 
 - @xuyingzhou
 - @ctate
-<!-- release:end -->
 
 ## 0.27.1
 

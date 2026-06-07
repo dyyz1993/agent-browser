@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent Browser Viewer</title>
+  <style>
+{{STYLES}}
+  </style>
+</head>
+<body>
+  <div class="disconnected-page" id="disconnectedPage">
+    <div class="disconnected-icon" id="disconnectedIcon">&#x1F4CF;&#xFE0F;</div>
+    <div class="disconnected-title" id="disconnectedTitle">Disconnected</div>
+    <div class="disconnected-desc" id="disconnectedDesc">The browser session has ended.</div>
+    <div class="disconnected-hint" id="disconnectedHint">Please start a new browser session to continue.</div>
+  </div>
+
+  <div class="toolbar">
+    <div class="status">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">Connecting...</span>
+    </div>
+    <input type="text" class="url-display" id="urlDisplay" readonly placeholder="No page loaded">
+    <div class="quality-badge" id="qualityBadge">--</div>
+    <button class="mode-btn" id="modeBtn" title="Switch interaction mode">
+      <span id="modeText">Desktop</span>
+    </button>
+    <button class="record-btn" id="recordBtn" title="Toggle Recording">
+      <div class="record-dot"></div>
+      <span id="recordText">Record</span>
+    </button>
+  </div>
+  
+  <div class="view-tabs" id="viewTabs"></div>
+  <div class="view-tip" id="viewTip"></div>
+
+  <div class="viewport">
+    <div class="connecting" id="connecting">
+      <div class="connecting-card">
+        <div class="connecting-icon" id="connectingIcon">&#x1F4CF;&#xFE0F;</div>
+        <div class="spinner" id="connectingSpinner" style="display:none;"></div>
+        <div class="connecting-text" id="connectingText">Connecting to browser...</div>
+        <div class="connecting-text-hint" id="connectingHint"></div>
+      </div>
+    </div>
+    <div class="screen-container" id="screenContainer">
+      <img id="screen" style="display: none;" draggable="false">
+      <div id="cursor"></div>
+    </div>
+  </div>
+
+  <div id="input-panel" style="position:fixed;left:0;right:0;bottom:0;z-index:9999;padding:6px 12px;padding-bottom:calc(6px + env(safe-area-inset-bottom,0px));background:rgba(255,255,255,0.95);border-top:1px solid #eee;box-sizing:border-box;flex-direction:column;">
+    <div id="input-target" style="color:#999;font-size:11px;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">target: --</div>
+    <div style="display:flex;gap:8px;align-items:center;width:100%;">
+      <input id="input-field" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="..."
+        style="flex:1;min-width:0;height:36px;border:1px solid #dcdcdc;border-radius:18px;padding:0 14px;font-size:16px;outline:none;background:#fff;color:#333;" />
+      <button id="input-send" style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:#4285F4;color:#fff;border:none;border-radius:50%;cursor:pointer;padding:0;flex-shrink:0;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
+  </div>
+  
+  <div id="touchpad">
+    <div class="touchpad-toolbar collapsed" id="touchpadToolbar">
+      <button class="tpk-btn tpk-key" data-key="Tab" data-code="Tab" title="Tab">
+        <svg viewBox="0 0 24 24"><path d="M3 21V3h2v18H3z M21 12H7l4-4M7 12l4 4"/></svg>
+      </button>
+      <button class="tpk-btn tpk-key" data-key="ArrowLeft" data-code="ArrowLeft" title="Left">
+        <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <button class="tpk-btn tpk-key" data-key="ArrowDown" data-code="ArrowDown" title="Down">
+        <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <button class="tpk-btn tpk-key" data-key="ArrowUp" data-code="ArrowUp" title="Up">
+        <svg viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>
+      </button>
+      <button class="tpk-btn tpk-key" data-key="ArrowRight" data-code="ArrowRight" title="Right">
+        <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+      <button class="tpk-btn tpk-key" data-key="Enter" data-code="Enter" title="Enter">
+        <svg viewBox="0 0 24 24"><path d="M7 13l5 5 5-5M12 18V6"/><line x1="5" y1="21" x2="19" y2="21"/></svg>
+      </button>
+      <button class="tpk-btn tpk-key" data-key="Backspace" data-code="Backspace" title="Backspace">
+        <svg viewBox="0 0 24 24"><path d="M21 4H8l-7 8 7 8h13a2 2 0 002-2V6a2 2 0 00-2-2z"/><line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/></svg>
+      </button>
+      <button class="tpk-btn tpk-key" data-key="Escape" data-code="Escape" title="Esc">
+        <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+      <button class="tpk-btn tpk-toggle tpk-expand" id="tpkExpand" title="More">
+        <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <button class="tpk-btn tpk-toggle tpk-collapse" id="tpkCollapse" title="Less">
+        <svg viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>
+      </button>
+    </div>
+    <div class="touchpad-body">
+      <div class="touchpad-hint" id="touchpadHint">Touchpad: move / long-press drag / two-finger scroll</div>
+      <div id="modeBadge" style="display:none;color:#fff;font-size:12px;padding:3px 10px;border-radius:4px;pointer-events:none;font-weight:bold;"></div>
+    </div>
+  </div>
+
+  <script>
+{{SCRIPT}}
+  </script>
+</body>
+</html>
